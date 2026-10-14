@@ -39,7 +39,18 @@ from src.core.modules.project_management.api.desktop.projects.utils.project_util
     coerce_project_status,
     optional_date,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.commands.create import (
+    ProjectCreateHandler,
+)
+from src.core.modules.project_management.application.projects.commands.deletion import (
+    ProjectDeletionHandler,
+)
+from src.core.modules.project_management.application.projects.commands.status import (
+    ProjectStatusHandler,
+)
+from src.core.modules.project_management.application.projects.commands.update import (
+    ProjectUpdateHandler,
+)
 from src.core.modules.project_management.application.projects.dto import (
     ProjectCreateCommand,
     ProjectResourceAssignCommand,
@@ -50,38 +61,39 @@ from src.core.modules.project_management.application.projects.queries.project_qu
     ProjectQueryHandler,
 )
 from src.core.modules.project_management.application.resources import (
-    ProjectResourceService,
+    ProjectResourceCommandHandler,
+    ProjectResourceQueryHandler,
     ResourceQueryHandler,
 )
 from src.core.platform.application.master_data.department import (
     DepartmentQueryHandler,
 )
 from src.core.platform.application.master_data.site import SiteQueryHandler
-from src.core.platform.application.tenant.modules.authorization import (
-    require_module_enabled,
-)
 from src.core.platform.common.exceptions import UnsupportedOperationError
-from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
-    SupportsModuleEntitlements,
-)
 
 
 class ProjectManagementProjectsDesktopApi:
     def __init__(
         self,
         *,
-        project_service: ProjectService | None = None,
+        project_create: ProjectCreateHandler | None = None,
+        project_update: ProjectUpdateHandler | None = None,
+        project_status: ProjectStatusHandler | None = None,
+        project_deletion: ProjectDeletionHandler | None = None,
         project_query: ProjectQueryHandler | None = None,
-        module_catalog_service: SupportsModuleEntitlements | None = None,
-        project_resource_service: ProjectResourceService | None = None,
+        project_resource_query: ProjectResourceQueryHandler | None = None,
+        project_resource_commands: ProjectResourceCommandHandler | None = None,
         resource_query: ResourceQueryHandler | None = None,
         site_query: SiteQueryHandler | None = None,
         department_query: DepartmentQueryHandler | None = None,
     ) -> None:
-        self._project_service = project_service
+        self._project_create = project_create
+        self._project_update = project_update
+        self._project_status = project_status
+        self._project_deletion = project_deletion
         self._project_query = project_query
-        self._module_catalog_service = module_catalog_service
-        self._project_resource_service = project_resource_service
+        self._project_resource_query = project_resource_query
+        self._project_resource_commands = project_resource_commands
         self._resource_service = resource_query
         self._site_query = site_query
         self._department_query = department_query
@@ -259,7 +271,9 @@ class ProjectManagementProjectsDesktopApi:
         )
 
     def create_project(self, command: ProjectCreateCommand) -> ProjectDesktopDto:
-        service = self._require_project_service()
+        if self._project_create is None:
+            raise UnsupportedOperationError("Project creation is not connected.")
+        service = self._project_create
         project = service.create_project(
             name=command.name,
             code=command.code,
@@ -283,7 +297,9 @@ class ProjectManagementProjectsDesktopApi:
         )
 
     def update_project(self, command: ProjectUpdateCommand) -> ProjectDesktopDto:
-        service = self._require_project_service()
+        if self._project_update is None:
+            raise UnsupportedOperationError("Project updates are not connected.")
+        service = self._project_update
         project = service.update_project(
             command.project_id,
             expected_version=command.expected_version,
@@ -308,7 +324,9 @@ class ProjectManagementProjectsDesktopApi:
         )
 
     def set_project_status(self, project_id: str, status: str) -> ProjectDesktopDto:
-        service = self._require_project_service()
+        if self._project_status is None:
+            raise UnsupportedOperationError("Project status changes are not connected.")
+        service = self._project_status
         service.set_status(project_id, coerce_project_status(status))
         project = self._require_project_query().get_project(project_id)
         if project is None:
@@ -322,7 +340,9 @@ class ProjectManagementProjectsDesktopApi:
     def bulk_set_project_status(
         self, project_ids: tuple[str, ...], status: str
     ) -> tuple[ProjectDesktopDto, ...]:
-        service = self._require_project_service()
+        if self._project_status is None:
+            raise UnsupportedOperationError("Project status changes are not connected.")
+        service = self._project_status
         service.bulk_set_status(project_ids, coerce_project_status(status))
         site_lookup = self._site_lookup()
         department_lookup = self._department_lookup()
@@ -335,16 +355,18 @@ class ProjectManagementProjectsDesktopApi:
         return tuple(results)
 
     def delete_project(self, project_id: str) -> None:
-        self._require_project_service().delete_project(project_id)
+        if self._project_deletion is None:
+            raise UnsupportedOperationError("Project deletion is not connected.")
+        self._project_deletion.delete_project(project_id)
 
     # ── Project resources ─────────────────────────────────────────────────────
 
     def list_project_resources(self, project_id: str) -> tuple[ProjectResourceDesktopDto, ...]:
         normalized_id = str(project_id or "").strip()
-        if not normalized_id or self._project_resource_service is None:
+        if not normalized_id or self._project_resource_query is None:
             return ()
         list_by_project = getattr(
-            self._project_resource_service,
+            self._project_resource_query,
             "list_for_project_workspace",
             None,
         )
@@ -420,7 +442,7 @@ class ProjectManagementProjectsDesktopApi:
             raise ValueError("Project ID is required to assign a resource.")
         if not normalized_resource_id:
             raise ValueError("Resource selection is required.")
-        service = self._require_project_resource_service()
+        service = self._require_project_resource_commands()
         add_fn = getattr(service, "add_to_project", None) or getattr(service, "create", None)
         if not callable(add_fn):
             raise UnsupportedOperationError("Project resource service does not support project assignment.")
@@ -442,7 +464,7 @@ class ProjectManagementProjectsDesktopApi:
         normalized_id = str(command.project_resource_id or "").strip()
         if not normalized_id:
             raise ValueError("Project resource ID is required.")
-        service = self._require_project_resource_service()
+        service = self._require_project_resource_commands()
         update = getattr(service, "update", None)
         if not callable(update):
             raise UnsupportedOperationError("Project resource service does not support updates.")
@@ -457,9 +479,9 @@ class ProjectManagementProjectsDesktopApi:
 
     def get_project_resource_usage(self, project_resource_id: str) -> ProjectResourceUsageDesktopDto | None:
         normalized_id = str(project_resource_id or "").strip()
-        if not normalized_id or self._project_resource_service is None:
+        if not normalized_id or self._project_resource_query is None:
             return None
-        get_usage = getattr(self._project_resource_service, "get_usage", None)
+        get_usage = getattr(self._project_resource_query, "get_usage", None)
         if not callable(get_usage):
             return None
         fact = get_usage(normalized_id)
@@ -469,7 +491,7 @@ class ProjectManagementProjectsDesktopApi:
         normalized_id = str(project_resource_id or "").strip()
         if not normalized_id:
             raise ValueError("Project resource ID is required.")
-        service = self._require_project_resource_service()
+        service = self._require_project_resource_commands()
         delete = getattr(service, "delete", None)
         if not callable(delete):
             raise UnsupportedOperationError("Project resource service does not support deletion.")
@@ -477,25 +499,15 @@ class ProjectManagementProjectsDesktopApi:
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
-    def _require_project_service(self) -> ProjectService:
-        if self._project_service is None:
-            raise UnsupportedOperationError("Project management projects desktop API is not connected.")
-        return self._project_service
-
     def _require_project_query(self) -> ProjectQueryHandler:
         if self._project_query is None:
             raise UnsupportedOperationError("Project management projects query is not connected.")
-        require_module_enabled(
-            self._module_catalog_service,
-            "project_management",
-            operation_label="view projects",
-        )
         return self._project_query
 
-    def _require_project_resource_service(self) -> ProjectResourceService:
-        if self._project_resource_service is None:
+    def _require_project_resource_commands(self) -> ProjectResourceCommandHandler:
+        if self._project_resource_commands is None:
             raise UnsupportedOperationError("Project management project-resource desktop API is not connected.")
-        return self._project_resource_service
+        return self._project_resource_commands
 
     def _site_lookup(self) -> dict[str, str]:
         if self._site_query is None:

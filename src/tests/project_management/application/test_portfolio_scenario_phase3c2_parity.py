@@ -21,7 +21,7 @@ def _assign(
     resource_id: str,
     allocation: float,
 ) -> None:
-    project_resource = services["project_resource_service"].add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project_id=project_id,
         resource_id=resource_id,
         planned_hours=40.0,

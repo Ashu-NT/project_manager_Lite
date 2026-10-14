@@ -9,6 +9,9 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common import (
     project_resource_envelope_policy as envelope_policy,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.contracts.reads.projects.models import (
     ProjectResourceUsageFact,
 )
@@ -27,7 +30,7 @@ from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class ProjectResourceQueryHandler:
+class ProjectResourceQueryHandler(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
@@ -35,11 +38,13 @@ class ProjectResourceQueryHandler:
         task_repo: TaskRepository | None,
         assignment_repo: AssignmentRepository | None,
         user_session: UserSessionContext | None,
+        module_catalog_service=None,
     ) -> None:
         self._project_resource_repo = project_resource_repo
         self._task_repo = task_repo
         self._assignment_repo = assignment_repo
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def list_by_project(self, project_id: str) -> list[ProjectResource]:
         require_permission(

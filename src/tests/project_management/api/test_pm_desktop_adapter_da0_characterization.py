@@ -98,7 +98,7 @@ def test_da5_schedule_impact_entry_points_share_baseline_decision() -> None:
     )
     task_result = ProjectManagementTasksDesktopApi(
         task_service=task_service,
-        schedule_change_impact_service=impact_service,
+        schedule_change_impact_query=impact_service,
     ).preview_task_schedule_impact("task-1", "project-1")
 
     assert impact_service.has_baseline_values == [True, True]
@@ -142,7 +142,7 @@ def test_da1_project_manager_queries_project_resources_without_resource_read(ser
         name="Scoped Planner",
         role="Planner",
     )
-    membership = services["project_resource_service"].add_to_project(
+    membership = services["project_resource_commands"].add_to_project(
         project_id=project.id,
         resource_id=resource.id,
     )
@@ -163,7 +163,7 @@ def test_da1_project_manager_queries_project_resources_without_resource_read(ser
     )
 
     resources = services["resource_query"].list_for_project_workspace(project.id)
-    memberships = services["project_resource_service"].list_for_project_workspace(project.id)
+    memberships = services["project_resource_query"].list_for_project_workspace(project.id)
 
     assert [row.id for row in resources] == [resource.id]
     assert [row.id for row in memberships] == [membership.id]
@@ -176,7 +176,7 @@ def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> 
         name="Task Planner",
         role="Planner",
     )
-    membership = services["project_resource_service"].add_to_project(
+    membership = services["project_resource_commands"].add_to_project(
         project_id=project.id,
         resource_id=resource.id,
     )
@@ -197,7 +197,7 @@ def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> 
     )
 
     projects = services["project_service"].list_for_task_workspace()
-    memberships = services["project_resource_service"].list_for_task_workspace(project.id)
+    memberships = services["project_resource_query"].list_for_task_workspace(project.id)
     resources = services["resource_query"].list_for_task_workspace(
         resource_ids=(resource.id,),
     )
@@ -360,7 +360,7 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
     project_row = serialize_project_resource(project_resource, resource_by_id=resource)
     task_options = build_project_resource_options(
         "project-1",
-        project_resource_service=SimpleNamespace(
+        project_resource_query=SimpleNamespace(
             list_for_task_workspace=lambda _project_id: (project_resource,)
         ),
         resource_query=SimpleNamespace(
@@ -415,7 +415,7 @@ def test_da0_characterizes_assignment_preview_formula_and_per_conflict_lookup() 
             get_task=_get_task,
             preview_assignment_capacity=lambda *args, **kwargs: fact,
         ),
-        project_resource_service=SimpleNamespace(
+        project_resource_query=SimpleNamespace(
             get=lambda _project_resource_id: SimpleNamespace(resource_id="resource-1")
         ),
         assignment_skill_validator=None,
@@ -455,7 +455,7 @@ def test_da0_assignment_preview_omits_conflict_names_outside_authorized_project_
             get_task=_get_task,
             preview_assignment_capacity=lambda *args, **kwargs: fact,
         ),
-        project_resource_service=SimpleNamespace(
+        project_resource_query=SimpleNamespace(
             get=lambda _project_resource_id: SimpleNamespace(resource_id="resource-1")
         ),
         assignment_skill_validator=None,

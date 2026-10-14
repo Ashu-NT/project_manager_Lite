@@ -36,7 +36,7 @@ PATH_REWRITE_EXACT = {
     "core/services/cost/__init__.py": "src/core/modules/project_management/application/financials/__init__.py",
     "core/services/cost/query.py": "src/core/modules/project_management/application/financials/queries/cost_query.py",
     "core/services/finance/__init__.py": "src/core/modules/project_management/application/financials/__init__.py",
-    "core/services/finance/service.py": "src/core/modules/project_management/application/financials/finance_service.py",
+    "core/services/finance/service.py": "src/core/modules/project_management/application/financials/finance_snapshot_query.py",
     "core/services/import_service/__init__.py": "src/core/modules/project_management/infrastructure/importers/__init__.py",
     "core/services/import_service/execution.py": "src/core/modules/project_management/infrastructure/importers/projects/csv/project_csv_importer.py",
     "core/services/import_service/models.py": "src/core/modules/project_management/infrastructure/importers/models/__init__.py",
@@ -305,7 +305,7 @@ PATH_REWRITE_PREFIXES = (
     ("core/services/portfolio/", "src/core/modules/project_management/application/projects/"),
     (
         "core/services/project/resource_service.py",
-        "src/core/modules/project_management/application/resources/project_resources/project_resource_service.py",
+        "src/core/modules/project_management/application/resources/project_resources/project_resource_query.py",
     ),
     ("core/services/project/", "src/core/modules/project_management/application/projects/"),
     ("core/services/register/", "src/core/modules/project_management/application/risk/"),

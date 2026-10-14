@@ -45,7 +45,7 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
         rate_currency="USD",
         resource_id=resource.id,
     )
-    project_resource = services["project_resource_service"].add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=hourly_rate, currency_code="USD",
         planned_hours=planned_hours,
     )
@@ -123,7 +123,7 @@ def test_shrinking_envelope_below_allocated_total_is_rejected(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
     _allocate(services, ctx, Decimal(30))
     with pytest.raises(BusinessRuleError) as exc:
-        services["project_resource_service"].update(
+        services["project_resource_commands"].update(
             ctx["project_resource"].id,
             hourly_rate=ctx["project_resource"].hourly_rate,
             currency_code=ctx["project_resource"].currency_code,
@@ -132,7 +132,7 @@ def test_shrinking_envelope_below_allocated_total_is_rejected(services) -> None:
         )
     assert exc.value.code == "PROJECT_RESOURCE_ENVELOPE_BELOW_ALLOCATIONS"
     # Shrinking to exactly the allocated total is allowed.
-    services["project_resource_service"].update(
+    services["project_resource_commands"].update(
         ctx["project_resource"].id,
         hourly_rate=ctx["project_resource"].hourly_rate,
         currency_code=ctx["project_resource"].currency_code,

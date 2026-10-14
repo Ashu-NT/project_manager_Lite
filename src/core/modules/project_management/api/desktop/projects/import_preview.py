@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
+from src.core.modules.project_management.infrastructure.importers.models.import_models import (
+    ImportParser,
+    ImportPreviewModel,
+)
 from src.core.modules.project_management.infrastructure.importers.scheduling.mpp.mpp_parser import (
     MSProjectXmlParser,
 )
@@ -16,7 +22,7 @@ from src.core.modules.project_management.infrastructure.importers.utils.csv_pars
     CsvImportParser,
 )
 
-_PARSERS = {
+_PARSERS: dict[str, Callable[[], ImportParser]] = {
     "csv": CsvImportParser,
     "ms_project_xml": MSProjectXmlParser,
     "p6_xer": P6Parser,
@@ -57,7 +63,7 @@ def execute_import(
 ) -> dict[str, object]:
     normalized_id = (session_id or "").strip()
     preview = import_sessions.get(normalized_id)
-    if preview is None:
+    if not isinstance(preview, ImportPreviewModel):
         raise ValueError("Import session not found or expired. Please re-upload the file.")
     if not preview.can_commit:
         raise ValueError(

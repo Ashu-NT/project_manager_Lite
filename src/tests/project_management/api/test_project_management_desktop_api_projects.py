@@ -31,7 +31,11 @@ def test_project_management_projects_desktop_api_lists_statuses() -> None:
     assert statuses[2].label == "On Hold"
 
 
-def test_project_query_checks_module_entitlement_before_handler() -> None:
+def test_project_query_checks_module_entitlement_before_repository() -> None:
+    from src.core.modules.project_management.application.projects.queries.project_query import (
+        ProjectQueryHandler,
+    )
+
     catalog = SimpleNamespace(
         get_entitlement=lambda _code: SimpleNamespace(
             runtime_enabled=False,
@@ -39,9 +43,13 @@ def test_project_query_checks_module_entitlement_before_handler() -> None:
             lifecycle_status="inactive",
         )
     )
-    query = SimpleNamespace(list_projects=lambda: pytest.fail("query called"))
+    query = ProjectQueryHandler(
+        project_repo=SimpleNamespace(list=lambda: pytest.fail("repository called")),
+        project_catalog_reader=None, tenant_context_service=None,
+        user_session=None, module_catalog_service=catalog,
+    )
     api = build_project_management_projects_desktop_api(
-        project_query=query, module_catalog_service=catalog
+        project_query=query
     )
 
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
@@ -51,7 +59,8 @@ def test_project_query_checks_module_entitlement_before_handler() -> None:
 def test_project_management_projects_desktop_api_mutates_project_records() -> None:
     service = _FakeProjectService()
     api = build_project_management_projects_desktop_api(
-        project_service=service, project_query=service
+        project_create=service, project_update=service,
+        project_status=service, project_deletion=service, project_query=service
     )
 
     created = api.create_project(
@@ -105,7 +114,8 @@ def test_project_management_projects_desktop_api_get_project_by_id() -> None:
     """Resolves a single project by id through the desktop API."""
     service = _FakeProjectService()
     api = build_project_management_projects_desktop_api(
-        project_service=service, project_query=service
+        project_create=service, project_update=service,
+        project_status=service, project_deletion=service, project_query=service
     )
     created = api.create_project(
         ProjectCreateCommand(
@@ -131,7 +141,8 @@ def test_project_management_projects_desktop_api_get_project_by_id() -> None:
 def test_project_management_projects_desktop_api_get_project_missing_returns_none() -> None:
     service = _FakeProjectService()
     api = build_project_management_projects_desktop_api(
-        project_service=service, project_query=service
+        project_create=service, project_update=service,
+        project_status=service, project_deletion=service, project_query=service
     )
 
     assert api.get_project("does-not-exist") is None

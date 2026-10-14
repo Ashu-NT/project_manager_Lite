@@ -7,7 +7,7 @@ from src.core.modules.project_management.application.resources import (
     ResourceCapabilityCommandHandler,
     ResourceMasterCommandHandler,
     ResourceQueryHandler,
-    ResourceWorkloadService,
+    ResourceWorkloadQueryHandler,
 )
 from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
     ResourceContextQueryHandler,
@@ -30,7 +30,7 @@ def build_project_management_resources_desktop_api(
     resource_context_query: ResourceContextQueryHandler | None = None,
     module_catalog_service: SupportsModuleEntitlements | None = None,
     employee_query: EmployeeQueryHandler | None = None,
-    workload_service: ResourceWorkloadService | None = None,
+    workload_service: ResourceWorkloadQueryHandler | None = None,
     department_query: object | None = None,
     site_query: object | None = None,
 ) -> ProjectManagementResourcesDesktopApi:

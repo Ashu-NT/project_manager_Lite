@@ -5,7 +5,7 @@ overallocation validation.
 only place `capacity_percent` is applied this way; `ResourceCapacityCalculator` and the other
 resource calculators never multiply by it. Builds real, per-day existing/proposed
 committed-hours facts from actual TaskAssignment data. `ResourceLoadEngine` and
-`PortfolioResourcePoolService` remain distinct set-based projection tools for
+`PortfolioResourcePoolQueryHandler` remain distinct set-based projection tools for
 Dashboard/Scheduling KPIs and portfolio capacity -- this module answers a different question:
 whether one proposed assignment is capacity-safe.
 """

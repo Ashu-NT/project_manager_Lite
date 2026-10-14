@@ -12,8 +12,8 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 def test_capacity_reader_preserves_cross_project_demand_and_utilization(services) -> None:
     project_service = services["project_service"]
     task_service = services["task_service"]
-    project_resource_service = services["project_resource_service"]
-    pool_service = services["portfolio_resource_pool_service"]
+    services["project_resource_query"]
+    pool_service = services["portfolio_resource_pool_query"]
 
     resource = services["resource_master_commands"].create_resource(
         "Shared Capacity",
@@ -37,7 +37,7 @@ def test_capacity_reader_preserves_cross_project_demand_and_utilization(services
             start_date=date(2024, 1, 8),
             duration_days=5,
         )
-        project_resource = project_resource_service.add_to_project(
+        project_resource = services["project_resource_commands"].add_to_project(
             project_id=project.id,
             resource_id=resource.id,
             planned_hours=40.0,
@@ -78,7 +78,7 @@ def test_capacity_reader_preserves_cross_project_demand_and_utilization(services
 
 
 def test_capacity_reader_returns_empty_result_for_out_of_scope_resource_id(services) -> None:
-    report = services["portfolio_resource_pool_service"].get_pool_report(
+    report = services["portfolio_resource_pool_query"].get_pool_report(
         date(2024, 1, 8),
         date(2024, 1, 12),
         resource_ids=["outside-scope"],
@@ -90,7 +90,7 @@ def test_capacity_reader_returns_empty_result_for_out_of_scope_resource_id(servi
 def test_concrete_capacity_reader_excludes_other_organization_resources(services) -> None:
     seeded = _seed_priority_pm_rows(services)
 
-    report = services["portfolio_resource_pool_service"].get_pool_report(
+    report = services["portfolio_resource_pool_query"].get_pool_report(
         date(2024, 1, 8),
         date(2024, 1, 12),
     )

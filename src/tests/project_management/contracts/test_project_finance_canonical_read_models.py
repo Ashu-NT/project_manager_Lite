@@ -144,7 +144,7 @@ def _approved_controls(services):
 def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services) -> None:
     project, budget, forecast, _entry, _code = _approved_controls(services)
 
-    snapshot = services["finance_service"].get_finance_snapshot(
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 8, 31)
     )
 
@@ -182,7 +182,7 @@ def test_finance_excel_export_has_bounded_lineage_and_control_parity(
         _report_sources(services),
         project.id,
         output,
-        finance_service=services["finance_service"],
+        finance_snapshot_query=services["finance_snapshot_query"],
         as_of=date(2026, 8, 31),
         project_finance_ledger_offset=1,
         project_finance_ledger_limit=1,
@@ -261,7 +261,7 @@ def test_finance_pdf_export_uses_the_same_canonical_read_basis(
         project.id,
         output,
         temp_dir=tmp_path / "report-temp",
-        finance_service=services["finance_service"],
+        finance_snapshot_query=services["finance_snapshot_query"],
         as_of=date(2026, 8, 31),
         project_finance_ledger_limit=1,
     )
@@ -272,7 +272,7 @@ def test_finance_pdf_export_uses_the_same_canonical_read_basis(
 def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services) -> None:
     project, _budget, _forecast, _entry, _code = _approved_controls(services)
 
-    snapshot = services["finance_service"].get_finance_snapshot(
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 7, 31)
     )
 
@@ -302,7 +302,7 @@ def test_posted_reversal_nets_actual_without_rewriting_forecast(services) -> Non
         reason="Correct the test posting",
     )
 
-    snapshot = services["finance_service"].get_finance_snapshot(
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 9, 30)
     )
 
@@ -344,10 +344,10 @@ def test_as_of_selects_superseded_approved_forecast_version(services) -> None:
         second.id, approved_by="admin", expected_version=second.row_version
     )
 
-    august = services["finance_service"].get_finance_snapshot(
+    august = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 8, 31)
     )
-    september = services["finance_service"].get_finance_snapshot(
+    september = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 9, 30)
     )
 
@@ -437,7 +437,7 @@ def test_r6e_cost_phasing_boundaries_reconcile_exactly_and_preserve_as_of(servic
     assert forecast_availability.unphased_amount == Decimal("0.50")
     assert forecast_availability.phased_amount + forecast_availability.unphased_amount == Decimal("80.60")
 
-    snapshot = services["finance_service"].get_finance_snapshot(project.id, as_of=date(2026, 12, 31))
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(project.id, as_of=date(2026, 12, 31))
     snapshot_periods = {row.period_key: row for row in snapshot.cost_phasing}
     for key in ("2026-08", "2026-09", "2026-12"):
         assert snapshot_periods[key].actual == periods[key].posted_actual
@@ -477,7 +477,7 @@ def test_cost_phasing_historical_actual_does_not_query_current_rates(services, m
         date_to=date(2026, 8, 31),
     )
     rate_service.deactivate_rate_card(card.id, expected_version=card.version)
-    resolver = services["finance_service"]._labor._rate_resolver
+    resolver = services["finance_snapshot_query"]._labor._rate_resolver
     monkeypatch.setattr(
         resolver,
         "resolve_many",
@@ -497,7 +497,7 @@ def test_r6h_reporting_kpi_uses_the_requested_financial_as_of_date(services) -> 
     after = services["project_kpi_report"].get_project_kpis(project.id, as_of=date(2026, 8, 31))
     assert before.total_actual_cost == Decimal(0)
     assert after.total_actual_cost == Decimal(25)
-    snapshot = services["finance_service"].get_finance_snapshot(
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 8, 31),
     )
     assert after.total_actual_cost == snapshot.actual
@@ -559,7 +559,7 @@ def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) 
     phasing = performance.get_cost_phasing(
         project.id, date_from=date(2026, 8, 1), date_to=as_of, as_of_date=as_of
     )
-    snapshot = services["finance_service"].get_finance_snapshot(project.id, as_of=as_of)
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(project.id, as_of=as_of)
     report_evm = services["earned_value_report"].get_earned_value(project.id, as_of=as_of)
 
     assert evm.availability == "available"

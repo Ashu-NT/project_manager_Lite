@@ -13,8 +13,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import (
     CostType,
@@ -39,26 +39,26 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
 from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
     CalendarExceptionCommandHandler,
-)
-from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
-    CalendarExceptionQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
     RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
-    RecurringEventQueryHandler,
-)
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
-)
-from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
-    PlatformCalendarCommandHandler,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -374,7 +374,7 @@ def test_external_resource_uses_pm_resource_calendar(
     assignment_commands.assign_resource_calendar("res-jdoe", resource_cal.id)
 
     resource_repo = _make_resource_repo("res-jdoe", worker_type="EXTERNAL")
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     ctx = svc.get_availability("res-jdoe", target_date=date(2026, 6, 1))  # Monday
@@ -406,7 +406,7 @@ def test_resource_calendar_overrides_working_hours(
     assignment_commands.assign_resource_calendar("res-pt", resource_cal.id)
 
     resource_repo = _make_resource_repo("res-pt", worker_type="EXTERNAL")
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     ctx = svc.get_availability("res-pt", target_date=date(2026, 6, 1))
@@ -442,7 +442,7 @@ def test_resource_exception_vacation_unavailable(
     )
 
     resource_repo = _make_resource_repo("res-vacation", worker_type="EXTERNAL")
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     ctx = svc.get_availability("res-vacation", target_date=date(2026, 6, 1))

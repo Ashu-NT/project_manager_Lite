@@ -15,7 +15,7 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 )
 
 
-class EnterpriseResourceAvailabilityService:
+class ResourceAvailabilityQueryHandler:
     """
     Calendar-aware availability service for PM resources.
 
@@ -119,4 +119,4 @@ class EnterpriseResourceAvailabilityService:
         return "EXTERNAL", None, resource_id
 
 
-__all__ = ["EnterpriseResourceAvailabilityService"]
+__all__ = ["ResourceAvailabilityQueryHandler"]

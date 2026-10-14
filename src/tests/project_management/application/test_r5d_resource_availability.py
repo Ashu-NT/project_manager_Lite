@@ -38,7 +38,7 @@ def test_resource_workload_demand_fact_is_immutable() -> None:
 def test_resource_workload_reads_only_overlapping_assignment_demand(services) -> None:
     project_service = services["project_service"]
     task_service = services["task_service"]
-    workload_service = services["resource_workload_service"]
+    workload_service = services["resource_workload_query"]
     window_start = date.today() + timedelta(days=1)
     window_end = window_start + timedelta(days=6)
 
@@ -77,7 +77,7 @@ def test_resource_availability_rejects_invalid_and_unbounded_ranges(services) ->
         resource_query=services["resource_query"],
         resource_master_commands=services["resource_master_commands"],
         resource_capability_commands=services["resource_capability_commands"],
-        workload_service=services["resource_workload_service"],
+        workload_service=services["resource_workload_query"],
     )
 
     with pytest.raises(ValidationError) as invalid:
@@ -116,7 +116,7 @@ def test_resource_workload_requires_resource_read(services) -> None:
     )
     try:
         with pytest.raises(BusinessRuleError) as denied:
-            services["resource_workload_service"].read(
+            services["resource_workload_query"].read(
                 resource.id,
                 start_date=date.today(),
                 end_date=date.today() + timedelta(days=6),
@@ -137,7 +137,7 @@ def test_resource_workload_fails_closed_after_organization_switch(services) -> N
     services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError):
-            services["resource_workload_service"].read(
+            services["resource_workload_query"].read(
                 resource.id,
                 start_date=date.today(),
                 end_date=date.today() + timedelta(days=6),

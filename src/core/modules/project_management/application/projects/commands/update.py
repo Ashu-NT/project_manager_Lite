@@ -8,6 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.projects.commands.support import (
     ProjectSupportMixin,
     _diff_project_fields,
@@ -57,7 +60,7 @@ from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-class ProjectUpdateHandler(ProjectSupportMixin):
+class ProjectUpdateHandler(ProjectManagementModuleGuardMixin, ProjectSupportMixin):
     def __init__(
         self,
         *,
@@ -67,6 +70,7 @@ class ProjectUpdateHandler(ProjectSupportMixin):
         uow_factory: ProjectUnitOfWorkFactory,
         tenant_context_service: TenantContextService,
         user_session: UserSessionContext | None,
+        module_catalog_service=None,
         party_repo: PartyRepository | None,
         department_repo: DepartmentRepository | None,
     ) -> None:
@@ -76,6 +80,7 @@ class ProjectUpdateHandler(ProjectSupportMixin):
         self._uow_factory = uow_factory
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
         self._party_repo = party_repo
         self._department_repo = department_repo
 

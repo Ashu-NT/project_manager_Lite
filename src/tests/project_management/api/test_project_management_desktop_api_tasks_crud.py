@@ -7,10 +7,10 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.tests.project_management.api._fake_project_resource_services import (
+from src.tests.project_management.api._fake_task_service import _FakeTaskService
+from src.tests.project_management.api._project_resource_fakes import (
     _FakeProjectService,
 )
-from src.tests.project_management.api._fake_task_service import _FakeTaskService
 
 
 def test_task_workspace_page_checks_module_before_query_handler() -> None:

@@ -62,7 +62,7 @@ FINANCE_MUTATIONS: dict[FinanceFamily, frozenset[str]] = {
 }
 
 
-def wrap_finance_service(
+def wrap_finance_snapshot_query(
     read_service: ServiceT,
     boundary: FinanceGovernanceCommandBoundary,
     *,

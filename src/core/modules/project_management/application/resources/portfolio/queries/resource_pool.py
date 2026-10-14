@@ -66,7 +66,7 @@ class PortfolioResourcePoolReport:
         return {r.resource_id: r.average_load_percent for r in self.pool}
 
 
-class PortfolioResourcePoolService:
+class PortfolioResourcePoolQueryHandler:
     """
     Portfolio-level resource pool analysis.
 
@@ -234,7 +234,7 @@ class PortfolioResourcePoolService:
 
 __all__ = [
     "PortfolioResourcePoolReport",
-    "PortfolioResourcePoolService",
+    "PortfolioResourcePoolQueryHandler",
     "ResourceDemandEntry",
     "ResourcePoolSummary",
 ]

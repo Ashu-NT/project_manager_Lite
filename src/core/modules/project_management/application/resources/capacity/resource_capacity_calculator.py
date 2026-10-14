@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     ResolvedCalendarContext,
@@ -47,7 +47,7 @@ class ResourceCapacityCalculator:
 
     def __init__(
         self,
-        availability_service: EnterpriseResourceAvailabilityService,
+        availability_service: ResourceAvailabilityQueryHandler,
     ) -> None:
         self._availability = availability_service
 

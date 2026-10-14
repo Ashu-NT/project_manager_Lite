@@ -488,7 +488,7 @@ def _build_tasks_catalog(
         task_service=task_service,
         task_workspace_query=task_service,
         task_detail_query=task_service,
-        project_resource_service=SimpleNamespace(
+        project_resource_query=SimpleNamespace(
             list_for_task_workspace=lambda project_id: [
                 SimpleNamespace(id="pr-1", project_id="proj-1", resource_id="res-1", hourly_rate=90.0, currency_code="EUR", is_active=True)
             ] if project_id == "proj-1" else []

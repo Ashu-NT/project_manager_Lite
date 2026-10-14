@@ -39,8 +39,8 @@ def test_cleared_session_denies_core_read_models(services):
 
     ps = services["project_service"]
     ts = services["task_service"]
-    finance = services["finance_service"]
-    approvals = services["approval_commands"]
+    finance = services["finance_snapshot_query"]
+    services["approval_commands"]
     audit = services["enterprise_audit_service"]
 
     project = ps.create_project("Read Permission Project")
@@ -83,13 +83,13 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     ps = services["project_service"]
     ts = services["task_service"]
     cost_entries = services["cost_entry_service"]
-    prs = services["project_resource_service"]
+    services["project_resource_query"]
 
     project = ps.create_project("Permission project")
     resource = services["resource_master_commands"].create_resource(
         "Assigned Resource", hourly_rate=120.0
     )
-    project_resource = prs.add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project_id=project.id,
         resource_id=resource.id,
         planned_hours=40.0,
@@ -138,14 +138,14 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
     _login_as(services, "admin", "ChangeMe123!")
 
     ps = services["project_service"]
-    prs = services["project_resource_service"]
+    services["project_resource_query"]
     ecs_commands = services["platform_calendar_commands"]
 
     project = ps.create_project("Ops permission project")
     resource = services["resource_master_commands"].create_resource(
         "Ops resource", hourly_rate=100.0
     )
-    project_resource = prs.add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project_id=project.id,
         resource_id=resource.id,
         planned_hours=16.0,
@@ -154,14 +154,14 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
     _login_as(services, "viewer3", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        prs.add_to_project(
+        services["project_resource_commands"].add_to_project(
             project_id=project.id,
             resource_id=resource.id,
             planned_hours=8.0,
         )
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        prs.update(
+        services["project_resource_commands"].update(
             pr_id=project_resource.id,
             hourly_rate=80.0,
             currency_code="EUR",
@@ -170,10 +170,10 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
         )
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        prs.set_active(project_resource.id, False)
+        services["project_resource_commands"].set_active(project_resource.id, False)
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        prs.delete(project_resource.id)
+        services["project_resource_commands"].delete(project_resource.id)
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         ecs_commands.create_calendar(

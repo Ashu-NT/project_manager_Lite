@@ -1111,6 +1111,106 @@ This closes the named Platform backlog, not unrelated PM/A4/A5/A6 work.
 No future Accounting/Procurement/Inventory operations or transport framework
 were introduced, and no commit was made by the agent.
 
+## PM Named-Service Capability Cutover: In Progress
+
+The requested PM inventory contains 22 boundaries: Projects and Tasks (2),
+Finance (13 when Forecast generation/versions and Billing profile/preparation
+are counted separately), Resources (4), and Scheduling/baselines (3).
+This inventory is not a claim that all PM/A4 work is complete.
+
+| Existing boundary | Current migration status |
+| --- | --- |
+| ProjectService | Production read consumers receive ProjectQueryHandler; desktop writes and CSV import receive the existing create/update/status/deletion handlers directly. Composition constructs each once and preserves its UoW. Test-fixture migration and facade deletion remain OPEN. |
+| TaskService | Remaining delegation/participant/event-draining cutover OPEN; existing participant transaction ownership is unchanged. |
+| BudgetService | Governed command/query separation OPEN. |
+| ProjectCommitmentService | Governed command/query separation OPEN. |
+| FinancialConfigurationService | Governed command/query separation OPEN. |
+| ProjectCostEntryService | Governed command/query separation OPEN. |
+| FinancialChangeService | Governed command/query separation OPEN. |
+| ForecastGenerationService | Explicit generation command/caller cutover OPEN. |
+| ForecastVersionService | Governed command/query separation OPEN. |
+| ProjectBillingProfileService | Governed command/query separation OPEN. |
+| ProjectBillingPreparationService | Governed command/query separation OPEN. |
+| PlannedCostService | Governed command/query separation OPEN. |
+| ProjectRateCardService | Governed command/query separation OPEN. |
+| FinanceService | Single read authority moved to financials/queries/snapshot.py as FinanceSnapshotQueryHandler; composition, desktop, reporting/export and test consumers migrated; former production file deleted. Financial calculation semantics unchanged. |
+| AccountingHandoffRequestService | Explicit dependency and governed request cutover OPEN. Preserve destination-neutral evidence and atomic outbox ownership. |
+| EnterpriseResourceAvailabilityService | ResourceAvailabilityQueryHandler under resources/capacity/queries/availability.py; composed instance reused by capacity/assignment consumers; old production file deleted. |
+| ResourceWorkloadService | ResourceWorkloadQueryHandler under resources/capacity/queries/workload.py; scoped workload consumers migrated; old production file deleted. |
+| PortfolioResourcePoolService | PortfolioResourcePoolQueryHandler under resources/portfolio/queries/resource_pool.py; Portfolio/composition consumers migrated; old production file deleted. |
+| ProjectResourceService | Facade deleted. Composition exposes ProjectResourceCommandHandler and ProjectResourceQueryHandler directly, with the existing scoped repository and shared UoW; both enforce module entitlement before operation. |
+| BaselineService | Governed baseline command/query and participant cutover OPEN. |
+| BaselineComparisonService | Standalone comparison implementation moved to scheduling/baselines/queries/comparison.py as BaselineComparisonQueryHandler; old file deleted. Existing callers are tests, not an active production destination; production integration is not claimed. Do not conflate baseline-to-baseline comparison with current-schedule reporting. |
+| ScheduleChangeImpactService | ScheduleChangeImpactQueryHandler under scheduling/forecasting/queries/change_impact.py. Module composition constructs it from scoped repositories/calendar/approved-baseline port and injects the same instance into Tasks and Scheduling desktop adapters. Old service and API-owned construction helper deleted. |
+
+The schedule-impact cutover also repaired a real composition defect: the old
+desktop helper looked for repository attributes retired from TaskService and
+silently failed to construct the query. Construction now belongs exclusively
+to Scheduling composition. The approved-baseline lookup port exposes its
+actual immutable ID requirement rather than an opaque object.
+
+Project handlers preserve explicit project permission checks and their
+existing fresh Project UoWs/shared deletion transaction. Entitlement guards
+now reside on all directly consumed Project handlers, not solely on the
+former aggregate facade. Regression tests verify exact composed-instance
+identity and disabled-module rejection before repositories/UoWs execute.
+Resource tests similarly verify command/query repository identity without
+asserting an obsolete forwarding facade's source text.
+
+TEMPORARY / DELETE BEFORE PROJECT CUTOVER CLOSURE:
+`application/projects/service.py` and its composition exposure remain only
+while existing test-fixture callers are migrated. The file explicitly marks
+this condition. It is not an accepted permanent compatibility layer and the
+Project cutover must not be closed with it present. No additional handlers,
+sessions or forwarding facades were constructed to replace it.
+
+Finance write migrations must retain the existing operation-scoped governance
+UoW: the current dynamic FinanceGovernedServicePort is not a final architecture.
+Its eventual replacement must explicitly preserve participant/caller-owned
+transactions, Accounting handoff/outbox atomicity, Decimal authorities and
+permission/scope checks. Merely renaming those mixed services is insufficient.
+
+Verification so far (overlapping slices, not a unique-test sum): scheduling
+and entitlement 55 passed; resource/Finance-read/desktop 57 passed;
+Project command/identity/desktop/composition 73 passed; architecture,
+composition, contracts and desktop matrix 356 passed; final importer,
+permission, tenant-isolation and Project composition slice 46 passed.
+Live PostgreSQL RLS/Finance-read/governance/approved-Time/history slice:
+37 passed, 0 failed, 0 skipped, using the existing Docker PostgreSQL and its
+non-owner runtime role. Scoped Mypy: all 78 changed production source files clean with
+`--follow-imports=silent --ignore-missing-imports`. Scoped Ruff F/I, changed
+Python compilation and diff checks pass. Standalone Pylance/Pyright is not
+available and is not claimed as run.
+
+The expanded affected-file run initially found four failures: a stale Approval
+query fixture attribute, two repository-scope tests inadvertently invoking
+ProjectResource commands, and duplicate desktop/handler Project entitlement
+queries. All were corrected and the affected 115-test slice passes. The
+Project handler remains the entitlement authority; the obsolete desktop
+entitlement dependency is removed, restoring the existing four-statement
+Project catalog page budget. Mypy-driven API cleanup also replaces untyped
+Project import/Finance cost-code keyword dictionaries with explicit arguments
+and represents an absent portfolio summary as unavailable, not zero.
+The combined matrix was rerun after these corrections from the final source
+worktree:
+
+| Final PM cutover verification | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| All affected test files, architecture/schema guards, composition, Project/Resource/Scheduling/Finance contracts and desktop/UI regressions | 672 | 0 | 0 |
+| Live PostgreSQL runtime-role RLS, Finance performance Reader, governed commands, approved-Time posting and activity/history scope | 37 | 0 | 0 |
+
+All 5,982 repository tests collect successfully. The full repository suite was
+not executed. Scoped Ruff F/I and compilation cover all changed Python files;
+Mypy covers all 78 changed production Python files; `git diff --check` is green.
+Standalone Pylance/Pyright remains unavailable. These checks certify the
+implemented cuts, not the still-open PM write/participant migrations listed
+above. Seven former service source paths are retired, while 15 named service
+boundaries remain, including the temporary Project test-fixture facade.
+
+PM/A4 remains IN PROGRESS. No Finance business-semantic change, future
+Accounting/Procurement/Inventory operation, additional runtime graph or commit
+is authorized by this progress record.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

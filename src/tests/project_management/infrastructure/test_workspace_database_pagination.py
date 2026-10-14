@@ -175,17 +175,17 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
 
 def test_project_resource_activity_is_queryable_by_parent_project_id(services) -> None:
     project_service = services["project_service"]
-    project_resource_service = services["project_resource_service"]
+    services["project_resource_query"]
     activity_service = services["activity_service"]
 
     project_a = project_service.create_project("Parent Entity Activity A")
     project_b = project_service.create_project("Parent Entity Activity B")
     resource = services["resource_master_commands"].create_resource("Parent Entity Test Resource", "Planner")
 
-    project_resource_service.add_to_project(
+    services["project_resource_commands"].add_to_project(
         project_id=project_a.id, resource_id=resource.id, planned_hours=10,
     )
-    project_resource_service.add_to_project(
+    services["project_resource_commands"].add_to_project(
         project_id=project_b.id, resource_id=resource.id, planned_hours=5,
     )
 
@@ -843,7 +843,6 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
 def test_workspace_page_query_budgets_are_constant(services, session) -> None:
     projects_api = build_project_management_projects_desktop_api(
         project_query=services["project_query"],
-        module_catalog_service=services["module_catalog_service"],
     )
     tasks_api = build_project_management_tasks_desktop_api(
         task_service=services["task_service"],

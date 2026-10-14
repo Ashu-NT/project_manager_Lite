@@ -223,7 +223,7 @@ def _build_catalog(tmp_path: Path, task_service):
         task_service=task_service,
         task_workspace_query=task_service,
         task_detail_query=task_service,
-        project_resource_service=SimpleNamespace(
+        project_resource_query=SimpleNamespace(
             list_for_task_workspace=lambda project_id: []
         ),
         resource_query=SimpleNamespace(list_for_task_workspace=lambda **_kwargs: []),

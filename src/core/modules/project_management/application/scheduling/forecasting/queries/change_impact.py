@@ -79,7 +79,7 @@ class ScheduleChangeImpactReport:
     blocked_reason: str = ""
 
 
-class ScheduleChangeImpactService:
+class ScheduleChangeImpactQueryHandler:
     """
     Analyses the downstream impact of a proposed schedule change before persisting.
 
@@ -168,6 +168,7 @@ class ScheduleChangeImpactService:
             proposed_duration_days if proposed_duration_days is not None else changed.duration_days
         )
         new_start = proposed_start if proposed_start is not None else changed.start_date
+        new_finish: date | None
         if proposed_finish is not None:
             new_finish = proposed_finish
         elif new_start is not None and new_duration and new_duration > 0:
@@ -425,6 +426,6 @@ class ScheduleChangeImpactService:
 
 __all__ = [
     "ScheduleChangeImpactReport",
-    "ScheduleChangeImpactService",
+    "ScheduleChangeImpactQueryHandler",
     "TaskImpact",
 ]

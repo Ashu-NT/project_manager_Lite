@@ -14,7 +14,7 @@ def test_financial_report_export_passes_canonical_services_and_basis(
     tmp_path: Path,
 ) -> None:
     report_sources = object()
-    finance_service = object()
+    finance_snapshot_query = object()
     captured: dict[str, object] = {}
 
     def export_excel(service, project_id, output_path, **kwargs):
@@ -32,7 +32,7 @@ def test_financial_report_export_passes_canonical_services_and_basis(
     )
     api = ProjectManagementFinancialsDesktopApi(
         report_sources=report_sources,  # type: ignore[arg-type]
-        finance_service=finance_service,
+        finance_snapshot_query=finance_snapshot_query,
     )
     output_path = tmp_path / "finance.xlsx"
 
@@ -48,7 +48,7 @@ def test_financial_report_export_passes_canonical_services_and_basis(
         "service": report_sources,
         "project_id": "project-1",
         "output_path": str(output_path),
-        "finance_service": finance_service,
+        "finance_snapshot_query": finance_snapshot_query,
         "baseline_id": "baseline-2",
     }
 
@@ -56,7 +56,7 @@ def test_financial_report_export_passes_canonical_services_and_basis(
 def test_financial_report_rejects_unknown_format() -> None:
     api = ProjectManagementFinancialsDesktopApi(
         report_sources=object(),  # type: ignore[arg-type]
-        finance_service=object(),
+        finance_snapshot_query=object(),
     )
 
     with pytest.raises(ValueError, match="xlsx.*pdf"):

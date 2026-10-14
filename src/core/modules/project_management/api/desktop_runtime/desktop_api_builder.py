@@ -18,9 +18,6 @@ from src.core.modules.project_management.api.desktop_runtime.registry import (
     ProjectManagementDesktopRuntimeApis,
     ProjectManagementDesktopRuntimePlatformDependencies,
 )
-from src.core.modules.project_management.api.desktop_runtime.scheduling_helpers import (
-    build_schedule_change_impact_service,
-)
 from src.core.modules.project_management.api.desktop_runtime.service_resolver import (
     resolve_project_management_desktop_runtime_services,
 )
@@ -38,15 +35,10 @@ def build_project_management_desktop_runtime_apis(
 ) -> ProjectManagementDesktopRuntimeApis:
     resolved = resolve_project_management_desktop_runtime_services(services)
     register_desktop_api = build_project_management_register_desktop_api(
-        project_service=resolved.project_service,
+        project_service=resolved.project_query,
         register_query=resolved.register_query,
         register_lifecycle_commands=resolved.register_lifecycle_commands,
         module_catalog_service=platform_dependencies.module_catalog_service,
-    )
-    change_impact_service = build_schedule_change_impact_service(
-        resolved.task_service,
-        resolved.work_calendar_engine,
-        resolved.baseline_service,
     )
     constraint_validator = (
         ConstraintValidator(resolved.work_calendar_engine)
@@ -55,7 +47,7 @@ def build_project_management_desktop_runtime_apis(
     )
     return ProjectManagementDesktopRuntimeApis(
         project_management_dashboard=build_project_management_dashboard_desktop_api(
-            project_service=resolved.project_service,
+            project_service=resolved.project_query,
             project_dashboard=resolved.project_dashboard_query,
             portfolio_dashboard=resolved.portfolio_dashboard_query,
             baseline_service=resolved.baseline_service,
@@ -75,7 +67,7 @@ def build_project_management_desktop_runtime_apis(
             presence_commands=resolved.collaboration_presence_commands,
         ),
         project_management_financials=build_project_management_financials_desktop_api(
-            finance_service=resolved.finance_service,
+            finance_snapshot_query=resolved.finance_snapshot_query,
             finance_workspace_query=resolved.finance_workspace_query,
             finance_performance_query=resolved.finance_performance_query,
             finance_governance_commands=resolved.finance_governance_commands,
@@ -96,7 +88,7 @@ def build_project_management_desktop_runtime_apis(
             profitability_report=resolved.profitability_report,
         ),
         project_management_portfolio=build_project_management_portfolio_desktop_api(
-            project_service=resolved.project_service,
+            project_service=resolved.project_query,
             portfolio_intake_query=resolved.portfolio_intake_query,
             portfolio_intake_commands=resolved.portfolio_intake_commands,
             portfolio_template_query=resolved.portfolio_template_query,
@@ -109,10 +101,13 @@ def build_project_management_desktop_runtime_apis(
             pool_service=resolved.pool_service,
         ),
         project_management_projects=build_project_management_projects_desktop_api(
-            project_service=resolved.project_service,
+            project_create=resolved.project_create,
+            project_update=resolved.project_update,
+            project_status=resolved.project_status,
+            project_deletion=resolved.project_deletion,
             project_query=resolved.project_query,
-            module_catalog_service=platform_dependencies.module_catalog_service,
-            project_resource_service=resolved.project_resource_service,
+            project_resource_query=resolved.project_resource_query,
+            project_resource_commands=resolved.project_resource_commands,
             resource_query=resolved.resource_query,
             site_query=platform_dependencies.site_query,
             department_query=platform_dependencies.department_query,
@@ -127,12 +122,12 @@ def build_project_management_desktop_runtime_apis(
             resource_context_query=resolved.resource_context_query,
             module_catalog_service=platform_dependencies.module_catalog_service,
             employee_query=platform_dependencies.employee_query,
-            workload_service=resolved.resource_workload_service,
+            workload_service=resolved.resource_workload_query,
             department_query=platform_dependencies.department_query,
             site_query=platform_dependencies.site_query,
         ),
         project_management_scheduling=build_project_management_scheduling_desktop_api(
-            project_service=resolved.project_service,
+            project_service=resolved.project_query,
             task_service=resolved.task_service,
             scheduling_engine=resolved.scheduling_engine,
             platform_calendar_api=platform_dependencies.platform_calendar_api,
@@ -141,12 +136,12 @@ def build_project_management_desktop_runtime_apis(
             baseline_service=resolved.baseline_service,
             baseline_compare_report=resolved.baseline_compare_report,
             project_kpi_report=resolved.project_kpi_report,
-            change_impact_service=change_impact_service,
+            change_impact_service=resolved.schedule_change_impact_query,
             constraint_validator=constraint_validator,
             tenant_context_service=resolved.tenant_context_service,
         ),
         project_management_tasks=build_project_management_tasks_desktop_api(
-            project_service=resolved.project_service,
+            project_service=resolved.project_query,
             task_service=resolved.task_service,
             task_workspace_query=resolved.task_workspace_query,
             task_detail_query=resolved.task_detail_query,
@@ -154,14 +149,14 @@ def build_project_management_desktop_runtime_apis(
             task_assignment_commands=resolved.task_assignment_commands,
             task_time_entries=resolved.task_time_entries,
             module_catalog_service=platform_dependencies.module_catalog_service,
-            project_resource_service=resolved.project_resource_service,
+            project_resource_query=resolved.project_resource_query,
             resource_query=resolved.resource_query,
             reservation_service=platform_dependencies.reservation_service,
             assignment_skill_validator=resolved.assignment_skill_validator,
-            schedule_change_impact_service=change_impact_service,
+            schedule_change_impact_query=resolved.schedule_change_impact_query,
         ),
         project_management_timesheets=build_project_management_timesheets_desktop_api(
-            project_service=resolved.project_service,
+            project_service=resolved.project_query,
             task_lookup_query=resolved.task_lookup_query,
             task_assignment_commands=resolved.task_assignment_commands,
             module_catalog_service=platform_dependencies.module_catalog_service,

@@ -717,7 +717,7 @@ def _seed_pm_secondary_scope_rows(services):
 def test_pm_secondary_repositories_hide_other_organization_rows(services):
     seeded = _seed_pm_secondary_scope_rows(services)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
-    project_resource_repo = services["project_resource_service"]._project_resource_repo
+    project_resource_repo = services["project_resource_query"]._project_resource_repo
     capability_commands = services["resource_capability_commands"]
     skill_repo = capability_commands._skill_repo
     cert_repo = capability_commands._cert_repo
@@ -763,7 +763,7 @@ def test_pm_secondary_repositories_hide_other_organization_rows(services):
 def test_pm_secondary_repositories_scope_mutations_to_active_organization(services):
     seeded = _seed_pm_secondary_scope_rows(services)
     services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
-    project_resource_repo = services["project_resource_service"]._project_resource_repo
+    project_resource_repo = services["project_resource_query"]._project_resource_repo
     capability_commands = services["resource_capability_commands"]
     skill_repo = capability_commands._skill_repo
     cert_repo = capability_commands._cert_repo

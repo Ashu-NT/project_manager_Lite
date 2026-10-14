@@ -64,7 +64,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
-class FinanceService(ProjectManagementModuleGuardMixin):
+class FinanceSnapshotQueryHandler(ProjectManagementModuleGuardMixin):
     """Finance/commercial read models aligned with cost policy engine."""
 
     def __init__(
@@ -342,4 +342,4 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         return self.get_finance_snapshot(project_id, as_of=as_of, period=period, ledger_query=ledger_query)
 
 
-__all__ = ["FinanceService"]
+__all__ = ["FinanceSnapshotQueryHandler"]

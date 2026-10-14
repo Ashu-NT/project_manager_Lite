@@ -55,7 +55,7 @@ class ResourceWorkloadFact:
     days: tuple[ResourceWorkloadDayFact, ...]
 
 
-class ResourceWorkloadService:
+class ResourceWorkloadQueryHandler:
     """Canonical calendar-backed, multi-project Resource capacity query."""
 
     def __init__(
@@ -215,5 +215,5 @@ __all__ = [
     "MAX_RESOURCE_WORKLOAD_DAYS",
     "ResourceWorkloadDayFact",
     "ResourceWorkloadFact",
-    "ResourceWorkloadService",
+    "ResourceWorkloadQueryHandler",
 ]

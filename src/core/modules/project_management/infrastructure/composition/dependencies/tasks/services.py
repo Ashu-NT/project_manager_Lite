@@ -4,8 +4,8 @@ import os
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
@@ -103,7 +103,7 @@ def build_task_capabilities(
     work_calendar_engine: CalendarProtocol,
     scheduling_engine: SchedulingEngine,
     assignment_skill_validator: AssignmentSkillValidator,
-    enterprise_resource_availability: EnterpriseResourceAvailabilityService,
+    enterprise_resource_availability: ResourceAvailabilityQueryHandler,
 ) -> TaskComposition:
     task_uow_factory = SqlAlchemyTaskUnitOfWorkFactory(
         session_factory=sessionmaker(bind=platform_services.session.bind, future=True),

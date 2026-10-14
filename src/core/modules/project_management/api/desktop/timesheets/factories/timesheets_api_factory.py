@@ -3,7 +3,9 @@ from __future__ import annotations
 from src.core.modules.project_management.api.desktop.timesheets.api import (
     ProjectManagementTimesheetsDesktopApi,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.resources import (
     ResourceQueryHandler,
 )
@@ -31,7 +33,7 @@ from src.core.platform.contract.port.tenant.modules.supports_module_entitlements
 
 def build_project_management_timesheets_desktop_api(
     *,
-    project_service: ProjectService | None = None,
+    project_service: ProjectQueryHandler | None = None,
     task_lookup_query: TaskLookupQueryHandler | None = None,
     task_assignment_commands: TaskAssignmentCommandHandler | None = None,
     module_catalog_service: SupportsModuleEntitlements | None = None,

@@ -270,7 +270,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         services, "service_principal_query", ServicePrincipalQueryHandler
     )
 
-    project_service = services.get("project_service")
+    project_service = services.get("project_query")
     inventory_reservation_service = cast(
         TaskReservationGateway | None, services.get("inventory_reservation_service")
     )

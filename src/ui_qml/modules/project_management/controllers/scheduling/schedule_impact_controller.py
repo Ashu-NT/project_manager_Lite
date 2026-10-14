@@ -37,7 +37,7 @@ def compute_schedule_impact(
 
     Wired onto the same richer Schedule Impact serialization Task Detail's
     "Analyze Impact" trigger uses (FINAL PRODUCT DECISIONS decision 6) --
-    a working-day-delay simulation via the shared ScheduleChangeImpactService
+    a working-day-delay simulation via the shared ScheduleChangeImpactQueryHandler
     (ProjectManagementSchedulingDesktopApi.preview_task_schedule_impact),
     not analyse_change_impact's narrower DTO. `delay_working_days` defaults
     to 1, matching Task Detail's own default/minimum (see

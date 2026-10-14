@@ -89,7 +89,8 @@ def _set_principal(
 
 def _desktop_api(services):
     return build_project_management_projects_desktop_api(
-        project_service=services["project_service"],
+        project_create=services["project_create"],
+        project_update=services["project_update"],
         project_query=services["project_query"],
         site_query=services["site_query"],
         department_query=services["department_query"],

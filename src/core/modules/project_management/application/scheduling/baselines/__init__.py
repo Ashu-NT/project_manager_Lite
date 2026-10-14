@@ -1,16 +1,16 @@
 """Baseline management — creation, snapshots, variance, and comparison."""
-from src.core.modules.project_management.application.scheduling.baselines.baseline_comparison_service import (
-    BaselineComparisonReport,
-    BaselineComparisonService,
-    TaskVariance,
-)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
+)
+from src.core.modules.project_management.application.scheduling.baselines.queries.comparison import (
+    BaselineComparisonQueryHandler,
+    BaselineComparisonReport,
+    TaskVariance,
 )
 
 __all__ = [
     "BaselineComparisonReport",
-    "BaselineComparisonService",
+    "BaselineComparisonQueryHandler",
     "BaselineService",
     "TaskVariance",
 ]

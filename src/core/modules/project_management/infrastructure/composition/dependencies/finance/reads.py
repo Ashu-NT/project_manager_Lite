@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.financials import (
-    FinanceService,
+    FinanceSnapshotQueryHandler,
     ProjectFinancePerformanceQuery,
     ProjectFinanceWorkspaceQuery,
     RateCardResolver,
@@ -66,12 +66,12 @@ def build_finance_performance_services(
     platform_services: PlatformServiceBundle,
     *,
     rate_resolver: RateCardResolver,
-) -> tuple[SqlAlchemyFinancePerformanceReader, FinanceService]:
+) -> tuple[SqlAlchemyFinancePerformanceReader, FinanceSnapshotQueryHandler]:
     reader = SqlAlchemyFinancePerformanceReader(
         session=session,
         calendar=platform_services.global_calendar_shim,
     )
-    service = FinanceService(
+    service = FinanceSnapshotQueryHandler(
         rate_resolver=rate_resolver,
         finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         finance_performance_reader=reader,

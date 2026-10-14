@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
 from src.core.modules.project_management.application.resources.capacity.task_assignment_capacity_service import (
     CAPACITY_OVER_CAPACITY,
@@ -34,7 +34,7 @@ class TaskValidationPolicy:
         assignment_repo: AssignmentRepository,
         resource_repo: ResourceRepository | None,
         project_repo: ProjectRepository | None,
-        availability_service: EnterpriseResourceAvailabilityService | None,
+        availability_service: ResourceAvailabilityQueryHandler | None,
     ) -> None:
         self._task_repo = task_repo
         self._assignment_repo = assignment_repo

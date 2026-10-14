@@ -1,3 +1,5 @@
+"""Project and resource test doubles for desktop adapter behavior."""
+
 from datetime import date
 from types import SimpleNamespace
 
@@ -174,7 +176,7 @@ class _FakeResourceService:
         del self._resources[resource_id]
 
 
-class _FakeProjectResourceService:
+class _FakeProjectResourceQueryHandler:
     def __init__(self) -> None:
         self._project_resources: dict[str, SimpleNamespace] = {}
         self._next_id = 1

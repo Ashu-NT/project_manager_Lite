@@ -27,7 +27,9 @@ from src.core.modules.project_management.api.desktop.register.utils.register_enu
     coerce_entry_status,
     coerce_entry_type,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.risk import RegisterQueryHandler
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
@@ -53,7 +55,7 @@ class ProjectManagementRegisterDesktopApi:
     def __init__(
         self,
         *,
-        project_service: ProjectService | None = None,
+        project_service: ProjectQueryHandler | None = None,
         register_query: RegisterQueryHandler | None = None,
         register_lifecycle_commands: RegisterLifecycleHandler | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,

@@ -11,7 +11,9 @@ from src.core.modules.project_management.application.dashboard import (
     PortfolioDashboardQueryHandler,
     ProjectDashboardQueryHandler,
 )
-from src.core.modules.project_management.application.financials import FinanceService
+from src.core.modules.project_management.application.financials import (
+    FinanceSnapshotQueryHandler,
+)
 from src.core.modules.project_management.application.portfolio.commands import (
     PortfolioIntakeCommandHandler,
 )
@@ -24,7 +26,7 @@ from src.core.modules.project_management.application.reporting import (
     ProjectKpiReportBuilder,
 )
 from src.core.modules.project_management.application.resources import (
-    ProjectResourceService,
+    ProjectResourceQueryHandler,
     ResourceMasterCommandHandler,
     ResourceQueryHandler,
 )
@@ -143,7 +145,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.timesheet_review_query, TimesheetReviewQueryHandler)
     assert isinstance(graph.resource_query, ResourceQueryHandler)
     assert isinstance(graph.resource_master_commands, ResourceMasterCommandHandler)
-    assert isinstance(graph.finance_service, FinanceService)
+    assert isinstance(graph.finance_snapshot_query, FinanceSnapshotQueryHandler)
     # work_calendar_engine is now GlobalCalendarShim (enterprise-backed)
     assert hasattr(graph, "work_calendar_engine") and graph.work_calendar_engine is not None
     assert isinstance(graph.work_calendar_engine, CalendarProtocol)
@@ -156,7 +158,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.portfolio_intake_commands, PortfolioIntakeCommandHandler)
     assert isinstance(graph.portfolio_executive_query, PortfolioExecutiveQueryHandler)
     assert isinstance(graph.register_query, RegisterQueryHandler)
-    assert isinstance(graph.project_resource_service, ProjectResourceService)
+    assert isinstance(graph.project_resource_query, ProjectResourceQueryHandler)
     assert isinstance(graph.data_import_service, DataImportService)
 
     as_dict = graph.as_dict()
@@ -184,11 +186,11 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["portfolio_dashboard_query"] is graph.portfolio_dashboard_query
     assert as_dict["resource_query"] is graph.resource_query
     assert as_dict["earned_value_report"] is graph.earned_value_report
-    assert as_dict["finance_service"] is graph.finance_service
+    assert as_dict["finance_snapshot_query"] is graph.finance_snapshot_query
     assert as_dict["portfolio_intake_commands"] is graph.portfolio_intake_commands
     assert as_dict["portfolio_executive_query"] is graph.portfolio_executive_query
     assert as_dict["register_query"] is graph.register_query
-    assert as_dict["project_resource_service"] is graph.project_resource_service
+    assert as_dict["project_resource_query"] is graph.project_resource_query
     assert as_dict["timesheet_workspace_query"] is graph.timesheet_workspace_query
     assert as_dict["session"] is session
     assert graph.timesheet_workspace_commands._time_entries is graph.time_entry_commands

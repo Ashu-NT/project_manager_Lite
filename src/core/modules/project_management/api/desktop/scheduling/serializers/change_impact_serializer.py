@@ -109,7 +109,7 @@ def serialize_task_schedule_overview(
     wired or a lookup fails; this module owns the sole application-object
     construction for the "unavailable" case. ``unavailable_reason`` lets
     the desktop API distinguish "the composition root never wired a
-    ScheduleChangeImpactService at all" / "the call raised" from the
+    ScheduleChangeImpactQueryHandler at all" / "the call raised" from the
     per-task reasons TaskScheduleOverview itself reports."""
     if overview is None or not overview.is_available:
         return TaskScheduleImpactOverviewDesktopDto(

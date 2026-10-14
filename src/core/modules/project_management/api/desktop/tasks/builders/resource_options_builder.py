@@ -8,13 +8,13 @@ from src.core.modules.project_management.api.desktop.tasks.models.options import
 def build_project_resource_options(
     project_id: str,
     *,
-    project_resource_service: object | None,
+    project_resource_query: object | None,
     resource_query: object | None,
 ) -> tuple[TaskProjectResourceOptionDescriptor, ...]:
-    if not project_id or project_resource_service is None or resource_query is None:
+    if not project_id or project_resource_query is None or resource_query is None:
         return ()
     list_project_resources = getattr(
-        project_resource_service,
+        project_resource_query,
         "list_for_task_workspace",
         None,
     )

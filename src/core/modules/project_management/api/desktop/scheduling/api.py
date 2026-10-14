@@ -101,7 +101,9 @@ from src.core.modules.project_management.api.desktop.scheduling.services.schedul
     build_schedule_from_engine,
     build_schedule_from_tasks,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.reporting import (
     BaselineCompareReportBuilder,
     ProjectKpiReportBuilder,
@@ -122,8 +124,8 @@ from src.core.modules.project_management.application.scheduling.dto import (
     SchedulingDependencyUpdateCommand,
     SchedulingWorkingDayCalculationCommand,
 )
-from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
-    ScheduleChangeImpactService,
+from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
+    ScheduleChangeImpactQueryHandler,
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType
@@ -152,7 +154,7 @@ class ProjectManagementSchedulingDesktopApi:
     def __init__(
         self,
         *,
-        project_service: ProjectService | None = None,
+        project_service: ProjectQueryHandler | None = None,
         task_service: TaskService | None = None,
         scheduling_engine: SchedulingEngine | None = None,
         platform_calendar_api: _PlatformWorkingDaysApi | None = None,
@@ -161,7 +163,7 @@ class ProjectManagementSchedulingDesktopApi:
         baseline_service: BaselineService | None = None,
         baseline_compare_report: BaselineCompareReportBuilder | None = None,
         project_kpi_report: ProjectKpiReportBuilder | None = None,
-        change_impact_service: ScheduleChangeImpactService | None = None,
+        change_impact_service: ScheduleChangeImpactQueryHandler | None = None,
         constraint_validator: ConstraintValidator | None = None,
         tenant_context_service: TenantContextService | None = None,
     ) -> None:
@@ -574,7 +576,7 @@ class ProjectManagementSchedulingDesktopApi:
         call the richer, already-existing serialization (critical-path
         change, conflict count, blocked-by-deadline) instead of
         analyse_change_impact's narrower DTO -- same core
-        ScheduleChangeImpactService, no new schedule-impact math."""
+        ScheduleChangeImpactQueryHandler, no new schedule-impact math."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
         unavailable = serialize_schedule_impact_report(

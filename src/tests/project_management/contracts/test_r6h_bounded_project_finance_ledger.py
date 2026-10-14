@@ -21,7 +21,7 @@ def test_ledger_sql_pages_preserve_full_control_totals_and_exact_traversal(servi
         _clone_posted_entry(session, entry.id, amount="0.01", posted_on=date(2026, 8, 5))
     _clone_posted_entry(session, entry.id, amount="999.99", posted_on=date(2026, 9, 1))
     session.commit()
-    reader = services["finance_service"]._finance_snapshot_reader
+    reader = services["finance_snapshot_query"]._finance_snapshot_reader
     scope = services["tenant_context_service"].require_active_scope_ids(operation_label="test")
     params = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
                   project_id=project.id, as_of=date(2026, 8, 31))
@@ -59,7 +59,7 @@ def test_ledger_sql_pages_preserve_full_control_totals_and_exact_traversal(servi
     assert empty.ledger_entries == ()
     assert empty.control == first.control
     assert empty.ledger_total == first.ledger_total
-    snapshot = services["finance_service"].get_finance_export_snapshot(
+    snapshot = services["finance_snapshot_query"].get_finance_export_snapshot(
         project.id, as_of=params["as_of"], ledger_query=ProjectFinanceLedgerQuery(offset=1, limit=1))
     assert len(snapshot.ledger) == 1
     assert snapshot.ledger_total == first.ledger_total

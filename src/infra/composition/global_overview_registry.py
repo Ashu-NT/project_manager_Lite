@@ -131,7 +131,7 @@ def build_global_overview_service_bundle(
                     platform_services.platform_runtime_query
                 ),
                 portfolio_dashboard=project_management_services.portfolio_dashboard_query,
-                project_service=project_management_services.project_service,
+                project_service=project_management_services.project_query,
             ),
         ) if project_management_services is not None else (
             PlatformModuleOverviewContributor(approval_queries=platform_services.approval_queries),

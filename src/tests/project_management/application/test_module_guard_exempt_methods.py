@@ -24,9 +24,6 @@ from src.core.modules.project_management.application.reporting import (
     EarnedValueReportBuilder,
     ReportingAccessPolicy,
 )
-from src.core.modules.project_management.application.resources.project_resources.project_resource_service import (
-    ProjectResourceService,
-)
 from src.core.modules.project_management.application.resources.queries.resource_queries import (
     ResourceQueryHandler,
 )
@@ -106,16 +103,15 @@ def test_portfolio_intake_query_checks_module_before_repository_access() -> None
         query.list_intake_items_page()
 
 
-def test_project_resource_read_facade_still_checks_module_before_handler() -> None:
-    service = ProjectResourceService(
-        command_handler=object(),
-        query_handler=object(),
-        module_catalog_service=_module_catalog(runtime_enabled=False),
-    )
+@pytest.mark.parametrize(
+    ("key", "method"),
+    [("project_resource_query", "list_by_project"), ("project_resource_commands", "delete")],
+)
+def test_project_resource_handlers_check_module_before_operation(services, monkeypatch, key, method):
+    handler = services[key]
+    monkeypatch.setattr(handler, "_module_catalog_service", _module_catalog(runtime_enabled=False))
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
-        service.list_by_project("project-1")
-    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
-        service.add_to_project("project-1", "resource-1")
+        getattr(handler, method)("missing-project-resource")
 
 
 def test_task_detail_query_facade_checks_module_before_handler() -> None:
@@ -124,6 +120,29 @@ def test_task_detail_query_facade_checks_module_before_handler() -> None:
     service._detail_query = SimpleNamespace(get_task=lambda _task_id: pytest.fail("handler called"))
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         service.get_task("task-1")
+
+
+def test_direct_project_query_checks_module_before_reading(services, monkeypatch):
+    query = services["project_query"]
+    monkeypatch.setattr(query, "_module_catalog_service", _module_catalog(runtime_enabled=False))
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        query.list_projects()
+
+
+@pytest.mark.parametrize(
+    ("key", "method", "args"),
+    [
+        ("project_create", "create_project", ("Denied", "")),
+        ("project_update", "update_project", ("missing-project",)),
+        ("project_status", "set_status", ("missing-project", "ACTIVE")),
+        ("project_deletion", "delete_project", ("missing-project",)),
+    ],
+)
+def test_direct_project_commands_check_module_before_operation(services, monkeypatch, key, method, args):
+    handler = services[key]
+    monkeypatch.setattr(handler, "_module_catalog_service", _module_catalog(runtime_enabled=False))
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
+        getattr(handler, method)(*args)
 
 
 def test_dashboard_capability_consumer_keeps_module_gate() -> None:

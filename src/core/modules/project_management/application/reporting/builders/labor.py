@@ -59,7 +59,7 @@ class LaborReportBuilder(ProjectManagementModuleGuardMixin):
         self, project_id: str, as_of: date | None = None
     ) -> LaborDetailsResult:
         # Resource-identified rate/cost rows require the finance.read_sensitive tier,
-        # matching FinanceService's own redaction policy.
+        # matching FinanceSnapshotQueryHandler's own redaction policy.
         self._access.require_finance_sensitive_view("view labor details", project_id=project_id)
         resolved_as_of = as_of or date.today()  # noqa: DTZ011
         scope = self._tenant_context_service.require_active_scope_ids(

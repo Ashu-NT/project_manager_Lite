@@ -18,17 +18,16 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
-    ScheduleChangeImpactService,
+from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
+    ScheduleChangeImpactQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 
 
 def _impact_service(services):
-    ts = services["task_service"]
-    return ScheduleChangeImpactService(
-        task_repo=ts._task_repo,
-        dependency_repo=ts._dependency_repo,
+    return ScheduleChangeImpactQueryHandler(
+        task_repo=services["task_lookup_query"]._task_repo,
+        dependency_repo=services["task_dependency_diagnostics"]._dependency_repo,
         calendar=services["work_calendar_engine"],
         baseline_lookup=services["baseline_service"],
     )
@@ -327,7 +326,7 @@ class TestTaskScheduleImpactOverviewDesktopDtoInfeasibleRoundTrip:
 
         return ProjectManagementTasksDesktopApi(
             task_service=task_service,
-            schedule_change_impact_service=_impact_service(services),
+            schedule_change_impact_query=_impact_service(services),
         )
 
     def test_is_infeasible_true_round_trip_through_desktop_dto(self, services):
@@ -428,7 +427,7 @@ class TestScheduleImpactConflictConstraintLabel:
 
         api = ProjectManagementTasksDesktopApi(
             task_service=ts,
-            schedule_change_impact_service=_impact_service(services),
+            schedule_change_impact_query=_impact_service(services),
         )
         state = build_task_schedule_overview_state(
             api, task_id=successor.id, project_id=project.id
@@ -522,7 +521,7 @@ class TestPreviewDeadlineConflict:
         )
         api = ProjectManagementTasksDesktopApi(
             task_service=ts,
-            schedule_change_impact_service=_impact_service(services),
+            schedule_change_impact_query=_impact_service(services),
         )
 
         dto = api.preview_task_schedule_impact(task.id, project.id, delay_working_days=2)

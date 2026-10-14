@@ -26,11 +26,11 @@ from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_f
 from src.core.modules.project_management.application.projects.dto import (
     ProjectResourceUpdateCommand,
 )
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
-from src.core.modules.project_management.application.resources.capacity.resource_workload_service import (
-    ResourceWorkloadService,
+from src.core.modules.project_management.application.resources.capacity.queries.workload import (
+    ResourceWorkloadQueryHandler,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -44,10 +44,10 @@ def _setup_project_resource(services, *, planned_hours: float = 40.0):
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_query"]
-    prs = services["project_resource_service"]
+    prs = services["project_resource_query"]
     project = ps.create_project("Capacity Upgrade Project")
     resource = services["resource_master_commands"].create_resource("Capacity Upgrade Resource", hourly_rate=70.0)
-    project_resource = prs.add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=70.0, currency_code="USD", planned_hours=planned_hours
     )
     task = ts.create_task(project.id, "Capacity Upgrade Task")
@@ -62,7 +62,7 @@ def _setup_project_resource(services, *, planned_hours: float = 40.0):
 def test_project_resource_update_with_expected_version_succeeds(services):
     _, _, _, prs, project, resource, project_resource, _ = _setup_project_resource(services)
 
-    prs.update(
+    services["project_resource_commands"].update(
         project_resource.id,
         hourly_rate=project_resource.hourly_rate,
         currency_code=project_resource.currency_code,
@@ -79,7 +79,7 @@ def test_project_resource_update_with_expected_version_succeeds(services):
 def test_project_resource_update_stale_version_raises_concurrency_error(services):
     _, _, _, prs, project, resource, project_resource, _ = _setup_project_resource(services)
 
-    prs.update(
+    services["project_resource_commands"].update(
         project_resource.id,
         hourly_rate=project_resource.hourly_rate,
         currency_code=project_resource.currency_code,
@@ -89,7 +89,7 @@ def test_project_resource_update_stale_version_raises_concurrency_error(services
     )
 
     with pytest.raises(ConcurrencyError) as exc:
-        prs.update(
+        services["project_resource_commands"].update(
             project_resource.id,
             hourly_rate=project_resource.hourly_rate,
             currency_code=project_resource.currency_code,
@@ -105,7 +105,7 @@ def test_project_resource_update_without_expected_version_still_works(services):
     expected_version keep the plain-update behaviour."""
     _, _, _, prs, project, resource, project_resource, _ = _setup_project_resource(services)
 
-    prs.update(
+    services["project_resource_commands"].update(
         project_resource.id,
         hourly_rate=project_resource.hourly_rate,
         currency_code=project_resource.currency_code,
@@ -203,7 +203,7 @@ def test_desktop_api_exposes_project_resource_usage_and_version(services):
         expected_project_resource_version=project_resource.version,
     )
     api = build_project_management_projects_desktop_api(
-        project_service=ps, project_resource_service=prs, resource_query=rs,
+        project_resource_query=prs, project_resource_commands=services["project_resource_commands"], resource_query=rs,
     )
 
     dtos = api.list_project_resources(project.id)
@@ -219,7 +219,7 @@ def test_desktop_api_exposes_project_resource_usage_and_version(services):
 def test_desktop_api_update_project_resource_forwards_expected_version_and_conflicts(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
     api = build_project_management_projects_desktop_api(
-        project_service=ps, project_resource_service=prs, resource_query=rs,
+        project_resource_query=prs, project_resource_commands=services["project_resource_commands"], resource_query=rs,
     )
 
     api.update_project_resource(
@@ -334,7 +334,7 @@ def test_delete_project_resource_with_historical_actuals_is_blocked(services):
     services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=3.0, note="worked")
 
     with pytest.raises(BusinessRuleError) as exc:
-        prs.delete(project_resource.id)
+        services["project_resource_commands"].delete(project_resource.id)
     assert exc.value.code == "PROJECT_RESOURCE_HAS_HISTORICAL_ACTUALS"
     assert prs.get(project_resource.id) is not None
 
@@ -345,7 +345,7 @@ def test_delete_project_resource_without_actuals_still_succeeds(services):
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
 
-    prs.delete(project_resource.id)
+    services["project_resource_commands"].delete(project_resource.id)
 
     assert prs.get(project_resource.id) is None
 
@@ -409,8 +409,8 @@ def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
 # ---------------------------------------------------------------------------
 
 
-def test_resource_workload_service_is_wired_in_composition_root(services):
-    assert isinstance(services.get("resource_workload_service"), ResourceWorkloadService)
+def test_resource_workload_query_is_wired_in_composition_root(services):
+    assert isinstance(services.get("resource_workload_query"), ResourceWorkloadQueryHandler)
     assert "resource_multi_project_allocation_service" not in services
 
 
@@ -418,14 +418,14 @@ def test_enterprise_resource_availability_service_is_wired_into_task_service_for
     services,
 ):
     """DI-wiring proof for the calendar capacity migration: the SAME
-    EnterpriseResourceAvailabilityService instance registered under
+    ResourceAvailabilityQueryHandler instance registered under
     resource_availability_service must be the one TaskService itself holds
     and uses for `preview_assignment_capacity` -- one shared authority, so
     Task Assignment preview and save-time enforcement cannot disagree by
     construction."""
     ts = services["task_service"]
     availability_service = services["resource_availability_service"]
-    assert isinstance(availability_service, EnterpriseResourceAvailabilityService)
+    assert isinstance(availability_service, ResourceAvailabilityQueryHandler)
     assert ts._assignment_handler._enterprise_resource_availability_service is availability_service
 
 
@@ -442,11 +442,11 @@ def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_au
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_query"]
-    prs = services["project_resource_service"]
+    prs = services["project_resource_query"]
 
     project = ps.create_project("Preview Wiring Project")
     resource = services["resource_master_commands"].create_resource("Preview Wiring Resource", hourly_rate=80.0)
-    project_resource = prs.add_to_project(project.id, resource.id, planned_hours=1000.0)
+    project_resource = services["project_resource_commands"].add_to_project(project.id, resource.id, planned_hours=1000.0)
     task_a = ts.create_task(
         project.id, "Preview Task A", start_date=window_start, duration_days=5
     )
@@ -469,7 +469,7 @@ def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_au
     api = build_project_management_tasks_desktop_api(
         project_service=ps,
         task_service=ts,
-        project_resource_service=prs,
+        project_resource_query=prs,
         resource_query=rs,
         assignment_skill_validator=None,
     )
@@ -508,7 +508,7 @@ def test_resource_availability_display_returns_real_data_not_none(services):
 
     api = build_project_management_resources_desktop_api(
         resource_query=rs,
-        workload_service=services["resource_workload_service"],
+        workload_service=services["resource_workload_query"],
     )
 
     availability = api.build_resource_availability(
@@ -570,7 +570,7 @@ def test_resource_workload_uses_bounded_reader_not_repository_wide_task_lookup(s
         )
         ts.assign_resource(task.id, resource.id, allocation_percent=20.0)
 
-    workload_service = services["resource_workload_service"]
+    workload_service = services["resource_workload_query"]
     task_counts, restore_tasks = _instrument_get_and_batch(
         SqlAlchemyTaskRepository, "list_by_ids"
     )

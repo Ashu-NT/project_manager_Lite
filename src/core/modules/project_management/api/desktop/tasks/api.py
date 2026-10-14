@@ -104,16 +104,18 @@ from src.core.modules.project_management.api.desktop.tasks.utils.task_id_utils i
 from src.core.modules.project_management.api.desktop.tasks.utils.task_status_utils import (
     coerce_task_status,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.resources import (
-    ProjectResourceService,
+    ProjectResourceQueryHandler,
     ResourceQueryHandler,
 )
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
-    ScheduleChangeImpactService,
+from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
+    ScheduleChangeImpactQueryHandler,
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.assignment import (
@@ -164,7 +166,7 @@ class ProjectManagementTasksDesktopApi:
     def __init__(
         self,
         *,
-        project_service: ProjectService | None = None,
+        project_service: ProjectQueryHandler | None = None,
         task_service: TaskService | None = None,
         task_workspace_query: TaskWorkspacePageQueryHandler | None = None,
         task_detail_query: TaskDetailPageQueryHandler | None = None,
@@ -172,11 +174,11 @@ class ProjectManagementTasksDesktopApi:
         task_assignment_commands: TaskAssignmentCommandHandler | None = None,
         task_time_entries: TaskTimeEntryHandler | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
-        project_resource_service: ProjectResourceService | None = None,
+        project_resource_query: ProjectResourceQueryHandler | None = None,
         resource_query: ResourceQueryHandler | None = None,
         reservation_service: TaskReservationGateway | None = None,
         assignment_skill_validator: AssignmentSkillValidator | None = None,
-        schedule_change_impact_service: ScheduleChangeImpactService | None = None,
+        schedule_change_impact_query: ScheduleChangeImpactQueryHandler | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -186,11 +188,11 @@ class ProjectManagementTasksDesktopApi:
         self._task_assignment_commands = task_assignment_commands
         self._task_time_entries = task_time_entries
         self._module_catalog_service = module_catalog_service
-        self._project_resource_service = project_resource_service
+        self._project_resource_query = project_resource_query
         self._resource_service = resource_query
         self._reservation_service = reservation_service
         self._assignment_skill_validator = assignment_skill_validator
-        self._schedule_change_impact_service = schedule_change_impact_service
+        self._schedule_change_impact_query = schedule_change_impact_query
 
     def list_projects(self) -> tuple[TaskProjectOptionDescriptor, ...]:
         return build_project_options(
@@ -206,7 +208,7 @@ class ProjectManagementTasksDesktopApi:
     ) -> tuple[TaskProjectResourceOptionDescriptor, ...]:
         return build_project_resource_options(
             project_id,
-            project_resource_service=self._project_resource_service,
+            project_resource_query=self._project_resource_query,
             resource_query=self._resource_service,
         )
 
@@ -456,10 +458,10 @@ class ProjectManagementTasksDesktopApi:
 
     def _project_resource_version_for(self, assignment) -> int:
         project_resource_id = str(getattr(assignment, "project_resource_id", "") or "")
-        if not project_resource_id or self._project_resource_service is None:
+        if not project_resource_id or self._project_resource_query is None:
             return 1
         try:
-            project_resource = self._project_resource_service.get(project_resource_id)
+            project_resource = self._project_resource_query.get(project_resource_id)
         except Exception:
             logger.exception(
                 "Failed to retrieve project resource version for assignment_id=%s, project_resource_id=%s",
@@ -950,7 +952,7 @@ class ProjectManagementTasksDesktopApi:
             task_id,
             project_resource_id,
             task_service=self._task_service,
-            project_resource_service=self._project_resource_service,
+            project_resource_query=self._project_resource_query,
             assignment_skill_validator=self._assignment_skill_validator,
         )
 
@@ -966,7 +968,7 @@ class ProjectManagementTasksDesktopApi:
             task_id,
             project_resource_id,
             task_service=self._task_service,
-            project_resource_service=self._project_resource_service,
+            project_resource_query=self._project_resource_query,
             assignment_skill_validator=self._assignment_skill_validator,
             proposed_allocation_percent=proposed_allocation_percent,
             exclude_assignment_id=exclude_assignment_id,
@@ -988,9 +990,9 @@ class ProjectManagementTasksDesktopApi:
             return serialize_task_schedule_overview(
                 normalized_task_id, unavailable_reason="missing_task_or_project_id"
             )
-        if self._schedule_change_impact_service is None:
+        if self._schedule_change_impact_query is None:
             logger.warning(
-                "Schedule impact requested but no ScheduleChangeImpactService is wired "
+                "Schedule impact requested but no ScheduleChangeImpactQueryHandler is wired "
                 "(task_id=%s, project_id=%s) -- check that task_service/work_calendar_engine/"
                 "baseline_service are all non-None at desktop_api_builder composition time.",
                 normalized_task_id,
@@ -1000,7 +1002,7 @@ class ProjectManagementTasksDesktopApi:
                 normalized_task_id, unavailable_reason="service_not_configured"
             )
         try:
-            overview = self._schedule_change_impact_service.get_task_schedule_overview(
+            overview = self._schedule_change_impact_query.get_task_schedule_overview(
                 normalized_project_id, normalized_task_id
             )
         except Exception:
@@ -1042,7 +1044,7 @@ class ProjectManagementTasksDesktopApi:
             not normalized_task_id
             or not normalized_project_id
             or self._task_service is None
-            or self._schedule_change_impact_service is None
+            or self._schedule_change_impact_query is None
         ):
             return unavailable
         try:
@@ -1054,7 +1056,7 @@ class ProjectManagementTasksDesktopApi:
                     task.start_date if task is not None else None,
                 )
                 return unavailable
-            report = self._schedule_change_impact_service.analyse_working_day_delay(
+            report = self._schedule_change_impact_query.analyse_working_day_delay(
                 project_id=normalized_project_id,
                 changed_task_id=normalized_task_id,
                 current_start=task.start_date,

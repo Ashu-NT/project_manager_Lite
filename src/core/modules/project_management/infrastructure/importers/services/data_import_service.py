@@ -7,7 +7,18 @@ from pathlib import Path
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.commands.create import (
+    ProjectCreateHandler,
+)
+from src.core.modules.project_management.application.projects.commands.status import (
+    ProjectStatusHandler,
+)
+from src.core.modules.project_management.application.projects.commands.update import (
+    ProjectUpdateHandler,
+)
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.resources import (
     ResourceMasterCommandHandler,
     ResourceQueryHandler,
@@ -67,7 +78,10 @@ class DataImportService(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
-        project_service: ProjectService,
+        project_query: ProjectQueryHandler,
+        project_create: ProjectCreateHandler,
+        project_update: ProjectUpdateHandler,
+        project_status: ProjectStatusHandler,
         task_capabilities: TaskImportCapabilities,
         resource_query: ResourceQueryHandler,
         resource_master_commands: ResourceMasterCommandHandler,
@@ -76,7 +90,10 @@ class DataImportService(ProjectManagementModuleGuardMixin):
         import_registry: ImportDefinitionRegistry | None = None,
         import_runtime: CsvImportRuntime | None = None,
     ) -> None:
-        self._project_service = project_service
+        self._project_query = project_query
+        self._project_create = project_create
+        self._project_update = project_update
+        self._project_status = project_status
         self._task_capabilities = task_capabilities
         self._resource_query = resource_query
         self._resource_master_commands = resource_master_commands
@@ -88,18 +105,21 @@ class DataImportService(ProjectManagementModuleGuardMixin):
             registry,
             schemas=IMPORT_SCHEMAS,
             preview_handlers={
-                "projects": lambda rows: preview_projects(rows, project_service=project_service),
+                "projects": lambda rows: preview_projects(rows, project_query=project_query),
                 "resources": lambda rows: preview_resources(rows, resource_query=resource_query),
-                "tasks": lambda rows: preview_tasks(rows, project_service=project_service, task_capabilities=task_capabilities),
+                "tasks": lambda rows: preview_tasks(rows, project_service=project_query, task_capabilities=task_capabilities),
             },
             execution_handlers={
-                "projects": lambda rows: import_projects(rows, project_service=project_service),
+                "projects": lambda rows: import_projects(
+                    rows, project_query=project_query, project_create=project_create,
+                    project_update=project_update, project_status=project_status,
+                ),
                 "resources": lambda rows: import_resources(
                     rows,
                     resource_query=resource_query,
                     resource_commands=resource_master_commands,
                 ),
-                "tasks": lambda rows: import_tasks(rows, project_service=project_service, task_capabilities=task_capabilities),
+                "tasks": lambda rows: import_tasks(rows, project_service=project_query, task_capabilities=task_capabilities),
             },
         )
         self._import_registry = registry

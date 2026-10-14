@@ -9,8 +9,8 @@ from src.core.global_overview.contract.module_summary import (
 from src.core.modules.project_management.application.dashboard.reporting.portfolio import (
     PortfolioDashboardQueryHandler,
 )
-from src.core.modules.project_management.application.projects.service import (
-    ProjectService,
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
 )
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeQueryHandler,
@@ -36,7 +36,7 @@ class ProjectManagementModuleOverviewContributor:
         *,
         platform_runtime_query: PlatformRuntimeQueryHandler,
         portfolio_dashboard: PortfolioDashboardQueryHandler,
-        project_service: ProjectService,
+        project_service: ProjectQueryHandler,
     ) -> None:
         self._platform_runtime_query = platform_runtime_query
         self._portfolio_dashboard = portfolio_dashboard
@@ -73,6 +73,8 @@ class ProjectManagementModuleOverviewContributor:
             project_count = len(self._project_service.list_projects())
             noun = "project" if project_count == 1 else "projects"
             return f"{project_count} {noun}"
+        if data.portfolio is None:
+            return "Portfolio summary unavailable"
         count = data.portfolio.active_projects
         noun = "active project" if count == 1 else "active projects"
         return f"{count} {noun}"

@@ -13,6 +13,9 @@ from src.core.modules.project_management.application.common import (
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.resources.project_resources.project_resource_events import (
     ProjectResourceAssignmentChanged,
 )
@@ -75,7 +78,7 @@ def _diff_project_resource_fields(
     return changes
 
 
-class ProjectResourceCommandHandler:
+class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
     _project_resource_repo: ProjectResourceRepository
     _resource_repo: ResourceRepository
     _project_repo: ProjectRepository
@@ -91,6 +94,7 @@ class ProjectResourceCommandHandler:
         resource_repo: ResourceRepository,
         project_repo: ProjectRepository,
         user_session: UserSessionContext | None,
+        module_catalog_service=None,
         activity_service: ActivityService | None,
         tenant_context_service: TenantContextService | None,
         task_repo: TaskRepository | None,
@@ -102,6 +106,7 @@ class ProjectResourceCommandHandler:
         self._resource_repo = resource_repo
         self._project_repo = project_repo
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
         self._activity_service = activity_service
         self._tenant_context_service = tenant_context_service
         self._task_repo = task_repo

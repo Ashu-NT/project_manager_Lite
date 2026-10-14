@@ -31,7 +31,8 @@ def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -
     assert any(row.user_id == user_id and row.display_name == "Manager Employee" for row in candidates)
     assert all(row.user_id != resource.id for row in candidates)
     options = ProjectManagementProjectsDesktopApi(
-        project_service=project_service,
+        project_create=services["project_create"],
+        project_update=services["project_update"],
         project_query=services["project_query"],
     ).list_manager_candidates()
     assert any(row.user_id == user_id for row in options)

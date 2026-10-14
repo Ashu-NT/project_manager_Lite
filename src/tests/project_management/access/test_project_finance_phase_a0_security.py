@@ -53,7 +53,7 @@ def _seed_labor_finance_project(services) -> str:
         resource_id=resource.id,
         effective_from=date(2026, 1, 5),
     )
-    project_resource = services["project_resource_service"].add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project_id=project.id,
         resource_id=resource.id,
         planned_hours=16.0,
@@ -118,7 +118,7 @@ def test_finance_export_requires_distinct_export_permission(services):
     )
 
     with pytest.raises(BusinessRuleError, match="finance.export") as exc:
-        services["finance_service"].get_finance_export_snapshot("project-1")
+        services["finance_snapshot_query"].get_finance_export_snapshot("project-1")
 
     assert exc.value.code == "PERMISSION_DENIED"
 
@@ -133,7 +133,7 @@ def test_report_view_without_finance_read_cannot_view_finance_snapshot(services)
     _login(services, "report-only-finance", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="finance.read"):
-        services["finance_service"].get_finance_snapshot(project_id)
+        services["finance_snapshot_query"].get_finance_snapshot(project_id)
 
 
 def test_sensitive_labor_detail_is_redacted_without_sensitive_permission(services):
@@ -145,7 +145,7 @@ def test_sensitive_labor_detail_is_redacted_without_sensitive_permission(service
     )
     _login(services, "project-finance-reader", "StrongPass123")
 
-    snapshot = services["finance_service"].get_finance_snapshot(project_id)
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(project_id)
 
     assert snapshot.sensitive_detail_included is False
     labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
@@ -163,7 +163,7 @@ def test_finance_controller_can_view_sensitive_labor_detail(services):
     )
     _login(services, "sensitive-finance-reader", "StrongPass123")
 
-    snapshot = services["finance_service"].get_finance_snapshot(project_id)
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(project_id)
 
     assert snapshot.sensitive_detail_included is True
     labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
@@ -189,7 +189,7 @@ def test_global_sensitive_grant_does_not_bypass_project_scope(services):
         )
     )
 
-    snapshot = services["finance_service"].get_finance_snapshot(project_id)
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(project_id)
 
     labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
     assert labor_rows
@@ -442,7 +442,7 @@ def test_finance_read_without_sensitive_allows_cost_breakdown_and_kpis(services)
 def test_finance_read_without_sensitive_denies_identified_labor_detail(services):
     """Case B (redact/deny half): individually resource-identified labor
     rate/cost detail requires finance.read_sensitive, matching the existing
-    FinanceService labor redaction convention. There is no non-sensitive
+    FinanceSnapshotQueryHandler labor redaction convention. There is no non-sensitive
     aggregate variant of this report builder method, so the established
     convention is enforced as a denial rather than a silent redaction."""
     project_id = _seed_labor_finance_project(services)
@@ -455,7 +455,7 @@ def test_finance_read_without_sensitive_denies_identified_labor_detail(services)
 
 def test_finance_read_sensitive_allows_identified_labor_detail(services):
     """Case C: finance.read_sensitive grants access to resource-identified
-    labor detail through LaborReportBuilder, matching FinanceService."""
+    labor detail through LaborReportBuilder, matching FinanceSnapshotQueryHandler."""
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "finance-reader-sensitive", role_names=["finance_controller"])
 
@@ -467,7 +467,7 @@ def test_finance_read_sensitive_allows_identified_labor_detail(services):
 
 def test_finance_export_permission_alone_is_not_sufficient_without_finance_read(services):
     """Case E: finance.export must not substitute finance.read. This mirrors
-    the existing FinanceService.get_finance_export_snapshot convention
+    the existing FinanceSnapshotQueryHandler.get_finance_export_snapshot convention
     (export permission gates the export action; read permission still
     governs whether the underlying data may be produced at all)."""
     tenant_id = services["user_session"].stored_active_tenant_id()
@@ -485,7 +485,7 @@ def test_finance_export_permission_alone_is_not_sufficient_without_finance_read(
     )
 
     with pytest.raises(BusinessRuleError, match="finance.read") as exc:
-        services["finance_service"].get_finance_export_snapshot("project-1")
+        services["finance_snapshot_query"].get_finance_export_snapshot("project-1")
     assert exc.value.code == "PERMISSION_DENIED"
 
 

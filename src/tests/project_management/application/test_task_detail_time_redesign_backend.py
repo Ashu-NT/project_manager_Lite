@@ -15,10 +15,10 @@ from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_f
 def _setup_project_resource(services, *, planned_hours: float = 100.0):
     ps = services["project_service"]
     rs = services["resource_query"]
-    prs = services["project_resource_service"]
+    prs = services["project_resource_query"]
     project = ps.create_project("Time Redesign Backend Project")
     resource = services["resource_master_commands"].create_resource("Alice Brown", hourly_rate=50.0)
-    project_resource = prs.add_to_project(project.id, resource.id, planned_hours=planned_hours)
+    project_resource = services["project_resource_commands"].add_to_project(project.id, resource.id, planned_hours=planned_hours)
     return ps, rs, prs, project, resource, project_resource
 
 
@@ -26,7 +26,7 @@ def test_task_time_summary_aggregates_across_all_assignments_on_the_task(service
     ps, rs, prs, project, alice, pr_alice = _setup_project_resource(services)
     ts = services["task_service"]
     bob = services["resource_master_commands"].create_resource("Bob Smith", hourly_rate=60.0)
-    pr_bob = prs.add_to_project(project.id, bob.id, planned_hours=100.0)
+    pr_bob = services["project_resource_commands"].add_to_project(project.id, bob.id, planned_hours=100.0)
     task = ts.create_task(project.id, "Electrical Design")
 
     a1 = ts.assign_project_resource(
@@ -41,7 +41,7 @@ def test_task_time_summary_aggregates_across_all_assignments_on_the_task(service
     services["time_entry_commands"].add_time_entry(a2.id, entry_date=date(2026, 8, 17), hours=20.0, note="Docs")
 
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, resource_query=rs, project_resource_service=prs,
+        project_service=ps, task_service=ts, resource_query=rs, project_resource_query=prs,
         task_assignment_commands=services["task_assignment_commands"],
         task_time_entries=services["task_time_entries"],
     )
@@ -69,7 +69,7 @@ def test_task_time_summary_reports_overrun_when_actual_exceeds_planned(services)
     services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 8, 17), hours=6.0, note="More work")
 
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, resource_query=rs, project_resource_service=prs,
+        project_service=ps, task_service=ts, resource_query=rs, project_resource_query=prs,
         task_assignment_commands=services["task_assignment_commands"],
         task_time_entries=services["task_time_entries"],
     )
@@ -106,7 +106,7 @@ def test_task_time_summary_and_entries_are_task_scoped_not_resource_wide(service
     services["time_entry_commands"].add_time_entry(assignment_b.id, entry_date=date(2026, 8, 16), hours=42.0, note="Task B work")
 
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, resource_query=rs, project_resource_service=prs,
+        project_service=ps, task_service=ts, resource_query=rs, project_resource_query=prs,
         task_assignment_commands=services["task_assignment_commands"],
         task_time_entries=services["task_time_entries"],
     )
@@ -141,7 +141,7 @@ def test_list_task_time_entries_paginates_authoritatively(services):
         )
 
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, resource_query=rs, project_resource_service=prs,
+        project_service=ps, task_service=ts, resource_query=rs, project_resource_query=prs,
         task_assignment_commands=services["task_assignment_commands"],
         task_time_entries=services["task_time_entries"],
     )
@@ -164,7 +164,7 @@ def test_list_task_time_entries_filters_by_resource(services):
     ps, rs, prs, project, alice, pr_alice = _setup_project_resource(services, planned_hours=100.0)
     ts = services["task_service"]
     bob = services["resource_master_commands"].create_resource("Bob Smith", hourly_rate=55.0)
-    pr_bob = prs.add_to_project(project.id, bob.id, planned_hours=100.0)
+    pr_bob = services["project_resource_commands"].add_to_project(project.id, bob.id, planned_hours=100.0)
     task = ts.create_task(project.id, "Filter Task")
 
     a1 = ts.assign_project_resource(
@@ -177,7 +177,7 @@ def test_list_task_time_entries_filters_by_resource(services):
     services["time_entry_commands"].add_time_entry(a2.id, entry_date=date(2026, 8, 16), hours=4.0, note="Bob work")
 
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, resource_query=rs, project_resource_service=prs,
+        project_service=ps, task_service=ts, resource_query=rs, project_resource_query=prs,
         task_assignment_commands=services["task_assignment_commands"],
         task_time_entries=services["task_time_entries"],
     )
@@ -194,9 +194,9 @@ def test_get_task_time_summary_returns_none_for_blank_task_id(services):
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_query"]
-    prs = services["project_resource_service"]
+    prs = services["project_resource_query"]
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, resource_query=rs, project_resource_service=prs,
+        project_service=ps, task_service=ts, resource_query=rs, project_resource_query=prs,
         task_assignment_commands=services["task_assignment_commands"],
         task_time_entries=services["task_time_entries"],
     )

@@ -1,4 +1,4 @@
-"""ScheduleChangeImpactService extensions for Task Detail -> Schedule
+"""ScheduleChangeImpactQueryHandler extensions for Task Detail -> Schedule
 Impact: get_task_schedule_overview (current-state facts), a working-day-
 aware "delay by N working days" preview, and the extended analyse()
 report fields (milestone flag, critical_path_changed, dependency
@@ -8,19 +8,18 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
-    ScheduleChangeImpactService,
+from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
+    ScheduleChangeImpactQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 
 
 def _impact_service(services):
-    """`ScheduleChangeImpactService` isn't in the shared test `services` graph -- build it
+    """`ScheduleChangeImpactQueryHandler` isn't in the shared test `services` graph -- build it
     directly from the same real repos/calendar/baseline_service the desktop runtime wires."""
-    ts = services["task_service"]
-    return ScheduleChangeImpactService(
-        task_repo=ts._task_repo,
-        dependency_repo=ts._dependency_repo,
+    return ScheduleChangeImpactQueryHandler(
+        task_repo=services["task_lookup_query"]._task_repo,
+        dependency_repo=services["task_dependency_diagnostics"]._dependency_repo,
         calendar=services["work_calendar_engine"],
         baseline_lookup=services["baseline_service"],
     )
@@ -118,8 +117,8 @@ class TestGetTaskScheduleOverview:
         from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
             ConstraintType,
         )
-        from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
-            ScheduleChangeImpactService,
+        from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
+            ScheduleChangeImpactQueryHandler,
         )
         from src.core.modules.project_management.domain.tasks.task import (
             Task,
@@ -142,7 +141,7 @@ class TestGetTaskScheduleOverview:
             def list_by_project(self, _project_id):
                 return [dep]
 
-        service = ScheduleChangeImpactService(
+        service = ScheduleChangeImpactQueryHandler(
             task_repo=_FakeTaskRepo(),
             dependency_repo=_FakeDependencyRepo(),
             calendar=services["work_calendar_engine"],

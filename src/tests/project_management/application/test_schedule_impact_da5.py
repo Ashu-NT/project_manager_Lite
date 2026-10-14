@@ -5,8 +5,8 @@ from datetime import date
 from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     CPMResult,
 )
-from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
-    ScheduleChangeImpactService,
+from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
+    ScheduleChangeImpactQueryHandler,
 )
 from src.core.modules.project_management.domain.tasks.task import Task
 
@@ -71,7 +71,7 @@ def test_schedule_impact_service_owns_baseline_resolution_for_all_scenarios() ->
         duration_days=5,
     )
     baseline_lookup = _BaselineLookup()
-    service = ScheduleChangeImpactService(
+    service = ScheduleChangeImpactQueryHandler(
         task_repo=_TaskRepository(task),
         dependency_repo=_DependencyRepository(),
         calendar=_Calendar(),

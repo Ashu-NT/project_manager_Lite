@@ -8,6 +8,7 @@ from src.core.modules.project_management.api.desktop.projects.models.resources i
 from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
     assignable_resource_label,
 )
+from src.core.modules.project_management.domain.resources.resource import Resource
 
 
 def resource_lookup(
@@ -15,7 +16,7 @@ def resource_lookup(
     resource_ids: tuple[str, ...],
     *,
     resource_query=None,
-) -> dict[str, object]:
+) -> dict[str, Resource]:
     resources = list_resources_for_context(
         project_id, resource_ids=resource_ids,
         resource_query=resource_query,
@@ -32,7 +33,7 @@ def list_resources_for_context(
     *,
     resource_ids: tuple[str, ...] | None = None,
     resource_query=None,
-) -> tuple[object, ...]:
+) -> tuple[Resource, ...]:
     if resource_query is None:
         return ()
     list_resources = getattr(resource_query, "list_for_project_workspace", None)

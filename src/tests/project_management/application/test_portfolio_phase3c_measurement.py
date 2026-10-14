@@ -22,7 +22,7 @@ _SIZES = {
 def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
     project_service = services["project_service"]
     task_service = services["task_service"]
-    project_resource_service = services["project_resource_service"]
+    services["project_resource_query"]
     scenario_commands = services["portfolio_scenario_commands"]
 
     project_ids: list[str] = []
@@ -46,7 +46,7 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
             capacity_percent=100.0,
             currency_code="EUR",
         )
-        project_resource = project_resource_service.add_to_project(
+        project_resource = services["project_resource_commands"].add_to_project(
             project_id=project.id,
             resource_id=resource.id,
             planned_hours=40.0,
@@ -87,7 +87,7 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
     policy = scenario_query._policy
     assert executive._policy is policy
     reporting = services["project_kpi_report"]
-    pool = services["portfolio_resource_pool_service"]
+    pool = services["portfolio_resource_pool_query"]
 
     targets = [
         (policy, "accessible_projects", "portfolio._accessible_projects"),

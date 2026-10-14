@@ -9,15 +9,19 @@ from src.core.modules.project_management.api.desktop.tasks.models.validation imp
 from src.core.modules.project_management.api.desktop.tasks.services.capacity_status_labels import (
     capacity_status_label,
 )
+from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
+    AssignmentSkillValidator,
+)
+from src.core.modules.project_management.application.tasks.service import TaskService
 
 
 def build_assignment_preview(
     task_id: str,
     project_resource_id: str,
     *,
-    task_service: object | None,
-    project_resource_service: object | None,
-    assignment_skill_validator: object | None,
+    task_service: TaskService | None,
+    project_resource_query: object | None,
+    assignment_skill_validator: AssignmentSkillValidator | None,
     proposed_allocation_percent: float = 100.0,
     exclude_assignment_id: str | None = None,
     project_names: dict[str, str] | None = None,
@@ -31,7 +35,7 @@ def build_assignment_preview(
         return empty_preview
 
     resource_id = ""
-    get_project_resource = getattr(project_resource_service, "get", None)
+    get_project_resource = getattr(project_resource_query, "get", None)
     if callable(get_project_resource):
         project_resource = get_project_resource(project_resource_id)
         resource_id = (

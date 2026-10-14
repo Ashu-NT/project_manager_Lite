@@ -23,8 +23,8 @@ from src.core.modules.project_management.application.portfolio.utils.portfolio_h
 from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
     PortfolioPolicy,
 )
-from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
-    PortfolioResourcePoolService,
+from src.core.modules.project_management.application.resources.portfolio.queries.resource_pool import (
+    PortfolioResourcePoolQueryHandler,
 )
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     ProjectCalendarAdapter,
@@ -142,11 +142,11 @@ def build_portfolio_capabilities(
     )
 
 
-def build_portfolio_resource_pool_service(
+def build_portfolio_resource_pool_query(
     session: Session,
     platform_services: PlatformServiceBundle,
-) -> PortfolioResourcePoolService:
-    return PortfolioResourcePoolService(
+) -> PortfolioResourcePoolQueryHandler:
+    return PortfolioResourcePoolQueryHandler(
         reader=SqlAlchemyPortfolioResourcePoolReader(session=session),
         calendar=platform_services.global_calendar_shim,
         tenant_context_service=platform_services.tenant_context_service,

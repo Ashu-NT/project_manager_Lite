@@ -1,8 +1,8 @@
 """Scheduling use cases — re-exports all public API for backward compatibility."""
 
 from src.core.modules.project_management.application.scheduling.baselines import (
+    BaselineComparisonQueryHandler,
     BaselineComparisonReport,
-    BaselineComparisonService,
     BaselineService,
     TaskVariance,
 )
@@ -23,8 +23,8 @@ from src.core.modules.project_management.application.scheduling.cpm import (
     run_forward_pass,
 )
 from src.core.modules.project_management.application.scheduling.forecasting import (
+    ScheduleChangeImpactQueryHandler,
     ScheduleChangeImpactReport,
-    ScheduleChangeImpactService,
     TaskImpact,
 )
 from src.core.modules.project_management.application.scheduling.leveling import (
@@ -47,7 +47,7 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 
 __all__ = [
     "BaselineComparisonReport",
-    "BaselineComparisonService",
+    "BaselineComparisonQueryHandler",
     "BaselineService",
     "BoundProjectCalendar",
     "CPMResult",
@@ -63,7 +63,7 @@ __all__ = [
     "ResourceConflictEntry",
     "ResourceLevelingPlanner",
     "ScheduleChangeImpactReport",
-    "ScheduleChangeImpactService",
+    "ScheduleChangeImpactQueryHandler",
     "SchedulingEngine",
     "TaskImpact",
     "TaskVariance",

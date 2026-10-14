@@ -129,7 +129,7 @@ def test_capacity_pool_builder_propagates_failure_instead_of_swallowing(services
         build_capacity_pool,
     )
 
-    pool_service = services["portfolio_resource_pool_service"]
+    pool_service = services["portfolio_resource_pool_query"]
 
     def _boom(*_args, **_kwargs):
         raise RuntimeError("forced failure for Phase 0A.4 broad-exception test")
@@ -150,7 +150,7 @@ def test_dashboard_pending_approvals_propagates_failure_instead_of_swallowing():
             raise RuntimeError("forced failure for Phase 0A.4 broad-exception test")
 
     service = DashboardSnapshotService.__new__(DashboardSnapshotService)
-    service._approval_commands = _BoomApprovalCommandHandler()
+    service._approval_queries = _BoomApprovalCommandHandler()
 
     with pytest.raises(RuntimeError, match="forced failure"):
         service._list_pending_approvals(project_id=None)

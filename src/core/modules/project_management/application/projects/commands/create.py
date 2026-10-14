@@ -8,6 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.financials.configuration.events import (
     ProjectFinancialProfileCreated,
 )
@@ -51,7 +54,7 @@ from src.core.shared.events.domain_event_context import DomainEventContext
 
 logger = logging.getLogger(__name__)
 
-class ProjectCreateHandler(ProjectSupportMixin):
+class ProjectCreateHandler(ProjectManagementModuleGuardMixin, ProjectSupportMixin):
     def __init__(
         self,
         *,
@@ -60,6 +63,7 @@ class ProjectCreateHandler(ProjectSupportMixin):
         uow_factory: ProjectUnitOfWorkFactory,
         tenant_context_service: TenantContextService,
         user_session: UserSessionContext | None,
+        module_catalog_service=None,
         party_repo: PartyRepository | None,
         department_repo: DepartmentRepository | None,
     ) -> None:
@@ -68,6 +72,7 @@ class ProjectCreateHandler(ProjectSupportMixin):
         self._uow_factory = uow_factory
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
         self._party_repo = party_repo
         self._department_repo = department_repo
 

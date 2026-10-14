@@ -33,7 +33,7 @@ from src.ui_qml.shell.qml_engine import create_qml_engine
 def _seed_resource_context(services):
     project_service = services["project_service"]
     task_service = services["task_service"]
-    project_resource_service = services["project_resource_service"]
+    services["project_resource_query"]
 
     resource = services["resource_master_commands"].create_resource("R5E Planner", role="Planner")
     alpha = project_service.create_project(
@@ -50,10 +50,10 @@ def _seed_resource_context(services):
         start_date=date(2026, 9, 1),
         end_date=date(2026, 12, 31),
     )
-    alpha_resource = project_resource_service.add_to_project(
+    alpha_resource = services["project_resource_commands"].add_to_project(
         alpha.id, resource.id, planned_hours=Decimal(120)
     )
-    zulu_resource = project_resource_service.add_to_project(
+    zulu_resource = services["project_resource_commands"].add_to_project(
         zulu.id, resource.id, planned_hours=Decimal(80)
     )
     alpha_task = task_service.create_task(

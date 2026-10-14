@@ -67,13 +67,13 @@ from src.core.modules.project_management.application.financials.planned_costs im
     PlannedCostCalculationResult,
     PlannedCostService,
 )
+from src.core.modules.project_management.application.financials.queries.snapshot import (
+    FinanceSnapshotQueryHandler,
+)
 from src.core.modules.project_management.application.financials.rate_cards import (
     ProjectRateCardService,
     RateCardResolver,
     RateSelectionSnapshot,
-)
-from src.core.modules.project_management.application.financials.services.finance_service import (
-    FinanceService,
 )
 from src.core.modules.project_management.application.financials.workspace_query import (
     ProjectFinanceWorkspaceQuery,
@@ -96,7 +96,7 @@ __all__ = [
     "FinanceInvalidationScope",
     "FinancePeriodRow",
     "FinanceReconciliation",
-    "FinanceService",
+    "FinanceSnapshotQueryHandler",
     "FinanceSnapshot",
     "FinancialChangeService",
     "FinancialConfigurationService",

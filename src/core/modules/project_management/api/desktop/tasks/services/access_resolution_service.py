@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.domain.projects.project import Project
+
 
 def project_rows_for_task_scope(
     *,
     project_service: object | None,
-) -> tuple[object, ...]:
+) -> tuple[Project, ...]:
     if project_service is None:
         return ()
     list_for_task_workspace = getattr(project_service, "list_for_task_workspace", None)

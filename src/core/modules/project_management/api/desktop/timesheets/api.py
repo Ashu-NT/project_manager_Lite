@@ -55,7 +55,9 @@ from src.core.modules.project_management.api.desktop.timesheets.serializers.work
 from src.core.modules.project_management.api.desktop.timesheets.utils.status_utils import (
     coerce_queue_status,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.resources import (
     ResourceQueryHandler,
 )
@@ -96,7 +98,7 @@ class ProjectManagementTimesheetsDesktopApi:
     def __init__(
         self,
         *,
-        project_service: ProjectService | None = None,
+        project_service: ProjectQueryHandler | None = None,
         task_lookup_query: TaskLookupQueryHandler | None = None,
         task_assignment_commands: TaskAssignmentCommandHandler | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,

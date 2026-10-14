@@ -20,7 +20,7 @@ from src.core.modules.project_management.application.dashboard import (
     ProjectDashboardQueryHandler,
 )
 from src.core.modules.project_management.application.financials import (
-    FinanceService,
+    FinanceSnapshotQueryHandler,
     ProjectBillingPreparationService,
     ProjectBillingProfileService,
     ProjectCommitmentService,
@@ -46,6 +46,18 @@ from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioTemplateQueryHandler,
 )
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.commands.create import (
+    ProjectCreateHandler,
+)
+from src.core.modules.project_management.application.projects.commands.deletion import (
+    ProjectDeletionHandler,
+)
+from src.core.modules.project_management.application.projects.commands.status import (
+    ProjectStatusHandler,
+)
+from src.core.modules.project_management.application.projects.commands.update import (
+    ProjectUpdateHandler,
+)
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
 )
@@ -58,15 +70,16 @@ from src.core.modules.project_management.application.reporting import (
     ScheduleVarianceReportBuilder,
 )
 from src.core.modules.project_management.application.resources import (
-    PortfolioResourcePoolService,
-    ProjectResourceService,
+    PortfolioResourcePoolQueryHandler,
+    ProjectResourceCommandHandler,
+    ProjectResourceQueryHandler,
     ResourceCapabilityCommandHandler,
     ResourceMasterCommandHandler,
     ResourceQueryHandler,
-    ResourceWorkloadService,
+    ResourceWorkloadQueryHandler,
 )
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
@@ -84,6 +97,9 @@ from src.core.modules.project_management.application.risk.commands.register_life
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
+)
+from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
+    ScheduleChangeImpactQueryHandler,
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.assignment import (
@@ -134,6 +150,10 @@ def _resolve(services: Mapping[str, object], key: str, expected: type[_T]) -> _T
 class ProjectManagementDesktopRuntimeServices:
     project_service: ProjectService | None
     project_query: ProjectQueryHandler | None
+    project_create: ProjectCreateHandler | None
+    project_update: ProjectUpdateHandler | None
+    project_status: ProjectStatusHandler | None
+    project_deletion: ProjectDeletionHandler | None
     portfolio_intake_query: PortfolioIntakeQueryHandler | None
     portfolio_intake_commands: PortfolioIntakeCommandHandler | None
     portfolio_template_query: PortfolioTemplateQueryHandler | None
@@ -157,10 +177,11 @@ class ProjectManagementDesktopRuntimeServices:
     resource_capability_commands: ResourceCapabilityCommandHandler | None
     resource_capability_query: ResourceCapabilityQueryHandler | None
     resource_context_query: ResourceContextQueryHandler | None
-    availability_service: EnterpriseResourceAvailabilityService | None
-    resource_workload_service: ResourceWorkloadService | None
-    pool_service: PortfolioResourcePoolService | None
-    project_resource_service: ProjectResourceService | None
+    availability_service: ResourceAvailabilityQueryHandler | None
+    resource_workload_query: ResourceWorkloadQueryHandler | None
+    pool_service: PortfolioResourcePoolQueryHandler | None
+    project_resource_query: ProjectResourceQueryHandler | None
+    project_resource_commands: ProjectResourceCommandHandler | None
     timesheet_workspace_query: TimesheetWorkspaceQueryHandler | None
     timesheet_workspace_commands: TimesheetWorkspaceCommandHandler | None
     timesheet_review_query: TimesheetReviewQueryHandler | None
@@ -180,7 +201,7 @@ class ProjectManagementDesktopRuntimeServices:
     work_calendar_engine: CalendarProtocol | None
     project_dashboard_query: ProjectDashboardQueryHandler | None
     portfolio_dashboard_query: PortfolioDashboardQueryHandler | None
-    finance_service: FinanceService | None
+    finance_snapshot_query: FinanceSnapshotQueryHandler | None
     finance_workspace_query: ProjectFinanceWorkspaceQuery | None
     finance_performance_query: ProjectFinancePerformanceQuery | None
     finance_governance_commands: FinanceGovernanceCommandBoundary | None
@@ -189,6 +210,7 @@ class ProjectManagementDesktopRuntimeServices:
     billing_profile_service: ProjectBillingProfileService | None
     billing_preparation_service: ProjectBillingPreparationService | None
     baseline_service: BaselineService | None
+    schedule_change_impact_query: ScheduleChangeImpactQueryHandler | None
     project_kpi_report: ProjectKpiReportBuilder | None
     earned_value_report: EarnedValueReportBuilder | None
     cost_breakdown_report: CostBreakdownReportBuilder | None
@@ -209,9 +231,10 @@ def resolve_project_management_desktop_runtime_services(
     resource_capability_query = services.get("resource_capability_query")
     resource_context_query = services.get("resource_context_query")
     availability_service = services.get("resource_availability_service")
-    resource_workload_service = services.get("resource_workload_service")
-    pool_service = services.get("portfolio_resource_pool_service")
-    project_resource_service = services.get("project_resource_service")
+    resource_workload_query = services.get("resource_workload_query")
+    pool_service = services.get("portfolio_resource_pool_query")
+    project_resource_query = services.get("project_resource_query")
+    project_resource_commands = services.get("project_resource_commands")
     timesheet_workspace_query = services.get("timesheet_workspace_query")
     timesheet_workspace_commands = services.get("timesheet_workspace_commands")
     timesheet_review_query = services.get("timesheet_review_query")
@@ -229,7 +252,7 @@ def resolve_project_management_desktop_runtime_services(
     assignment_skill_validator = services.get("assignment_skill_validator")
     scheduling_engine = services.get("scheduling_engine")
     work_calendar_engine = services.get("work_calendar_engine")
-    finance_service = services.get("finance_service")
+    finance_snapshot_query = services.get("finance_snapshot_query")
     finance_workspace_query = services.get("finance_workspace_query")
     finance_performance_query = services.get("finance_performance_query")
     finance_governance_commands = services.get("finance_governance_commands")
@@ -238,6 +261,7 @@ def resolve_project_management_desktop_runtime_services(
     billing_profile_service = services.get("billing_profile_service")
     billing_preparation_service = services.get("billing_preparation_service")
     baseline_service = services.get("baseline_service")
+    schedule_change_impact_query = services.get("schedule_change_impact_query")
     tenant_context_service = services.get("tenant_context_service")
 
     if work_calendar_engine is not None and not hasattr(
@@ -246,6 +270,10 @@ def resolve_project_management_desktop_runtime_services(
         work_calendar_engine = None
 
     return ProjectManagementDesktopRuntimeServices(
+        project_create=_resolve(services, "project_create", ProjectCreateHandler),
+        project_update=_resolve(services, "project_update", ProjectUpdateHandler),
+        project_status=_resolve(services, "project_status", ProjectStatusHandler),
+        project_deletion=_resolve(services, "project_deletion", ProjectDeletionHandler),
         project_service=(
             project_service if isinstance(project_service, ProjectService) else None
         ),
@@ -295,17 +323,22 @@ def resolve_project_management_desktop_runtime_services(
         ),
         availability_service=(
             availability_service
-            if isinstance(availability_service, EnterpriseResourceAvailabilityService)
+            if isinstance(availability_service, ResourceAvailabilityQueryHandler)
             else None
         ),
         pool_service=(
             pool_service
-            if isinstance(pool_service, PortfolioResourcePoolService)
+            if isinstance(pool_service, PortfolioResourcePoolQueryHandler)
             else None
         ),
-        project_resource_service=(
-            project_resource_service
-            if isinstance(project_resource_service, ProjectResourceService)
+        project_resource_query=(
+            project_resource_query
+            if isinstance(project_resource_query, ProjectResourceQueryHandler)
+            else None
+        ),
+        project_resource_commands=(
+            project_resource_commands
+            if isinstance(project_resource_commands, ProjectResourceCommandHandler)
             else None
         ),
         timesheet_workspace_query=timesheet_workspace_query if isinstance(timesheet_workspace_query, TimesheetWorkspaceQueryHandler) else None,
@@ -355,8 +388,8 @@ def resolve_project_management_desktop_runtime_services(
         portfolio_dashboard_query=_resolve(
             services, "portfolio_dashboard_query", PortfolioDashboardQueryHandler
         ),
-        finance_service=(
-            finance_service if isinstance(finance_service, FinanceService) else None
+        finance_snapshot_query=(
+            finance_snapshot_query if isinstance(finance_snapshot_query, FinanceSnapshotQueryHandler) else None
         ),
         finance_workspace_query=(
             finance_workspace_query
@@ -391,6 +424,11 @@ def resolve_project_management_desktop_runtime_services(
             if isinstance(baseline_service, BaselineService)
             else None
         ),
+        schedule_change_impact_query=(
+            schedule_change_impact_query
+            if isinstance(schedule_change_impact_query, ScheduleChangeImpactQueryHandler)
+            else None
+        ),
         project_kpi_report=_resolve(services, "project_kpi_report", ProjectKpiReportBuilder),
         earned_value_report=_resolve(services, "earned_value_report", EarnedValueReportBuilder),
         cost_breakdown_report=_resolve(services, "cost_breakdown_report", CostBreakdownReportBuilder),
@@ -407,9 +445,9 @@ def resolve_project_management_desktop_runtime_services(
             if isinstance(finance_governance_commands, FinanceGovernanceCommandBoundary)
             else None
         ),
-        resource_workload_service=(
-            resource_workload_service
-            if isinstance(resource_workload_service, ResourceWorkloadService)
+        resource_workload_query=(
+            resource_workload_query
+            if isinstance(resource_workload_query, ResourceWorkloadQueryHandler)
             else None
         ),
         tenant_context_service=(

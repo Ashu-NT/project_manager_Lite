@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING, cast
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     GanttTaskBar,
 )
-from src.core.modules.project_management.application.financials import FinanceService
+from src.core.modules.project_management.application.financials import (
+    FinanceSnapshotQueryHandler,
+)
 from src.core.modules.project_management.application.reporting import (
     CostBreakdownReportBuilder,
     EarnedValueReportBuilder,
@@ -91,7 +93,7 @@ class ExcelReportRequest:
     sources: ProjectReportSources
     project_id: str
     output_path: str | Path
-    finance_service: FinanceService | None = None
+    finance_snapshot_query: FinanceSnapshotQueryHandler | None = None
     baseline_id: str | None = None
     as_of: date | None = None
     finance_period: str = "month"
@@ -105,7 +107,7 @@ class PdfReportRequest:
     project_id: str
     output_path: str | Path
     temp_dir: str | Path = "tmp_reports"
-    finance_service: FinanceService | None = None
+    finance_snapshot_query: FinanceSnapshotQueryHandler | None = None
     baseline_id: str | None = None
     as_of: date | None = None
     finance_period: str = "month"
@@ -151,12 +153,12 @@ def _finance_export_context(request, *, as_of: date):
         offset=request.project_finance_ledger_offset,
         limit=request.project_finance_ledger_limit,
     )
-    if request.finance_service is None:
+    if request.finance_snapshot_query is None:
         return None, None
     # A caller without finance.export/finance.read omits the Finance sheet/summary
     # rather than failing the whole export, like the sections below.
     snapshot = _optional_report_call(
-        request.finance_service.get_finance_export_snapshot,
+        request.finance_snapshot_query.get_finance_export_snapshot,
         request.project_id,
         as_of=as_of,
         period=request.finance_period,
@@ -413,7 +415,7 @@ def generate_excel_report(
     sources: ProjectReportSources,
     project_id: str,
     output_path: str | Path,
-    finance_service: FinanceService | None = None,
+    finance_snapshot_query: FinanceSnapshotQueryHandler | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
     finance_period: str = "month",
@@ -435,7 +437,7 @@ def generate_excel_report(
                 sources=sources,
                 project_id=project_id,
                 output_path=output_path,
-                finance_service=finance_service,
+                finance_snapshot_query=finance_snapshot_query,
                 baseline_id=baseline_id,
                 as_of=as_of,
                 finance_period=finance_period,
@@ -453,7 +455,7 @@ def generate_pdf_report(
     project_id: str,
     output_path: str | Path,
     temp_dir: str | Path = "tmp_reports",
-    finance_service: FinanceService | None = None,
+    finance_snapshot_query: FinanceSnapshotQueryHandler | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
     finance_period: str = "month",
@@ -476,7 +478,7 @@ def generate_pdf_report(
                 project_id=project_id,
                 output_path=output_path,
                 temp_dir=temp_dir,
-                finance_service=finance_service,
+                finance_snapshot_query=finance_snapshot_query,
                 baseline_id=baseline_id,
                 as_of=as_of,
                 finance_period=finance_period,

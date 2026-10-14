@@ -409,7 +409,7 @@ def test_excel_export_omits_finance_sections_without_finance_read(services, tmp_
         _report_sources(services),
         pid,
         output,
-        finance_service=services["finance_service"],
+        finance_snapshot_query=services["finance_snapshot_query"],
         baseline_id=baseline_id,
         as_of=date(2023, 11, 30),
     )

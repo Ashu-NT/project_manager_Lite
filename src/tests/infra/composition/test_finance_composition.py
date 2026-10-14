@@ -213,7 +213,7 @@ def test_finance_forecast_services_preserve_session_and_clock(services, session)
 
 def test_finance_read_services_preserve_ambient_session(services, session) -> None:
     workspace = services["finance_workspace_query"]
-    finance = services["finance_service"]
+    finance = services["finance_snapshot_query"]
 
     assert workspace._setup_reader._session is session
     assert workspace._budget_reader._session is session
@@ -309,7 +309,7 @@ def test_finance_governed_ports_share_one_boundary_and_declared_mutations(servic
 
 def test_finance_performance_query_reuses_reporting_baseline_and_reader(services, session) -> None:
     query = services["finance_performance_query"]
-    finance = services["finance_service"]
+    finance = services["finance_snapshot_query"]
 
     assert query._performance_reader is finance._finance_performance_reader
     assert query._overview_reader._session is session

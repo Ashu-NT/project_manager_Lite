@@ -7,6 +7,9 @@ from src.core.modules.project_management.access.scope_permissions import (
     filter_project_rows,
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
@@ -34,7 +37,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-class ProjectQueryHandler:
+class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
@@ -42,11 +45,13 @@ class ProjectQueryHandler:
         project_catalog_reader: ProjectCatalogReader | None,
         tenant_context_service: TenantContextService | None,
         user_session: UserSessionContext | None,
+        module_catalog_service=None,
     ) -> None:
         self._project_repo = project_repo
         self._project_catalog_reader = project_catalog_reader
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def list_eligible_manager_candidates(self) -> tuple[ProjectManagerCandidateFact, ...]:
         require_permission(

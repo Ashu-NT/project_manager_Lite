@@ -2,17 +2,14 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.modules.project_management.application.resources import (
-    ProjectResourceService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.workload import (
+    ResourceWorkloadQueryHandler,
 )
 from src.core.modules.project_management.application.resources.capacity.resource_capacity_calculator import (
     ResourceCapacityCalculator,
-)
-from src.core.modules.project_management.application.resources.capacity.resource_workload_service import (
-    ResourceWorkloadService,
 )
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
@@ -42,6 +39,7 @@ from src.core.modules.project_management.infrastructure.composition.context impo
     ProjectManagementRepositoryContext,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.resources.bundle import (
+    ProjectResourceComposition,
     ResourceComposition,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
@@ -56,14 +54,14 @@ from src.core.platform.infrastructure.composition.bundle import PlatformServiceB
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkFactoryBase
 
 
-def build_project_resource_service(
+def build_project_resource_capabilities(
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     shared_uow_factory: SqlAlchemyUnitOfWorkFactoryBase,
-) -> ProjectResourceService:
-    return ProjectResourceService(
-        command_handler=ProjectResourceCommandHandler(
+) -> ProjectResourceComposition:
+    return ProjectResourceComposition(
+        commands=ProjectResourceCommandHandler(
             project_resource_repo=repositories.pm.project_resource_repo,
             resource_repo=repositories.pm.resource_repo,
             project_repo=repositories.pm.project_repo,
@@ -74,29 +72,29 @@ def build_project_resource_service(
             assignment_repo=repositories.pm.assignment_repo,
             financial_profile_repo=repositories.pm.project_financial_profile_repo,
             shared_uow_factory=shared_uow_factory,
+            module_catalog_service=platform_services.module_catalog_service,
         ),
-        query_handler=ProjectResourceQueryHandler(
+        query=ProjectResourceQueryHandler(
             project_resource_repo=repositories.pm.project_resource_repo,
             task_repo=repositories.pm.task_repo,
             assignment_repo=repositories.pm.assignment_repo,
             user_session=platform_services.user_session,
+            module_catalog_service=platform_services.module_catalog_service,
         ),
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
     )
 
 
 def build_resource_planning_foundation(
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
-) -> tuple[AssignmentSkillValidator, EnterpriseResourceAvailabilityService]:
+) -> tuple[AssignmentSkillValidator, ResourceAvailabilityQueryHandler]:
     return (
         AssignmentSkillValidator(
             skill_repo=repositories.pm.resource_skill_repo,
             cert_repo=repositories.pm.resource_cert_repo,
             requirement_repo=repositories.pm.task_skill_req_repo,
         ),
-        EnterpriseResourceAvailabilityService(
+        ResourceAvailabilityQueryHandler(
             resolver=platform_services.platform_calendar_resolver,
             resource_repo=repositories.pm.resource_repo,
         ),
@@ -108,11 +106,11 @@ def build_resource_planning_services(
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
-    availability_service: EnterpriseResourceAvailabilityService,
-) -> tuple[ResourceCapacityCalculator, ResourceWorkloadService]:
+    availability_service: ResourceAvailabilityQueryHandler,
+) -> tuple[ResourceCapacityCalculator, ResourceWorkloadQueryHandler]:
     return (
         ResourceCapacityCalculator(availability_service=availability_service),
-        ResourceWorkloadService(
+        ResourceWorkloadQueryHandler(
             resource_repo=repositories.pm.resource_repo,
             demand_reader=SqlAlchemyResourceWorkloadDemandReader(session=session),
             availability_service=availability_service,

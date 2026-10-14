@@ -121,7 +121,7 @@ class ProjectDashboardQueryHandler(ProjectManagementModuleGuardMixin):
         register_snapshot = self._registers.build_snapshot(project_id)
         # Cost source breakdown is Project Finance authority data; report.view
         # (checked above) is not sufficient on its own -- finance.read governs
-        # it, matching FinanceService's own read authority. Redact rather than
+        # it, matching FinanceSnapshotQueryHandler's own read authority. Redact rather than
         # fail the whole dashboard so non-financial dashboard widgets still work.
         can_read_finance = bool(
             self._user_session is not None

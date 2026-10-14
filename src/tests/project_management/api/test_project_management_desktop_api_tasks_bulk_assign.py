@@ -8,12 +8,12 @@ from src.core.modules.project_management.api.desktop import (
 from src.core.modules.project_management.domain.enums import (
     TaskStatus,
 )
-from src.tests.project_management.api._fake_project_resource_services import (
-    _FakeProjectResourceService,
+from src.tests.project_management.api._fake_task_service import _FakeTaskService
+from src.tests.project_management.api._project_resource_fakes import (
+    _FakeProjectResourceQueryHandler,
     _FakeProjectService,
     _FakeResourceService,
 )
-from src.tests.project_management.api._fake_task_service import _FakeTaskService
 
 
 def test_project_management_tasks_desktop_api_supports_bulk_status_and_delete() -> None:
@@ -73,7 +73,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
         description="Replace switchgear and commission the new line.",
     )
     resource_service = _FakeResourceService()
-    project_resource_service = _FakeProjectResourceService()
+    project_resource_query = _FakeProjectResourceQueryHandler()
     task_service = _FakeTaskService()
     task_a = task_service.create_task(
         project_id=project.id,
@@ -99,7 +99,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
         hourly_rate=85.0,
         currency_code="EUR",
     )
-    project_resource = project_resource_service.create(
+    project_resource = project_resource_query.create(
         project_id=project.id,
         resource_id=resource.id,
         hourly_rate=90.0,
@@ -110,7 +110,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
         project_service=project_service,
         task_service=task_service,
         task_assignment_commands=task_service,
-        project_resource_service=project_resource_service,
+        project_resource_query=project_resource_query,
         resource_query=resource_service,
     )
 
@@ -186,7 +186,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
         description="Replace switchgear and commission the new line.",
     )
     resource_service = _FakeResourceService()
-    project_resource_service = _FakeProjectResourceService()
+    project_resource_query = _FakeProjectResourceQueryHandler()
     task_service = _FakeTaskService()
     task = task_service.create_task(
         project_id=project.id,
@@ -203,7 +203,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
         hourly_rate=85.0,
         currency_code="EUR",
     )
-    project_resource = project_resource_service.create(
+    project_resource = project_resource_query.create(
         project_id=project.id,
         resource_id=resource.id,
         hourly_rate=90.0,
@@ -218,7 +218,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
         task_service=task_service,
-        project_resource_service=project_resource_service,
+        project_resource_query=project_resource_query,
         resource_query=_TaskScopedResourceService([resource]),
     )
 

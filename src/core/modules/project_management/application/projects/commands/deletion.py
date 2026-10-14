@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.projects.project_events import (
     ProjectRemoved,
 )
@@ -46,7 +49,7 @@ from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.persistence.unit_of_work import UnitOfWorkFactory
 
 
-class ProjectDeletionHandler:
+class ProjectDeletionHandler(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
@@ -59,6 +62,7 @@ class ProjectDeletionHandler:
         shared_uow_factory: UnitOfWorkFactory,
         tenant_context_service: TenantContextService,
         user_session: UserSessionContext | None,
+        module_catalog_service=None,
         activity_service: ActivityService | None,
         enterprise_audit_service: object | None,
     ) -> None:
@@ -71,6 +75,7 @@ class ProjectDeletionHandler:
         self._shared_uow_factory = shared_uow_factory
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
         self._activity_service = activity_service
         self._enterprise_audit_service = enterprise_audit_service
 

@@ -225,7 +225,7 @@ def test_project_resource_add_produces_detail_hint_only(services):
     resource = services["resource_master_commands"].create_resource("P43 PR Resource", "Developer")
     hints = _spy_hints(services)
 
-    services["project_resource_service"].add_to_project(project.id, resource.id)
+    services["project_resource_commands"].add_to_project(project.id, resource.id)
 
     project_hints = _project_hints(hints)
     assert {h.scope_code for h in project_hints} == {PROJECT_DETAIL_SCOPE_CODE}

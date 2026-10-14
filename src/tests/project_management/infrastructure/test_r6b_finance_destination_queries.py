@@ -342,7 +342,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
         hourly_rate=Decimal(50),
         currency_code="USD",
     )
-    project_resource = services["project_resource_service"].add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project.id,
         resource.id,
         hourly_rate=Decimal(50),
@@ -1278,7 +1278,7 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="test bounded finance overview"
     )
-    reader = services["finance_service"]._finance_overview_reader
+    reader = services["finance_snapshot_query"]._finance_overview_reader
     with _statement_count(services["session"]) as statements:
         facts = reader.read_overview_facts(
             tenant_id=scope.tenant_id,

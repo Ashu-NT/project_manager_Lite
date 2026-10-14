@@ -31,7 +31,7 @@ from src.core.modules.project_management.application.dashboard import (
 )
 from src.core.modules.project_management.application.financials import (
     BudgetService,
-    FinanceService,
+    FinanceSnapshotQueryHandler,
     FinancialChangeService,
     FinancialConfigurationService,
     ForecastGenerationService,
@@ -63,6 +63,18 @@ from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioTemplateQueryHandler,
 )
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.commands.create import (
+    ProjectCreateHandler,
+)
+from src.core.modules.project_management.application.projects.commands.deletion import (
+    ProjectDeletionHandler,
+)
+from src.core.modules.project_management.application.projects.commands.status import (
+    ProjectStatusHandler,
+)
+from src.core.modules.project_management.application.projects.commands.update import (
+    ProjectUpdateHandler,
+)
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
 )
@@ -76,25 +88,26 @@ from src.core.modules.project_management.application.reporting import (
     ScheduleVarianceReportBuilder,
 )
 from src.core.modules.project_management.application.resources import (
-    ProjectResourceService,
+    ProjectResourceCommandHandler,
+    ProjectResourceQueryHandler,
     ResourceCapabilityCommandHandler,
     ResourceMasterCommandHandler,
     ResourceQueryHandler,
 )
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
+)
+from src.core.modules.project_management.application.resources.capacity.queries.workload import (
+    ResourceWorkloadQueryHandler,
 )
 from src.core.modules.project_management.application.resources.capacity.resource_capacity_calculator import (
     ResourceCapacityCalculator,
 )
-from src.core.modules.project_management.application.resources.capacity.resource_workload_service import (
-    ResourceWorkloadService,
-)
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
-    PortfolioResourcePoolService,
+from src.core.modules.project_management.application.resources.portfolio.queries.resource_pool import (
+    PortfolioResourcePoolQueryHandler,
 )
 from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
     ResourceContextQueryHandler,
@@ -111,6 +124,9 @@ from src.core.modules.project_management.application.scheduling import (
 )
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
+)
+from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
+    ScheduleChangeImpactQueryHandler,
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.assignment import (
@@ -372,6 +388,10 @@ class ServiceGraph:
     collaboration_presence_query: CollaborationPresenceQueryHandler
     project_service: ProjectService
     project_query: ProjectQueryHandler
+    project_create: ProjectCreateHandler
+    project_update: ProjectUpdateHandler
+    project_status: ProjectStatusHandler
+    project_deletion: ProjectDeletionHandler
     task_service: TaskService
     task_workspace_query: TaskWorkspacePageQueryHandler
     task_detail_query: TaskDetailPageQueryHandler
@@ -404,7 +424,7 @@ class ServiceGraph:
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_performance_query: ProjectFinancePerformanceQuery
-    finance_service: FinanceService
+    finance_snapshot_query: FinanceSnapshotQueryHandler
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim - enterprise-backed
     scheduling_engine: SchedulingEngine
     project_kpi_report: ProjectKpiReportBuilder
@@ -415,6 +435,7 @@ class ServiceGraph:
     profitability_report: ProfitabilityReportBuilder
     labor_report: LaborReportBuilder
     baseline_service: BaselineService
+    schedule_change_impact_query: ScheduleChangeImpactQueryHandler
     project_dashboard_query: ProjectDashboardQueryHandler
     portfolio_dashboard_query: PortfolioDashboardQueryHandler
     portfolio_intake_query: PortfolioIntakeQueryHandler
@@ -428,7 +449,8 @@ class ServiceGraph:
     portfolio_executive_query: PortfolioExecutiveQueryHandler
     register_query: RegisterQueryHandler
     register_lifecycle_commands: RegisterLifecycleHandler
-    project_resource_service: ProjectResourceService
+    project_resource_query: ProjectResourceQueryHandler
+    project_resource_commands: ProjectResourceCommandHandler
     data_import_service: DataImportService
     assignment_skill_validator: AssignmentSkillValidator
     platform_calendar_commands: PlatformCalendarCommandHandler | None
@@ -446,9 +468,9 @@ class ServiceGraph:
     platform_calendar_resolver: PlatformCalendarResolver | None
     working_time_calculator: WorkingTimeCalculator | None
     resource_capacity_calculator: ResourceCapacityCalculator | None
-    resource_workload_service: ResourceWorkloadService | None
-    enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
-    portfolio_resource_pool_service: PortfolioResourcePoolService | None
+    resource_workload_query: ResourceWorkloadQueryHandler | None
+    enterprise_resource_availability: ResourceAvailabilityQueryHandler | None
+    portfolio_resource_pool_query: PortfolioResourcePoolQueryHandler | None
     action_center_service: ActionCenterService
     global_overview_service: GlobalOverviewService
     global_overview_desktop_api: GlobalOverviewDesktopApi
@@ -543,6 +565,10 @@ class ServiceGraph:
             "collaboration_presence_query": self.collaboration_presence_query,
             "project_service": self.project_service,
             "project_query": self.project_query,
+            "project_create": self.project_create,
+            "project_update": self.project_update,
+            "project_status": self.project_status,
+            "project_deletion": self.project_deletion,
             "task_service": self.task_service,
             "task_workspace_query": self.task_workspace_query,
             "task_detail_query": self.task_detail_query,
@@ -575,7 +601,7 @@ class ServiceGraph:
             "planned_cost_service": self.planned_cost_service,
             "finance_workspace_query": self.finance_workspace_query,
             "finance_performance_query": self.finance_performance_query,
-            "finance_service": self.finance_service,
+            "finance_snapshot_query": self.finance_snapshot_query,
             "work_calendar_engine": self.work_calendar_engine,
             "scheduling_engine": self.scheduling_engine,
             "project_kpi_report": self.project_kpi_report,
@@ -586,6 +612,7 @@ class ServiceGraph:
             "profitability_report": self.profitability_report,
             "labor_report": self.labor_report,
             "baseline_service": self.baseline_service,
+            "schedule_change_impact_query": self.schedule_change_impact_query,
             "project_dashboard_query": self.project_dashboard_query,
             "portfolio_dashboard_query": self.portfolio_dashboard_query,
             "portfolio_intake_query": self.portfolio_intake_query,
@@ -599,7 +626,8 @@ class ServiceGraph:
             "portfolio_executive_query": self.portfolio_executive_query,
             "register_query": self.register_query,
             "register_lifecycle_commands": self.register_lifecycle_commands,
-            "project_resource_service": self.project_resource_service,
+            "project_resource_query": self.project_resource_query,
+            "project_resource_commands": self.project_resource_commands,
             "data_import_service": self.data_import_service,
             "assignment_skill_validator": self.assignment_skill_validator,
             "platform_calendar_commands": self.platform_calendar_commands,
@@ -617,12 +645,12 @@ class ServiceGraph:
             "platform_calendar_resolver": self.platform_calendar_resolver,
             "working_time_calculator": self.working_time_calculator,
             "resource_capacity_calculator": self.resource_capacity_calculator,
-            "resource_workload_service": self.resource_workload_service,
+            "resource_workload_query": self.resource_workload_query,
             # The calendar-based capacity authority for Task Assignment
             # availability/overallocation. Resource Detail Availability also
             # uses this instance through the bounded Resource workload query.
             "resource_availability_service": self.enterprise_resource_availability,
-            "portfolio_resource_pool_service": self.portfolio_resource_pool_service,
+            "portfolio_resource_pool_query": self.portfolio_resource_pool_query,
             "action_center_service": self.action_center_service,
             "global_overview_service": self.global_overview_service,
             "global_overview_desktop_api": self.global_overview_desktop_api,

@@ -32,8 +32,8 @@ from src.core.modules.project_management.application.financials.earned_value.can
 from src.core.modules.project_management.application.financials.earned_value.evm_series import (
     EarnedValueSeriesCalculator,
 )
-from src.core.modules.project_management.application.financials.services.finance_service import (
-    FinanceService,
+from src.core.modules.project_management.application.financials.queries.snapshot import (
+    FinanceSnapshotQueryHandler,
 )
 from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
     PortfolioExecutiveQueryHandler,
@@ -56,8 +56,8 @@ from src.core.modules.project_management.application.reporting.builders.evm impo
 from src.core.modules.project_management.application.reporting.builders.kpi import (
     ProjectKpiReportBuilder,
 )
-from src.core.modules.project_management.application.resources.portfolio.resource_pool_service import (
-    PortfolioResourcePoolService,
+from src.core.modules.project_management.application.resources.portfolio.queries.resource_pool import (
+    PortfolioResourcePoolQueryHandler,
 )
 from src.tests.path_rewrites import REPO_ROOT
 
@@ -294,9 +294,9 @@ def test_cost_aggregation_cannot_fan_out_across_independent_sources() -> None:
     assert "def _aggregate(" not in reader_source
 
 
-def test_finance_service_keeps_reader_labor_policy_ownership_and_no_fallback() -> None:
-    source = inspect.getsource(FinanceService.get_finance_snapshot)
-    service_source = inspect.getsource(FinanceService)
+def test_finance_snapshot_query_keeps_reader_labor_policy_ownership_and_no_fallback() -> None:
+    source = inspect.getsource(FinanceSnapshotQueryHandler.get_finance_snapshot)
+    service_source = inspect.getsource(FinanceSnapshotQueryHandler)
 
     assert source.count("self._finance_snapshot_reader.read_facts(") == 1
     assert source.count("self._labor.calculate_project_labor_details(") == 1
@@ -325,7 +325,7 @@ def test_finance_service_keeps_reader_labor_policy_ownership_and_no_fallback() -
 
 def test_runtime_composition_and_desktop_proof_remain_present() -> None:
     registry = (PM_COMPOSITION / "finance/reads.py").read_text(encoding="utf-8")
-    service_source = inspect.getsource(FinanceService.get_finance_snapshot)
+    service_source = inspect.getsource(FinanceSnapshotQueryHandler.get_finance_snapshot)
 
     assert "finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session)" in registry
     assert "self._finance_snapshot_reader.read_facts(" in service_source
@@ -452,8 +452,8 @@ def test_phase6_reporting_uses_canonical_finance_composition() -> None:
 
 
 def test_portfolio_capacity_uses_one_scoped_reader_and_bulk_calendar_snapshot() -> None:
-    source = inspect.getsource(PortfolioResourcePoolService)
-    get_pool_source = inspect.getsource(PortfolioResourcePoolService.get_pool_report)
+    source = inspect.getsource(PortfolioResourcePoolQueryHandler)
+    get_pool_source = inspect.getsource(PortfolioResourcePoolQueryHandler.get_pool_report)
     registry = (PM_COMPOSITION / "portfolio/services.py").read_text(encoding="utf-8")
     reader_source = PORTFOLIO_POOL_READER.read_text(encoding="utf-8")
 

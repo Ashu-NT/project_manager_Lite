@@ -94,9 +94,11 @@ from src.core.modules.project_management.application.portfolio.queries import (
 from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
     TOP_AT_RISK_PROJECTS_LIMIT,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.resources import (
-    PortfolioResourcePoolService,
+    PortfolioResourcePoolQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
 
@@ -105,7 +107,7 @@ class ProjectManagementPortfolioDesktopApi:
     def __init__(
         self,
         *,
-        project_service: ProjectService | None = None,
+        project_service: ProjectQueryHandler | None = None,
         portfolio_intake_query: PortfolioIntakeQueryHandler | None = None,
         portfolio_intake_commands: PortfolioIntakeCommandHandler | None = None,
         portfolio_template_query: PortfolioTemplateQueryHandler | None = None,
@@ -115,7 +117,7 @@ class ProjectManagementPortfolioDesktopApi:
         portfolio_dependency_query: PortfolioDependencyQueryHandler | None = None,
         portfolio_dependency_commands: PortfolioDependencyCommandHandler | None = None,
         portfolio_executive_query: PortfolioExecutiveQueryHandler | None = None,
-        pool_service: PortfolioResourcePoolService | None = None,
+        pool_service: PortfolioResourcePoolQueryHandler | None = None,
     ) -> None:
         self._project_service = project_service
         self._portfolio_intake_query = portfolio_intake_query

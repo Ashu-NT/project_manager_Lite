@@ -13,8 +13,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
 from src.core.modules.project_management.application.resources.capacity.resource_capacity_calculator import (
     ResourceCapacityCalculator,
@@ -38,26 +38,26 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
 from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
     CalendarExceptionCommandHandler,
-)
-from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
-    CalendarExceptionQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
     RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
-    RecurringEventQueryHandler,
-)
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
-)
-from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
-    PlatformCalendarCommandHandler,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -324,7 +324,7 @@ def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
 
 def test_capacity_derived_not_stored(global_cal, assignment_commands, resolver):
     resource_repo = _make_resource_repo("res-cap", worker_type="EXTERNAL")
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     calc = ResourceCapacityCalculator(availability_service=svc)
@@ -341,7 +341,7 @@ def test_utilization_percent_calculated_correctly(
     global_cal, assignment_commands, resolver
 ):
     resource_repo = _make_resource_repo("res-util", worker_type="EXTERNAL")
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     calc = ResourceCapacityCalculator(availability_service=svc)
@@ -369,7 +369,7 @@ def test_utilization_percent_calculated_correctly(
 
 def test_allocation_over_capacity_flagged(global_cal, assignment_commands, resolver):
     resource_repo = _make_resource_repo("res-over", worker_type="EXTERNAL")
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     calc = ResourceCapacityCalculator(availability_service=svc)

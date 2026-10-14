@@ -108,7 +108,7 @@ from src.core.modules.project_management.api.desktop.financials.serializers.snap
     serialize_overview,
 )
 from src.core.modules.project_management.application.financials import (
-    FinanceService,
+    FinanceSnapshotQueryHandler,
     ProjectBillingPreparationService,
     ProjectBillingProfileService,
     ProjectCommitmentService,
@@ -244,7 +244,7 @@ class ProjectManagementFinancialsDesktopApi:
     def __init__(
         self,
         *,
-        finance_service: FinanceService | None = None,
+        finance_snapshot_query: FinanceSnapshotQueryHandler | None = None,
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         finance_performance_query: ProjectFinancePerformanceQuery | None = None,
         finance_governance_commands: FinanceGovernanceCommandBoundary | None = None,
@@ -255,7 +255,7 @@ class ProjectManagementFinancialsDesktopApi:
         report_sources: ProjectReportSources | None = None,
         profitability_report: ProfitabilityReportBuilder | None = None,
     ) -> None:
-        self._finance_service = finance_service
+        self._finance_snapshot_query = finance_snapshot_query
         self._finance_workspace_query = finance_workspace_query
         self._finance_performance_query = finance_performance_query
         self._finance_governance_commands = finance_governance_commands
@@ -552,24 +552,17 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialCreateCostCodeCommand
     ) -> FinancialCostCodeOptionDescriptor:
         commands = self._require_finance_governance_commands()
-        optional_fields = {
-            key: value
-            for key, value in {
-                "parent_id": command.parent_id,
-                "external_system": command.external_system,
-                "external_reference": command.external_reference,
-                "effective_from": command.effective_from,
-                "effective_to": command.effective_to,
-            }.items()
-            if value is not None
-        }
         cost_code = commands.financial_setup(
             lambda service: service.create_cost_code(
                 code=command.code,
                 name=command.name,
                 description=command.description,
                 available_to_project_id=command.project_id,
-                **optional_fields,
+                parent_id=command.parent_id,
+                external_system=command.external_system,
+                external_reference=command.external_reference,
+                effective_from=command.effective_from,
+                effective_to=command.effective_to,
             ),
         )
         return FinancialCostCodeOptionDescriptor(
@@ -859,15 +852,15 @@ class ProjectManagementFinancialsDesktopApi:
         return serialize_cost_entry(entry, service.capabilities_for(entry))
 
     def get_finance_overview(self, project_id: str) -> FinancialOverviewDto:
-        if not project_id or self._finance_service is None:
+        if not project_id or self._finance_snapshot_query is None:
             return empty_overview(project_id=project_id)
         return serialize_overview(
             project_id,
-            self._finance_service.get_finance_overview(project_id),
+            self._finance_snapshot_query.get_finance_overview(project_id),
         )
 
     def get_commitment_summary(self, project_id: str) -> FinancialCommitmentSummaryDto:
-        facts = self._require_finance_service().get_finance_overview(project_id)
+        facts = self._require_finance_snapshot_query().get_finance_overview(project_id)
         return build_commitment_summary_dto(
             project_id,
             facts=facts,
@@ -1635,7 +1628,7 @@ class ProjectManagementFinancialsDesktopApi:
                 self._report_sources,
                 project_id,
                 output_path,
-                finance_service=self._require_finance_service(),
+                finance_snapshot_query=self._require_finance_snapshot_query(),
                 baseline_id=baseline_id or None,
             )
         elif report_format == "pdf":
@@ -1643,7 +1636,7 @@ class ProjectManagementFinancialsDesktopApi:
                 self._report_sources,
                 project_id,
                 output_path,
-                finance_service=self._require_finance_service(),
+                finance_snapshot_query=self._require_finance_snapshot_query(),
                 baseline_id=baseline_id or None,
             )
         else:
@@ -2134,7 +2127,7 @@ class ProjectManagementFinancialsDesktopApi:
             )
         )
 
-    def _require_cost_entry_service(self) -> ProjectCostEntryService:
+    def _require_cost_entry_service(self) -> ProjectCostEntryService | FinanceGovernedServicePort:
         if self._cost_entry_service is None:
             raise RuntimeError("Project cost-entry service is not connected.")
         return self._cost_entry_service
@@ -2156,10 +2149,10 @@ class ProjectManagementFinancialsDesktopApi:
             raise RuntimeError("Project Finance governance command boundary is not connected.")
         return self._finance_governance_commands
 
-    def _require_finance_service(self) -> FinanceService:
-        if self._finance_service is None:
+    def _require_finance_snapshot_query(self) -> FinanceSnapshotQueryHandler:
+        if self._finance_snapshot_query is None:
             raise RuntimeError("Project management finance service is not connected.")
-        return self._finance_service
+        return self._finance_snapshot_query
 
     def _require_finance_workspace_query(self) -> ProjectFinanceWorkspaceQuery:
         if self._finance_workspace_query is None:

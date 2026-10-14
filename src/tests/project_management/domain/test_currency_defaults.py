@@ -25,14 +25,14 @@ def test_resource_defaults_currency_to_active_organization(services):
 def test_project_resource_defaults_currency_to_project(services):
     _set_active_organization_currency(services, "USD")
     ps = services["project_service"]
-    prs = services["project_resource_service"]
+    services["project_resource_query"]
 
     project = ps.create_project(
         "Currency Default PR Project", "", financial_currency_code="GBP"
     )
     resource = services["resource_master_commands"].create_resource("Currency Default PR Resource")
 
-    pr = prs.add_to_project(
+    pr = services["project_resource_commands"].add_to_project(
         project_id=project.id,
         resource_id=resource.id,
         hourly_rate=80.0,

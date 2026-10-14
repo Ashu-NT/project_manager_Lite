@@ -50,7 +50,7 @@ class BaselineComparisonReport:
     total_cost_variance: Decimal
 
 
-class BaselineComparisonService:
+class BaselineComparisonQueryHandler:
     """
     Compares the current computed CPM schedule against a stored project baseline
     and produces a variance report.
@@ -167,4 +167,4 @@ class BaselineComparisonService:
         return -(self._calendar.working_days_between(current_date, baseline_date) - 1)
 
 
-__all__ = ["BaselineComparisonReport", "BaselineComparisonService", "TaskVariance"]
+__all__ = ["BaselineComparisonReport", "BaselineComparisonQueryHandler", "TaskVariance"]

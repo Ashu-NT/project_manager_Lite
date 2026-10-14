@@ -102,7 +102,7 @@ def test_canonical_finance_snapshot_replaces_transient_forecast_formulas() -> No
     assert "ForecastCostService" not in project_registry
     assert "forecast_service" not in app_container
     assert "forecast_service=resolved.forecast_service" not in runtime_builder
-    assert "finance_service=resolved.finance_service" in runtime_builder
+    assert "finance_snapshot_query=resolved.finance_snapshot_query" in runtime_builder
     dashboard_keywords = _call_keywords(
         runtime_builder,
         "build_project_management_dashboard_desktop_api",

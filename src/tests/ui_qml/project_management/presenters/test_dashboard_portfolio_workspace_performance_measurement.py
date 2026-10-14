@@ -70,7 +70,7 @@ def _seed_single_project_workspace(services):
         capacity_percent=100.0,
         currency_code="EUR",
     )
-    project_resource = services["project_resource_service"].add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project_id=project.id,
         resource_id=resource.id,
         planned_hours=40.0,
@@ -94,7 +94,7 @@ def _seed_single_project_workspace(services):
         portfolio_dependency_query=services["portfolio_dependency_query"],
         portfolio_dependency_commands=services["portfolio_dependency_commands"],
         portfolio_executive_query=services["portfolio_executive_query"],
-        pool_service=services["portfolio_resource_pool_service"],
+        pool_service=services["portfolio_resource_pool_query"],
     )
     template = portfolio_api.create_scoring_template(
         SimpleNamespace(
@@ -155,7 +155,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
     portfolio_scenarios = services["portfolio_scenario_query"]
     portfolio_executive = services["portfolio_executive_query"]
     portfolio_dependencies = services["portfolio_dependency_query"]
-    pool = services["portfolio_resource_pool_service"]
+    pool = services["portfolio_resource_pool_query"]
     calendar_resolver = dashboard._sched._project_calendar_adapter._resolver
 
     dashboard_api = build_project_management_dashboard_desktop_api(

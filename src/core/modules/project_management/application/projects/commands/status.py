@@ -6,6 +6,9 @@ from datetime import UTC, datetime
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.projects.project_events import (
     ProjectStatusChanged,
 )
@@ -35,7 +38,7 @@ from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-class ProjectStatusHandler:
+class ProjectStatusHandler(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
@@ -43,11 +46,13 @@ class ProjectStatusHandler:
         uow_factory: ProjectUnitOfWorkFactory,
         tenant_context_service: TenantContextService,
         user_session: UserSessionContext | None,
+        module_catalog_service=None,
     ) -> None:
         self._project_repo = project_repo
         self._uow_factory = uow_factory
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def _require_project_uow_factory(self) -> ProjectUnitOfWorkFactory:
         return self._uow_factory

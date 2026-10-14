@@ -14,7 +14,7 @@ from src.core.modules.project_management.api.desktop.financials.builders import 
 )
 
 
-class _FinanceService:
+class _FinanceSnapshotQueryHandler:
     def __init__(self) -> None:
         self.snapshot_calls = 0
         self.overview_calls = 0
@@ -70,23 +70,23 @@ class _CommitmentService:
 
 def _api(**dependencies) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
-        finance_service=_FinanceService(),
+        finance_snapshot_query=_FinanceSnapshotQueryHandler(),
         **dependencies,
     )
 
 
 def test_financial_desktop_maps_commitment_controls() -> None:
-    finance_service = _FinanceService()
+    finance_snapshot_query = _FinanceSnapshotQueryHandler()
     api = ProjectManagementFinancialsDesktopApi(
-        finance_service=finance_service,
+        finance_snapshot_query=finance_snapshot_query,
     )
 
     commitment = api.get_commitment_summary("project-1")
 
     assert commitment.commitment_rate_pct == 15.0
     assert commitment.available_after_commitment_label == "EUR 450.00"
-    assert finance_service.snapshot_calls == 0
-    assert finance_service.overview_calls == 1
+    assert finance_snapshot_query.snapshot_calls == 0
+    assert finance_snapshot_query.overview_calls == 1
 
 
 @pytest.mark.parametrize("budget,commitment,expected", [
@@ -101,7 +101,7 @@ def test_commitment_percentage_preserves_undefined_versus_available_zero(
         FinanceControlFact,
     )
 
-    facts = _FinanceService().get_finance_overview("project-1")
+    facts = _FinanceSnapshotQueryHandler().get_finance_overview("project-1")
     facts.approved_budget = budget
     facts.open_commitment = commitment
     facts.control = FinanceControlFact(budget, Decimal(0), commitment, None)
@@ -110,13 +110,13 @@ def test_commitment_percentage_preserves_undefined_versus_available_zero(
 
 
 def test_commitment_percentage_without_approved_budget_is_unavailable():
-    facts = _FinanceService().get_finance_overview("project-1")
+    facts = _FinanceSnapshotQueryHandler().get_finance_overview("project-1")
     facts.approved_budget_id = None
     result = commitment_builder.build_commitment_summary_dto("project-1", facts=facts)
     assert result.commitment_rate_pct is None
 
 
-def test_financial_desktop_requires_canonical_finance_service() -> None:
+def test_financial_desktop_requires_canonical_finance_snapshot_query() -> None:
     api = ProjectManagementFinancialsDesktopApi()
 
     with pytest.raises(RuntimeError, match="finance service"):

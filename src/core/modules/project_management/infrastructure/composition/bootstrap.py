@@ -45,7 +45,7 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_finance_governance_operations_factory,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governed_ports import (
-    wrap_finance_service,
+    wrap_finance_snapshot_query,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.rates import (
     build_rate_card_services,
@@ -64,7 +64,7 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.portfolio.services import (
     build_portfolio_capabilities,
-    build_portfolio_resource_pool_service,
+    build_portfolio_resource_pool_query,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.projects.services import (
     build_project_capabilities,
@@ -79,10 +79,13 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_project_management_repositories,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.resources.services import (
-    build_project_resource_service,
+    build_project_resource_capabilities,
     build_resource_capabilities,
     build_resource_planning_foundation,
     build_resource_planning_services,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.scheduling.queries import (
+    build_schedule_change_impact_query,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.scheduling.services import (
     build_baseline_service,
@@ -220,7 +223,7 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    project_resource_service = build_project_resource_service(
+    project_resource_capabilities = build_project_resource_capabilities(
         repositories,
         platform_services,
         shared_uow_factory=shared_session_uow_factory,
@@ -305,7 +308,7 @@ def build_project_management_service_bundle(
         scheduling_engine=scheduling_engine,
         rate_resolver=rate_card_resolver,
     )
-    finance_performance_reader, finance_service = build_finance_performance_services(
+    finance_performance_reader, finance_snapshot_query = build_finance_performance_services(
         session,
         platform_services,
         rate_resolver=rate_card_resolver,
@@ -377,28 +380,28 @@ def build_project_management_service_bundle(
         finance_governance_uow_factory,
         build_finance_governance_operations,
     )
-    financial_configuration_service = wrap_finance_service(
+    financial_configuration_service = wrap_finance_snapshot_query(
         financial_configuration_service, finance_governance_commands, family="financial_setup"
     )
-    budget_service = wrap_finance_service(
+    budget_service = wrap_finance_snapshot_query(
         budget_service, finance_governance_commands, family="budget"
     )
-    forecast_version_service = wrap_finance_service(
+    forecast_version_service = wrap_finance_snapshot_query(
         forecast_version_service, finance_governance_commands, family="forecast_version"
     )
-    forecast_generation_service = wrap_finance_service(
+    forecast_generation_service = wrap_finance_snapshot_query(
         forecast_generation_service, finance_governance_commands, family="forecast_generation"
     )
-    financial_change_service = wrap_finance_service(
+    financial_change_service = wrap_finance_snapshot_query(
         financial_change_service, finance_governance_commands, family="financial_change"
     )
-    rate_card_service = wrap_finance_service(
+    rate_card_service = wrap_finance_snapshot_query(
         rate_card_service, finance_governance_commands, family="rate_card"
     )
-    planned_cost_service = wrap_finance_service(
+    planned_cost_service = wrap_finance_snapshot_query(
         planned_cost_service, finance_governance_commands, family="planned_cost"
     )
-    cost_entry_service = wrap_finance_service(
+    cost_entry_service = wrap_finance_snapshot_query(
         cost_entry_service, finance_governance_commands, family="cost_entry"
     )
     billing_profile_service, billing_preparation_service = build_billing_services(
@@ -408,10 +411,10 @@ def build_project_management_service_bundle(
         clock=system_clock,
         rate_resolver=rate_card_resolver,
     )
-    billing_profile_service = wrap_finance_service(
+    billing_profile_service = wrap_finance_snapshot_query(
         billing_profile_service, finance_governance_commands, family="billing_profile"
     )
-    billing_preparation_service = wrap_finance_service(
+    billing_preparation_service = wrap_finance_snapshot_query(
         billing_preparation_service, finance_governance_commands, family="billing_preparation"
     )
     register_collaboration_view_invalidation(
@@ -439,6 +442,12 @@ def build_project_management_service_bundle(
         platform_services,
         scheduling_engine=scheduling_engine,
     )
+    schedule_change_impact_query = build_schedule_change_impact_query(
+        task_repo=repositories.pm.task_repo,
+        dependency_repo=repositories.pm.dependency_repo,
+        calendar=work_calendar_engine,
+        baseline_lookup=baseline_service,
+    )
     finance_performance_query = build_finance_performance_query(
         session,
         platform_services,
@@ -457,7 +466,10 @@ def build_project_management_service_bundle(
     )
     data_import_service = build_data_import_service(
         platform_services,
-        project_service=project_service,
+        project_query=project_capabilities.query,
+        project_create=project_capabilities.create,
+        project_update=project_capabilities.update,
+        project_status=project_capabilities.status,
         task_capabilities=TaskImportCapabilities(
             lookup=task_capabilities.lookup,
             lifecycle=task_capabilities.lifecycle,
@@ -468,13 +480,13 @@ def build_project_management_service_bundle(
         resource_master_commands=resource_capabilities.master_commands,
     )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
-    resource_capacity_calculator, resource_workload_service = build_resource_planning_services(
+    resource_capacity_calculator, resource_workload_query = build_resource_planning_services(
         session,
         repositories,
         platform_services,
         availability_service=enterprise_resource_availability,
     )
-    portfolio_resource_pool_service = build_portfolio_resource_pool_service(
+    portfolio_resource_pool_query = build_portfolio_resource_pool_query(
         session,
         platform_services,
     )
@@ -507,6 +519,10 @@ def build_project_management_service_bundle(
         collaboration_presence_query=collaboration.presence_query,
         project_service=project_service,
         project_query=project_capabilities.query,
+        project_create=project_capabilities.create,
+        project_update=project_capabilities.update,
+        project_status=project_capabilities.status,
+        project_deletion=project_capabilities.deletion,
         task_service=task_service,
         task_workspace_query=task_capabilities.workspace,
         task_detail_query=task_capabilities.detail,
@@ -541,7 +557,7 @@ def build_project_management_service_bundle(
         planned_cost_service=planned_cost_service,
         finance_workspace_query=finance_workspace_query,
         finance_performance_query=finance_performance_query,
-        finance_service=finance_service,
+        finance_snapshot_query=finance_snapshot_query,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,
         project_kpi_report=reporting.kpi,
@@ -553,6 +569,7 @@ def build_project_management_service_bundle(
         labor_report=reporting.labor,
         baseline_service=baseline_service,
         project_dashboard_query=dashboard.project,
+        schedule_change_impact_query=schedule_change_impact_query,
         portfolio_dashboard_query=dashboard.portfolio,
         portfolio_intake_query=portfolio.intake_query,
         portfolio_intake_commands=portfolio.intake_commands,
@@ -565,14 +582,15 @@ def build_project_management_service_bundle(
         portfolio_executive_query=portfolio.executive_query,
         register_query=register_query,
         register_lifecycle_commands=register_capabilities.lifecycle,
-        project_resource_service=project_resource_service,
+        project_resource_query=project_resource_capabilities.query,
+        project_resource_commands=project_resource_capabilities.commands,
         data_import_service=data_import_service,
         assignment_skill_validator=assignment_skill_validator,
         project_calendar_adapter=project_calendar_adapter,
         enterprise_resource_availability=enterprise_resource_availability,
         resource_capacity_calculator=resource_capacity_calculator,
-        resource_workload_service=resource_workload_service,
-        portfolio_resource_pool_service=portfolio_resource_pool_service,
+        resource_workload_query=resource_workload_query,
+        portfolio_resource_pool_query=portfolio_resource_pool_query,
     )
 
 __all__ = [

@@ -12,40 +12,26 @@ _LARGE_MODULE_BUDGETS = {
 }
 
 
-def test_project_service_is_orchestrator_only():
-    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "projects" / "service.py"
-    text = service_path.read_text(encoding="utf-8", errors="ignore")
-
-    for command in ("create", "deletion", "status", "update"):
-        assert (
-            f"from src.core.modules.project_management.application.projects.commands.{command} import ("
-            in text
-        )
-        command_source = (
-            ROOT
-            / "src/core/modules/project_management/application/projects/commands"
-            / f"{command}.py"
-        ).read_text(encoding="utf-8")
-        if command in {"create", "update"}:
-            assert "from src.core.modules.project_management.application.projects.commands.support import (" in command_source
-    assert "from src.core.modules.project_management.application.projects.queries.project_query import (" in text
-    assert "return self._create_handler.create_project(*args, **kwargs)" in text
-    assert "return self._update_handler.update_project(*args, **kwargs)" in text
-    assert "self._deletion_handler.delete_project(project_id)" in text
+def test_project_handlers_share_repositories_and_transaction_owner(services):
+    query = services["project_query"]
+    create = services["project_create"]
+    update = services["project_update"]
+    status = services["project_status"]
+    deletion = services["project_deletion"]
+    assert query._project_repo is create._project_repo
+    assert query._project_repo is update._project_repo
+    assert query._project_repo is status._project_repo
+    assert query._project_repo is deletion._project_repo
+    assert create._uow_factory is update._uow_factory is status._uow_factory
+    assert not hasattr(query, "create_project")
 
 
-def test_project_resource_service_is_orchestrator_only():
-    service_path = (
-        ROOT / "src" / "core" / "modules" / "project_management" / "application" / "resources"
-        / "project_resources" / "project_resource_service.py"
-    )
-    text = service_path.read_text(encoding="utf-8", errors="ignore")
-
-    assert "from src.core.modules.project_management.application.resources.commands.project_resource_commands import (" in text
-    assert "from src.core.modules.project_management.application.resources.queries.project_resource_queries import (" in text
-    assert "return self._command.add_to_project(" in text
-    assert "self._command.update(" in text
-    assert "self._command.delete(" in text
+def test_project_resource_handlers_receive_the_same_scoped_repository(services):
+    commands = services["project_resource_commands"]
+    query = services["project_resource_query"]
+    assert commands._project_resource_repo is query._project_resource_repo
+    assert not hasattr(query, "add_to_project")
+    assert not hasattr(commands, "list_by_project")
 
 
 def test_register_composition_exposes_handlers_without_service():

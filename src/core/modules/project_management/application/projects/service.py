@@ -22,7 +22,11 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 class ProjectService(ProjectManagementModuleGuardMixin):
-    """Project application service orchestrator."""
+    """TEMPORARY A4 test-fixture facade; delete after fixture callers migrate.
+
+    Production consumers receive the composition-built handlers directly.
+    This facade must not become an accepted permanent compatibility boundary.
+    """
 
     def __init__(
         self,

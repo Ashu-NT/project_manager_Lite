@@ -4,6 +4,18 @@ from __future__ import annotations
 
 from charset_normalizer.api import logger
 
+from src.core.modules.project_management.application.projects.commands.create import (
+    ProjectCreateHandler,
+)
+from src.core.modules.project_management.application.projects.commands.status import (
+    ProjectStatusHandler,
+)
+from src.core.modules.project_management.application.projects.commands.update import (
+    ProjectUpdateHandler,
+)
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.infrastructure.importers.utils.coercion import (
     optional_date,
@@ -24,10 +36,10 @@ from src.core.platform.domain.data_operations.importing import (
 def preview_projects(
     rows: list[tuple[int, dict[str, str]]],
     *,
-    project_service,
+    project_query: ProjectQueryHandler,
 ) -> ImportPreview:
     preview = ImportPreview(entity_type="projects", available_columns=[], mapped_columns={})
-    existing = build_project_lookup(project_service)
+    existing = build_project_lookup(project_query)
     for line_no, row in rows:
         try:
             name = required(row, "name")
@@ -60,38 +72,42 @@ def preview_projects(
 def import_projects(
     rows: list[tuple[int, dict[str, str]]],
     *,
-    project_service,
+    project_query: ProjectQueryHandler,
+    project_create: ProjectCreateHandler,
+    project_update: ProjectUpdateHandler,
+    project_status: ProjectStatusHandler,
 ) -> ImportSummary:
     summary = ImportSummary(entity_type="projects")
-    existing = build_project_lookup(project_service)
+    existing = build_project_lookup(project_query)
     for line_no, row in rows:
         try:
             project_id = row.get("id") or None
             name = required(row, "name")
             project = resolve_project(existing, project_id=project_id, project_name=name)
-            payload = {
-                "name": name,
-                "description": row.get("description", ""),
-                "client_name": row.get("client_name") or None,
-                "client_contact": row.get("client_contact") or None,
-                "start_date": optional_date(row.get("start_date")),
-                "end_date": optional_date(row.get("end_date")),
-            }
+            description = row.get("description", "")
+            client_name = row.get("client_name") or None
+            client_contact = row.get("client_contact") or None
+            start_date = optional_date(row.get("start_date"))
+            end_date = optional_date(row.get("end_date"))
             status = optional_project_status(row.get("status"))
             if project is None:
-                created = project_service.create_project(**payload)
+                created = project_create.create_project(
+                    name=name, description=description, client_name=client_name,
+                    client_contact=client_contact, start_date=start_date, end_date=end_date,
+                )
                 if status is not None and status != ProjectStatus.PLANNED:
-                    project_service.set_status(created.id, status)
+                    project_status.set_status(created.id, status)
                 summary.created_count += 1
             else:
-                project_service.update_project(
+                project_update.update_project(
                     project.id,
                     expected_version=project.version,
                     status=status,
-                    **payload,
+                    name=name, description=description, client_name=client_name,
+                    client_contact=client_contact, start_date=start_date, end_date=end_date,
                 )
                 summary.updated_count += 1
-            existing = build_project_lookup(project_service)
+            existing = build_project_lookup(project_query)
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to import project row at line %s: %s", line_no, exc)
             summary.add_row_error(line_no=line_no, message=str(exc))

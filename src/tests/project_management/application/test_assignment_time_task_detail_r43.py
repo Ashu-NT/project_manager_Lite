@@ -84,11 +84,11 @@ def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services)
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_query"]
-    prs = services["project_resource_service"]
+    prs = services["project_resource_query"]
 
     project = ps.create_project("Planned Hours Exposure Project")
     resource = services["resource_master_commands"].create_resource("Planned Hours Resource", hourly_rate=80.0)
-    project_resource = prs.add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=80.0, currency_code="USD", planned_hours=40.0
     )
     task = ts.create_task(project.id, "Planned Hours Task")
@@ -105,7 +105,7 @@ def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services)
     api = build_project_management_tasks_desktop_api(
         project_service=ps,
         task_service=ts,
-        project_resource_service=prs,
+        project_resource_query=prs,
         resource_query=rs,
     )
     dtos = api.list_assignments(task.id)
@@ -155,11 +155,11 @@ def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(servi
 def test_build_assignment_snapshot_planned_and_remaining_are_page_independent(services):
     ps = services["project_service"]
     ts = services["task_service"]
-    prs = services["project_resource_service"]
+    services["project_resource_query"]
 
     project = ps.create_project("Planned Remaining Project")
     resource = services["resource_master_commands"].create_resource("Planned Remaining Resource", hourly_rate=60.0)
-    project_resource = prs.add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=60.0, currency_code="USD", planned_hours=20.0
     )
     task = ts.create_task(project.id, "Planned Remaining Task")
@@ -228,10 +228,10 @@ def _setup_project_resource(services, *, planned_hours: float = 40.0):
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_query"]
-    prs = services["project_resource_service"]
+    prs = services["project_resource_query"]
     project = ps.create_project("Planned Work Entry Project")
     resource = services["resource_master_commands"].create_resource("Planned Work Resource", hourly_rate=75.0)
-    project_resource = prs.add_to_project(
+    project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=75.0, currency_code="USD", planned_hours=planned_hours
     )
     task = ts.create_task(project.id, "Planned Work Task")
@@ -273,7 +273,7 @@ def test_desktop_create_assignment_forwards_planned_hours_and_exposes_project_re
 ):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, project_resource_service=prs, resource_query=rs,
+        project_service=ps, task_service=ts, project_resource_query=prs, resource_query=rs,
     )
 
     from src.core.modules.project_management.application.tasks.dto import (
@@ -296,7 +296,7 @@ def test_desktop_create_assignment_forwards_planned_hours_and_exposes_project_re
 def test_desktop_update_assignment_planned_hours_succeeds_with_correct_versions(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, project_resource_service=prs, resource_query=rs,
+        project_service=ps, task_service=ts, project_resource_query=prs, resource_query=rs,
     )
     assignment = ts.assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
@@ -325,13 +325,13 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
     """The dual optimistic-lock guards against two sibling assignments (on
     the same shared ProjectResource envelope) racing to redistribute planned
     hours -- NOT against the envelope itself being resized via
-    ProjectResourceService.update(), which does not touch `version` at all."""
+    ProjectResourceQueryHandler.update(), which does not touch `version` at all."""
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(
         services, planned_hours=40.0
     )
     task_b = ts.create_task(project.id, "Sibling Planned Work Task")
     api = build_project_management_tasks_desktop_api(
-        project_service=ps, task_service=ts, project_resource_service=prs, resource_query=rs,
+        project_service=ps, task_service=ts, project_resource_query=prs, resource_query=rs,
     )
     assignment_a = ts.assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=50.0

@@ -123,6 +123,11 @@ def test_create_cost_code_desktop_api_preserves_project_availability_scope():
         name="Internal labor",
         description="Employee delivery time",
         available_to_project_id="project-1",
+        parent_id=None,
+        external_system=None,
+        external_reference=None,
+        effective_from=None,
+        effective_to=None,
     )
     assert governance_commands.financial_setup.call_args.kwargs == {}
     assert result.value == "cost-code-1"

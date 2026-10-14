@@ -13,7 +13,7 @@ def _contributor(services) -> ProjectManagementModuleOverviewContributor:
     return ProjectManagementModuleOverviewContributor(
         platform_runtime_query=services["platform_runtime_query"],
         portfolio_dashboard=services["portfolio_dashboard_query"],
-        project_service=services["project_service"],
+        project_service=services["project_query"],
     )
 
 
@@ -89,3 +89,15 @@ def test_summary_degrades_gracefully_without_report_view_permission(services):
 
     assert summary is not None
     assert "project" in summary.summary_text
+
+
+def test_missing_portfolio_summary_is_not_presented_as_zero(services, monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        services["portfolio_dashboard_query"], "get_portfolio_data",
+        lambda: SimpleNamespace(portfolio=None),
+    )
+    summary = _contributor(services).get_summary(_context(services))
+    assert summary is not None
+    assert summary.summary_text == "Portfolio summary unavailable"

@@ -16,15 +16,17 @@ from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioScenarioQueryHandler,
     PortfolioTemplateQueryHandler,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
+)
 from src.core.modules.project_management.application.resources import (
-    PortfolioResourcePoolService,
+    PortfolioResourcePoolQueryHandler,
 )
 
 
 def build_project_management_portfolio_desktop_api(
     *,
-    project_service: ProjectService | None = None,
+    project_service: ProjectQueryHandler | None = None,
     portfolio_intake_query: PortfolioIntakeQueryHandler | None = None,
     portfolio_intake_commands: PortfolioIntakeCommandHandler | None = None,
     portfolio_template_query: PortfolioTemplateQueryHandler | None = None,
@@ -34,7 +36,7 @@ def build_project_management_portfolio_desktop_api(
     portfolio_dependency_query: PortfolioDependencyQueryHandler | None = None,
     portfolio_dependency_commands: PortfolioDependencyCommandHandler | None = None,
     portfolio_executive_query: PortfolioExecutiveQueryHandler | None = None,
-    pool_service: PortfolioResourcePoolService | None = None,
+    pool_service: PortfolioResourcePoolQueryHandler | None = None,
 ) -> ProjectManagementPortfolioDesktopApi:
     return ProjectManagementPortfolioDesktopApi(
         project_service=project_service,

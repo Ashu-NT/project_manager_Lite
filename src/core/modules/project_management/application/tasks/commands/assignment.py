@@ -11,8 +11,8 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common import (
     project_resource_envelope_policy as envelope_policy,
 )
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
@@ -96,7 +96,7 @@ class TaskAssignmentCommandHandler:
         hierarchy_policy: TaskHierarchyPolicy,
         validation_policy: TaskValidationPolicy,
         assignment_skill_validator: AssignmentSkillValidator | None,
-        enterprise_resource_availability_service: EnterpriseResourceAvailabilityService | None,
+        enterprise_resource_availability_service: ResourceAvailabilityQueryHandler | None,
         uow_scope: TaskUowScope,
         overallocation_policy: str,
     ) -> None:

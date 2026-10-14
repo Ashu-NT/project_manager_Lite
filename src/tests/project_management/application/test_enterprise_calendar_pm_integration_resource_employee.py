@@ -13,8 +13,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.modules.project_management.application.resources.capacity.enterprise_resource_availability import (
-    EnterpriseResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import (
     CostType,
@@ -39,26 +39,26 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
 from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
     CalendarExceptionCommandHandler,
-)
-from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
-    CalendarExceptionQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
     RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
-    RecurringEventQueryHandler,
-)
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
-)
-from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
-    PlatformCalendarCommandHandler,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -426,7 +426,7 @@ def test_employee_backed_resource_inherits_employee_calendar(
     resource_repo = _make_resource_repo(
         "res-smith", worker_type="EMPLOYEE", employee_id="emp-smith"
     )
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     ctx = svc.get_availability("res-smith", target_date=date(2026, 6, 1))
@@ -465,7 +465,7 @@ def test_employee_vacation_blocks_pm_resource(
     resource_repo = _make_resource_repo(
         "res-jones", worker_type="EMPLOYEE", employee_id="emp-jones"
     )
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     ctx = svc.get_availability("res-jones", target_date=date(2026, 6, 1))
@@ -506,7 +506,7 @@ def test_employee_training_reduces_pm_resource_capacity(
     resource_repo = _make_resource_repo(
         "res-trainer", worker_type="EMPLOYEE", employee_id="emp-trainer"
     )
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     ctx = svc.get_availability("res-trainer", target_date=date(2026, 6, 1))  # Monday
@@ -553,7 +553,7 @@ def test_employee_backed_resource_does_not_duplicate_employee_rules(
     resource_repo = _make_resource_repo(
         "res-nodupe", worker_type="EMPLOYEE", employee_id="emp-nodupe"
     )
-    svc = EnterpriseResourceAvailabilityService(
+    svc = ResourceAvailabilityQueryHandler(
         resolver=resolver, resource_repo=resource_repo
     )
     ctx = svc.get_availability("res-nodupe", target_date=date(2026, 6, 1))

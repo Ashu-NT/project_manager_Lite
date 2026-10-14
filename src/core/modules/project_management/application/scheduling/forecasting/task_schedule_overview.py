@@ -4,7 +4,7 @@ Orchestrates the canonical CPM output (``pure_cpm.run_cpm``/``CPMTaskInfo``)
 plus ``ConstraintValidator``/``find_dependency_actual_variances`` -- no new
 scheduling math. Answers "what is this task's current schedule position,
 what drives it, and how exposed is the downstream network" without running
-a hypothetical simulation (that is ``ScheduleChangeImpactService.analyse``'s
+a hypothetical simulation (that is ``ScheduleChangeImpactQueryHandler.analyse``'s
 job).
 """
 from __future__ import annotations

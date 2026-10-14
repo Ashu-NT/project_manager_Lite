@@ -53,6 +53,20 @@ from src.core.platform.application.time_management.time.timesheet_events import 
 from src.core.platform.domain.master_data.employee.events import EmployeeProfileUpdated
 
 
+def test_project_desktop_consumers_reuse_composed_handlers(services):
+    from src.application.runtime.desktop_api_registry import build_desktop_api_registry
+
+    registry = build_desktop_api_registry(services)
+    projects = registry.project_management_projects
+    assert projects._project_create is services["project_create"]
+    assert projects._project_update is services["project_update"]
+    assert projects._project_status is services["project_status"]
+    assert projects._project_deletion is services["project_deletion"]
+    assert registry.project_management_tasks._project_service is services["project_query"]
+    assert registry.project_management_timesheets._project_service is services["project_query"]
+    assert registry.project_management_scheduling._project_service is services["project_query"]
+
+
 def test_project_events_share_one_post_commit_handler(services) -> None:
     project = services["project_service"]
     tasks = services["task_service"]
@@ -335,14 +349,17 @@ def test_reporting_and_dashboard_reuse_authoritative_services(services) -> None:
 
 def test_resource_planning_and_imports_keep_shared_dependencies(services) -> None:
     assert (
-        services["project_resource_service"]._command._shared_uow_factory
+        services["project_resource_commands"]._shared_uow_factory
         is services["project_service"]._deletion_handler._shared_uow_factory
     )
     availability = services["resource_availability_service"]
     assert services["resource_capacity_calculator"]._availability is availability
-    assert services["resource_workload_service"]._availability is availability
+    assert services["resource_workload_query"]._availability is availability
     imports = services["data_import_service"]
-    assert imports._project_service is services["project_service"]
+    assert imports._project_query is services["project_query"]
+    assert imports._project_create is services["project_create"]
+    assert imports._project_update is services["project_update"]
+    assert imports._project_status is services["project_status"]
     assert imports._task_capabilities.lookup is services["task_service"]._lookup_query
     assert services["task_lookup_query"] is services["task_service"]._lookup_query
     assert services["task_detail_query"] is services["task_service"]._detail_query
