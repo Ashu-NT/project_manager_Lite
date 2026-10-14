@@ -7,7 +7,7 @@ from src.core.platform.api.desktop.master_data.site.models.site import (
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )

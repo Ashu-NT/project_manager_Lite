@@ -11,13 +11,13 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
+from src.core.platform.application.master_data.site.dto import (
+    SiteCreateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
     ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.site.commands import (
-    SiteCreateCommand,
 )
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.security.auth import (

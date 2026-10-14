@@ -12,6 +12,10 @@ from src.core.platform.application.master_data.documents.document_context import
     active_organization,
     resolve_structure_for_context,
 )
+from src.core.platform.application.master_data.documents.dto import (
+    DocumentStructureCreateCommand,
+    DocumentStructureUpdateCommand,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -19,10 +23,6 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
     ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
-    DocumentStructureCreateCommand,
-    DocumentStructureUpdateCommand,
 )
 from src.core.platform.domain.master_data.documents import (
     DocumentStructure,

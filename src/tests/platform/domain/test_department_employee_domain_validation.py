@@ -3,16 +3,16 @@ from __future__ import annotations
 from src.core.platform.application.master_data.department import (
     DepartmentCommandHandler,
 )
-from src.core.platform.application.master_data.employee import EmployeeCommandHandler
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee import EmployeeCommandHandler
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.master_data.department import Department
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.domain.master_data.org import Organization

@@ -40,20 +40,18 @@ from src.core.modules.project_management.api.desktop.projects.utils.project_util
     optional_date,
 )
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.dto import (
+    ProjectCreateCommand,
+    ProjectResourceAssignCommand,
+    ProjectResourceUpdateCommand,
+    ProjectUpdateCommand,
+)
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
 )
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceQueryHandler,
-)
-from src.core.modules.project_management.contracts.use_cases.projects import (
-    ProjectCreateCommand,
-    ProjectUpdateCommand,
-)
-from src.core.modules.project_management.contracts.use_cases.projects.commands import (
-    ProjectResourceAssignCommand,
-    ProjectResourceUpdateCommand,
 )
 from src.core.platform.application.master_data.department import (
     DepartmentQueryHandler,

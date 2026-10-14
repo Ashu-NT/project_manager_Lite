@@ -36,13 +36,13 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
 from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
     ProjectCommitmentLineORM,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.contract.use_cases.master_data.party.commands import (
+from src.core.platform.application.master_data.party.dto import (
     PartyCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.finance import (
     DecimalQuantityPayload,
     MonetaryRatePayload,

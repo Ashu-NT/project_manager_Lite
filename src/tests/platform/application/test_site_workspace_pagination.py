@@ -7,7 +7,7 @@ the exact same list_sites_page_for_organization backend call."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog

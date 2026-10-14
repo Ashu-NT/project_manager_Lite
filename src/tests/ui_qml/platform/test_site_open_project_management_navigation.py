@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 import time
 
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
 

@@ -14,10 +14,10 @@ from src.core.modules.project_management.application.resources.event_handlers.vi
     RESOURCE_LIST_SCOPE_CODE,
 )
 from src.core.modules.project_management.domain.enums import WorkerType
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )

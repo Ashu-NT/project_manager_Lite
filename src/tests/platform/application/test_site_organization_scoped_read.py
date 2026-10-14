@@ -12,10 +12,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (
     OrganizationORM,
 )

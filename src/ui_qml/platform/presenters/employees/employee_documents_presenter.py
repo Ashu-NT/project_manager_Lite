@@ -12,7 +12,7 @@ from src.core.platform.api.desktop.master_data.employee.employee import (
     PlatformEmployeeDesktopApi,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
 )
 from src.core.platform.domain.master_data.documents import DocumentType

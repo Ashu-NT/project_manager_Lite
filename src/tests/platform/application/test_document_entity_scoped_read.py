@@ -6,7 +6,7 @@ future approved entity) builds on."""
 
 from __future__ import annotations
 
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
     DocumentLinkCreateCommand,
     DocumentUpdateCommand,

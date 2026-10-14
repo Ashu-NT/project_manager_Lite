@@ -14,6 +14,11 @@ from src.core.platform.application.master_data.documents.document_context import
     require_document_in_context,
     resolve_structure_for_context,
 )
+from src.core.platform.application.master_data.documents.dto import (
+    DocumentCreateCommand,
+    DocumentLinkCreateCommand,
+    DocumentUpdateCommand,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -27,11 +32,6 @@ from src.core.platform.contract.port.master_data.documents.document_access_polic
 )
 from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
-)
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
-    DocumentCreateCommand,
-    DocumentLinkCreateCommand,
-    DocumentUpdateCommand,
 )
 from src.core.platform.domain.master_data.documents import (
     Document,

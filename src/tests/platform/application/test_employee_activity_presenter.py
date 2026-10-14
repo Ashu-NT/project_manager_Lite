@@ -6,10 +6,10 @@ test_department_activity_presenter.py)."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog

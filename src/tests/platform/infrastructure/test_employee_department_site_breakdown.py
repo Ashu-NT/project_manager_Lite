@@ -16,13 +16,13 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
 from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus
@@ -283,7 +283,6 @@ def test_desktop_api_get_department_and_site_breakdown(services):
         PlatformEmployeeDesktopApi,
     )
 
-    employee_service = services["employee_commands"]
     api = PlatformEmployeeDesktopApi(
         employee_commands=services["employee_commands"],
         employee_query=services["employee_query"],

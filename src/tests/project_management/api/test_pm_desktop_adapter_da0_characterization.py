@@ -50,11 +50,11 @@ from src.core.modules.project_management.api.desktop.tasks.services.access_resol
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     ResourceLoadRow,
 )
+from src.core.modules.project_management.application.resources.dto import (
+    ResourceUpdateCommand,
+)
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceAssignmentFact,
-)
-from src.core.modules.project_management.contracts.use_cases.resources.commands import (
-    ResourceUpdateCommand,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,

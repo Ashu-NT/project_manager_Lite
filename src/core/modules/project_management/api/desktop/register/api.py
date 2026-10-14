@@ -32,7 +32,7 @@ from src.core.modules.project_management.application.risk import RegisterQueryHa
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
 )
-from src.core.modules.project_management.contracts.use_cases.register.commands import (
+from src.core.modules.project_management.application.risk.dto.register_commands import (
     RegisterEntryCreateCommand,
     RegisterEntryUpdateCommand,
 )

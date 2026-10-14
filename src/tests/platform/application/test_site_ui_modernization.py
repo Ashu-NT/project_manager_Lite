@@ -16,7 +16,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
 from src.ui_qml.platform.controllers.calendars.context import site_calendar_summary

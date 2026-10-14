@@ -12,17 +12,17 @@ from src.core.modules.project_management.api.desktop.resources.serializers.resou
     serialize_resource,
 )
 from src.core.modules.project_management.domain.enums import WorkerType
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.party.commands import (
+from src.core.platform.application.master_data.party.dto import (
     PartyCreateCommand,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 
 def test_employee_reference_requires_pm_employee_resource_registration(services):

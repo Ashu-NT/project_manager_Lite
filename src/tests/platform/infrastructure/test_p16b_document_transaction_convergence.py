@@ -5,17 +5,17 @@ import pytest
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.common.exceptions import (
-    ConcurrencyError,
-    NotFoundError,
-    ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
     DocumentLinkCreateCommand,
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
     DocumentUpdateCommand,
+)
+from src.core.platform.common.exceptions import (
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
 )
 from src.core.platform.infrastructure.persistence.uow.master_data.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWork,

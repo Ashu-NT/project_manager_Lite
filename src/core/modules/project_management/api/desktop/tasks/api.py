@@ -122,16 +122,7 @@ from src.core.modules.project_management.application.tasks.commands.assignment i
 from src.core.modules.project_management.application.tasks.commands.time_entries import (
     TaskTimeEntryHandler,
 )
-from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
-    TaskDependencyDiagnosticsQueryHandler,
-)
-from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
-    TaskDetailPageQueryHandler,
-)
-from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
-    TaskWorkspacePageQueryHandler,
-)
-from src.core.modules.project_management.contracts.use_cases.tasks.commands import (
+from src.core.modules.project_management.application.tasks.dto import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
@@ -144,6 +135,15 @@ from src.core.modules.project_management.contracts.use_cases.tasks.commands impo
     TaskProgressCommand,
     TaskUpdateCommand,
     TaskWbsMoveCommand,
+)
+from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+    TaskDependencyDiagnosticsQueryHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
+from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
+    TaskWorkspacePageQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.gateway.task.reservation import (

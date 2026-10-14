@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.party.commands import (
+from src.core.platform.application.master_data.party.dto import (
     PartyCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.tests.ui_runtime_helpers import login_as
 
 

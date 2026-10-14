@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from src.core.platform.application.tenant.modules import ModuleCatalogQueryHandler
-from src.core.platform.contract.use_cases.platform_runtime import (
+from src.core.platform.application.platform_runtime.dto import (
     ModuleRuntimeSnapshot,
     RuntimeEntitlementFact,
     RuntimeModuleFact,
     RuntimePlatformCapabilityFact,
 )
+from src.core.platform.application.tenant.modules import ModuleCatalogQueryHandler
 from src.core.platform.domain.tenant.modules import EnterpriseModule, ModuleEntitlement
 
 

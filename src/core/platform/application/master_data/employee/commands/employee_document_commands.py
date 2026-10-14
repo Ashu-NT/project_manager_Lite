@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING
 from src.core.platform.application.master_data.documents.commands.document_commands import (
     DocumentCommandHandler,
 )
+from src.core.platform.application.master_data.documents.dto import (
+    DocumentLinkCreateCommand,
+)
 from src.core.platform.application.master_data.documents.queries.document_queries import (
     DocumentQueryHandler,
 )
@@ -24,9 +27,6 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
-    DocumentLinkCreateCommand,
-)
 from src.core.shared.activity import record_activity
 
 if TYPE_CHECKING:

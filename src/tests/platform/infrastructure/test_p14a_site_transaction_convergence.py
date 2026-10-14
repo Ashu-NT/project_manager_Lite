@@ -5,15 +5,15 @@ import pytest
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
+from src.core.platform.application.master_data.site.dto import (
+    SiteCreateCommand,
+    SiteUpdateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.site.commands import (
-    SiteCreateCommand,
-    SiteUpdateCommand,
 )
 from src.core.platform.domain.master_data.site.events import (
     SiteCreated,

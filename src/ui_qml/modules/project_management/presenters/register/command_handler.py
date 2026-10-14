@@ -5,7 +5,7 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementRegisterDesktopApi,
 )
-from src.core.modules.project_management.contracts.use_cases.register import (
+from src.core.modules.project_management.application.risk.dto.register_commands import (
     RegisterEntryCreateCommand,
     RegisterEntryUpdateCommand,
 )

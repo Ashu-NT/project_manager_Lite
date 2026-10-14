@@ -14,16 +14,16 @@ from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtQuick import QQuickItem
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
 from src.ui_qml.modules.project_management.context import (
@@ -81,7 +81,7 @@ def _seed_mixed_lifecycle_organizations(services, *, prefix: str) -> None:
     """One of each status -- for a screenshot that actually shows the
     Active/Inactive/Archived StatusChip tones side by side, and for the
     status-filtered captures below."""
-    active = services["organization_commands"].create_organization(organization_code=f"{prefix}-ACT", display_name=f"{prefix} Active Org")
+    services["organization_commands"].create_organization(organization_code=f"{prefix}-ACT", display_name=f"{prefix} Active Org")
     inactive = services["organization_commands"].create_organization(organization_code=f"{prefix}-INA", display_name=f"{prefix} Inactive Org")
     archived = services["organization_commands"].create_organization(organization_code=f"{prefix}-ARC", display_name=f"{prefix} Archived Org")
     services["organization_lifecycle"].deactivate_organization(inactive.id)

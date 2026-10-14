@@ -14,13 +14,13 @@ from __future__ import annotations
 
 from sqlalchemy import event
 
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
 
@@ -453,7 +453,7 @@ def test_employees_page_for_organization_site_scope_respects_status_filter(servi
     organization_id = services["tenant_context_service"].get_active_organization().id
 
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="FILT-EMP-PG-SC", name="Emp Page Site C"))
-    active_employees = _seed_employees(
+    _seed_employees(
         employee_service, department_service, site_id=site.id, count=2, prefix="EMPPGC-ACTIVE"
     )
     for employee in _seed_employees(

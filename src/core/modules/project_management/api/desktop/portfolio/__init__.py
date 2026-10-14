@@ -20,7 +20,7 @@ from src.core.modules.project_management.api.desktop.portfolio.models import (
     PortfolioScenarioEvaluationDesktopDto,
     PortfolioTemplateDesktopDto,
 )
-from src.core.modules.project_management.contracts.use_cases.portfolio.commands import (
+from src.core.modules.project_management.application.portfolio.dto import (
     PortfolioDependencyCreateCommand,
     PortfolioIntakeCreateCommand,
     PortfolioScenarioCreateCommand,

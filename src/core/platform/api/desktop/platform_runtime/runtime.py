@@ -21,6 +21,10 @@ from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     PlatformRuntimeContextDto,
     TimezoneDto,
 )
+from src.core.platform.application.master_data.org.dto import (
+    OrganizationProvisionCommand,
+    OrganizationUpdateCommand,
+)
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
 )
@@ -31,10 +35,6 @@ from src.core.platform.common.exceptions import (
     DomainError,
     NotFoundError,
     ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.org.commands import (
-    OrganizationProvisionCommand,
-    OrganizationUpdateCommand,
 )
 from src.core.shared.reference_data import COUNTRY_OPTIONS, TIMEZONE_OPTIONS
 

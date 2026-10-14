@@ -276,7 +276,7 @@ def test_desktop_create_assignment_forwards_planned_hours_and_exposes_project_re
         project_service=ps, task_service=ts, project_resource_service=prs, resource_query=rs,
     )
 
-    from src.core.modules.project_management.contracts.use_cases.tasks.commands import (
+    from src.core.modules.project_management.application.tasks.dto import (
         TaskAssignmentCreateCommand,
     )
 
@@ -302,7 +302,7 @@ def test_desktop_update_assignment_planned_hours_succeeds_with_correct_versions(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
 
-    from src.core.modules.project_management.contracts.use_cases.tasks.commands import (
+    from src.core.modules.project_management.application.tasks.dto import (
         TaskAssignmentPlannedHoursCommand,
     )
 
@@ -340,7 +340,7 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
         task_id=task_b.id, project_resource_id=project_resource.id, allocation_percent=50.0
     )
 
-    from src.core.modules.project_management.contracts.use_cases.tasks.commands import (
+    from src.core.modules.project_management.application.tasks.dto import (
         TaskAssignmentPlannedHoursCommand,
     )
 

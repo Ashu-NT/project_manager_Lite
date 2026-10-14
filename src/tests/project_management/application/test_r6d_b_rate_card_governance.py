@@ -13,7 +13,7 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 
-from src.core.modules.project_management.contracts.use_cases.financials.rates import (
+from src.core.modules.project_management.application.financials.rate_cards.dto import (
     FinancialAddRateLineCommand,
     FinancialCreateRateCardCommand,
 )

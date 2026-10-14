@@ -11,8 +11,10 @@ from PySide6.QtCore import Qt
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.contracts.use_cases.financials import (
+from src.core.modules.project_management.application.financials.configuration.dto import (
     FinancialCreateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto import (
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
     FinancialReverseActualCommand,

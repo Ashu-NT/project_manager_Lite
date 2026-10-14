@@ -19,15 +19,15 @@ from src.core.platform.application.master_data.party import (
     PartyCommandHandler,
     PartyQueryHandler,
 )
+from src.core.platform.application.master_data.party.dto import (
+    PartyCreateCommand,
+    PartyUpdateCommand,
+)
 from src.core.platform.application.master_data.site import (
     SiteCommandHandler,
     SiteQueryHandler,
 )
-from src.core.platform.contract.use_cases.master_data.party.commands import (
-    PartyCreateCommand,
-    PartyUpdateCommand,
-)
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )

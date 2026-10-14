@@ -3,7 +3,7 @@
 import ast
 from pathlib import Path
 
-from src.core.platform.contract.use_cases.platform_runtime import (
+from src.core.platform.application.platform_runtime.dto import (
     RuntimeEntitlementFact,
     RuntimeModuleFact,
 )
@@ -103,7 +103,7 @@ def test_migrated_platform_services_do_not_import_concrete_infrastructure() -> N
         ), str(path.relative_to(SRC_ROOT))
 
 
-def test_pm_shared_command_inputs_live_in_use_case_contracts() -> None:
+def test_pm_command_dtos_live_in_feature_application_packages() -> None:
     desktop_root = SRC_ROOT / "modules/project_management/api/desktop"
     legacy = sorted(
         str(path.relative_to(SRC_ROOT))
@@ -111,19 +111,34 @@ def test_pm_shared_command_inputs_live_in_use_case_contracts() -> None:
         if any(path.rglob("*.py"))
     )
     assert not legacy, legacy
-    use_cases = SRC_ROOT / "modules/project_management/contracts/use_cases"
-    for feature in (
-        "collaboration",
-        "financials",
-        "portfolio",
-        "projects",
-        "register",
-        "resources",
-        "scheduling",
-        "tasks",
-        "timesheets",
+    application = SRC_ROOT / "modules/project_management/application"
+    for relative_path in (
+        "collaboration/dto.py",
+        "portfolio/dto.py",
+        "projects/dto.py",
+        "resources/dto.py",
+        "risk/dto/register_commands.py",
+        "scheduling/dto.py",
+        "tasks/dto.py",
+        "timesheets/dto.py",
+        "financials/invoicing/dto.py",
+        "financials/budgets/dto.py",
+        "financials/financial_changes/dto.py",
+        "financials/configuration/dto.py",
+        "financials/cost/entries/dto.py",
+        "financials/forecasts/dto.py",
+        "financials/rate_cards/dto.py",
     ):
-        assert (use_cases / feature / "__init__.py").is_file(), feature
+        assert (application / relative_path).is_file(), relative_path
+    assert not any((SRC_ROOT / "modules/project_management/contracts/use_cases").rglob("*.py"))
+
+
+def test_platform_command_dtos_live_in_feature_application_packages() -> None:
+    application = SRC_ROOT / "platform/application"
+    for feature in ("site", "documents", "party", "department", "employee", "org"):
+        assert (application / "master_data" / feature / "dto.py").is_file(), feature
+    assert (application / "platform_runtime/dto.py").is_file()
+    assert not any((SRC_ROOT / "platform/contract/use_cases").rglob("*.py"))
 
 
 def test_register_dashboard_snapshot_exposes_scalar_risk_facts() -> None:

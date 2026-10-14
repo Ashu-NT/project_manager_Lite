@@ -78,6 +78,12 @@ from src.core.modules.project_management.application.portfolio.commands import (
     PortfolioScenarioCommandHandler,
     PortfolioTemplateCommandHandler,
 )
+from src.core.modules.project_management.application.portfolio.dto import (
+    PortfolioDependencyCreateCommand,
+    PortfolioIntakeCreateCommand,
+    PortfolioScenarioCreateCommand,
+    PortfolioTemplateCreateCommand,
+)
 from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioDependencyQueryHandler,
     PortfolioExecutiveQueryHandler,
@@ -91,12 +97,6 @@ from src.core.modules.project_management.application.portfolio.queries.portfolio
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     PortfolioResourcePoolService,
-)
-from src.core.modules.project_management.contracts.use_cases.portfolio.commands import (
-    PortfolioDependencyCreateCommand,
-    PortfolioIntakeCreateCommand,
-    PortfolioScenarioCreateCommand,
-    PortfolioTemplateCreateCommand,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
 

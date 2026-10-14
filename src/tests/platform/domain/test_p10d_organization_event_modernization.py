@@ -27,10 +27,10 @@ from src.core.platform.application.master_data.org import (
     OrganizationCommandHandler,
     OrganizationLifecycleCommandHandler,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.contract.use_cases.master_data.org.commands import (
+from src.core.platform.application.master_data.org.dto import (
     OrganizationUpdateCommand,
 )
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.master_data.org.events import (
     OrganizationActivated,
     OrganizationArchived,

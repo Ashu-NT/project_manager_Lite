@@ -14,10 +14,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
+from src.core.platform.common.ids import generate_id
 from src.core.platform.domain.security.authorization.roles import RoleBinding
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,

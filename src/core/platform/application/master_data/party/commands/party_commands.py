@@ -6,6 +6,10 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.platform.application.master_data.party.dto import (
+    PartyCreateCommand,
+    PartyUpdateCommand,
+)
 from src.core.platform.application.master_data.party.party_context import (
     active_organization,
 )
@@ -21,10 +25,6 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.uow.master_data.party_unit_of_work import (
     PartyUnitOfWorkFactory,
-)
-from src.core.platform.contract.use_cases.master_data.party.commands import (
-    PartyCreateCommand,
-    PartyUpdateCommand,
 )
 from src.core.platform.domain.master_data.party import (
     Party,

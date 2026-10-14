@@ -5,7 +5,7 @@ from decimal import Decimal
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
 )
-from src.core.modules.project_management.contracts.use_cases.projects import (
+from src.core.modules.project_management.application.projects.dto import (
     ProjectResourceAssignCommand,
     ProjectResourceUpdateCommand,
 )

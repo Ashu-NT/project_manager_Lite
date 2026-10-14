@@ -113,11 +113,7 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
 )
-from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
-    ScheduleChangeImpactService,
-)
-from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.contracts.use_cases.scheduling.commands import (
+from src.core.modules.project_management.application.scheduling.dto import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
     SchedulingBaselineRejectCommand,
@@ -126,6 +122,10 @@ from src.core.modules.project_management.contracts.use_cases.scheduling.commands
     SchedulingDependencyUpdateCommand,
     SchedulingWorkingDayCalculationCommand,
 )
+from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
+    ScheduleChangeImpactService,
+)
+from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,

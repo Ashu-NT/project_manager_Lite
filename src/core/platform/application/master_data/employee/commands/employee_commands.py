@@ -5,6 +5,10 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.platform.application.master_data.employee.dto import (
+    EmployeeCreateCommand,
+    EmployeeUpdateCommand,
+)
 from src.core.platform.application.master_data.employee.employee_context import (
     active_organization_id,
     require_tenant_context_service,
@@ -36,10 +40,6 @@ from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
 )
 from src.core.platform.contract.uow.master_data.employee_unit_of_work import (
     EmployeeUnitOfWorkFactory,
-)
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
-    EmployeeCreateCommand,
-    EmployeeUpdateCommand,
 )
 from src.core.platform.domain.master_data.employee import (
     Employee,

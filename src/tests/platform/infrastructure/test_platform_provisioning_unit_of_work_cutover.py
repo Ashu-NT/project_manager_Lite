@@ -8,13 +8,13 @@ import inspect
 
 import pytest
 
+from src.core.platform.application.master_data.org.dto import (
+    OrganizationProvisionCommand,
+)
 from src.core.platform.application.platform_runtime import (
     platform_runtime_service as platform_runtime_service_module,
 )
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.contract.use_cases.master_data.org.commands import (
-    OrganizationProvisionCommand,
-)
 from src.core.platform.infrastructure.persistence.uow.provisioning.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWork,
 )

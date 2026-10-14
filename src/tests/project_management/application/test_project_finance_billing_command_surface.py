@@ -8,7 +8,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.contracts.use_cases.financials.billing import (
+from src.core.modules.project_management.application.financials.invoicing.dto import (
     FinancialActivateBillingProfileCommand,
     FinancialAddApprovedTimeBillingSourceCommand,
     FinancialAddBillingScheduleLineCommand,

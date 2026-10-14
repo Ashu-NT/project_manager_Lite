@@ -5,15 +5,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.platform.application.master_data.site import SiteCommandHandler
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.contract.use_cases.master_data.org.commands import (
+from src.core.platform.application.master_data.org.dto import (
     OrganizationUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site import SiteCommandHandler
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
 from src.tests.master_data_test_support import organization_handlers_for

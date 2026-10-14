@@ -6,10 +6,10 @@ from src.core.modules.project_management.access.policy import (
     resolve_project_scope_permissions,
 )
 from src.core.platform.access.authorization import require_scope_permission
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.master_data.org.access_policy import (
     resolve_organization_scope_permissions,
 )

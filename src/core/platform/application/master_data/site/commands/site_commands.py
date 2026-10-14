@@ -6,6 +6,10 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.platform.application.master_data.site.dto import (
+    SiteCreateCommand,
+    SiteUpdateCommand,
+)
 from src.core.platform.application.master_data.site.site_context import (
     active_organization,
 )
@@ -19,10 +23,6 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
     ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.site.commands import (
-    SiteCreateCommand,
-    SiteUpdateCommand,
 )
 from src.core.platform.domain.master_data.site import (
     SITE_STATUS_ACTIVE,

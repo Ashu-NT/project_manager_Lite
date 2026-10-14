@@ -13,10 +13,10 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.use_cases.master_data.org.commands import (
+from src.core.platform.application.master_data.org.dto import (
     OrganizationProvisionCommand,
 )
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules import events as module_events_module
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,

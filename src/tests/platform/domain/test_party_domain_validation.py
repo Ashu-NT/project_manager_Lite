@@ -8,11 +8,11 @@ from src.core.platform.application.master_data.party import (
     PartyCommandHandler,
     PartyQueryHandler,
 )
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.contract.use_cases.master_data.party.commands import (
+from src.core.platform.application.master_data.party.dto import (
     PartyCreateCommand,
     PartyUpdateCommand,
 )
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.party import (
     Party,

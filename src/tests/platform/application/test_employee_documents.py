@@ -9,16 +9,16 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
+from src.core.platform.common.exceptions import NotFoundError
 
 
 def test_list_employee_documents_page_returns_only_linked_documents(services) -> None:

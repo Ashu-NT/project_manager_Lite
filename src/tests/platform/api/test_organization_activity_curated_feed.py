@@ -10,23 +10,23 @@ from __future__ import annotations
 from src.core.platform.api.desktop.history.activity.activity import (
     PlatformActivityDesktopApi,
 )
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
     DocumentStructureCreateCommand,
     DocumentUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.org.commands import (
+from src.core.platform.application.master_data.org.dto import (
     OrganizationUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )

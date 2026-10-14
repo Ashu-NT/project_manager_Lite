@@ -37,7 +37,7 @@ from src.core.modules.project_management.api.desktop.tasks.models.validation imp
     AssignmentPreviewDesktopDto,
     AssignmentValidationDesktopDto,
 )
-from src.core.modules.project_management.contracts.use_cases.tasks.commands import (
+from src.core.modules.project_management.application.tasks.dto import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,

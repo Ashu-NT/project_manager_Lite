@@ -34,7 +34,7 @@ from src.core.modules.project_management.api.desktop.timesheets.models.workspace
     TimesheetResourcePageDesktopDto,
     TimesheetWorkspaceAccessDesktopDto,
 )
-from src.core.modules.project_management.contracts.use_cases.timesheets.commands import (
+from src.core.modules.project_management.application.timesheets.dto import (
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
 )

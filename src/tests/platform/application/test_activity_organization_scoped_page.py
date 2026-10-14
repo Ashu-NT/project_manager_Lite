@@ -12,13 +12,13 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def test_viewing_a_non_active_organization_returns_its_own_activity_correctly(services) -> None:

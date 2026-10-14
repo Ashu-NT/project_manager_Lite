@@ -1,4 +1,4 @@
-from src.core.platform.contract.use_cases.master_data.org.commands import (
+from src.core.platform.application.master_data.org.dto import (
     OrganizationUpdateCommand,
 )
 

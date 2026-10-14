@@ -72,13 +72,7 @@ from src.core.modules.project_management.application.resources import (
     ResourceMasterCommandHandler,
     ResourceQueryHandler,
 )
-from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
-    ResourceContextQueryHandler,
-)
-from src.core.modules.project_management.application.resources.queries.skill_queries import (
-    ResourceCapabilityQueryHandler,
-)
-from src.core.modules.project_management.contracts.use_cases.resources.commands import (
+from src.core.modules.project_management.application.resources.dto import (
     ResourceAddCertificationCommand,
     ResourceAddSkillCommand,
     ResourceCreateCommand,
@@ -89,6 +83,12 @@ from src.core.modules.project_management.contracts.use_cases.resources.commands 
     ResourceUpdateCertificationCommand,
     ResourceUpdateCommand,
     ResourceUpdateSkillCommand,
+)
+from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
+    ResourceContextQueryHandler,
+)
+from src.core.modules.project_management.application.resources.queries.skill_queries import (
+    ResourceCapabilityQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.platform.application.master_data.employee import EmployeeQueryHandler

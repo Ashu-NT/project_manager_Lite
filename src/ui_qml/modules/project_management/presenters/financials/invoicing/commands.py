@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from src.core.modules.project_management.contracts.use_cases.financials import (
+from src.core.modules.project_management.application.financials.invoicing.dto import (
     FinancialActivateBillingProfileCommand,
     FinancialAddApprovedTimeBillingSourceCommand,
     FinancialAddBillingScheduleLineCommand,

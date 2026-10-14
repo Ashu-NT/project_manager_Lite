@@ -18,13 +18,13 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     SiteCalendarAssignCommand,
 )
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
 from src.ui_qml.modules.project_management.context import (
@@ -87,7 +87,7 @@ def _seed_sites(services, *, count: int, prefix: str) -> None:
 
 
 def _seed_mixed_lifecycle_sites(services, *, prefix: str) -> None:
-    active = services["site_commands"].create_site(SiteCreateCommand(site_code=f"{prefix}-ACT", name=f"{prefix} Active Site"))
+    services["site_commands"].create_site(SiteCreateCommand(site_code=f"{prefix}-ACT", name=f"{prefix} Active Site"))
     inactive = services["site_commands"].create_site(SiteCreateCommand(site_code=f"{prefix}-INA", name=f"{prefix} Inactive Site"))
     archived = services["site_commands"].create_site(SiteCreateCommand(site_code=f"{prefix}-ARC", name=f"{prefix} Archived Site"))
     services["site_commands"].deactivate_site(inactive.id)

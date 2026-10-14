@@ -17,7 +17,7 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
     TaskCollaborationReactionSummaryDto,
     TaskCollaborationSnapshotDto,
 )
-from src.core.modules.project_management.contracts.use_cases.collaboration.commands import (
+from src.core.modules.project_management.application.collaboration.dto import (
     TaskCollaborationDeleteCommand,
     TaskCollaborationEditCommand,
     TaskCollaborationPostCommand,

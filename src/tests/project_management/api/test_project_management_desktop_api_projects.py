@@ -6,7 +6,7 @@ import pytest
 from src.core.modules.project_management.api.desktop import (
     build_project_management_projects_desktop_api,
 )
-from src.core.modules.project_management.contracts.use_cases.projects import (
+from src.core.modules.project_management.application.projects.dto import (
     ProjectCreateCommand,
     ProjectUpdateCommand,
 )

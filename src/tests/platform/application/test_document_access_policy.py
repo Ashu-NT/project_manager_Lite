@@ -15,6 +15,9 @@ from src.core.platform.application.master_data.documents.document_access import 
     DOCUMENT_READ_PERMISSION,
     DOCUMENT_STRUCTURE_MANAGE_PERMISSION,
 )
+from src.core.platform.application.master_data.documents.dto import (
+    DocumentCreateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
@@ -22,9 +25,6 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.contract.port.master_data.documents.document_access_policy import (
     RestrictedDocumentGrant,
-)
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
-    DocumentCreateCommand,
 )
 from src.core.platform.domain.master_data.documents import DocumentClassification
 from src.core.platform.domain.master_data.documents.classification import (

@@ -6,11 +6,11 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
     DocumentLinkCreateCommand,
 )
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.master_data.documents.events import (
     DocumentCreated,
     DocumentReferenceLinked,

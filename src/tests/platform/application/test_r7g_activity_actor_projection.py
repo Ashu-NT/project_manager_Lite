@@ -6,15 +6,15 @@ from sqlalchemy import event, update
 from src.core.platform.api.desktop.history.activity.activity import (
     PlatformActivityDesktopApi,
 )
+from src.core.platform.application.master_data.department.dto import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.application.master_data.employee.dto import (
+    EmployeeCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.read.history.activity_actor_reader import (
     ActivityActorKind,
-)
-from src.core.platform.contract.use_cases.master_data.department.commands import (
-    DepartmentCreateCommand,
-)
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
-    EmployeeCreateCommand,
 )
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM

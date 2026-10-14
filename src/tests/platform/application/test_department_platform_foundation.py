@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 
 def test_department_service_scopes_department_master_data_by_active_organization(services):

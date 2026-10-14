@@ -11,6 +11,9 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.platform.application.master_data.org.dto import (
+    OrganizationProvisionCommand,
+)
 from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
     ORGANIZATION_CATEGORY,
     ORGANIZATION_DETAILS_SCOPE_CODE,
@@ -18,9 +21,6 @@ from src.core.platform.application.master_data.org.event_handlers.view_invalidat
     build_organization_created_view_invalidation_handler,
 )
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.contract.use_cases.master_data.org.commands import (
-    OrganizationProvisionCommand,
-)
 from src.core.platform.domain.master_data.org import (
     events as organization_events_module,
 )

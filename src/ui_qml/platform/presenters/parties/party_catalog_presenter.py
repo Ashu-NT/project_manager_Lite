@@ -9,7 +9,7 @@ from src.core.platform.api.desktop.master_data.party.party import (
     PlatformPartyDesktopApi,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.contract.use_cases.master_data.party.commands import (
+from src.core.platform.application.master_data.party.dto import (
     PartyCreateCommand,
     PartyUpdateCommand,
 )

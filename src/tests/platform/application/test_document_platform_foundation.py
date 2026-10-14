@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
     DocumentLinkCreateCommand,
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
     DocumentUpdateCommand,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 
 def test_document_service_scopes_documents_by_active_organization(services):

@@ -14,15 +14,15 @@ import inspect
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.application.master_data.org.dto import (
+    OrganizationProvisionCommand,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     MODULE_ENTITLEMENT_CATEGORY,
     MODULE_ENTITLEMENTS_SCOPE_CODE,
     build_module_entitlement_view_invalidation_handler,
 )
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.use_cases.master_data.org.commands import (
-    OrganizationProvisionCommand,
-)
 from src.core.platform.domain.tenant.modules.events import (
     ModuleDisabled,
     ModuleEnabled,

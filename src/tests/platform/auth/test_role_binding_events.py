@@ -8,13 +8,13 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.platform.application.master_data.site.dto import (
+    SiteCreateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
     ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.site.commands import (
-    SiteCreateCommand,
 )
 from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,

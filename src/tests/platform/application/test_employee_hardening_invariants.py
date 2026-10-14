@@ -9,17 +9,17 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 # ---------------------------------------------------------------------------
 # Organization must match Department

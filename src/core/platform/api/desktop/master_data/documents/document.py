@@ -20,7 +20,7 @@ from src.core.platform.application.master_data.documents import (
     DocumentQueryHandler,
     DocumentStructureCommandHandler,
 )
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
     DocumentLinkCreateCommand,
     DocumentStructureCreateCommand,

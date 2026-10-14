@@ -43,7 +43,7 @@ def _require(handler: _HandlerT | None) -> _HandlerT:
             "Project management collaboration desktop API is not connected."
         )
     return handler
-from src.core.modules.project_management.contracts.use_cases.collaboration.commands import (
+from src.core.modules.project_management.application.collaboration.dto import (
     TaskCollaborationDeleteCommand,
     TaskCollaborationEditCommand,
     TaskCollaborationPostCommand,

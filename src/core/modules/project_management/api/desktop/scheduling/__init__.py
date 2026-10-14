@@ -41,7 +41,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingWorkingDayCalculationDto,
     TaskScheduleImpactOverviewDesktopDto,
 )
-from src.core.modules.project_management.contracts.use_cases.scheduling.commands import (
+from src.core.modules.project_management.application.scheduling.dto import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
     SchedulingBaselineRejectCommand,

@@ -116,6 +116,43 @@ from src.core.modules.project_management.application.financials import (
     ProjectFinancePerformanceQuery,
     ProjectFinanceWorkspaceQuery,
 )
+from src.core.modules.project_management.application.financials.budgets.dto import (
+    FinancialAddBudgetLineCommand,
+    FinancialCreateBudgetSuccessorCommand,
+    FinancialCreateBudgetVersionCommand,
+    FinancialDeleteBudgetLineCommand,
+    FinancialUpdateBudgetCommand,
+    FinancialUpdateBudgetLineCommand,
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
+    FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto import (
+    FinancialCreateManualActualCommand,
+    FinancialDecideActualCommand,
+    FinancialPostActualCommand,
+    FinancialReverseActualCommand,
+    FinancialUpdateActualDraftCommand,
+    FinancialVersionedActualCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto import (
+    FinancialChangeImpactCommand,
+    FinancialCreateChangeCommand,
+    FinancialRemoveChangeImpactCommand,
+    FinancialSubmitChangeCommand,
+    FinancialUpdateChangeCommand,
+    FinancialUpdateChangeImpactCommand,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto import (
+    FinancialGenerateForecastCommand,
+    FinancialVersionedForecastCommand,
+)
 from src.core.modules.project_management.application.financials.forecasts.generation_models import (
     ManualEtcEstimate,
     RiskContingencyEstimate,
@@ -123,6 +160,26 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
     FinanceGovernedServicePort,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto import (
+    FinancialActivateBillingProfileCommand,
+    FinancialAddApprovedTimeBillingSourceCommand,
+    FinancialAddBillingScheduleLineCommand,
+    FinancialAddCostPlusBillingSourceCommand,
+    FinancialAddFixedPriceBillingSourceCommand,
+    FinancialCreateBillingPreparationCommand,
+    FinancialCreateBillingProfileCommand,
+    FinancialMarkBillingScheduleLineReadyCommand,
+    FinancialRemoveDraftBillingLineCommand,
+    FinancialVersionedBillingPreparationCommand,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto import (
+    FinancialAddRateLineCommand,
+    FinancialCreateRateCardCommand,
+    FinancialUpdateRateCardCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateCardCommand,
+    FinancialVersionedRateLineCommand,
 )
 from src.core.modules.project_management.application.reporting import (
     ProfitabilityReportBuilder,
@@ -171,63 +228,6 @@ from src.core.modules.project_management.contracts.reads.financials.sorting impo
 )
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
-)
-from src.core.modules.project_management.contracts.use_cases.financials.billing import (
-    FinancialActivateBillingProfileCommand,
-    FinancialAddApprovedTimeBillingSourceCommand,
-    FinancialAddBillingScheduleLineCommand,
-    FinancialAddCostPlusBillingSourceCommand,
-    FinancialAddFixedPriceBillingSourceCommand,
-    FinancialCreateBillingPreparationCommand,
-    FinancialCreateBillingProfileCommand,
-    FinancialMarkBillingScheduleLineReadyCommand,
-    FinancialRemoveDraftBillingLineCommand,
-    FinancialVersionedBillingPreparationCommand,
-)
-from src.core.modules.project_management.contracts.use_cases.financials.budgets import (
-    FinancialAddBudgetLineCommand,
-    FinancialCreateBudgetSuccessorCommand,
-    FinancialCreateBudgetVersionCommand,
-    FinancialDeleteBudgetLineCommand,
-    FinancialUpdateBudgetCommand,
-    FinancialUpdateBudgetLineCommand,
-    FinancialVersionedBudgetCommand,
-)
-from src.core.modules.project_management.contracts.use_cases.financials.changes import (
-    FinancialChangeImpactCommand,
-    FinancialCreateChangeCommand,
-    FinancialRemoveChangeImpactCommand,
-    FinancialSubmitChangeCommand,
-    FinancialUpdateChangeCommand,
-    FinancialUpdateChangeImpactCommand,
-)
-from src.core.modules.project_management.contracts.use_cases.financials.configuration import (
-    FinancialChangeCostCodeStatusCommand,
-    FinancialCostCodeRestrictionCommand,
-    FinancialCreateCostCodeCommand,
-    FinancialTransitionProfileCommand,
-    FinancialUpdateCostCodeCommand,
-    FinancialUpdateProfileCommand,
-)
-from src.core.modules.project_management.contracts.use_cases.financials.cost_entries import (
-    FinancialCreateManualActualCommand,
-    FinancialDecideActualCommand,
-    FinancialPostActualCommand,
-    FinancialReverseActualCommand,
-    FinancialUpdateActualDraftCommand,
-    FinancialVersionedActualCommand,
-)
-from src.core.modules.project_management.contracts.use_cases.financials.forecasts import (
-    FinancialGenerateForecastCommand,
-    FinancialVersionedForecastCommand,
-)
-from src.core.modules.project_management.contracts.use_cases.financials.rates import (
-    FinancialAddRateLineCommand,
-    FinancialCreateRateCardCommand,
-    FinancialUpdateRateCardCommand,
-    FinancialUpdateRateLineCommand,
-    FinancialVersionedRateCardCommand,
-    FinancialVersionedRateLineCommand,
 )
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,

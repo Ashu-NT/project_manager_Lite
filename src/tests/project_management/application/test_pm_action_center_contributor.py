@@ -15,10 +15,10 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
 from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import (
     SqlAlchemyProjectManagementActionCenterReader,
 )
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader

@@ -8,15 +8,15 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 
 def test_create_employee_requires_a_department(services) -> None:

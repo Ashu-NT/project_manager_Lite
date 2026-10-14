@@ -13,7 +13,7 @@ this needs the real backend event pipeline underneath."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.contract.use_cases.master_data.org.commands import (
+from src.core.platform.application.master_data.org.dto import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )

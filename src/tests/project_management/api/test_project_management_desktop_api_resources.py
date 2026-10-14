@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from src.core.modules.project_management.api.desktop import (
     build_project_management_resources_desktop_api,
 )
-from src.core.modules.project_management.contracts.use_cases.resources import (
+from src.core.modules.project_management.application.resources.dto import (
     ResourceCreateCommand,
     ResourceLifecycleCommand,
     ResourceUpdateCommand,

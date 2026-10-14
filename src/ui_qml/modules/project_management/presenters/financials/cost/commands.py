@@ -5,7 +5,7 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.contracts.use_cases.financials import (
+from src.core.modules.project_management.application.financials.cost.entries.dto import (
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,

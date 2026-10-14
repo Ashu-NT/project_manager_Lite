@@ -25,7 +25,7 @@ from src.core.platform.application.master_data.employee import (
     EmployeeDocumentCommandHandler,
     EmployeeQueryHandler,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )

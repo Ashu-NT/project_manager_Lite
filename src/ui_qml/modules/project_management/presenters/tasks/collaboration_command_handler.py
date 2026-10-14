@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.contracts.use_cases.collaboration import (
+from src.core.modules.project_management.application.collaboration.dto import (
     TaskCollaborationDeleteCommand,
     TaskCollaborationEditCommand,
     TaskCollaborationPostCommand,

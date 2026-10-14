@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.platform.application.master_data.org.dto import (
+    OrganizationUpdateCommand,
+)
 from src.core.platform.application.master_data.org.organization_context import (
     require_current_tenant_id,
 )
@@ -27,9 +30,6 @@ from src.core.platform.contract.repositories.master_data.org.default_calendar_wr
 )
 from src.core.platform.contract.uow.master_data.organization_unit_of_work import (
     OrganizationUnitOfWorkFactory,
-)
-from src.core.platform.contract.use_cases.master_data.org.commands import (
-    OrganizationUpdateCommand,
 )
 from src.core.platform.domain.master_data.org import (
     Organization,

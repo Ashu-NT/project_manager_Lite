@@ -16,13 +16,13 @@ from src.core.platform.api.desktop.time_management.calendar.models.platform_cale
     EmpCalendarAssignCommand,
     SiteCalendarAssignCommand,
 )
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
 from src.ui_qml.platform.controllers.calendars.context import employee_calendar_summary

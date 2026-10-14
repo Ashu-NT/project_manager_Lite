@@ -8,10 +8,10 @@ the whole organization's."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
@@ -46,7 +46,7 @@ def test_employees_for_department_page_search_and_status_filter(services) -> Non
     admin = catalog.adminWorkspace
 
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EFDP-C", name="Dept C"))
-    active_employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EFDP-E4", full_name="Findme Active", department_id=department.id))
+    services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EFDP-E4", full_name="Findme Active", department_id=department.id))
     inactive_employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EFDP-E5", full_name="Someone Else", department_id=department.id))
     services["employee_commands"].deactivate_employee(inactive_employee.id)
 

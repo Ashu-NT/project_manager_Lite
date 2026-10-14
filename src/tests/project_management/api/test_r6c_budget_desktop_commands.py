@@ -11,7 +11,7 @@ from src.core.modules.project_management.application.financials.budgets import (
     BudgetApprovalOutcome,
     BudgetApprovalResult,
 )
-from src.core.modules.project_management.contracts.use_cases.financials import (
+from src.core.modules.project_management.application.financials.budgets.dto import (
     FinancialAddBudgetLineCommand,
     FinancialCreateBudgetVersionCommand,
     FinancialVersionedBudgetCommand,

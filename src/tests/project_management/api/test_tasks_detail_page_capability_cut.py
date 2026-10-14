@@ -6,7 +6,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
-from src.core.modules.project_management.contracts.use_cases.tasks.commands import (
+from src.core.modules.project_management.application.tasks.dto import (
     TaskAssignmentHoursCommand,
     TaskDependencyCreateCommand,
     TaskDependencyUpdateCommand,

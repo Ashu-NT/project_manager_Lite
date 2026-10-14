@@ -5,7 +5,7 @@ and test_organization_pagination.py (pagination mechanics)."""
 
 from __future__ import annotations
 
-from src.core.platform.contract.use_cases.master_data.org.commands import (
+from src.core.platform.application.master_data.org.dto import (
     OrganizationUpdateCommand,
 )
 

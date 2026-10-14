@@ -10,7 +10,7 @@ Covers:
 """
 from __future__ import annotations
 
-from src.core.platform.contract.use_cases.master_data.site.commands import (
+from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
 from src.core.platform.domain.security.authorization.roles import RoleBinding

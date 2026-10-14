@@ -7,15 +7,15 @@ from datetime import UTC, datetime
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.application.master_data.site.dto import (
+    SiteCreateCommand,
+)
 from src.core.platform.application.security.authorization.roles.event_handlers.view_invalidation import (
     ROLE_BINDING_ASSIGNMENTS_SCOPE_CODE,
     ROLE_BINDING_CATEGORY,
     build_role_binding_view_invalidation_handler,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.contract.use_cases.master_data.site.commands import (
-    SiteCreateCommand,
-)
 from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
     RoleBindingRevoked,

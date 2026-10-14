@@ -17,6 +17,10 @@ from src.core.platform.application.master_data.department.department_validation 
     validate_parent_department_id,
     validate_site_id,
 )
+from src.core.platform.application.master_data.department.dto import (
+    DepartmentCreateCommand,
+    DepartmentUpdateCommand,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -24,10 +28,6 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
     ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.department.commands import (
-    DepartmentCreateCommand,
-    DepartmentUpdateCommand,
 )
 from src.core.platform.domain.master_data.department import Department
 from src.core.platform.domain.master_data.department.events import (

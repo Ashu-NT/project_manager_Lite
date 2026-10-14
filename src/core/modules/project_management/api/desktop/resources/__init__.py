@@ -40,7 +40,7 @@ from src.core.modules.project_management.api.desktop.resources.models.skills imp
     ResourceSkillDesktopDto,
     ResourceSkillsPageDesktopDto,
 )
-from src.core.modules.project_management.contracts.use_cases.resources.commands import (
+from src.core.modules.project_management.application.resources.dto import (
     ResourceAddCertificationCommand,
     ResourceAddSkillCommand,
     ResourceCreateCommand,

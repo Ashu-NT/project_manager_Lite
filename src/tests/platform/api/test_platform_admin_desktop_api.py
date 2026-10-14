@@ -13,13 +13,13 @@ from src.core.platform.api.desktop.security.auth.models.user import (
     UserUpdateCommand,
 )
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
-from src.core.platform.contract.use_cases.master_data.documents.commands import (
+from src.core.platform.application.master_data.documents.dto import (
     DocumentCreateCommand,
     DocumentLinkCreateCommand,
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.party.commands import (
+from src.core.platform.application.master_data.party.dto import (
     PartyCreateCommand,
     PartyUpdateCommand,
 )

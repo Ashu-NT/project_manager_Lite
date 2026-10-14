@@ -8,7 +8,7 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementTimesheetsDesktopApi,
     build_project_management_timesheets_desktop_api,
 )
-from src.core.modules.project_management.contracts.use_cases.timesheets import (
+from src.core.modules.project_management.application.timesheets.dto import (
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
 )

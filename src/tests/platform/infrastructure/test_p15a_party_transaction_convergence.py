@@ -5,15 +5,15 @@ import pytest
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
+from src.core.platform.application.master_data.party.dto import (
+    PartyCreateCommand,
+    PartyUpdateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.party.commands import (
-    PartyCreateCommand,
-    PartyUpdateCommand,
 )
 from src.core.platform.domain.master_data.party.events import (
     PartyCreated,

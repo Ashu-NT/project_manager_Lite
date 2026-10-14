@@ -6,13 +6,13 @@ from src.core.modules.project_management.api.desktop.projects.api import (
     ProjectManagementProjectsDesktopApi,
 )
 from src.core.modules.project_management.domain.enums import WorkerType
-from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.use_cases.master_data.department.commands import (
+from src.core.platform.application.master_data.department.dto import (
     DepartmentCreateCommand,
 )
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
+from src.core.platform.application.master_data.employee.dto import (
     EmployeeCreateCommand,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 
 def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -> None:

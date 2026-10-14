@@ -6,7 +6,7 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementPortfolioDesktopApi,
 )
-from src.core.modules.project_management.contracts.use_cases.portfolio import (
+from src.core.modules.project_management.application.portfolio.dto import (
     PortfolioDependencyCreateCommand,
     PortfolioIntakeCreateCommand,
     PortfolioScenarioCreateCommand,

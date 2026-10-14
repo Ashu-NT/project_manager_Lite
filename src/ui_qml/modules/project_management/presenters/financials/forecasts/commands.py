@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.contracts.use_cases.financials import (
+from src.core.modules.project_management.application.financials.forecasts.dto import (
     FinancialGenerateForecastCommand,
     FinancialManualEtcCommand,
     FinancialRiskContingencyCommand,

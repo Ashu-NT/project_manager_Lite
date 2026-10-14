@@ -5,18 +5,18 @@ import pytest
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
+from src.core.platform.application.master_data.department.dto import (
+    DepartmentCreateCommand,
+)
+from src.core.platform.application.master_data.employee.dto import (
+    EmployeeCreateCommand,
+    EmployeeUpdateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
-)
-from src.core.platform.contract.use_cases.master_data.department.commands import (
-    DepartmentCreateCommand,
-)
-from src.core.platform.contract.use_cases.master_data.employee.commands import (
-    EmployeeCreateCommand,
-    EmployeeUpdateCommand,
 )
 from src.core.platform.domain.master_data.employee.events import (
     EmployeeCreated,

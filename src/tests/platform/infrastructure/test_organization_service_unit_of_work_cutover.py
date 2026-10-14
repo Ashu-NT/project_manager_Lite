@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.platform.application.master_data.org.dto import (
+    OrganizationProvisionCommand,
+    OrganizationUpdateCommand,
+)
 from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
     ORGANIZATION_LIST_SCOPE_CODE,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.contract.use_cases.master_data.org.commands import (
-    OrganizationProvisionCommand,
-    OrganizationUpdateCommand,
-)
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,

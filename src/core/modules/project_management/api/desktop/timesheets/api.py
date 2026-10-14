@@ -70,12 +70,12 @@ from src.core.modules.project_management.application.timesheets import (
     TimesheetWorkspaceCommandHandler,
     TimesheetWorkspaceQueryHandler,
 )
-from src.core.modules.project_management.contracts.reads.timesheets import (
-    TimesheetScope,
-)
-from src.core.modules.project_management.contracts.use_cases.timesheets.commands import (
+from src.core.modules.project_management.application.timesheets.dto import (
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
+)
+from src.core.modules.project_management.contracts.reads.timesheets import (
+    TimesheetScope,
 )
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,

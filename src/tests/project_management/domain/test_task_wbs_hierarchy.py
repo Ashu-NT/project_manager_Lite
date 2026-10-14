@@ -7,7 +7,7 @@ import pytest
 from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
 )
-from src.core.modules.project_management.contracts.use_cases.tasks import (
+from src.core.modules.project_management.application.tasks.dto import (
     TaskCreateCommand,
     TaskWbsMoveCommand,
 )
