@@ -139,10 +139,10 @@ def _setup(services):
     resource = services["resource_master_commands"].create_resource(
         "P40B Timesheet Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "P40B Timesheet Task", start_date=date(2026, 6, 1), duration_days=10
     )
-    assignment = services["task_service"].assign_resource(
+    assignment = services['task_assignment_commands'].assign_resource(
         task.id, resource.id, allocation_percent=100
     )
     services["time_entry_commands"].add_time_entry(

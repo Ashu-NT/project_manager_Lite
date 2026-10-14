@@ -275,8 +275,8 @@ def test_pm_tasks_bulk_status_undo_redo_and_select(tmp_path: Path, qapp) -> None
 def test_pm_tasks_move_wbs_action_uses_the_desktop_contract(tmp_path: Path, qapp) -> None:
     bundle = build_task_controller_bundle(tmp_path)
     controller = bundle["controller"]
-    task_service = bundle["task_service"]
-    task = task_service.get_task("task-1")
+    bundle['task_lookup_query']
+    task = bundle['task_detail_query'].get_task("task-1")
 
     result = controller.moveTaskInWbs(
         {
@@ -290,7 +290,7 @@ def test_pm_tasks_move_wbs_action_uses_the_desktop_contract(tmp_path: Path, qapp
     qapp.processEvents()
 
     assert result == {"ok": True, "message": "Task WBS position updated."}
-    assert task_service.get_task("task-1").wbs_code == "9"
+    assert bundle['task_detail_query'].get_task("task-1").wbs_code == "9"
 
 
 def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qapp) -> None:
@@ -416,7 +416,7 @@ def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qap
 def test_pm_assignment_response_actions_are_exposed_and_executed(tmp_path: Path, qapp) -> None:
     bundle = build_task_controller_bundle(tmp_path)
     controller = bundle["controller"]
-    task_service = bundle["task_service"]
+    task_service = bundle['task_lookup_query']
 
     controller.activateTask("task-1")
     controller.loadSelectedTaskAssignments()

@@ -55,7 +55,7 @@ class BaselineComparisonQueryHandler:
     Compares the current computed CPM schedule against a stored project baseline
     and produces a variance report.
 
-    The BaselineService owns creation/lifecycle of baselines.
+    The BaselineQueryHandler owns creation/lifecycle of baselines.
     This service owns comparison and variance calculation.
     """
 

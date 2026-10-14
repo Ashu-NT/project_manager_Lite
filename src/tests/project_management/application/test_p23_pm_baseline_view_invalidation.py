@@ -60,9 +60,9 @@ def _baseline_hints(hints):
 
 def _project_with_tasks(services, name: str | None = None):
     project = services['project_create'].create_project(name or _unique("P23 Baseline Project"), "")
-    task_service = services["task_service"]
-    task_service.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
-    task_service.create_task(project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2)
+    services['task_lookup_query']
+    services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
+    services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2)
     return project
 
 
@@ -190,8 +190,8 @@ def test_create_baseline_produces_exactly_one_project_baseline_hint(services):
     project = _project_with_tasks(services)
     hints = _spy_hints(services)
 
-    baseline_service = services["baseline_service"]
-    baseline = baseline_service.create_baseline(project.id, "BL1", rate_as_of=date.today())
+    baseline_service = services['baseline_query']
+    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -201,11 +201,11 @@ def test_create_baseline_produces_exactly_one_project_baseline_hint(services):
 
 def test_submit_baseline_produces_exactly_one_hint(services):
     project = _project_with_tasks(services)
-    baseline_service = services["baseline_service"]
-    baseline = baseline_service.create_baseline(project.id, "BL1", rate_as_of=date.today())
+    baseline_service = services['baseline_query']
+    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
     hints = _spy_hints(services)
 
-    submitted = baseline_service.submit_baseline(baseline.id, submitted_by="admin")
+    submitted = services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -215,14 +215,14 @@ def test_submit_baseline_produces_exactly_one_hint(services):
 
 def test_approve_baseline_produces_exactly_one_hint_and_carries_superseded_id(services):
     project = _project_with_tasks(services)
-    baseline_service = services["baseline_service"]
+    baseline_service = services['baseline_query']
 
-    first = baseline_service.create_baseline(project.id, "BL1", rate_as_of=date.today())
-    baseline_service.submit_baseline(first.id, submitted_by="admin")
-    baseline_service.approve_baseline(first.id, approved_by="admin")
+    first = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+    services['baseline_commands'].submit_baseline(first.id, submitted_by="admin")
+    services['baseline_commands'].approve_baseline(first.id, approved_by="admin")
 
-    second = baseline_service.create_baseline(project.id, "BL2", rate_as_of=date.today())
-    baseline_service.submit_baseline(second.id, submitted_by="admin")
+    second = services['baseline_commands'].create_baseline(project.id, "BL2", rate_as_of=date.today())
+    services['baseline_commands'].submit_baseline(second.id, submitted_by="admin")
 
     # Subscribe directly to the post-commit bus for the typed event itself (not just the
     # ViewInvalidation hint) to prove `superseded_baseline_id` is populated correctly. Reached
@@ -235,7 +235,7 @@ def test_approve_baseline_produces_exactly_one_hint_and_carries_superseded_id(se
     )
     hints = _spy_hints(services)
 
-    baseline_service.approve_baseline(second.id, approved_by="admin")
+    services['baseline_commands'].approve_baseline(second.id, approved_by="admin")
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -247,12 +247,12 @@ def test_approve_baseline_produces_exactly_one_hint_and_carries_superseded_id(se
 
 def test_reject_baseline_produces_exactly_one_hint(services):
     project = _project_with_tasks(services)
-    baseline_service = services["baseline_service"]
-    baseline = baseline_service.create_baseline(project.id, "BL1", rate_as_of=date.today())
-    baseline_service.submit_baseline(baseline.id, submitted_by="admin")
+    baseline_service = services['baseline_query']
+    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
     hints = _spy_hints(services)
 
-    rejected = baseline_service.reject_baseline(baseline.id)
+    rejected = services['baseline_commands'].reject_baseline(baseline.id)
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -261,11 +261,11 @@ def test_reject_baseline_produces_exactly_one_hint(services):
 
 def test_delete_baseline_produces_exactly_one_hint(services):
     project = _project_with_tasks(services)
-    baseline_service = services["baseline_service"]
-    baseline = baseline_service.create_baseline(project.id, "BL1", rate_as_of=date.today())
+    baseline_service = services['baseline_query']
+    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
     hints = _spy_hints(services)
 
-    baseline_service.delete_baseline(baseline.id)
+    services['baseline_commands'].delete_baseline(baseline.id)
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -276,12 +276,12 @@ def test_disallowed_transition_raises_and_produces_zero_hints(services):
     """Approving a DRAFT baseline (never submitted) must raise, never commit, and never notify --
     the `with uow:` block's rollback-on-exception behavior."""
     project = _project_with_tasks(services)
-    baseline_service = services["baseline_service"]
-    baseline = baseline_service.create_baseline(project.id, "BL1", rate_as_of=date.today())
+    baseline_service = services['baseline_query']
+    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
     hints = _spy_hints(services)
 
     with pytest.raises(ValidationError):
-        baseline_service.approve_baseline(baseline.id, approved_by="admin")
+        services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
 
     assert _baseline_hints(hints) == []
     assert baseline_service._baselines.get_baseline(baseline.id).status.value == "draft"
@@ -293,15 +293,15 @@ def test_baseline_service_shared_session_survives_repeated_commits(services):
     the SAME long-lived `baseline_service` instance, with the Session object itself unchanged
     and still usable throughout."""
     project = _project_with_tasks(services)
-    baseline_service = services["baseline_service"]
-    session_before = baseline_service._session
+    baseline_service = services['baseline_query']
+    session_before = services['baseline_commands']._session
 
-    baseline = baseline_service.create_baseline(project.id, "BL1", rate_as_of=date.today())
-    baseline_service.submit_baseline(baseline.id, submitted_by="admin")
-    approved = baseline_service.approve_baseline(baseline.id, approved_by="admin")
+    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
+    approved = services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
 
     assert approved.status.value == "approved"
-    assert baseline_service._session is session_before
+    assert services['baseline_commands']._session is session_before
     assert session_before.is_active
 
 

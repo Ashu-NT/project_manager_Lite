@@ -17,28 +17,28 @@ def _project(services):
 # ── Task (TSK, per-project) ──────────────────────────────────────────────────
 def test_task_autogenerates_code(services):
     pid = _project(services).id
-    task = services["task_service"].create_task(pid, "Cable Pull", duration_days=2)
+    task = services['task_lifecycle_commands'].create_task(pid, "Cable Pull", duration_days=2)
     assert task.code == "TSK-CABL-0001"
 
 
 def test_task_code_is_per_project_scoped(services):
-    ts = services["task_service"]
-    ps = services['project_query']
+    services['task_lookup_query']
+    services['project_query']
     p1 = services['project_create'].create_project("Project One", "").id
     p2 = services['project_create'].create_project("Project Two", "").id
-    a = ts.create_task(p1, "Cabling Run", duration_days=1)
-    b = ts.create_task(p2, "Cabling Run", duration_days=1)
+    a = services['task_lifecycle_commands'].create_task(p1, "Cabling Run", duration_days=1)
+    b = services['task_lifecycle_commands'].create_task(p2, "Cabling Run", duration_days=1)
     # same token in two projects -> both 0001 (per-project uniqueness)
     assert a.code == "TSK-CABL-0001"
     assert b.code == "TSK-CABL-0001"
 
 
 def test_task_manual_duplicate_blocked_within_project(services):
-    ts = services["task_service"]
+    services['task_lookup_query']
     pid = _project(services).id
-    ts.create_task(pid, "Alpha", duration_days=1, code="TSK-DUP-1")
+    services['task_lifecycle_commands'].create_task(pid, "Alpha", duration_days=1, code="TSK-DUP-1")
     with pytest.raises(ValidationError) as exc:
-        ts.create_task(pid, "Beta", duration_days=1, code="TSK-DUP-1")
+        services['task_lifecycle_commands'].create_task(pid, "Beta", duration_days=1, code="TSK-DUP-1")
     assert exc.value.code == "CODE_DUPLICATE"
 
 

@@ -11,20 +11,20 @@ from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services):
-    ps = services['project_query']
-    ts = services["task_service"]
-    bs = services["baseline_service"]
+    services['project_query']
+    services['task_lookup_query']
+    bs = services['baseline_query']
     project = services['project_create'].create_project("Baseline Compare", "")
     pid = project.id
 
-    task_a = ts.create_task(pid, "Task A", start_date=date(2024, 1, 1), duration_days=2)
-    task_b = ts.create_task(pid, "Task B", start_date=date(2024, 1, 3), duration_days=2)
-    baseline_1 = bs.create_baseline(pid, "BL1", rate_as_of=date.today())
+    task_a = services['task_lifecycle_commands'].create_task(pid, "Task A", start_date=date(2024, 1, 1), duration_days=2)
+    task_b = services['task_lifecycle_commands'].create_task(pid, "Task B", start_date=date(2024, 1, 3), duration_days=2)
+    baseline_1 = services['baseline_commands'].create_baseline(pid, "BL1", rate_as_of=date.today())
 
-    ts.update_task(task_a.id, start_date=date(2024, 1, 2), duration_days=3)
-    ts.delete_task(task_b.id)
-    task_c = ts.create_task(pid, "Task C", start_date=date(2024, 1, 8), duration_days=1)
-    baseline_2 = bs.create_baseline(pid, "BL2", rate_as_of=date.today())
+    services['task_lifecycle_commands'].update_task(task_a.id, start_date=date(2024, 1, 2), duration_days=3)
+    services['task_deletion_commands'].delete_task(task_b.id)
+    task_c = services['task_lifecycle_commands'].create_task(pid, "Task C", start_date=date(2024, 1, 8), duration_days=1)
+    baseline_2 = services['baseline_commands'].create_baseline(pid, "BL2", rate_as_of=date.today())
 
     comparison = services["baseline_compare_report"].compare_baselines(
         project_id=pid,
@@ -53,15 +53,15 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
 
 
 def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
-    ps = services['project_query']
-    ts = services["task_service"]
-    bs = services["baseline_service"]
+    services['project_query']
+    services['task_lookup_query']
+    bs = services['baseline_query']
     project = services['project_create'].create_project("Baseline Compare Filter", "")
     pid = project.id
-    ts.create_task(pid, "Task Stable", start_date=date(2024, 2, 5), duration_days=2)
+    services['task_lifecycle_commands'].create_task(pid, "Task Stable", start_date=date(2024, 2, 5), duration_days=2)
 
-    baseline_1 = bs.create_baseline(pid, "Stable-1", rate_as_of=date.today())
-    baseline_2 = bs.create_baseline(pid, "Stable-2", rate_as_of=date.today())
+    baseline_1 = services['baseline_commands'].create_baseline(pid, "Stable-1", rate_as_of=date.today())
+    baseline_2 = services['baseline_commands'].create_baseline(pid, "Stable-2", rate_as_of=date.today())
 
     comparison = services["baseline_compare_report"].compare_baselines(
         project_id=pid,
@@ -76,13 +76,13 @@ def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
 
 
 def test_compare_baselines_validates_input_and_missing_ids(services):
-    ps = services['project_query']
-    ts = services["task_service"]
-    bs = services["baseline_service"]
+    services['project_query']
+    services['task_lookup_query']
+    bs = services['baseline_query']
     project = services['project_create'].create_project("Baseline Compare Validation", "")
     pid = project.id
-    ts.create_task(pid, "Task 1", start_date=date(2024, 3, 4), duration_days=1)
-    baseline = bs.create_baseline(pid, "Only", rate_as_of=date.today())
+    services['task_lifecycle_commands'].create_task(pid, "Task 1", start_date=date(2024, 3, 4), duration_days=1)
+    baseline = services['baseline_commands'].create_baseline(pid, "Only", rate_as_of=date.today())
 
     with pytest.raises(ValidationError) as same_exc:
         services["baseline_compare_report"].compare_baselines(pid, baseline.id, baseline.id)
@@ -94,33 +94,33 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
 
 
 def test_baseline_approval_tracks_current_approved_and_variance_records(services):
-    ps = services['project_query']
-    ts = services["task_service"]
-    bs = services["baseline_service"]
+    services['project_query']
+    services['task_lookup_query']
+    bs = services['baseline_query']
 
     project = services['project_create'].create_project("Baseline Governance", "")
     pid = project.id
-    task = ts.create_task(pid, "Critical Task", start_date=date(2024, 4, 1), duration_days=2)
+    task = services['task_lifecycle_commands'].create_task(pid, "Critical Task", start_date=date(2024, 4, 1), duration_days=2)
 
-    baseline_1 = bs.create_baseline(pid, "BL1", rate_as_of=date.today())
-    bs.submit_baseline(baseline_1.id, submitted_by="alex")
-    approved_1 = bs.approve_baseline(baseline_1.id, approved_by="alex")
+    baseline_1 = services['baseline_commands'].create_baseline(pid, "BL1", rate_as_of=date.today())
+    services['baseline_commands'].submit_baseline(baseline_1.id, submitted_by="alex")
+    approved_1 = services['baseline_commands'].approve_baseline(baseline_1.id, approved_by="alex")
 
     assert approved_1.status == BaselineStatus.APPROVED
-    assert bs.get_approved_baseline(pid).id == baseline_1.id
-    assert bs.list_variance_records(baseline_1.id) == []
+    assert services['baseline_query'].get_approved_baseline(pid).id == baseline_1.id
+    assert services['baseline_query'].list_variance_records(baseline_1.id) == []
 
-    ts.update_task(task.id, start_date=date(2024, 4, 3), duration_days=4)
+    services['task_lifecycle_commands'].update_task(task.id, start_date=date(2024, 4, 3), duration_days=4)
 
-    baseline_2 = bs.create_baseline(pid, "BL2", rate_as_of=date.today())
-    bs.submit_baseline(baseline_2.id, submitted_by="alex")
-    approved_2 = bs.approve_baseline(baseline_2.id, approved_by="alex")
+    baseline_2 = services['baseline_commands'].create_baseline(pid, "BL2", rate_as_of=date.today())
+    services['baseline_commands'].submit_baseline(baseline_2.id, submitted_by="alex")
+    approved_2 = services['baseline_commands'].approve_baseline(baseline_2.id, approved_by="alex")
 
-    baselines = {row.id: row for row in bs.list_baselines(pid)}
-    variance_rows = bs.list_variance_records(baseline_2.id)
+    baselines = {row.id: row for row in services['baseline_query'].list_baselines(pid)}
+    variance_rows = services['baseline_query'].list_variance_records(baseline_2.id)
 
     assert approved_2.status == BaselineStatus.APPROVED
-    assert bs.get_approved_baseline(pid).id == baseline_2.id
+    assert services['baseline_query'].get_approved_baseline(pid).id == baseline_2.id
     assert baselines[baseline_1.id].status == BaselineStatus.SUPERSEDED
     assert len(variance_rows) == 1
     assert variance_rows[0].task_id == task.id

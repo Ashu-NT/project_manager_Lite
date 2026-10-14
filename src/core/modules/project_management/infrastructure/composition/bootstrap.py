@@ -88,7 +88,7 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_schedule_change_impact_query,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.scheduling.services import (
-    build_baseline_service,
+    build_baseline_capabilities,
     build_scheduling_foundation,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.tasks.services import (
@@ -258,7 +258,6 @@ def build_project_management_service_bundle(
         assignment_skill_validator=assignment_skill_validator,
         enterprise_resource_availability=enterprise_resource_availability,
     )
-    task_service = task_capabilities.service
     # The resolver owns the effective-time source for immutable rate snapshots.
     system_clock = SystemClock()
     register_resource_view_invalidation(
@@ -435,24 +434,25 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    baseline_service = build_baseline_service(
+    baseline_capabilities = build_baseline_capabilities(
         session,
         repositories,
         platform_services,
         scheduling_engine=scheduling_engine,
     )
+    baseline_query = baseline_capabilities.query
     schedule_change_impact_query = build_schedule_change_impact_query(
         task_repo=repositories.pm.task_repo,
         dependency_repo=repositories.pm.dependency_repo,
         calendar=work_calendar_engine,
-        baseline_lookup=baseline_service,
+        baseline_lookup=baseline_query,
     )
     finance_performance_query = build_finance_performance_query(
         session,
         platform_services,
         performance_reader=finance_performance_reader,
         earned_value_report=reporting.earned_value,
-        baseline_service=baseline_service,
+        baseline_query=baseline_query,
     )
     dashboard = build_dashboard_capabilities(
         platform_services,
@@ -521,7 +521,6 @@ def build_project_management_service_bundle(
         project_update=project_capabilities.update,
         project_status=project_capabilities.status,
         project_deletion=project_capabilities.deletion,
-        task_service=task_service,
         task_hierarchy_query=task_capabilities.hierarchy_query,
         task_deletion_commands=task_capabilities.deletion,
         task_progress_commands=task_capabilities.progress,
@@ -576,8 +575,9 @@ def build_project_management_service_bundle(
         schedule_variance_report=reporting.schedule_variance,
         profitability_report=reporting.profitability,
         labor_report=reporting.labor,
-        baseline_service=baseline_service,
+        baseline_query=baseline_query,
         project_dashboard_query=dashboard.project,
+        baseline_commands=baseline_capabilities.commands,
         schedule_change_impact_query=schedule_change_impact_query,
         portfolio_dashboard_query=dashboard.portfolio,
         portfolio_intake_query=portfolio.intake_query,

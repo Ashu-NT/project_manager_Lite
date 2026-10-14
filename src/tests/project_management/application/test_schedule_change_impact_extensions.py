@@ -21,19 +21,19 @@ def _impact_service(services):
         task_repo=services["task_lookup_query"]._task_repo,
         dependency_repo=services["task_dependency_diagnostics"]._dependency_repo,
         calendar=services["work_calendar_engine"],
-        baseline_lookup=services["baseline_service"],
+        baseline_lookup=services['baseline_query'],
     )
 
 
 def _make_chain_with_milestone(services):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Schedule Impact Extensions", "")
-    a = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
-    b = ts.create_task(project.id, "Task B", "", duration_days=2)
-    milestone = ts.create_task(project.id, "Handover", "", duration_days=0, is_milestone=True)
-    ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
-    ts.add_dependency(b.id, milestone.id, DependencyType.FINISH_TO_START, lag_days=0)
+    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+    b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
+    milestone = services['task_lifecycle_commands'].create_task(project.id, "Handover", "", duration_days=0, is_milestone=True)
+    services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+    services['task_dependency_commands'].add_dependency(b.id, milestone.id, DependencyType.FINISH_TO_START, lag_days=0)
     return project, a, b, milestone
 
 
@@ -77,7 +77,7 @@ class TestGetTaskScheduleOverview:
         assert overview.downstream.downstream_milestone_count == 1
 
     def test_reports_unavailable_for_unknown_task(self, services):
-        ps = services['project_query']
+        services['project_query']
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Unknown Task", "")
 
@@ -86,16 +86,16 @@ class TestGetTaskScheduleOverview:
         assert overview.is_available is False
 
     def test_reports_actual_variance_when_actual_start_violates_dependency(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Actual Variance", "")
-        a = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
-        b = ts.create_task(project.id, "Task B", "", duration_days=2)
-        ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+        a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+        b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
+        services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
         sched.recalculate_project_schedule(project.id)
-        ts.update_progress(b.id, actual_start=date(2024, 1, 2))
+        services['task_progress_commands'].update_progress(b.id, actual_start=date(2024, 1, 2))
 
         overview = impact.get_task_schedule_overview(project.id, b.id)
 
@@ -145,7 +145,7 @@ class TestGetTaskScheduleOverview:
             task_repo=_FakeTaskRepo(),
             dependency_repo=_FakeDependencyRepo(),
             calendar=services["work_calendar_engine"],
-            baseline_lookup=services["baseline_service"],
+            baseline_lookup=services['baseline_query'],
         )
 
         overview = service.get_task_schedule_overview("proj-1", b.id)
@@ -156,21 +156,21 @@ class TestGetTaskScheduleOverview:
 
 class TestBaselineComparison:
     def test_get_task_schedule_overview_reports_baseline_finish_and_variance(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
-        bs = services["baseline_service"]
+        services['project_query']
+        services['task_lookup_query']
+        bs = services['baseline_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Baseline", "")
-        task = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+        task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         sched.recalculate_project_schedule(project.id)
-        baseline = bs.create_baseline(project.id, "BL1", rate_as_of=date.today())
-        bs.submit_baseline(baseline.id, submitted_by="admin")
-        bs.approve_baseline(baseline.id, approved_by="admin")
+        baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+        services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
+        services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
 
         # Slip the task's own start so its current finish diverges from
         # the just-approved baseline snapshot.
-        ts.update_task(task.id, start_date=date(2024, 1, 3), duration_days=2)
+        services['task_lifecycle_commands'].update_task(task.id, start_date=date(2024, 1, 3), duration_days=2)
         sched.recalculate_project_schedule(project.id)
 
         overview = impact.get_task_schedule_overview(project.id, task.id)
@@ -180,12 +180,12 @@ class TestBaselineComparison:
         assert overview.schedule_variance_days > 0
 
     def test_get_task_schedule_overview_omits_baseline_facts_when_no_approved_baseline_exists(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact No Baseline", "")
-        task = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+        task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         sched.recalculate_project_schedule(project.id)
 
         overview = impact.get_task_schedule_overview(project.id, task.id)
@@ -194,38 +194,38 @@ class TestBaselineComparison:
         assert overview.schedule_variance_days is None
 
     def test_baseline_service_get_baseline_task_returns_the_snapshot(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
-        bs = services["baseline_service"]
+        services['project_query']
+        services['task_lookup_query']
+        bs = services['baseline_query']
         project = services['project_create'].create_project("Baseline Task Snapshot", "")
-        task = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
-        baseline = bs.create_baseline(project.id, "BL1", rate_as_of=date.today())
+        task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+        baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
 
-        baseline_task = bs.get_baseline_task(baseline.id, task.id)
+        baseline_task = services['baseline_query'].get_baseline_task(baseline.id, task.id)
 
         assert baseline_task is not None
         assert baseline_task.task_id == task.id
         assert baseline_task.baseline_finish is not None
 
     def test_baseline_service_get_baseline_task_returns_none_for_unknown_task(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
-        bs = services["baseline_service"]
+        services['project_query']
+        services['task_lookup_query']
+        bs = services['baseline_query']
         project = services['project_create'].create_project("Baseline Task Snapshot Missing", "")
-        ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
-        baseline = bs.create_baseline(project.id, "BL1", rate_as_of=date.today())
+        services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+        baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
 
-        assert bs.get_baseline_task(baseline.id, "does-not-exist") is None
+        assert services['baseline_query'].get_baseline_task(baseline.id, "does-not-exist") is None
 
 
 class TestAnalyseWorkingDayDelay:
     def test_delay_by_working_days_skips_weekends(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Working Day Delay", "")
         # Friday 2024-01-05
-        a = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 5), duration_days=1)
+        a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 5), duration_days=1)
 
         report = impact.analyse_working_day_delay(
             project_id=project.id,
@@ -240,14 +240,14 @@ class TestAnalyseWorkingDayDelay:
 
 class TestAnalyseExtendedFields:
     def test_critical_path_changed_flag_reflects_newly_critical_tasks(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Critical Change", "")
-        a = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
-        b = ts.create_task(project.id, "Task B", "", duration_days=2)
-        ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+        a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+        b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
+        services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
         sched.recalculate_project_schedule(project.id)
 
         report = impact.analyse(

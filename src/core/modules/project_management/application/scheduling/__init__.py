@@ -3,7 +3,7 @@
 from src.core.modules.project_management.application.scheduling.baselines import (
     BaselineComparisonQueryHandler,
     BaselineComparisonReport,
-    BaselineService,
+    BaselineQueryHandler,
     TaskVariance,
 )
 from src.core.modules.project_management.application.scheduling.calendars import (
@@ -48,7 +48,7 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 __all__ = [
     "BaselineComparisonReport",
     "BaselineComparisonQueryHandler",
-    "BaselineService",
+    "BaselineQueryHandler",
     "BoundProjectCalendar",
     "CPMResult",
     "CPMTaskInfo",

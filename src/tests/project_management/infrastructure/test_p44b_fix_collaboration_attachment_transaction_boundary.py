@@ -87,7 +87,7 @@ def _count(services, model) -> int:
 
 def _setup(services):
     project = services['project_create'].create_project("P44B-FIX attachment project")
-    task = services["task_service"].create_task(project.id, "P44B-FIX attachment task")
+    task = services['task_lifecycle_commands'].create_task(project.id, "P44B-FIX attachment task")
     return project, task
 
 

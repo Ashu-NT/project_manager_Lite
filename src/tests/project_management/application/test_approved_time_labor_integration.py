@@ -81,10 +81,10 @@ def _setup(services):
         card.id, rate_type=RateType.COST, unit="HOUR", rate_amount=Decimal(50),
         rate_currency=organization.base_currency, resource_id=resource.id,
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "Approved Time Task", start_date=date(2026, 5, 1), duration_days=10
     )
-    assignment = services["task_service"].assign_resource(
+    assignment = services['task_assignment_commands'].assign_resource(
         task.id, resource.id, allocation_percent=100
     )
     return organization, project, resource, task, assignment

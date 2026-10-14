@@ -68,7 +68,7 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
                 SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
             ]
         ),
-        baseline_service=SimpleNamespace(
+        baseline_query=SimpleNamespace(
             list_baselines=lambda project_id: [
                 SimpleNamespace(
                     id=f"{project_id}-base-1",

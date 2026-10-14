@@ -43,15 +43,15 @@ def resolve_project_id(
 
 def build_baseline_options(
     selected_project_id: str,
-    baseline_service=None,
+    baseline_query=None,
 ) -> tuple[ProjectDashboardSelectorOptionDescriptor, ...]:
     _latest = ProjectDashboardSelectorOptionDescriptor(value="", label="Latest baseline")
     if selected_project_id == PORTFOLIO_SCOPE_ID:
         return (ProjectDashboardSelectorOptionDescriptor(value="", label="Portfolio view"),)
-    if baseline_service is None:
+    if baseline_query is None:
         return (_latest,)
     try:
-        baselines = baseline_service.list_baselines(selected_project_id)
+        baselines = baseline_query.list_baselines(selected_project_id)
     except Exception:
         logger.exception("Failed to load baseline options for project_id=%s", selected_project_id)
         return (_latest,)

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.application.tasks import ResourceLevelingCommandHandler
-
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TypeVar, cast
@@ -96,13 +94,17 @@ from src.core.modules.project_management.application.risk.commands.register_life
     RegisterLifecycleHandler,
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.modules.project_management.application.scheduling.baselines.commands.lifecycle import (
+    BaselineCommandHandler,
+)
+from src.core.modules.project_management.application.scheduling.baselines.queries.catalog import (
+    BaselineQueryHandler,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
 from src.core.modules.project_management.application.tasks import (
+    ResourceLevelingCommandHandler,
     TaskDeletionCommandHandler,
     TaskDependencyCommandHandler,
     TaskDependencyQueryHandler,
@@ -111,7 +113,6 @@ from src.core.modules.project_management.application.tasks import (
     TaskLifecycleCommandHandler,
     TaskProgressCommandHandler,
     TaskSchedulingConstraintHandler,
-    TaskService,
 )
 from src.core.modules.project_management.application.tasks.commands.assignment import (
     TaskAssignmentCommandHandler,
@@ -199,7 +200,6 @@ class ProjectManagementDesktopRuntimeServices:
     time_entry_queries: TimeEntryQueryHandler | None
     timesheet_period_query: TimesheetPeriodQueryHandler | None
     timesheet_period_transitions: TimesheetPeriodTransitionHandler | None
-    task_service: TaskService | None
     task_leveling_commands: ResourceLevelingCommandHandler | None
     task_hierarchy_query: TaskHierarchyQueryHandler | None
     task_deletion_commands: TaskDeletionCommandHandler | None
@@ -228,7 +228,8 @@ class ProjectManagementDesktopRuntimeServices:
     commitment_service: ProjectCommitmentService | None
     billing_profile_service: ProjectBillingProfileService | None
     billing_preparation_service: ProjectBillingPreparationService | None
-    baseline_service: BaselineService | None
+    baseline_query: BaselineQueryHandler | None
+    baseline_commands: BaselineCommandHandler | None
     schedule_change_impact_query: ScheduleChangeImpactQueryHandler | None
     project_kpi_report: ProjectKpiReportBuilder | None
     earned_value_report: EarnedValueReportBuilder | None
@@ -260,7 +261,6 @@ def resolve_project_management_desktop_runtime_services(
     time_entry_queries = services.get("time_entry_queries")
     timesheet_period_query = services.get("timesheet_period_query")
     timesheet_period_transitions = services.get("timesheet_period_transitions")
-    task_service = services.get("task_service")
     task_workspace_query = services.get("task_workspace_query")
     task_detail_query = services.get("task_detail_query")
     task_dependency_diagnostics = services.get("task_dependency_diagnostics")
@@ -278,7 +278,7 @@ def resolve_project_management_desktop_runtime_services(
     commitment_service = services.get("commitment_service")
     billing_profile_service = services.get("billing_profile_service")
     billing_preparation_service = services.get("billing_preparation_service")
-    baseline_service = services.get("baseline_service")
+    baseline_query = services.get("baseline_query")
     schedule_change_impact_query = services.get("schedule_change_impact_query")
     tenant_context_service = services.get("tenant_context_service")
 
@@ -288,6 +288,7 @@ def resolve_project_management_desktop_runtime_services(
         work_calendar_engine = None
 
     return ProjectManagementDesktopRuntimeServices(
+        baseline_commands=_resolve(services, "baseline_commands", BaselineCommandHandler),
         task_leveling_commands=_resolve(services, "task_leveling_commands", ResourceLevelingCommandHandler),
         task_hierarchy_query=_resolve(services, "task_hierarchy_query", TaskHierarchyQueryHandler),
         task_deletion_commands=_resolve(services, "task_deletion_commands", TaskDeletionCommandHandler),
@@ -372,7 +373,6 @@ def resolve_project_management_desktop_runtime_services(
         time_entry_queries=time_entry_queries if isinstance(time_entry_queries, TimeEntryQueryHandler) else None,
         timesheet_period_query=timesheet_period_query if isinstance(timesheet_period_query, TimesheetPeriodQueryHandler) else None,
         timesheet_period_transitions=timesheet_period_transitions if isinstance(timesheet_period_transitions, TimesheetPeriodTransitionHandler) else None,
-        task_service=task_service if isinstance(task_service, TaskService) else None,
         task_workspace_query=(
             task_workspace_query
             if isinstance(task_workspace_query, TaskWorkspacePageQueryHandler)
@@ -443,9 +443,9 @@ def resolve_project_management_desktop_runtime_services(
             if isinstance(billing_preparation_service, ProjectBillingPreparationService)
             else None
         ),
-        baseline_service=(
-            baseline_service
-            if isinstance(baseline_service, BaselineService)
+        baseline_query=(
+            baseline_query
+            if isinstance(baseline_query, BaselineQueryHandler)
             else None
         ),
         schedule_change_impact_query=(

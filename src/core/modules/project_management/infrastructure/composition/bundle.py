@@ -114,8 +114,11 @@ from src.core.modules.project_management.application.risk.commands.register_life
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.modules.project_management.application.scheduling.baselines.commands.lifecycle import (
+    BaselineCommandHandler,
+)
+from src.core.modules.project_management.application.scheduling.baselines.queries.catalog import (
+    BaselineQueryHandler,
 )
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     ProjectCalendarAdapter,
@@ -134,7 +137,6 @@ from src.core.modules.project_management.application.tasks import (
     TaskLifecycleCommandHandler,
     TaskProgressCommandHandler,
     TaskSchedulingConstraintHandler,
-    TaskService,
     TaskUowScope,
 )
 from src.core.modules.project_management.application.tasks.commands.assignment import (
@@ -200,7 +202,6 @@ class ProjectManagementServiceBundle:
     project_update: ProjectUpdateHandler
     project_status: ProjectStatusHandler
     project_deletion: ProjectDeletionHandler
-    task_service: TaskService
     task_hierarchy_query: TaskHierarchyQueryHandler
     task_deletion_commands: TaskDeletionCommandHandler
     task_progress_commands: TaskProgressCommandHandler
@@ -261,7 +262,8 @@ class ProjectManagementServiceBundle:
     schedule_variance_report: ScheduleVarianceReportBuilder
     profitability_report: ProfitabilityReportBuilder
     labor_report: LaborReportBuilder
-    baseline_service: BaselineService
+    baseline_query: BaselineQueryHandler
+    baseline_commands: BaselineCommandHandler
     schedule_change_impact_query: ScheduleChangeImpactQueryHandler
     project_dashboard_query: ProjectDashboardQueryHandler
     portfolio_dashboard_query: PortfolioDashboardQueryHandler

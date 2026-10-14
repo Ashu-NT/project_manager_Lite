@@ -80,16 +80,16 @@ class TestPlannerComputesItsOwnFingerprint:
         """R4.4M's future Apply command must be able to recompute this
         exact token from a freshly re-read database snapshot and compare
         it against the one embedded in the proposal it is applying."""
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Fingerprint Planner Wiring", "")
-        task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-        task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+        task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
+        task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Fingerprint Dev", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
-        ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
         tasks = ts._task_repo.list_by_project(project.id)
         tasks_by_id = {t.id: t for t in tasks}
@@ -109,16 +109,16 @@ class TestPlannerComputesItsOwnFingerprint:
         assert proposal.schedule_fingerprint == independently_recomputed
 
     def test_proposal_fingerprint_changes_after_an_unrelated_task_edit_bumps_its_version(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Fingerprint Staleness", "")
-        task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-        task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+        task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
+        task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Staleness Dev", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
-        ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
         def _snapshot():
             tasks = ts._task_repo.list_by_project(project.id)
@@ -137,7 +137,7 @@ class TestPlannerComputesItsOwnFingerprint:
             resource_name_by_id={resource.id: resource.name},
         )
 
-        ts.update_task(task_c.id, name="Task C Renamed")
+        services['task_lifecycle_commands'].update_task(task_c.id, name="Task C Renamed")
 
         tasks_by_id_2, assignments_2, deps_2 = _snapshot()
         proposal_2 = planner.build_proposal(

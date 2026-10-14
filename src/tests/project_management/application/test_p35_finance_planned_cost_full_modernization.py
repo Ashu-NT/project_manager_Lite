@@ -75,8 +75,8 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
         project.id, resource.id, hourly_rate=hourly_rate, currency_code="USD",
         planned_hours=planned_hours,
     )
-    task = services["task_service"].create_task(project.id, "P35 Design Task")
-    assignment = services["task_service"].assign_project_resource(
+    task = services['task_lifecycle_commands'].create_task(project.id, "P35 Design Task")
+    assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
     return {
@@ -88,7 +88,7 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
 def _allocate(services, ctx, hours: Decimal):
     assignment = ctx["assignment"]
     project_resource = ctx["project_resource"]
-    updated = services["task_service"].update_assignment_planned_hours(
+    updated = services['task_assignment_commands'].update_assignment_planned_hours(
         assignment.id, allocated_planned_hours=hours,
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,

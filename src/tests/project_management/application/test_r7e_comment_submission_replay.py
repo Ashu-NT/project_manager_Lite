@@ -7,7 +7,7 @@ def test_same_comment_submission_replays_without_duplicate_and_new_draft_is_dist
     services,
 ) -> None:
     project = services['project_create'].create_project("Replay comments")
-    task = services["task_service"].create_task(project.id, "Discuss")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Discuss")
     first = services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="Same visible text", submission_id="r7e-command-one"
     )
@@ -33,7 +33,7 @@ def test_same_comment_submission_replays_without_duplicate_and_new_draft_is_dist
 
 def test_duplicate_primary_key_race_returns_committed_submission(services, monkeypatch) -> None:
     project = services['project_create'].create_project("Replay race")
-    task = services["task_service"].create_task(project.id, "Discuss")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Discuss")
     first = services["collaboration_comment_commands"].post_comment(
         task_id=task.id, body="One logical post", submission_id="r7e-race-command"
     )
@@ -58,7 +58,7 @@ def test_duplicate_primary_key_race_returns_committed_submission(services, monke
 
 def test_deleted_parent_rejects_reply_and_repeated_reactions_are_no_ops(services) -> None:
     project = services['project_create'].create_project("Comment lifecycle")
-    task = services["task_service"].create_task(project.id, "Discuss")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Discuss")
     parent = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Parent")
     first_reaction = services["collaboration_comment_engagement"].react_to_comment(parent.id, "thumbs-up")
     repeated = services["collaboration_comment_engagement"].react_to_comment(parent.id, "thumbs-up")
@@ -76,7 +76,7 @@ def test_deleted_parent_rejects_reply_and_repeated_reactions_are_no_ops(services
 
 def test_parent_deleted_between_precheck_and_write_rejects_reply(services, monkeypatch) -> None:
     project = services['project_create'].create_project("Reply race")
-    task = services["task_service"].create_task(project.id, "Discuss")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Discuss")
     parent = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Parent")
     factory = services["collaboration_comment_commands"]._uow_factory
     original_create = factory.create

@@ -44,13 +44,13 @@ def build_panels_from_dashboard_data(
     baseline_label: str,
     selected_baseline_id: str,
     portfolio_mode: bool,
-    baseline_service=None,
+    baseline_query=None,
 ) -> tuple[ProjectDashboardPanelDescriptor, ...]:
     return (
         _build_evm_panel(dashboard_data=dashboard_data, baseline_label=baseline_label, portfolio_mode=portfolio_mode),
         _build_register_panel(dashboard_data=dashboard_data, portfolio_mode=portfolio_mode),
         _build_cost_sources_panel(dashboard_data=dashboard_data, portfolio_mode=portfolio_mode),
-        _build_baseline_variance_panel(selected_baseline_id=selected_baseline_id, portfolio_mode=portfolio_mode, baseline_service=baseline_service),
+        _build_baseline_variance_panel(selected_baseline_id=selected_baseline_id, portfolio_mode=portfolio_mode, baseline_query=baseline_query),
         _build_resource_overload_panel(dashboard_data=dashboard_data, portfolio_mode=portfolio_mode),
         _build_reports_panel(portfolio_mode=portfolio_mode),
     )
@@ -130,13 +130,13 @@ def _build_cost_sources_panel(*, dashboard_data: Any, portfolio_mode: bool) -> P
     )
 
 
-def _build_baseline_variance_panel(*, selected_baseline_id: str, portfolio_mode: bool, baseline_service=None) -> ProjectDashboardPanelDescriptor:
+def _build_baseline_variance_panel(*, selected_baseline_id: str, portfolio_mode: bool, baseline_query=None) -> ProjectDashboardPanelDescriptor:
     if portfolio_mode:
         return ProjectDashboardPanelDescriptor(title="Baseline Variance", subtitle="Task schedule and cost drift between baselines.", empty_state="Baseline variance records are project-scoped and not rolled up in portfolio mode.")
-    if not selected_baseline_id or baseline_service is None:
+    if not selected_baseline_id or baseline_query is None:
         return ProjectDashboardPanelDescriptor(title="Baseline Variance", subtitle="Task schedule and cost drift between baselines.", empty_state="Select a baseline to view schedule and cost variance records.")
     try:
-        records = baseline_service.list_variance_records(selected_baseline_id)
+        records = baseline_query.list_variance_records(selected_baseline_id)
     except Exception:
         logger.exception("Failed to load variance records for baseline_id=%s", selected_baseline_id)
         records = []

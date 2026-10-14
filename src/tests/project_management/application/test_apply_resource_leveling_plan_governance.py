@@ -40,16 +40,16 @@ def _snapshot(ts, project_id):
 
 
 def _build_overload_proposal(services, name: str):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    ts = services['task_lookup_query']
     calendar = services["work_calendar_engine"]
 
     project = services['project_create'].create_project(name, "")
-    task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-    task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+    task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
+    task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
     resource = services["resource_master_commands"].create_resource("Governance Dev", "Developer", hourly_rate=100.0)
-    ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
-    ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
+    services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
+    services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
     tasks_by_id, assignments, deps = _snapshot(ts, project.id)
     planner = ResourceLevelingPlanner(calendar)
@@ -70,7 +70,7 @@ class TestGovernanceParity:
         _login(services, "admin", "ChangeMe123!")
 
         approvals = services["approval_commands"]
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance Apply")
         assert len(proposal.moves) >= 1
         moved_task_id = proposal.moves[0].task_id
@@ -80,10 +80,10 @@ class TestGovernanceParity:
         _login(services, "planner-leveling-governed", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):
-            ts.apply_resource_leveling_plan(project.id, proposal)
+            services['task_leveling_commands'].apply_resource_leveling_plan(project.id, proposal)
 
         # Not applied yet.
-        assert ts.get_task(moved_task_id).resource_leveling_not_before is None
+        assert services['task_detail_query'].get_task(moved_task_id).resource_leveling_not_before is None
 
         req = services["approval_queries"].list_pending(project_id=project.id)[0]
         assert req.request_type == "scheduling.leveling.apply"
@@ -93,22 +93,22 @@ class TestGovernanceParity:
         _login_eligible_reviewer(services)
         approvals.approve_and_apply(req.id)
 
-        assert ts.get_task(moved_task_id).resource_leveling_not_before == expected_start
-        assert ts.get_task(moved_task_id).start_date == expected_start
+        assert services['task_detail_query'].get_task(moved_task_id).resource_leveling_not_before == expected_start
+        assert services['task_detail_query'].get_task(moved_task_id).start_date == expected_start
 
     def test_admin_session_bypasses_governance(self, services, monkeypatch):
         monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "scheduling.leveling.apply")
         _login(services, "admin", "ChangeMe123!")
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance Admin Bypass")
         assert len(proposal.moves) >= 1
         moved_task_id = proposal.moves[0].task_id
 
-        updated = ts.apply_resource_leveling_plan(project.id, proposal)
+        updated = services['task_leveling_commands'].apply_resource_leveling_plan(project.id, proposal)
 
         assert any(t.id == moved_task_id for t in updated)
-        assert ts.get_task(moved_task_id).resource_leveling_not_before is not None
+        assert services['task_detail_query'].get_task(moved_task_id).resource_leveling_not_before is not None
 
     def test_approval_apply_revalidates_fingerprint_at_apply_time(self, services, monkeypatch):
         """TOCTOU fix mirrored from constraint governance: if the
@@ -120,7 +120,7 @@ class TestGovernanceParity:
         _login(services, "admin", "ChangeMe123!")
 
         approvals = services["approval_commands"]
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance TOCTOU")
         assert len(proposal.moves) >= 1
         moved_task_id = proposal.moves[0].task_id
@@ -129,14 +129,14 @@ class TestGovernanceParity:
         _login(services, "planner-leveling-toctou", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):
-            ts.apply_resource_leveling_plan(project.id, proposal)
+            services['task_leveling_commands'].apply_resource_leveling_plan(project.id, proposal)
         req = services["approval_queries"].list_pending(project_id=project.id)[0]
 
         # The schedule drifts while the request is pending: an admin
         # edits an involved task directly, bumping its version and
         # invalidating the fingerprint embedded in the pending request.
         _login(services, "admin", "ChangeMe123!")
-        ts.update_task(task_c.id, name="Renamed While Pending")
+        services['task_lifecycle_commands'].update_task(task_c.id, name="Renamed While Pending")
 
         _login_eligible_reviewer(services)
         with pytest.raises(ConcurrencyError):
@@ -144,5 +144,5 @@ class TestGovernanceParity:
 
         # The admin's direct edit must survive -- the stale pending
         # request must not silently overwrite it.
-        assert ts.get_task(task_c.id).name == "Renamed While Pending"
-        assert ts.get_task(moved_task_id).resource_leveling_not_before is None
+        assert services['task_detail_query'].get_task(task_c.id).name == "Renamed While Pending"
+        assert services['task_detail_query'].get_task(moved_task_id).resource_leveling_not_before is None

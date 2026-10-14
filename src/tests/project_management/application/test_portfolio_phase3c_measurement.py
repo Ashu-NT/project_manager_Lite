@@ -20,8 +20,8 @@ _SIZES = {
 
 
 def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     services["project_resource_query"]
     scenario_commands = services["portfolio_scenario_commands"]
 
@@ -33,7 +33,7 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
             end_date=date(2024, 3, 29),
             financial_currency_code="EUR",
         )
-        task = task_service.create_task(
+        task = services['task_lifecycle_commands'].create_task(
             project.id,
             f"Phase 3C Task {index}",
             start_date=date(2024, 1, 8),
@@ -53,7 +53,7 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
             hourly_rate=75.0,
             currency_code="EUR",
         )
-        task_service.assign_project_resource(
+        services['task_assignment_commands'].assign_project_resource(
             task_id=task.id,
             project_resource_id=project_resource.id,
             allocation_percent=50.0,

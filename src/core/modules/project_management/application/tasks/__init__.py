@@ -33,9 +33,8 @@ from src.core.modules.project_management.application.tasks.queries.hierarchy_que
 from src.core.modules.project_management.application.tasks.queries.task_lookup import (
     TaskLookupQueryHandler,
 )
-from src.core.modules.project_management.application.tasks.service import TaskService
 from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
     TaskUowScope,
 )
 
-__all__ = ["TaskService", "TaskLookupQueryHandler", "TaskHierarchyQueryHandler", "TaskDeletionCommandHandler", "TaskProgressCommandHandler", "ApprovedScheduleChangeHandler", "TaskHierarchyCommandHandler", "TaskSchedulingConstraintHandler", "ResourceLevelingCommandHandler", "TaskLifecycleCommandHandler", "TaskDependencyCommandHandler", "TaskDependencyQueryHandler", "TaskUowScope"]
+__all__ = ["TaskLookupQueryHandler", "TaskHierarchyQueryHandler", "TaskDeletionCommandHandler", "TaskProgressCommandHandler", "ApprovedScheduleChangeHandler", "TaskHierarchyCommandHandler", "TaskSchedulingConstraintHandler", "ResourceLevelingCommandHandler", "TaskLifecycleCommandHandler", "TaskDependencyCommandHandler", "TaskDependencyQueryHandler", "TaskUowScope"]

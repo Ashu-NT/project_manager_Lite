@@ -24,7 +24,7 @@ from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def test_create_project_dependency_succeeds_for_authorized_caller(services):
-    project_service = services['project_query']
+    services['project_query']
     project_a = services['project_create'].create_project("Dependency Auth Project A")
     project_b = services['project_create'].create_project("Dependency Auth Project B")
 
@@ -38,7 +38,7 @@ def test_create_project_dependency_succeeds_for_authorized_caller(services):
 
 
 def test_create_project_dependency_denies_caller_without_project_scope(services):
-    project_service = services['project_query']
+    services['project_query']
     project_a = services['project_create'].create_project("Dependency Scope Project A")
     project_b = services['project_create'].create_project("Dependency Scope Project B")
     principal = services["user_session"].principal
@@ -76,11 +76,11 @@ def test_create_project_dependency_denies_caller_without_project_scope(services)
 
 def _seed_diagnostics_tasks(services):
     project = services['project_create'].create_project("Diagnostics Auth Project")
-    task_service = services["task_service"]
-    predecessor = task_service.create_task(
+    services['task_lookup_query']
+    predecessor = services['task_lifecycle_commands'].create_task(
         project.id, "Predecessor", start_date=date(2026, 3, 2), duration_days=3
     )
-    successor = task_service.create_task(
+    successor = services['task_lifecycle_commands'].create_task(
         project.id, "Successor", start_date=date(2026, 3, 5), duration_days=3
     )
     return project, predecessor, successor

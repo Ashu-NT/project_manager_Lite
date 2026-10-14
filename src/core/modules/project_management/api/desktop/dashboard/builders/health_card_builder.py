@@ -35,7 +35,7 @@ def build_preview_health_cards() -> tuple[ProjectDashboardHealthCardDescriptor, 
 
 def build_baseline_variance_card(
     project_id: str | None,
-    baseline_service=None,
+    baseline_query=None,
 ) -> ProjectDashboardHealthCardDescriptor:
     _no_baseline = ProjectDashboardHealthCardDescriptor(
         id="baseline_variance", title="Baseline Variance", status_label="No Baseline",
@@ -44,10 +44,10 @@ def build_baseline_variance_card(
         meta_text="Baseline variance tracking inactive.", tone="default",
         route_id="project_management.scheduling",
     )
-    if not project_id or baseline_service is None:
+    if not project_id or baseline_query is None:
         return _no_baseline
     try:
-        approved = baseline_service.get_approved_baseline(project_id)
+        approved = baseline_query.get_approved_baseline(project_id)
     except Exception:
         logger.exception("Failed to load approved baseline for project_id=%s", project_id)
         approved = None
@@ -60,7 +60,7 @@ def build_baseline_variance_card(
             route_id="project_management.scheduling",
         )
     try:
-        records = tuple(baseline_service.list_variance_records(approved.id) or [])
+        records = tuple(baseline_query.list_variance_records(approved.id) or [])
     except Exception:
         logger.exception("Failed to load variance records for baseline_id=%s", approved.id)
         records = ()
@@ -84,7 +84,7 @@ def build_health_cards(
     pending_approvals: tuple[Any, ...],
     portfolio_mode: bool,
     project_id: str | None = None,
-    baseline_service=None,
+    baseline_query=None,
 ) -> tuple[ProjectDashboardHealthCardDescriptor, ...]:
     kpi = getattr(dashboard_data, "kpi", None)
     evm = getattr(dashboard_data, "evm", None)
@@ -105,7 +105,7 @@ def build_health_cards(
             ProjectDashboardHealthCardDescriptor(id="cost", title="Cost Health", status_label="Attention" if cost_variance > 0.0 else "Healthy", metric_value=fmt_float(cost_variance, 0), metric_label="Cost variance", supporting_text="Portfolio actual minus planned cost.", meta_text="Positive variance indicates current overrun pressure.", tone="danger" if cost_variance > 0.0 else "success", route_id="project_management.financials"),
             ProjectDashboardHealthCardDescriptor(id="risk", title="Risk Exposure", status_label="Watch" if at_risk_projects > 0 else "Stable", metric_value=fmt_int(at_risk_projects), metric_label="Projects at risk", supporting_text=f"{fmt_int(total_projects)} total projects in scope.", meta_text="Cross-project delivery escalation load.", tone="warning" if at_risk_projects > 0 else "success", route_id="project_management.portfolio"),
             ProjectDashboardHealthCardDescriptor(id="resource", title="Resource Health", status_label="Overloaded" if overloads > 0 else "Balanced", metric_value=fmt_percent(peak_util, 0), metric_label="Peak utilization", supporting_text=f"{fmt_int(overloads)} overloaded resource(s).", meta_text="Recent pending approvals are available in the bounded operational queue.", tone="danger" if overloads > 0 else "success", route_id="project_management.resources"),
-            build_baseline_variance_card(project_id, baseline_service),
+            build_baseline_variance_card(project_id, baseline_query),
         )
 
     late_tasks = int(getattr(kpi, "late_tasks", 0) or 0)
@@ -128,7 +128,7 @@ def build_health_cards(
         ProjectDashboardHealthCardDescriptor(id="cost", title="Cost Health", status_label="Overrun" if cost_variance > 0.0 else "Stable", metric_value=f"CPI {fmt_ratio(getattr(evm, 'CPI', None))}", metric_label="Cost performance", supporting_text=f"Variance {fmt_float(cost_variance, 0)} | VAC {fmt_float(getattr(evm, 'VAC', 0.0), 0)}", meta_text="Cost and forecast pressure against the selected baseline.", tone=cost_tone, route_id="project_management.financials"),
         ProjectDashboardHealthCardDescriptor(id="risk", title="Risk Exposure", status_label="Escalated" if risk_critical > 0 else "Managed", metric_value=fmt_int(risk_critical), metric_label="Critical items", supporting_text=f"Open risks {fmt_int(risk_open)} | Pending approvals {fmt_int(len(pending_approvals))}", meta_text="Register pressure across risks, issues, and governed changes.", tone=risk_tone, route_id="project_management.register"),
         ProjectDashboardHealthCardDescriptor(id="resource", title="Resource Health", status_label="Overloaded" if overloads > 0 else "Balanced", metric_value=fmt_percent(peak_util, 0), metric_label="Peak utilization", supporting_text=f"{fmt_int(overloads)} overloaded resource(s).", meta_text="Load pressure across assigned delivery resources.", tone=resource_tone, route_id="project_management.resources"),
-        build_baseline_variance_card(project_id, baseline_service),
+        build_baseline_variance_card(project_id, baseline_query),
     )
 
 

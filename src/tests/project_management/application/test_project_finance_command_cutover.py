@@ -38,7 +38,7 @@ def _setup_project(services):
         "Desktop actual cutover",
         financial_currency_code=organization.base_currency,
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Commission equipment",
     )

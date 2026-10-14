@@ -11,8 +11,8 @@ def test_enterprise_calendar_holiday_blocks_scheduling_day(services):
     """
     exc_svc_commands = services["calendar_exception_commands"]
     cal_svc_queries = services["platform_calendar_queries"]
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     sched = services["scheduling_engine"]
 
     # Find the global enterprise calendar (bootstrapped on startup)
@@ -32,7 +32,7 @@ def test_enterprise_calendar_holiday_blocks_scheduling_day(services):
     # Create project and 3-working-day task starting Tuesday 2023-11-07
     project = services['project_create'].create_project("Cal Test", "")
     pid = project.id
-    t = ts.create_task(
+    t = services['task_lifecycle_commands'].create_task(
         pid,
         "Task spanning holiday",
         start_date=date(2023, 11, 7),

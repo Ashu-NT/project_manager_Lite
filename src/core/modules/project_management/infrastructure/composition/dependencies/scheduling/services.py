@@ -3,14 +3,20 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.modules.project_management.application.scheduling.baselines.commands.lifecycle import (
+    BaselineCommandHandler,
+)
+from src.core.modules.project_management.application.scheduling.baselines.queries.catalog import (
+    BaselineQueryHandler,
 )
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     ProjectCalendarAdapter,
 )
 from src.core.modules.project_management.infrastructure.composition.context import (
     ProjectManagementRepositoryContext,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.scheduling.bundle import (
+    BaselineComposition,
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.scheduling.baseline_unit_of_work import (
     SqlAlchemyBaselineUnitOfWorkFactory,
@@ -38,19 +44,19 @@ def build_scheduling_foundation(
     return adapter, engine
 
 
-def build_baseline_service(
+def build_baseline_capabilities(
     session: Session,
     repositories: ProjectManagementRepositoryContext,
     platform_services: PlatformServiceBundle,
     *,
     scheduling_engine: SchedulingEngine,
-) -> BaselineService:
+) -> BaselineComposition:
     uow_factory = SqlAlchemyBaselineUnitOfWorkFactory(
         session=session,
         transactional_dispatcher=platform_services.platform_transactional_dispatcher,
         post_commit_bus=platform_services.platform_post_commit_bus,
     )
-    return BaselineService(
+    commands = BaselineCommandHandler(
         session=session,
         project_repo=repositories.pm.project_repo,
         task_repo=repositories.pm.task_repo,
@@ -65,3 +71,9 @@ def build_baseline_service(
         tenant_context_service=platform_services.tenant_context_service,
         uow_factory=uow_factory.create,
     )
+    query = BaselineQueryHandler(
+        baseline_repo=repositories.pm.baseline_repo,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
+    return BaselineComposition(commands=commands, query=query)

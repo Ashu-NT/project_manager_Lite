@@ -27,27 +27,27 @@ def _project(services, name: str):
 
 def test_task_wbs_builds_ordered_hierarchy_and_rolls_up_execution(services) -> None:
     project = _project(services, "WBS Rollup")
-    tasks = services["task_service"]
-    summary = tasks.create_task(project.id, "Delivery Package", duration_days=10)
-    first = tasks.create_task(
+    services['task_lookup_query']
+    summary = services['task_lifecycle_commands'].create_task(project.id, "Delivery Package", duration_days=10)
+    first = services['task_lifecycle_commands'].create_task(
         project.id,
         "Foundation Work",
         parent_task_id=summary.id,
         start_date=date(2026, 8, 3),
         duration_days=2,
     )
-    second = tasks.create_task(
+    second = services['task_lifecycle_commands'].create_task(
         project.id,
         "Commissioning Work",
         parent_task_id=summary.id,
         start_date=date(2026, 8, 10),
         duration_days=3,
     )
-    tasks.update_progress(first.id, percent_complete=100)
-    tasks.update_progress(second.id, percent_complete=50)
+    services['task_progress_commands'].update_progress(first.id, percent_complete=100)
+    services['task_progress_commands'].update_progress(second.id, percent_complete=50)
 
-    nodes = tasks.list_task_hierarchy(project.id)
-    rollup = tasks.get_task_hierarchy_rollup(summary.id)
+    nodes = services['task_hierarchy_query'].list_task_hierarchy(project.id)
+    rollup = services['task_hierarchy_query'].get_task_hierarchy_rollup(summary.id)
 
     assert [(node.task.wbs_code, node.depth, node.is_summary) for node in nodes] == [
         ("1", 0, True),
@@ -65,13 +65,13 @@ def test_task_wbs_builds_ordered_hierarchy_and_rolls_up_execution(services) -> N
 
 def test_task_wbs_move_recodes_subtree_and_prevents_cycles(services) -> None:
     project = _project(services, "WBS Move")
-    tasks = services["task_service"]
-    source = tasks.create_task(project.id, "Source Package")
-    target = tasks.create_task(project.id, "Target Package")
-    child = tasks.create_task(project.id, "Child Package", parent_task_id=source.id)
-    grandchild = tasks.create_task(project.id, "Execution Leaf", parent_task_id=child.id)
+    services['task_lookup_query']
+    source = services['task_lifecycle_commands'].create_task(project.id, "Source Package")
+    target = services['task_lifecycle_commands'].create_task(project.id, "Target Package")
+    child = services['task_lifecycle_commands'].create_task(project.id, "Child Package", parent_task_id=source.id)
+    grandchild = services['task_lifecycle_commands'].create_task(project.id, "Execution Leaf", parent_task_id=child.id)
 
-    moved = tasks.move_task(
+    moved = services['task_hierarchy_commands'].move_task(
         child.id,
         parent_task_id=target.id,
         sort_order=0,
@@ -80,19 +80,19 @@ def test_task_wbs_move_recodes_subtree_and_prevents_cycles(services) -> None:
 
     assert moved.parent_task_id == target.id
     assert moved.wbs_code == "2.1"
-    assert tasks.get_task(grandchild.id).wbs_code == "2.1.1"
+    assert services['task_detail_query'].get_task(grandchild.id).wbs_code == "2.1.1"
     with pytest.raises(BusinessRuleError) as exc:
-        tasks.move_task(target.id, parent_task_id=grandchild.id)
+        services['task_hierarchy_commands'].move_task(target.id, parent_task_id=grandchild.id)
     assert exc.value.code == "TASK_WBS_CYCLE"
 
 
 def test_task_wbs_move_rolls_back_partial_subtree_updates(services, monkeypatch) -> None:
     project = _project(services, "WBS move rollback")
-    tasks = services["task_service"]
-    source = tasks.create_task(project.id, "Source")
-    target = tasks.create_task(project.id, "Target")
-    child = tasks.create_task(project.id, "Child", parent_task_id=source.id)
-    grandchild = tasks.create_task(project.id, "Grandchild", parent_task_id=child.id)
+    services['task_lookup_query']
+    source = services['task_lifecycle_commands'].create_task(project.id, "Source")
+    target = services['task_lifecycle_commands'].create_task(project.id, "Target")
+    child = services['task_lifecycle_commands'].create_task(project.id, "Child", parent_task_id=source.id)
+    grandchild = services['task_lifecycle_commands'].create_task(project.id, "Grandchild", parent_task_id=child.id)
     original_update = SqlAlchemyTaskRepository.update
     calls = 0
 
@@ -105,11 +105,11 @@ def test_task_wbs_move_rolls_back_partial_subtree_updates(services, monkeypatch)
 
     monkeypatch.setattr(SqlAlchemyTaskRepository, "update", fail_on_second_update)
     with pytest.raises(RuntimeError, match="simulated WBS move failure"):
-        tasks.move_task(child.id, parent_task_id=target.id)
+        services['task_hierarchy_commands'].move_task(child.id, parent_task_id=target.id)
 
     services["session"].expire_all()
-    persisted_child = tasks.get_task(child.id)
-    persisted_grandchild = tasks.get_task(grandchild.id)
+    persisted_child = services['task_detail_query'].get_task(child.id)
+    persisted_grandchild = services['task_detail_query'].get_task(grandchild.id)
     assert persisted_child.parent_task_id == source.id
     assert persisted_child.wbs_code == child.wbs_code
     assert persisted_grandchild.wbs_code == grandchild.wbs_code
@@ -117,26 +117,26 @@ def test_task_wbs_move_rolls_back_partial_subtree_updates(services, monkeypatch)
 
 def test_task_wbs_recode_writes_descendants_before_reusing_their_code(services) -> None:
     project = _project(services, "WBS Recode Ordering")
-    tasks = services["task_service"]
-    summary = tasks.create_task(project.id, "Recode Package")
-    leaf = tasks.create_task(project.id, "Recode Execution", parent_task_id=summary.id)
+    services['task_lookup_query']
+    summary = services['task_lifecycle_commands'].create_task(project.id, "Recode Package")
+    leaf = services['task_lifecycle_commands'].create_task(project.id, "Recode Execution", parent_task_id=summary.id)
 
-    recoded = tasks.recode_task(summary.id, "1.1")
+    recoded = services['task_hierarchy_commands'].recode_task(summary.id, "1.1")
 
     assert recoded.wbs_code == "1.1"
     assert recoded.sort_order == summary.sort_order
-    assert tasks.get_task(leaf.id).wbs_code == "1.1.1"
+    assert services['task_detail_query'].get_task(leaf.id).wbs_code == "1.1.1"
 
 
 def test_task_wbs_rejects_cross_project_parent_and_summary_execution(services) -> None:
     first_project = _project(services, "WBS Project One")
     second_project = _project(services, "WBS Project Two")
-    tasks = services["task_service"]
-    summary = tasks.create_task(first_project.id, "Summary Package")
-    leaf = tasks.create_task(first_project.id, "Execution Leaf", parent_task_id=summary.id)
+    services['task_lookup_query']
+    summary = services['task_lifecycle_commands'].create_task(first_project.id, "Summary Package")
+    leaf = services['task_lifecycle_commands'].create_task(first_project.id, "Execution Leaf", parent_task_id=summary.id)
 
     with pytest.raises(BusinessRuleError) as exc:
-        tasks.create_task(
+        services['task_lifecycle_commands'].create_task(
             second_project.id,
             "Foreign Child",
             parent_task_id=summary.id,
@@ -144,11 +144,11 @@ def test_task_wbs_rejects_cross_project_parent_and_summary_execution(services) -
     assert exc.value.code == "TASK_WBS_PARENT_PROJECT_MISMATCH"
 
     with pytest.raises(BusinessRuleError) as exc:
-        tasks.set_status(summary.id, TaskStatus.IN_PROGRESS)
+        services['task_progress_commands'].set_status(summary.id, TaskStatus.IN_PROGRESS)
     assert exc.value.code == "TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN"
 
     with pytest.raises(BusinessRuleError) as exc:
-        tasks.add_dependency(
+        services['task_dependency_commands'].add_dependency(
             summary.id,
             leaf.id,
             DependencyType.FINISH_TO_START,
@@ -157,48 +157,48 @@ def test_task_wbs_rejects_cross_project_parent_and_summary_execution(services) -
 
     resource = services["resource_master_commands"].create_resource("WBS Crew", "Planner")
     with pytest.raises(BusinessRuleError) as exc:
-        tasks.assign_resource(summary.id, resource.id)
+        services['task_assignment_commands'].assign_resource(summary.id, resource.id)
     assert exc.value.code == "TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN"
 
     with pytest.raises(BusinessRuleError) as exc:
-        tasks.delete_task(summary.id)
+        services['task_deletion_commands'].delete_task(summary.id)
     assert exc.value.code == "TASK_WBS_SUMMARY_NOT_EMPTY"
 
 
 def test_task_wbs_bulk_mutations_prevalidate_and_delete_children_atomically(services) -> None:
     project = _project(services, "WBS Bulk Mutation")
-    tasks = services["task_service"]
-    summary = tasks.create_task(project.id, "Bulk Summary")
-    leaf = tasks.create_task(project.id, "Bulk Execution", parent_task_id=summary.id)
-    surviving_root = tasks.create_task(project.id, "Surviving Root")
+    services['task_lookup_query']
+    summary = services['task_lifecycle_commands'].create_task(project.id, "Bulk Summary")
+    leaf = services['task_lifecycle_commands'].create_task(project.id, "Bulk Execution", parent_task_id=summary.id)
+    surviving_root = services['task_lifecycle_commands'].create_task(project.id, "Surviving Root")
 
     with pytest.raises(BusinessRuleError) as exc:
-        tasks.set_tasks_status((leaf.id, summary.id), TaskStatus.DONE)
+        services['task_progress_commands'].set_tasks_status((leaf.id, summary.id), TaskStatus.DONE)
     assert exc.value.code == "TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN"
-    assert tasks.get_task(leaf.id).status == TaskStatus.TODO
+    assert services['task_detail_query'].get_task(leaf.id).status == TaskStatus.TODO
 
     with pytest.raises(BusinessRuleError) as exc:
-        tasks.delete_tasks((summary.id,))
+        services['task_deletion_commands'].delete_tasks((summary.id,))
     assert exc.value.code == "TASK_WBS_SUMMARY_NOT_EMPTY"
-    assert tasks.get_task(summary.id) is not None
-    assert tasks.get_task(leaf.id) is not None
+    assert services['task_detail_query'].get_task(summary.id) is not None
+    assert services['task_detail_query'].get_task(leaf.id) is not None
 
-    assert tasks.delete_tasks((summary.id, leaf.id)) == (summary.id, leaf.id)
-    assert tasks.get_task(summary.id) is None
-    assert tasks.get_task(leaf.id) is None
-    assert tasks.get_task(surviving_root.id).sort_order == 0
+    assert services['task_deletion_commands'].delete_tasks((summary.id, leaf.id)) == (summary.id, leaf.id)
+    assert services['task_detail_query'].get_task(summary.id) is None
+    assert services['task_detail_query'].get_task(leaf.id) is None
+    assert services['task_detail_query'].get_task(surviving_root.id).sort_order == 0
 
 
 def test_scheduling_runs_only_execution_leaves(services) -> None:
     project = _project(services, "WBS Scheduling")
-    tasks = services["task_service"]
-    summary = tasks.create_task(
+    services['task_lookup_query']
+    summary = services['task_lifecycle_commands'].create_task(
         project.id,
         "Schedule Package",
         start_date=date(2026, 8, 3),
         duration_days=20,
     )
-    leaf = tasks.create_task(
+    leaf = services['task_lifecycle_commands'].create_task(
         project.id,
         "Schedule Leaf",
         parent_task_id=summary.id,
@@ -275,7 +275,7 @@ def test_task_csv_import_resolves_parent_declared_later(services) -> None:
         task_capabilities=services["data_import_service"]._task_capabilities,
     )
 
-    nodes = services["task_service"].list_task_hierarchy(project.id)
+    nodes = services['task_hierarchy_query'].list_task_hierarchy(project.id)
     assert summary.created_count == 2
     assert summary.error_count == 0
     assert [(node.task.wbs_code, node.depth) for node in nodes] == [

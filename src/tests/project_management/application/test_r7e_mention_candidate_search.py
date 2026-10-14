@@ -6,7 +6,7 @@ from src.core.platform.common.exceptions import ValidationError
 def test_mention_search_uses_effective_scope_and_revocation(services) -> None:
     access = services["access_service"]
     project = services['project_create'].create_project("Mention search")
-    task = services["task_service"].create_task(project.id, "Discussion")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Discussion")
     user = services["user_registration"].register_user(
         "r7e-mention-search", "StrongPass123", role_names=[],
         tenant_id=services["tenant_context_service"].get_active_tenant_id(),

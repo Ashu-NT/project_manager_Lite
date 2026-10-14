@@ -25,11 +25,11 @@ def test_service_rejects_foreign_scope_without_database_rls(services, operation)
 
 
 def test_same_organization_foreign_project_rejected_by_service(services):
-    projects = services['project_query']
-    tasks = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     visible = services['project_create'].create_project("Visible")
     hidden = services['project_create'].create_project("Hidden")
-    task = tasks.create_task(hidden.id, "Private task")
+    task = services['task_lifecycle_commands'].create_task(hidden.id, "Private task")
     comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Private project comment")
     user = services["user_registration"].register_user("r7b-reader", "StrongPass123", role_names=["viewer"])
     services["access_service"].assign_scope_grant(
@@ -65,7 +65,7 @@ def test_deleted_comment_is_redacted_in_activity_dto_audit_and_read_marks(
 
     monkeypatch.setattr(collaboration_comments, "record_activity", capture_activity)
     project = services['project_create'].create_project("Privacy")
-    task = services["task_service"].create_task(project.id, "Task")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Task")
     secret = "PRIVATE-CONTENT @admin"
     comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body=secret)
     services["collaboration_comment_commands"].delete_comment(comment.id, expected_revision=comment.version)

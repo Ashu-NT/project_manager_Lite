@@ -75,18 +75,18 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.add")
     _login(services, "admin", "ChangeMe123!")
 
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     approvals = services["approval_commands"]
 
     project = services['project_create'].create_project("Governed Dependency Project")
-    a = ts.create_task(project.id, "Task Alpha", start_date=date(2026, 2, 24), duration_days=1)
-    b = ts.create_task(project.id, "Task Beta", start_date=date(2026, 2, 25), duration_days=1)
+    a = services['task_lifecycle_commands'].create_task(project.id, "Task Alpha", start_date=date(2026, 2, 24), duration_days=1)
+    b = services['task_lifecycle_commands'].create_task(project.id, "Task Beta", start_date=date(2026, 2, 25), duration_days=1)
     services["user_registration"].register_user("planner-dep", "StrongPass123", role_names=["planner"])
     _login(services, "planner-dep", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="Approval required"):
-        ts.add_dependency(a.id, b.id)
+        services['task_dependency_commands'].add_dependency(a.id, b.id)
 
     req = services["approval_queries"].list_pending(project_id=project.id)[0]
     assert req.request_type == "dependency.add"
@@ -95,7 +95,7 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     _become_independent_admin_decider(services)
     approvals.approve_and_apply(req.id)
 
-    deps = ts.list_dependencies_for_task(b.id)
+    deps = services['task_dependency_query'].list_dependencies_for_task(b.id)
     assert len(deps) == 1
     assert deps[0].predecessor_task_id == a.id
 
@@ -106,7 +106,7 @@ def test_admin_does_not_bypass_governance_requests_for_governed_actions(services
     _login(services, "admin", "ChangeMe123!")
 
     cost_entries = services["cost_entry_service"]
-    approvals = services["approval_commands"]
+    services["approval_commands"]
 
     project, item = _submitted_cost_entry(services, "Admin bypass")
     result = cost_entries.approve(item.id, expected_version=item.row_version)

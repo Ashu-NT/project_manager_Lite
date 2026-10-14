@@ -50,7 +50,7 @@ def test_task_mutation_succeeds_with_zero_tasks_changed_and_genuine_consumer_ref
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    services["task_service"].create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Producerless Regression Task", start_date=date(2026, 9, 1), duration_days=5
     )
 
@@ -166,10 +166,10 @@ def _setup_time_entry_case(services):
     resource = services["resource_master_commands"].create_resource(
         "P45B Closure TimeEntry Rollback Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "P45B Closure TimeEntry Rollback Task", start_date=date(2026, 9, 1), duration_days=10
     )
-    assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100)
+    assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100)
     return project, resource, task, assignment
 
 
@@ -253,10 +253,10 @@ def test_submit_timesheet_period_stales_only_the_referenced_project_task_list(se
     resource = services["resource_master_commands"].create_resource(
         "P45B Closure Class-B Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         referenced_project.id, "Class-B Task", start_date=date(2026, 9, 1), duration_days=10
     )
-    assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100)
+    assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100)
     services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
 
     hints = _spy_hints(services)
@@ -280,10 +280,10 @@ def test_submit_timesheet_period_records_zero_real_task_domain_event(services, m
     resource = services["resource_master_commands"].create_resource(
         "P45B Closure Class-B No Typed Event Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "Class-B No Typed Event Task", start_date=date(2026, 9, 1), duration_days=10
     )
-    assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100)
+    assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100)
     services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 9, 4), hours=4)
 
     seen: list[object] = []

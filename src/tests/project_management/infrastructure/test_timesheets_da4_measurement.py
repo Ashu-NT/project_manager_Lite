@@ -12,9 +12,9 @@ def test_timesheet_assignment_context_is_one_tenant_scoped_query(
     session,
 ) -> None:
     project = services['project_create'].create_project("DA4 Timesheets")
-    task = services["task_service"].create_task(project.id, "Review commissioning")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Review commissioning")
     resource = services["resource_master_commands"].create_resource("Commissioning Lead")
-    assignment = services["task_service"].assign_resource(
+    assignment = services['task_assignment_commands'].assign_resource(
         task.id,
         resource.id,
         allocation_percent=75.0,

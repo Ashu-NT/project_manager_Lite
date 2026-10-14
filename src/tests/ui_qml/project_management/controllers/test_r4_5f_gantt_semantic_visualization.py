@@ -110,7 +110,7 @@ def test_overlay_api_uses_one_authorized_bulk_read_and_never_calls_cpm() -> None
     api = ProjectManagementSchedulingDesktopApi(
         project_service=SimpleNamespace(get_project=lambda _id: _project()),
         scheduling_engine=engine,
-        baseline_service=reader,
+        baseline_query=reader, baseline_commands=reader,
         tenant_context_service=_ScopeContext("tenant-1", "org-1"),
     )
 
@@ -126,7 +126,7 @@ def test_overlay_api_rejects_cross_organization_before_snapshot_read() -> None:
     reader = _CountingBaselineReader((_baseline_task("task-1"),))
     api = ProjectManagementSchedulingDesktopApi(
         project_service=SimpleNamespace(get_project=lambda _id: _project()),
-        baseline_service=reader,
+        baseline_query=reader, baseline_commands=reader,
         tenant_context_service=_ScopeContext("tenant-1", "org-2"),
     )
 
@@ -142,7 +142,7 @@ def test_overlay_api_propagates_authorization_denial_without_returning_snapshots
 
     api = ProjectManagementSchedulingDesktopApi(
         project_service=SimpleNamespace(get_project=lambda _id: _project()),
-        baseline_service=DeniedReader(),
+        baseline_query=DeniedReader(), baseline_commands=DeniedReader(),
         tenant_context_service=_ScopeContext("tenant-1", "org-1"),
     )
 

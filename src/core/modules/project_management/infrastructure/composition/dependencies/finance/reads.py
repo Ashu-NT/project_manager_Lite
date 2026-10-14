@@ -11,8 +11,8 @@ from src.core.modules.project_management.application.financials import (
 from src.core.modules.project_management.application.reporting import (
     EarnedValueReportBuilder,
 )
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.modules.project_management.application.scheduling.baselines.queries.catalog import (
+    BaselineQueryHandler,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
     SqlAlchemyFinanceBillingReader,
@@ -88,13 +88,13 @@ def build_finance_performance_query(
     *,
     performance_reader: SqlAlchemyFinancePerformanceReader,
     earned_value_report: EarnedValueReportBuilder,
-    baseline_service: BaselineService,
+    baseline_query: BaselineQueryHandler,
 ) -> ProjectFinancePerformanceQuery:
     return ProjectFinancePerformanceQuery(
         performance_reader=performance_reader,
         overview_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         earned_value_authority=earned_value_report,
-        baseline_variance_authority=baseline_service,
+        baseline_variance_authority=baseline_query,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,

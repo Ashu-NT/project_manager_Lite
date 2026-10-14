@@ -68,11 +68,11 @@ def test_project_desktop_consumers_reuse_composed_handlers(services):
 
 
 def test_project_events_share_one_post_commit_handler(services) -> None:
-    project = services['project_query']
-    tasks = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     bus = services['project_create']._uow_factory._post_commit_bus
 
-    assert bus is tasks._task_uow_scope._factory._post_commit_bus
+    assert bus is services['task_uow_scope']._factory._post_commit_bus
     event_types = (
         ProjectCreated,
         ProjectProfileUpdated,
@@ -96,7 +96,7 @@ def test_project_events_share_one_post_commit_handler(services) -> None:
 
 
 def test_project_uow_factory_opens_a_fresh_session(services, session) -> None:
-    project = services['project_query']
+    services['project_query']
     scoped_session = services['project_create']._uow_factory._session_factory()
     try:
         assert scoped_session is not session
@@ -122,7 +122,7 @@ def test_register_uses_shared_bus_and_one_invalidation_handler(services, session
 
 
 def test_task_events_share_one_post_commit_handler_and_fresh_uow(services, session) -> None:
-    task_uow = services["task_service"]._task_uow_scope._factory
+    task_uow = services['task_uow_scope']._factory
     bus = services['project_create']._uow_factory._post_commit_bus
     assert task_uow._post_commit_bus is bus
     event_types = (
@@ -204,13 +204,13 @@ def test_resource_readers_clock_uow_and_events_preserve_identity(services, sessi
 
 def test_scheduling_and_baseline_keep_shared_engine_and_ambient_uow(services, session) -> None:
     engine = services["scheduling_engine"]
-    baseline = services["baseline_service"]
+    baseline = services['baseline_query']
     assert baseline._sched is engine
     assert (
         engine._project_calendar_adapter
         is services["portfolio_executive_query"]._heatmap_calculator._project_calendar_adapter
     )
-    assert baseline._session is session
+    assert services['baseline_commands']._session is session
     assert baseline._uow_factory()._session is session
 
     bus = services['project_create']._uow_factory._post_commit_bus
@@ -337,14 +337,14 @@ def test_reporting_and_dashboard_reuse_authoritative_services(services) -> None:
     assert dashboard._kpi_report is kpi
     assert dashboard._cost_sources is cost_breakdown
     assert dashboard._evm._earned_value is earned_value
-    assert dashboard._task_lookup is services["task_service"]._lookup_query
+    assert dashboard._task_lookup is services['task_lookup_query']
     assert dashboard._resources is services["resource_query"]
     assert dashboard._registers._registers is services["register_query"]
     portfolio = services["portfolio_dashboard_query"]
     assert portfolio._reporting is kpi
     assert portfolio._projects is services["project_query"]
     assert portfolio._resources is services["resource_query"]
-    assert portfolio._task_lookup is services["task_service"]._lookup_query
+    assert portfolio._task_lookup is services['task_lookup_query']
 
 
 def test_resource_planning_and_imports_keep_shared_dependencies(services) -> None:
@@ -360,14 +360,14 @@ def test_resource_planning_and_imports_keep_shared_dependencies(services) -> Non
     assert imports._project_create is services["project_create"]
     assert imports._project_update is services["project_update"]
     assert imports._project_status is services["project_status"]
-    assert imports._task_capabilities.lookup is services["task_service"]._lookup_query
-    assert services["task_lookup_query"] is services["task_service"]._lookup_query
-    assert services["task_detail_query"] is services["task_service"]._detail_query
+    assert imports._task_capabilities.lookup is services['task_lookup_query']
+    assert services["task_lookup_query"] is services['task_lookup_query']
+    assert services["task_detail_query"] is services['task_detail_query']
     assert (
         services["task_dependency_diagnostics"]
-        is services["task_service"]._dependency_command_handler._diagnostics_handler
+        is services['task_dependency_commands']._diagnostics_handler
     )
-    assert services["task_assignment_commands"] is services["task_service"]._assignment_handler
-    assert imports._task_capabilities.lifecycle is services["task_service"]._lifecycle_handler
+    assert services["task_assignment_commands"] is services['task_assignment_commands']
+    assert imports._task_capabilities.lifecycle is services['task_lifecycle_commands']
     assert imports._resource_query is services["resource_query"]
     assert imports._resource_master_commands is services["resource_master_commands"]

@@ -148,6 +148,12 @@ class _FakeCollaborationService:
 
 
 class _FakeTaskService:
+    def get_task_time_summary(self, task_id):
+        return None
+
+    def list_time_entries_for_task_page(self, task_id, **kwargs):
+        return SimpleNamespace(items=(), total=0, page=kwargs.get("page", 1), page_size=kwargs.get("page_size", 25))
+
     def __init__(self, tasks: list[SimpleNamespace] | None = None) -> None:
         self._tasks = {task.id: task for task in (tasks or [])}
         self._assignments: dict[str, SimpleNamespace] = {}
@@ -301,7 +307,9 @@ def _build_tasks_catalog(tmp_path: Path, task_service, collaboration_service, ti
         task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_assignment_commands=task_service,
         task_workspace_query=task_service,
         task_detail_query=task_service,
+        task_time_entries=task_service,
         project_resource_query=SimpleNamespace(
+            get=lambda _resource_id: None,
             list_for_task_workspace=lambda project_id: [
                 SimpleNamespace(id="pr-1", project_id="proj-1", resource_id="res-1", hourly_rate=90.0, currency_code="EUR", is_active=True)
             ] if project_id == "proj-1" else []

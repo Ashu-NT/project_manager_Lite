@@ -34,16 +34,16 @@ def _snapshot(ts, project_id):
 
 class TestPreviewApplyReloadIdempotence:
     def test_resource_conflict_resolution_survives_reload_and_repeated_cpm_via_the_pure_function(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Idempotence Pure CPM", "")
-        task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-        task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+        task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
+        task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Idempotence Dev", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
-        ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
         # -- PREVIEW --
         tasks_by_id, assignments, deps = _snapshot(ts, project.id)
@@ -60,7 +60,7 @@ class TestPreviewApplyReloadIdempotence:
         assert len(proposal.moves) >= 1, "setup precondition: preview must have proposed at least one move"
 
         # -- APPLY --
-        ts.apply_resource_leveling_plan(project.id, proposal)
+        services['task_leveling_commands'].apply_resource_leveling_plan(project.id, proposal)
 
         # -- RELOAD -- deliberately fresh objects, not the pre-apply ones,
         # to rule out any bug that only "works" because of Python object
@@ -89,17 +89,17 @@ class TestPreviewApplyReloadIdempotence:
         path (SchedulingEngine.recalculate_project_schedule) rather than
         the pure function -- SchedulingEngine and pure_cpm.run_cpm are
         two independent orchestrations sharing only primitives."""
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
         sched = services["scheduling_engine"]
 
         project = services['project_create'].create_project("Idempotence Live Engine", "")
-        task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-        task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+        task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
+        task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Idempotence Live Dev", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
-        ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
         tasks_by_id, assignments, deps = _snapshot(ts, project.id)
         planner = ResourceLevelingPlanner(calendar)
@@ -114,7 +114,7 @@ class TestPreviewApplyReloadIdempotence:
         moved_task_id = proposal.moves[0].task_id
         expected_start = proposal.moves[0].new_start
 
-        ts.apply_resource_leveling_plan(project.id, proposal)
+        services['task_leveling_commands'].apply_resource_leveling_plan(project.id, proposal)
 
         # Repeated, DB-backed recalculation across separate calls -- each
         # one reloads from the repository internally; the moved task's

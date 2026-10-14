@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from typing import TypeVar
-
-_CapabilityT = TypeVar('_CapabilityT')
-
 import logging
 from datetime import date
 from decimal import Decimal
+from typing import TypeVar
 
 from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
     EDITABLE_CONSTRAINT_OPTIONS,
@@ -173,6 +170,8 @@ from src.core.platform.contract.port.tenant.modules.supports_module_entitlements
 )
 
 logger = logging.getLogger(__name__)
+
+_CapabilityT = TypeVar("_CapabilityT")
 
 
 class ProjectManagementTasksDesktopApi:
@@ -600,6 +599,8 @@ class ProjectManagementTasksDesktopApi:
         if not task_id:
             return None
         fact = self._require_task_assignment_commands().get_task_time_summary(task_id)
+        if fact is None:
+            return None
         return serialize_task_time_summary(fact)
 
     def list_task_time_entries(
@@ -655,7 +656,7 @@ class ProjectManagementTasksDesktopApi:
         assignment = self._require_task_capability(self._task_assignment_commands).set_assignment_allocation(
             assignment_id=command.assignment_id,
             allocation_percent=command.allocation_percent,
-            expected_version=getattr(command, "expected_version", None),
+            expected_version=command.expected_version,
         )
         return serialize_assignment(
             assignment,
@@ -1014,7 +1015,7 @@ class ProjectManagementTasksDesktopApi:
             logger.warning(
                 "Schedule impact requested but no ScheduleChangeImpactQueryHandler is wired "
                 "(task_id=%s, project_id=%s) -- check that task_service/work_calendar_engine/"
-                "baseline_service are all non-None at desktop_api_builder composition time.",
+                "baseline_query are all non-None at desktop_api_builder composition time.",
                 normalized_task_id,
                 normalized_project_id,
             )

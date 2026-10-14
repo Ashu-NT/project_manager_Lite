@@ -36,13 +36,13 @@ def _build_resource_timesheet(services):
         employee_id=employee.id,
     )
     project = services['project_create'].create_project("R5F1 Delivery")
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Owner Workflow",
         start_date=date(2026, 8, 1),
         duration_days=20,
     )
-    assignment = services["task_service"].assign_resource(task.id, resource.id)
+    assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id)
     return employee, resource, project, task, assignment
 
 
@@ -103,8 +103,8 @@ def test_resource_mutations_deny_another_resource_and_enforce_selected_period(se
         role="Engineer",
     )
     project = services['project_create'].create_project("Other Work")
-    task = services["task_service"].create_task(project.id, "Other Task")
-    other_assignment = services["task_service"].assign_resource(task.id, other.id)
+    task = services['task_lifecycle_commands'].create_task(project.id, "Other Task")
+    other_assignment = services['task_assignment_commands'].assign_resource(task.id, other.id)
 
     with pytest.raises(BusinessRuleError, match="does not belong"):
         services["timesheet_workspace_commands"].add_timesheet_entry(
@@ -278,8 +278,8 @@ def test_external_without_login_supports_governed_delegated_lifecycle(services) 
         worker_type=WorkerType.EXTERNAL,
     )
     project = services['project_create'].create_project("Delegated Delivery")
-    task = services["task_service"].create_task(project.id, "Consulting")
-    assignment = services["task_service"].assign_resource(task.id, external.id)
+    task = services['task_lifecycle_commands'].create_task(project.id, "Consulting")
+    assignment = services['task_assignment_commands'].assign_resource(task.id, external.id)
 
     entry = services["timesheet_workspace_commands"].add_timesheet_entry(
         assignment.id,
@@ -318,10 +318,10 @@ def test_team_selector_uses_explicit_project_scope(services) -> None:
     )
     team_project = services['project_create'].create_project("Team Project")
     other_project = services['project_create'].create_project("Other Project")
-    team_task = services["task_service"].create_task(team_project.id, "Team Task")
-    other_task = services["task_service"].create_task(other_project.id, "Other Task")
-    services["task_service"].assign_resource(team_task.id, in_team.id)
-    services["task_service"].assign_resource(other_task.id, out_team.id)
+    team_task = services['task_lifecycle_commands'].create_task(team_project.id, "Team Task")
+    other_task = services['task_lifecycle_commands'].create_task(other_project.id, "Other Task")
+    services['task_assignment_commands'].assign_resource(team_task.id, in_team.id)
+    services['task_assignment_commands'].assign_resource(other_task.id, out_team.id)
     original = services["user_session"].principal
     scoped = {"project": {team_project.id: frozenset({"timesheet.read_team"})}}
     services["user_session"].set_principal(

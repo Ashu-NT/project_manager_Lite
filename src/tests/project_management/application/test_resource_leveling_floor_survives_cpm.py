@@ -139,14 +139,14 @@ def test_leveling_floor_survives_the_live_persisting_scheduling_engine_too(servi
     DashboardService/leveling actually calls (per R4.4A verification,
     pure_cpm.run_cpm and SchedulingEngine have separate orchestrations
     sharing the same primitives; both must apply this floor)."""
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    ts = services['task_lookup_query']
     sched = services["scheduling_engine"]
 
     project = services['project_create'].create_project("Leveling Floor Survives Live Engine", "")
-    task_a = ts.create_task(project.id, "Task A", "", start_date=date(2026, 9, 7), duration_days=2)
-    task_b = ts.create_task(project.id, "Task B", "", duration_days=2)
-    ts.add_dependency(
+    task_a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2026, 9, 7), duration_days=2)
+    task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
+    services['task_dependency_commands'].add_dependency(
         predecessor_id=task_a.id,
         successor_id=task_b.id,
         dependency_type=DependencyType.FINISH_TO_START,
@@ -158,11 +158,11 @@ def test_leveling_floor_survives_the_live_persisting_scheduling_engine_too(servi
 
     task_b_floored = replace(task_b_raw, resource_leveling_not_before=date(2026, 9, 21))
     ts._task_repo.update(task_b_floored)
-    ts._session.commit()
+    services['task_lookup_query']._task_repo.session.commit()
 
     sched.recalculate_project_schedule(project.id)
-    assert ts.get_task(task_b.id).start_date == date(2026, 9, 21)
+    assert services['task_detail_query'].get_task(task_b.id).start_date == date(2026, 9, 21)
 
     # Repeat -- must still hold, not just on the first recalculation.
     sched.recalculate_project_schedule(project.id)
-    assert ts.get_task(task_b.id).start_date == date(2026, 9, 21)
+    assert services['task_detail_query'].get_task(task_b.id).start_date == date(2026, 9, 21)

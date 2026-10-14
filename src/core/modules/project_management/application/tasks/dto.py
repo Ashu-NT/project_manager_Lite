@@ -88,7 +88,7 @@ class TaskAssignmentCreateCommand:
 class TaskAssignmentAllocationCommand:
     assignment_id: str
     allocation_percent: float
-    expected_version: int | None = None
+    expected_version: int
 
 
 @dataclass(frozen=True)

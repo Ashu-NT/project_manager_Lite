@@ -42,7 +42,7 @@ from src.tests.ui_runtime_helpers import login_as
 
 def _setup_project_resource(services, *, planned_hours: float = 40.0):
     ps = services['project_query']
-    ts = services["task_service"]
+    ts = services['task_lookup_query']
     rs = services["resource_query"]
     prs = services["project_resource_query"]
     project = services['project_create'].create_project("Capacity Upgrade Project")
@@ -50,7 +50,7 @@ def _setup_project_resource(services, *, planned_hours: float = 40.0):
     project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=70.0, currency_code="USD", planned_hours=planned_hours
     )
-    task = ts.create_task(project.id, "Capacity Upgrade Task")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Capacity Upgrade Task")
     return ps, ts, rs, prs, project, resource, project_resource, task
 
 
@@ -125,29 +125,29 @@ def test_project_resource_usage_reconciles_planned_allocated_actual_remaining(se
     ps, ts, rs, prs, project, resource, project_resource, task_a = _setup_project_resource(
         services, planned_hours=120.0
     )
-    task_b = ts.create_task(project.id, "Capacity Upgrade Task B")
-    task_c = ts.create_task(project.id, "Capacity Upgrade Task C")
+    task_b = services['task_lifecycle_commands'].create_task(project.id, "Capacity Upgrade Task B")
+    task_c = services['task_lifecycle_commands'].create_task(project.id, "Capacity Upgrade Task C")
 
-    assignment_a = ts.assign_project_resource(
+    assignment_a = services['task_assignment_commands'].assign_project_resource(
         task_id=task_a.id, project_resource_id=project_resource.id, allocation_percent=50.0
     )
-    assignment_b = ts.assign_project_resource(
+    assignment_b = services['task_assignment_commands'].assign_project_resource(
         task_id=task_b.id, project_resource_id=project_resource.id, allocation_percent=30.0
     )
-    assignment_c = ts.assign_project_resource(
+    assignment_c = services['task_assignment_commands'].assign_project_resource(
         task_id=task_c.id, project_resource_id=project_resource.id, allocation_percent=20.0
     )
-    ts.update_assignment_planned_hours(
+    services['task_assignment_commands'].update_assignment_planned_hours(
         assignment_a.id, allocated_planned_hours=Decimal(30),
         expected_assignment_version=assignment_a.version,
         expected_project_resource_version=prs.get(project_resource.id).version,
     )
-    ts.update_assignment_planned_hours(
+    services['task_assignment_commands'].update_assignment_planned_hours(
         assignment_b.id, allocated_planned_hours=Decimal(50),
         expected_assignment_version=assignment_b.version,
         expected_project_resource_version=prs.get(project_resource.id).version,
     )
-    ts.update_assignment_planned_hours(
+    services['task_assignment_commands'].update_assignment_planned_hours(
         assignment_c.id, allocated_planned_hours=Decimal(20),
         expected_assignment_version=assignment_c.version,
         expected_project_resource_version=prs.get(project_resource.id).version,
@@ -172,7 +172,7 @@ def test_project_resource_usage_is_task_page_independent(services):
     """The rollup must reflect the complete authoritative dataset, not
     whatever page of tasks a caller happens to have loaded."""
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
-    assignment = ts.assign_project_resource(
+    assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
     services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=5.0, note="x")
@@ -194,10 +194,10 @@ def test_desktop_api_exposes_project_resource_usage_and_version(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(
         services, planned_hours=50.0
     )
-    assignment = ts.assign_project_resource(
+    assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
-    ts.update_assignment_planned_hours(
+    services['task_assignment_commands'].update_assignment_planned_hours(
         assignment.id, allocated_planned_hours=Decimal(10),
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
@@ -251,57 +251,57 @@ def test_desktop_api_update_project_resource_forwards_expected_version_and_confl
 
 def _overlapping_overallocation_setup(services):
     ps = services['project_query']
-    ts = services["task_service"]
+    ts = services['task_lookup_query']
     rs = services["resource_query"]
     project = services['project_create'].create_project("Overallocation Policy Project")
     resource = services["resource_master_commands"].create_resource("Overallocation Policy Resource", hourly_rate=60.0)
-    task_a = ts.create_task(
+    task_a = services['task_lifecycle_commands'].create_task(
         project.id, "Overallocation Task A", start_date=date(2026, 7, 6), duration_days=5
     )
-    task_b = ts.create_task(
+    task_b = services['task_lifecycle_commands'].create_task(
         project.id, "Overallocation Task B", start_date=date(2026, 7, 6), duration_days=5
     )
     # 70% on Task A leaves only 30% of capacity free for the overlapping window.
-    ts.assign_resource(task_a.id, resource.id, allocation_percent=70.0)
+    services['task_assignment_commands'].assign_resource(task_a.id, resource.id, allocation_percent=70.0)
     return ps, ts, rs, project, resource, task_a, task_b
 
 
 def test_overallocation_warn_policy_allows_mutation_and_sets_warning(services):
-    ts = services["task_service"]
+    services['task_lookup_query']
     _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
-    assert ts._assignment_handler._overallocation_policy == "warn"  # default
+    assert services['task_assignment_commands']._overallocation_policy == "warn"  # default
 
     # 80% overlapping Task A's 70% => 150% > 100% capacity -- over the line.
-    assignment_b = ts.assign_resource(task_b.id, resource.id, allocation_percent=80.0)
+    assignment_b = services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=80.0)
 
     assert assignment_b is not None
-    assert ts._assignment_handler._last_overallocation_warning is not None
-    assert "over-allocated" in ts._assignment_handler._last_overallocation_warning
+    assert services['task_assignment_commands']._last_overallocation_warning is not None
+    assert "over-allocated" in services['task_assignment_commands']._last_overallocation_warning
 
 
 def test_overallocation_strict_policy_rejects_mutation(services):
-    ts = services["task_service"]
+    services['task_lookup_query']
     _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
-    ts._assignment_handler._overallocation_policy = "strict"
+    services['task_assignment_commands']._overallocation_policy = "strict"
 
     with pytest.raises(BusinessRuleError) as exc:
-        ts.assign_resource(task_b.id, resource.id, allocation_percent=80.0)
+        services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=80.0)
     assert exc.value.code == "RESOURCE_OVERALLOCATED"
 
     # The rejected assignment must not have been created.
-    remaining = ts.list_assignments_for_task(task_b.id)
+    remaining = services['task_assignment_commands'].list_assignments_for_task(task_b.id)
     assert remaining == []
 
 
 def test_overallocation_strict_policy_still_allows_non_conflicting_allocation(services):
     """Strict mode blocks only genuine over-capacity days -- it must not
     become a blanket rejection of every assignment."""
-    ts = services["task_service"]
+    services['task_lookup_query']
     _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
-    ts._assignment_handler._overallocation_policy = "strict"
+    services['task_assignment_commands']._overallocation_policy = "strict"
 
     # 20% overlapping Task A's 70% => 90% <= 100% capacity -- within budget.
-    assignment_b = ts.assign_resource(task_b.id, resource.id, allocation_percent=20.0)
+    assignment_b = services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=20.0)
     assert assignment_b is not None
 
 
@@ -315,7 +315,7 @@ def test_assign_project_resource_rejects_inactive_resource(services):
     services["resource_master_commands"].deactivate_resource(resource_id=resource.id, expected_version=resource.version)
 
     with pytest.raises(BusinessRuleError) as exc:
-        ts.assign_project_resource(
+        services['task_assignment_commands'].assign_project_resource(
             task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
         )
     assert exc.value.code == "RESOURCE_INACTIVE"
@@ -328,7 +328,7 @@ def test_assign_project_resource_rejects_inactive_resource(services):
 
 def test_delete_project_resource_with_historical_actuals_is_blocked(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
-    assignment = ts.assign_project_resource(
+    assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
     services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 6, 1), hours=3.0, note="worked")
@@ -341,7 +341,7 @@ def test_delete_project_resource_with_historical_actuals_is_blocked(services):
 
 def test_delete_project_resource_without_actuals_still_succeeds(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
-    ts.assign_project_resource(
+    services['task_assignment_commands'].assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
 
@@ -358,12 +358,12 @@ def test_delete_project_resource_without_actuals_still_succeeds(services):
 def test_assign_resource_requires_project_resource_repository(services, monkeypatch):
     """A missing envelope repository cannot create an orphaned assignment."""
     project = services['project_create'].create_project("Assignment Repository Guard", "")
-    tasks = services["task_service"]
-    task = tasks.create_task(project.id, "Work")
-    monkeypatch.setattr(tasks._assignment_handler, "_project_resource_repo", None)
+    services['task_lookup_query']
+    task = services['task_lifecycle_commands'].create_task(project.id, "Work")
+    monkeypatch.setattr(services['task_assignment_commands'], "_project_resource_repo", None)
 
     with pytest.raises(BusinessRuleError) as exc:
-        tasks.assign_resource(task.id, "res-1")
+        services['task_assignment_commands'].assign_resource(task.id, "res-1")
     assert exc.value.code == "PROJECT_RESOURCE_REPO_MISSING"
 
 
@@ -374,16 +374,16 @@ def test_assign_resource_requires_project_resource_repository(services, monkeypa
 
 def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
     access = services["access_service"]
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project_alpha = services['project_create'].create_project("Time Scope Alpha")
     project_beta = services['project_create'].create_project("Time Scope Beta")
-    task_alpha = ts.create_task(project_alpha.id, "Alpha Task")
-    task_beta = ts.create_task(project_beta.id, "Beta Task")
+    task_alpha = services['task_lifecycle_commands'].create_task(project_alpha.id, "Alpha Task")
+    task_beta = services['task_lifecycle_commands'].create_task(project_beta.id, "Beta Task")
     resource = services["resource_master_commands"].create_resource("Time Scope Resource", hourly_rate=90.0)
-    assignment_alpha = ts.assign_resource(task_alpha.id, resource.id, allocation_percent=50.0)
-    assignment_beta = ts.assign_resource(task_beta.id, resource.id, allocation_percent=50.0)
+    assignment_alpha = services['task_assignment_commands'].assign_resource(task_alpha.id, resource.id, allocation_percent=50.0)
+    assignment_beta = services['task_assignment_commands'].assign_resource(task_beta.id, resource.id, allocation_percent=50.0)
 
     scoped_user = services["user_registration"].register_user("time-scoped-manager", "StrongPass123", role_names=["viewer"])
     access.assign_scope_grant(
@@ -423,10 +423,10 @@ def test_enterprise_resource_availability_service_is_wired_into_task_service_for
     and uses for `preview_assignment_capacity` -- one shared authority, so
     Task Assignment preview and save-time enforcement cannot disagree by
     construction."""
-    ts = services["task_service"]
+    services['task_lookup_query']
     availability_service = services["resource_availability_service"]
     assert isinstance(availability_service, ResourceAvailabilityQueryHandler)
-    assert ts._assignment_handler._enterprise_resource_availability_service is availability_service
+    assert services['task_assignment_commands']._enterprise_resource_availability_service is availability_service
 
 
 def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_authority(
@@ -440,29 +440,29 @@ def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_au
     window_start = date.today() + timedelta(days=1)
 
     ps = services['project_query']
-    ts = services["task_service"]
+    services['task_lookup_query']
     rs = services["resource_query"]
     prs = services["project_resource_query"]
 
     project = services['project_create'].create_project("Preview Wiring Project")
     resource = services["resource_master_commands"].create_resource("Preview Wiring Resource", hourly_rate=80.0)
     project_resource = services["project_resource_commands"].add_to_project(project.id, resource.id, planned_hours=1000.0)
-    task_a = ts.create_task(
+    task_a = services['task_lifecycle_commands'].create_task(
         project.id, "Preview Task A", start_date=window_start, duration_days=5
     )
-    task_c = ts.create_task(
+    task_c = services['task_lifecycle_commands'].create_task(
         project.id, "Preview Task C", start_date=window_start, duration_days=5
     )
-    task_b = ts.create_task(
+    task_b = services['task_lifecycle_commands'].create_task(
         project.id, "Preview Task B", start_date=window_start, duration_days=5
     )
     # 70% + 60% already committed on A and C -> resource is already at 130%
     # of calendar capacity during this window, before Task B is even
     # considered.
-    ts.assign_project_resource(
+    services['task_assignment_commands'].assign_project_resource(
         task_id=task_a.id, project_resource_id=project_resource.id, allocation_percent=70.0
     )
-    ts.assign_project_resource(
+    services['task_assignment_commands'].assign_project_resource(
         task_id=task_c.id, project_resource_id=project_resource.id, allocation_percent=60.0
     )
 
@@ -490,21 +490,21 @@ def test_resource_availability_display_returns_real_data_not_none(services):
     to None (and therefore the all-zero "Allocation Summary" fallback in
     QML), because the calendar-based service it was wired to didn't
     implement the method being called on it."""
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     rs = services["resource_query"]
 
     project = services['project_create'].create_project("Availability Display Project")
     resource = services["resource_master_commands"].create_resource("Availability Display Resource", hourly_rate=65.0)
     window_start = date.today()
     window_end = window_start + timedelta(days=29)
-    task = ts.create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Availability Display Task",
         start_date=window_start + timedelta(days=1),
         duration_days=3,
     )
-    ts.assign_resource(task.id, resource.id, allocation_percent=60.0)
+    services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=60.0)
 
     api = build_project_management_resources_desktop_api(
         resource_query=rs,
@@ -558,17 +558,17 @@ def test_resource_workload_uses_bounded_reader_not_repository_wide_task_lookup(s
         SqlAlchemyTaskRepository,
     )
 
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project = services['project_create'].create_project("Availability Query Count Project")
     resource = services["resource_master_commands"].create_resource("Availability Query Count Resource", hourly_rate=55.0)
     window_start = date.today() + timedelta(days=1)
     for i in range(4):
-        task = ts.create_task(
+        task = services['task_lifecycle_commands'].create_task(
             project.id, f"Availability Task {i}", start_date=window_start, duration_days=2
         )
-        ts.assign_resource(task.id, resource.id, allocation_percent=20.0)
+        services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=20.0)
 
     workload_service = services["resource_workload_query"]
     task_counts, restore_tasks = _instrument_get_and_batch(

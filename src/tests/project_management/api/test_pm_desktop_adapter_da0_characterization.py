@@ -320,13 +320,13 @@ def test_da1_task_service_lists_authorized_resource_assignments(services) -> Non
         name="DA1 Planner",
         role="Planner",
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "DA1 Planning Task",
         start_date=date(2026, 8, 10),
         duration_days=2,
     )
-    assignment = services["task_service"].assign_resource(
+    assignment = services['task_assignment_commands'].assign_resource(
         task.id,
         resource.id,
         allocation_percent=60.0,

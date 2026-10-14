@@ -137,7 +137,7 @@ def _audit_rows_for(services, entity_id: str):
 
 def _setup(services):
     project = services['project_create'].create_project("P44B collaboration project")
-    task = services["task_service"].create_task(project.id, "P44B collaboration task")
+    task = services['task_lifecycle_commands'].create_task(project.id, "P44B collaboration task")
     return project, task
 
 

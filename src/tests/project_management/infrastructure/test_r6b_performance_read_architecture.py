@@ -332,10 +332,10 @@ def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) ->
     project = services['project_create'].create_project(
         "R6E Decimal EVM reader", financial_currency_code="XAF"
     )
-    services["task_service"].create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Draft baseline task", start_date=date(2026, 1, 1), duration_days=2
     )
-    services["baseline_service"].create_baseline(
+    services['baseline_commands'].create_baseline(
         project.id, "Draft EVM baseline", rate_as_of=date(2026, 1, 1)
     )
 
@@ -354,13 +354,13 @@ def test_variance_reader_is_bounded_without_per_task_queries(services, session) 
         "R6E Variance reader", financial_currency_code="XAF"
     )
     for number in range(8):
-        services["task_service"].create_task(
+        services['task_lifecycle_commands'].create_task(
             project.id,
             f"Variance task {number}",
             start_date=date(2026, 1, 1),
             duration_days=2,
         )
-    services["baseline_service"].create_baseline(
+    services['baseline_commands'].create_baseline(
         project.id, "Variance baseline", rate_as_of=date(2026, 1, 1)
     )
 

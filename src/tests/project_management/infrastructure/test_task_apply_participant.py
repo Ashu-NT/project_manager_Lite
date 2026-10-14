@@ -35,21 +35,21 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _make_two_tasks(services, name: str = "Task Approval Participant"):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project(name, "")
-    a = ts.create_task(
+    a = services['task_lifecycle_commands'].create_task(
         project.id, "Task A", "", start_date=date(2026, 9, 1), duration_days=2
     )
-    b = ts.create_task(project.id, "Task B", "", duration_days=2)
+    b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
     return project, a, b
 
 
 def _make_task(services, name: str = "Task Approval Participant Constraint"):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project(name, "")
-    task = ts.create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3
     )
     return project, task

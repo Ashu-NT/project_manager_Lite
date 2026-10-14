@@ -30,17 +30,17 @@ def _desktop_api(services, task_service):
             task_repo=services["task_lookup_query"]._task_repo,
             dependency_repo=services["task_dependency_diagnostics"]._dependency_repo,
             calendar=services["work_calendar_engine"],
-            baseline_lookup=services["baseline_service"],
+            baseline_lookup=services['baseline_query'],
         ),
     )
 
 
 def test_get_task_schedule_overview_reports_current_facts(services):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    ts = services['task_lookup_query']
     sched = services["scheduling_engine"]
     project = services['project_create'].create_project("Schedule Impact Desktop API Overview", "")
-    a = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
     sched.recalculate_project_schedule(project.id)
     api = _desktop_api(services, ts)
 
@@ -52,7 +52,7 @@ def test_get_task_schedule_overview_reports_current_facts(services):
 
 
 def test_get_task_schedule_overview_is_unavailable_without_project_id(services):
-    ts = services["task_service"]
+    ts = services['task_lookup_query']
     api = _desktop_api(services, ts)
 
     dto = api.get_task_schedule_overview("some-task", "")
@@ -63,7 +63,7 @@ def test_get_task_schedule_overview_is_unavailable_without_project_id(services):
 
 
 def test_get_task_schedule_overview_is_unavailable_without_impact_service(services):
-    ts = services["task_service"]
+    services['task_lookup_query']
     api = ProjectManagementTasksDesktopApi(task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'], schedule_change_impact_query=None)
 
     dto = api.get_task_schedule_overview("some-task", "some-project")
@@ -72,11 +72,11 @@ def test_get_task_schedule_overview_is_unavailable_without_impact_service(servic
 
 
 def test_preview_task_schedule_impact_uses_working_day_delay_not_calendar_days(services):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    ts = services['task_lookup_query']
     project = services['project_create'].create_project("Schedule Impact Desktop API Preview", "")
     # Friday
-    a = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 5), duration_days=1)
+    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 5), duration_days=1)
     api = _desktop_api(services, ts)
 
     dto = api.preview_task_schedule_impact(a.id, project.id, delay_working_days=1)
@@ -90,13 +90,13 @@ def test_preview_task_schedule_impact_uses_working_day_delay_not_calendar_days(s
 
 
 def test_preview_task_schedule_impact_reports_affected_downstream_tasks(services):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    ts = services['task_lookup_query']
     sched = services["scheduling_engine"]
     project = services['project_create'].create_project("Schedule Impact Desktop API Downstream", "")
-    a = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
-    b = ts.create_task(project.id, "Task B", "", duration_days=2)
-    ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+    b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
+    services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
     sched.recalculate_project_schedule(project.id)
     api = _desktop_api(services, ts)
 
@@ -109,10 +109,10 @@ def test_preview_task_schedule_impact_reports_affected_downstream_tasks(services
 
 
 def test_preview_task_schedule_impact_is_unavailable_for_task_without_start_date(services):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    ts = services['task_lookup_query']
     project = services['project_create'].create_project("Schedule Impact Desktop API No Start", "")
-    a = ts.create_task(project.id, "Task A", "", duration_days=2)
+    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", duration_days=2)
     api = _desktop_api(services, ts)
 
     dto = api.preview_task_schedule_impact(a.id, project.id, delay_working_days=1)

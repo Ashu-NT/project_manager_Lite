@@ -46,7 +46,6 @@ def test_runtime_use_case_facts_do_not_contain_domain_aggregates(services) -> No
 
 
 _HANDLER_FACADES = (
-    "modules/project_management/application/tasks/service.py",
 )
 
 

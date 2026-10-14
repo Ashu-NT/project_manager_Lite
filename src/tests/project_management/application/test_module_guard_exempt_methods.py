@@ -30,7 +30,9 @@ from src.core.modules.project_management.application.resources.queries.resource_
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
 )
-from src.core.modules.project_management.application.tasks.service import TaskService
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.infrastructure.importers.services.data_import_service import (
     DataImportService,
 )
@@ -115,9 +117,9 @@ def test_project_resource_handlers_check_module_before_operation(services, monke
 
 
 def test_task_detail_query_facade_checks_module_before_handler() -> None:
-    service = TaskService.__new__(TaskService)
+    service = TaskDetailPageQueryHandler.__new__(TaskDetailPageQueryHandler)
     service._module_catalog_service = _module_catalog(runtime_enabled=False)
-    service._detail_query = SimpleNamespace(get_task=lambda _task_id: pytest.fail("handler called"))
+    service._task_repo = SimpleNamespace(get=lambda _task_id: pytest.fail("repository called"))
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
         service.get_task("task-1")
 

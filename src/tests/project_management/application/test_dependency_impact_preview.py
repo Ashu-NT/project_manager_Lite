@@ -12,14 +12,14 @@ from src.core.modules.project_management.domain.enums import DependencyType
 
 def _make_chain(services):
     """A -> B -> C, all FS lag 0."""
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Impact Preview", "")
-    a = ts.create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
-    b = ts.create_task(project.id, "Task B", "", duration_days=2)
-    c = ts.create_task(project.id, "Task C", "", duration_days=2)
-    dep_ab = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
-    ts.add_dependency(b.id, c.id, DependencyType.FINISH_TO_START, lag_days=0)
+    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
+    b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
+    c = services['task_lifecycle_commands'].create_task(project.id, "Task C", "", duration_days=2)
+    dep_ab = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+    services['task_dependency_commands'].add_dependency(b.id, c.id, DependencyType.FINISH_TO_START, lag_days=0)
     return project, a, b, c, dep_ab
 
 
@@ -47,12 +47,12 @@ def test_removal_preview_reports_shift_when_successor_has_its_own_conflicting_st
     ignore a task's own start_date whenever incoming_deps is non-empty).
     Removing the edge reveals that underlying, previously-overridden
     start_date -- a real, reportable shift."""
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Impact Preview Isolated", "")
-    a = ts.create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
-    b = ts.create_task(project.id, "Task B", "", start_date=date(2024, 1, 1), duration_days=1)
-    dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
+    b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", start_date=date(2024, 1, 1), duration_days=1)
+    dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
     preview = services["task_dependency_diagnostics"].preview_dependency_removal(dep.id)
 
@@ -70,11 +70,11 @@ def test_removal_preview_reports_not_found_for_unknown_id(services):
 def test_removal_preview_never_mutates_anything(services):
     """The preview is advisory -- it must not persist the removal or touch
     the schedule."""
-    ts = services["task_service"]
+    services['task_lookup_query']
     _project, a, b, c, dep_ab = _make_chain(services)
 
     services["task_dependency_diagnostics"].preview_dependency_removal(dep_ab.id)
 
-    assert ts.get_dependency(dep_ab.id) is not None
-    deps = ts.list_dependencies_for_task(b.id)
+    assert services['task_dependency_query'].get_dependency(dep_ab.id) is not None
+    deps = services['task_dependency_query'].list_dependencies_for_task(b.id)
     assert any(d.id == dep_ab.id for d in deps)

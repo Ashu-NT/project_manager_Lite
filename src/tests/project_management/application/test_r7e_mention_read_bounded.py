@@ -10,7 +10,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
 
 def test_mark_mentions_read_queries_only_recipient_rows_in_bounded_batches(services) -> None:
     project = services['project_create'].create_project("Mention read batch")
-    task = services["task_service"].create_task(project.id, "Review")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Review")
     principal = services["user_session"].principal
     now = datetime.now(UTC)
     session = services["session"]

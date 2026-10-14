@@ -156,19 +156,19 @@ def test_baseline_task_and_variance_dtos_normalize_and_validate_local_fields():
 
 
 def test_baseline_service_uses_domain_normalization_for_create_and_reject_flow(services):
-    project_service = services['project_query']
-    task_service = services["task_service"]
-    baseline_service = services["baseline_service"]
+    services['project_query']
+    services['task_lookup_query']
+    baseline_service = services['baseline_query']
 
     project = services['project_create'].create_project("Baseline DTO Service Proof")
-    task_service.create_task(project.id, "First Task", start_date=date(2026, 7, 1), duration_days=2)
+    services['task_lifecycle_commands'].create_task(project.id, "First Task", start_date=date(2026, 7, 1), duration_days=2)
 
-    created = baseline_service.create_baseline(
+    created = services['baseline_commands'].create_baseline(
         project.id, "  Weekly Freeze  ", rate_as_of=date.today()
     )
     assert created.name == "Weekly Freeze"
 
-    submitted = baseline_service.submit_baseline(
+    submitted = services['baseline_commands'].submit_baseline(
         created.id,
         submitted_by="  alex  ",
         notes="  Ready for approval.  ",
@@ -176,36 +176,36 @@ def test_baseline_service_uses_domain_normalization_for_create_and_reject_flow(s
     assert submitted.submitted_by == "alex"
     assert submitted.notes == "Ready for approval."
 
-    rejected = baseline_service.reject_baseline(created.id, notes="  Need one more review.  ")
+    rejected = services['baseline_commands'].reject_baseline(created.id, notes="  Need one more review.  ")
     assert rejected.status == BaselineStatus.REJECTED
     assert rejected.notes == "Need one more review."
 
 
 def test_baseline_captures_explicit_milestone_as_immutable_snapshot(services):
-    project_service = services['project_query']
-    task_service = services["task_service"]
-    baseline_service = services["baseline_service"]
+    services['project_query']
+    services['task_lookup_query']
+    baseline_service = services['baseline_query']
 
     project = services['project_create'].create_project("Milestone Snapshot Proof")
-    task = task_service.create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Release Gate",
         start_date=date(2026, 8, 1),
         duration_days=0,
         is_milestone=True,
     )
-    baseline = baseline_service.create_baseline(
+    baseline = services['baseline_commands'].create_baseline(
         project.id,
         "Milestone Freeze",
         rate_as_of=date.today(),
     )
 
-    first_read = baseline_service.list_baseline_tasks(
+    first_read = services['baseline_query'].list_baseline_tasks(
         baseline.id,
         expected_project_id=project.id,
     )
-    task_service.update_task(task.id, is_milestone=False, duration_days=0)
-    second_read = baseline_service.list_baseline_tasks(
+    services['task_lifecycle_commands'].update_task(task.id, is_milestone=False, duration_days=0)
+    second_read = services['baseline_query'].list_baseline_tasks(
         baseline.id,
         expected_project_id=project.id,
     )
@@ -214,7 +214,7 @@ def test_baseline_captures_explicit_milestone_as_immutable_snapshot(services):
     assert second_read[0].baseline_is_milestone is True
 
     with pytest.raises(NotFoundError):
-        baseline_service.list_baseline_tasks(
+        services['baseline_query'].list_baseline_tasks(
             baseline.id,
             expected_project_id="another-project",
         )

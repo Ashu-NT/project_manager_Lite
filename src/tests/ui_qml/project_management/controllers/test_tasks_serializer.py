@@ -21,10 +21,10 @@ def test_priority_bucket_label_none_or_empty_is_not_set() -> None:
 
 
 def test_wbs_code_round_trips_from_db_to_serialized_table_row(services) -> None:
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("WBS Serializer Check")
-    task_service.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id,
         "Root Package",
         start_date=date(2026, 5, 1),
@@ -55,13 +55,13 @@ def test_wbs_code_round_trips_from_db_to_serialized_table_row(services) -> None:
 
 
 def test_milestone_task_shows_marker_in_title_and_milestones_only_filter_selects_it(services) -> None:
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Milestone Marker Check")
-    task_service.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Regular Task", start_date=date(2026, 5, 1), duration_days=5,
     )
-    task_service.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id,
         "Handover",
         start_date=date(2026, 5, 6),
@@ -91,16 +91,16 @@ def test_milestone_task_shows_marker_in_title_and_milestones_only_filter_selects
 
 
 def test_priority_label_shows_the_same_bucket_the_priority_filter_selects(services) -> None:
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Priority Bucket Check")
-    task_service.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "High Task", start_date=date(2026, 5, 1), duration_days=1, priority=95,
     )
-    task_service.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Medium Task", start_date=date(2026, 5, 1), duration_days=1, priority=50,
     )
-    task_service.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Low Task", start_date=date(2026, 5, 1), duration_days=1, priority=10,
     )
     # `create_task` defaults `priority` to 0 (never None) at the domain
@@ -109,7 +109,7 @@ def test_priority_label_shows_the_same_bucket_the_priority_filter_selects(servic
     # None/"" branch is defensive for a nullable-priority edge case that
     # doesn't occur via this standard creation path; that branch is covered
     # directly below, not through this DB round trip.
-    task_service.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "No Explicit Priority Task", start_date=date(2026, 5, 1), duration_days=1,
     )
 

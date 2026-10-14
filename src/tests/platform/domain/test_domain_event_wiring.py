@@ -20,7 +20,7 @@ def test_project_create_emits_typed_domain_event_and_view_invalidation(services)
         PROJECT_LIST_SCOPE_CODE,
     )
 
-    ps = services['project_query']
+    services['project_query']
 
     class _AnyOrgFilter:
         def matches(self, scope) -> bool:
@@ -48,7 +48,7 @@ def test_project_update_emits_typed_domain_event_and_view_invalidation(services)
         PROJECT_LIST_SCOPE_CODE,
     )
 
-    ps = services['project_query']
+    services['project_query']
     project = services['project_create'].create_project("Event Update Project", "")
 
     class _AnyOrgFilter:
@@ -79,11 +79,11 @@ def test_task_create_dependency_assignment_emit_typed_domain_events_and_view_inv
         TASK_LIST_SCOPE_CODE,
     )
 
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Event Task Ops", "")
-    t1 = ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
-    t2 = ts.create_task(project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2)
+    t1 = services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
+    t2 = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2)
     resource = services["resource_master_commands"].create_resource("Event Dev", "Developer", hourly_rate=100.0)
 
     class _AnyOrgFilter:
@@ -95,9 +95,9 @@ def test_task_create_dependency_assignment_emit_typed_domain_events_and_view_inv
         _AnyOrgFilter(), lambda hint: hints.append(hint)
     )
 
-    t3 = ts.create_task(project.id, "Task C", start_date=date(2024, 1, 6), duration_days=1)
-    ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
-    ts.assign_resource(t3.id, resource.id, allocation_percent=50.0)
+    t3 = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2024, 1, 6), duration_days=1)
+    services['task_dependency_commands'].add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
+    services['task_assignment_commands'].assign_resource(t3.id, resource.id, allocation_percent=50.0)
 
     task_hints = [h for h in hints if h.category == TASK_CATEGORY]
     scope_codes = {h.scope_code for h in task_hints}
@@ -115,10 +115,10 @@ def test_task_update_emits_typed_domain_event_and_view_invalidation(services):
         TASK_LIST_SCOPE_CODE,
     )
 
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Event Task Update", "")
-    task = ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
+    task = services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
 
     class _AnyOrgFilter:
         def matches(self, scope) -> bool:
@@ -129,7 +129,7 @@ def test_task_update_emits_typed_domain_event_and_view_invalidation(services):
         _AnyOrgFilter(), lambda hint: hints.append(hint)
     )
 
-    ts.update_task(task.id, name="Task A Updated")
+    services['task_lifecycle_commands'].update_task(task.id, name="Task A Updated")
 
     task_hints = [h for h in hints if h.category == TASK_CATEGORY]
     scope_codes = {h.scope_code for h in task_hints}
@@ -154,16 +154,16 @@ def test_approve_baseline_request_emits_project_baseline_view_invalidation(servi
     _login_as(services, "admin", "ChangeMe123!")
     services["role_assignment_commands"].assign_role(services["authentication"].authenticate("admin", "ChangeMe123!").id, "approver")
 
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     approvals = services["approval_commands"]
-    baseline = services["baseline_service"]
+    baseline = services['baseline_query']
     project = services['project_create'].create_project("Approval baseline events")
-    ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=1)
+    services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=1)
     _login_as(services, "planner-baseline", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="Approval required"):
-        baseline.create_baseline(project.id, "Gate 1", rate_as_of=date.today())
+        services['baseline_commands'].create_baseline(project.id, "Gate 1", rate_as_of=date.today())
     request_id = services["approval_queries"].list_pending(project_id=project.id)[0].id
 
     class _AnyOrgFilter:

@@ -83,8 +83,8 @@ def _timed(metrics: dict[str, float], key: str, fn):
 
 
 def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project_end = config.start_date + timedelta(days=max(365, config.tasks // 2))
     project = services['project_create'].create_project(
         f"Large Perf Project ({config.tasks} tasks)",
@@ -107,7 +107,7 @@ def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
 
     tasks = []
     for idx in range(config.tasks):
-        task = ts.create_task(
+        task = services['task_lifecycle_commands'].create_task(
             project_id=project_id,
             name=f"Task {idx + 1:05d}",
             start_date=config.start_date if idx == 0 else None,
@@ -118,12 +118,12 @@ def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
 
     dependency_count = 0
     for idx in range(1, len(tasks)):
-        ts.add_dependency(tasks[idx - 1].id, tasks[idx].id, DependencyType.FINISH_TO_START, lag_days=0)
+        services['task_dependency_commands'].add_dependency(tasks[idx - 1].id, tasks[idx].id, DependencyType.FINISH_TO_START, lag_days=0)
         dependency_count += 1
 
     for idx in range(config.cross_dependency_gap, len(tasks), config.cross_dependency_gap):
         predecessor_idx = idx - config.cross_dependency_gap
-        ts.add_dependency(
+        services['task_dependency_commands'].add_dependency(
             tasks[predecessor_idx].id,
             tasks[idx].id,
             DependencyType.FINISH_TO_START,
@@ -136,7 +136,7 @@ def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
         if idx % config.assignment_stride != 0:
             continue
         resource = resources[idx % len(resources)]
-        assignment = ts.assign_resource(
+        assignment = services['task_assignment_commands'].assign_resource(
             task_id=task.id,
             resource_id=resource.id,
             allocation_percent=50.0 + float(idx % 3) * 10.0,
@@ -148,7 +148,7 @@ def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
 
     for idx, task in enumerate(tasks):
         if idx % 10 == 0:
-            ts.update_progress(task.id, percent_complete=float((idx // 10) % 101))
+            services['task_progress_commands'].update_progress(task.id, percent_complete=float((idx // 10) % 101))
 
     return SeedResult(
         project_id=project_id,
@@ -201,7 +201,7 @@ def test_large_scale_performance_workflow(services):
     assert config.resources >= 20, "Large-scale performance test expects at least 20 resources."
 
     sched = services["scheduling_engine"]
-    bs = services["baseline_service"]
+    bs = services['baseline_query']
     metrics: dict[str, float] = {}
     total_started = time.perf_counter()
 
@@ -217,7 +217,7 @@ def test_large_scale_performance_workflow(services):
     baseline = _timed(
         metrics,
         "baseline",
-        lambda: bs.create_baseline(seeded.project_id, "Perf Baseline", rate_as_of=date.today()),
+        lambda: services['baseline_commands'].create_baseline(seeded.project_id, "Perf Baseline", rate_as_of=date.today()),
     )
 
     report_data = _timed(

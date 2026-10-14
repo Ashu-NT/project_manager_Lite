@@ -37,11 +37,11 @@ def _login(services, username: str, password: str) -> None:
 
 def _project_with_tasks(services):
     project = _make_project(services)
-    task_service = services["task_service"]
-    task_service.create_task(
+    services['task_lookup_query']
+    services['task_lifecycle_commands'].create_task(
         project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2
     )
-    task_service.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2
     )
     return project
@@ -87,11 +87,11 @@ def test_participant_apply_creates_baseline_on_the_supplied_session(services, se
 
     result = BaselineApprovalParticipant().apply(request, deps)
 
-    baseline = deps.baseline_service._baselines.get_latest_for_project(project.id)
+    baseline = deps.baseline_query._baselines.get_latest_for_project(project.id)
     assert baseline is not None
     assert baseline.name == "My Baseline"
     assert baseline.status == BaselineStatus.DRAFT
-    tasks = deps.baseline_service._baselines.list_tasks(baseline.id)
+    tasks = deps.baseline_query._baselines.list_tasks(baseline.id)
     assert len(tasks) == 2
     assert len(result.domain_events) == 1
     event = result.domain_events[0]
@@ -129,26 +129,26 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         deps_a = _deps(services, session_a)
         deps_b = _deps(services, session_b)
 
-        assert deps_a.baseline_service._session is session_a
-        assert deps_b.baseline_service._session is session_b
-        assert deps_a.baseline_service._baselines.session is session_a
-        assert deps_b.baseline_service._baselines.session is session_b
-        assert deps_a.baseline_service is not deps_b.baseline_service
+        assert deps_a.baseline_commands._session is session_a
+        assert deps_b.baseline_commands._session is session_b
+        assert deps_a.baseline_query._baselines.session is session_a
+        assert deps_b.baseline_query._baselines.session is session_b
+        assert deps_a.baseline_query is not deps_b.baseline_query
 
-        assert deps_a.baseline_service._sched is not deps_b.baseline_service._sched
-        assert deps_a.baseline_service._sched._session is session_a
-        assert deps_b.baseline_service._sched._session is session_b
+        assert deps_a.baseline_query._sched is not deps_b.baseline_query._sched
+        assert deps_a.baseline_query._sched._session is session_a
+        assert deps_b.baseline_query._sched._session is session_b
 
-        assert deps_a.baseline_service._activity_service is not (
-            deps_b.baseline_service._activity_service
+        assert deps_a.baseline_query._activity_service is not (
+            deps_b.baseline_query._activity_service
         )
-        assert deps_a.baseline_service._activity_service._session is session_a
-        assert deps_b.baseline_service._activity_service._session is session_b
+        assert deps_a.baseline_query._activity_service._session is session_a
+        assert deps_b.baseline_query._activity_service._session is session_b
 
-        assert deps_a.baseline_service._approval_commands is None, (
+        assert deps_a.baseline_query._approval_commands is None, (
             "the apply path must never reach back into ApprovalCommandHandler"
         )
-        assert deps_b.baseline_service._approval_commands is None
+        assert deps_b.baseline_query._approval_commands is None
     finally:
         session_a.close()
         session_b.close()
@@ -156,6 +156,6 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
 
 def test_dependencies_factory_never_opens_its_own_session(services, session):
     deps = _deps(services, session)
-    assert deps.baseline_service._session is session, (
+    assert deps.baseline_commands._session is session, (
         "the factory must use the supplied Session, never a fresh one"
     )

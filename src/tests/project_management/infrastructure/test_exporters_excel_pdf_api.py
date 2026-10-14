@@ -46,9 +46,9 @@ def _report_sources(services) -> reporting_api.ProjectReportSources:
 
 
 def _setup_report_project(services):
-    ps = services['project_query']
-    ts = services["task_service"]
-    bs = services["baseline_service"]
+    services['project_query']
+    services['task_lookup_query']
+    bs = services['baseline_query']
 
     project = services['project_create'].create_project(
         "Export Validation Project",
@@ -59,9 +59,9 @@ def _setup_report_project(services):
     )
     pid = project.id
 
-    t1 = ts.create_task(pid, "Task Alpha", start_date=date(2023, 11, 6), duration_days=2)
-    t2 = ts.create_task(pid, "Task Beta", duration_days=2)
-    ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
+    t1 = services['task_lifecycle_commands'].create_task(pid, "Task Alpha", start_date=date(2023, 11, 6), duration_days=2)
+    t2 = services['task_lifecycle_commands'].create_task(pid, "Task Beta", duration_days=2)
+    services['task_dependency_commands'].add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
 
     res = services["resource_master_commands"].create_resource(
         "Exporter Dev",
@@ -81,13 +81,13 @@ def _setup_report_project(services):
         rate_currency="USD",
         resource_id=res.id,
     )
-    assignment = ts.assign_resource(t1.id, res.id, allocation_percent=50.0)
+    assignment = services['task_assignment_commands'].assign_resource(t1.id, res.id, allocation_percent=50.0)
     services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
 
-    baseline = bs.create_baseline(pid, "Baseline Export", rate_as_of=date.today())
-    bs.submit_baseline(baseline.id, submitted_by="admin")
-    bs.approve_baseline(baseline.id, approved_by="admin")
-    ts.update_progress(t1.id, percent_complete=50.0)
+    baseline = services['baseline_commands'].create_baseline(pid, "Baseline Export", rate_as_of=date.today())
+    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
+    services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
+    services['task_progress_commands'].update_progress(t1.id, percent_complete=50.0)
     return pid, baseline.id
 
 
@@ -114,12 +114,12 @@ def test_excel_export_contains_expected_sections_when_baseline_is_approved(servi
 
 
 def test_excel_export_without_baseline_skips_evm_sheet(services, tmp_path):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project = services['project_create'].create_project("No Baseline Export", "")
     pid = project.id
-    ts.create_task(pid, "Task No Base", start_date=date(2023, 11, 6), duration_days=2)
+    services['task_lifecycle_commands'].create_task(pid, "Task No Base", start_date=date(2023, 11, 6), duration_days=2)
 
     output = tmp_path / "report_no_baseline.xlsx"
     reporting_api.generate_excel_report(_report_sources(services), pid, output)

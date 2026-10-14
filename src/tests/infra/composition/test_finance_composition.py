@@ -314,7 +314,7 @@ def test_finance_performance_query_reuses_reporting_baseline_and_reader(services
     assert query._performance_reader is finance._finance_performance_reader
     assert query._overview_reader._session is session
     assert query._earned_value_authority is services["earned_value_report"]
-    assert query._baseline_variance_authority is services["baseline_service"]
+    assert query._baseline_variance_authority is services['baseline_query']
 
 
 def test_finance_startup_replays_both_durable_dispatchers_in_order(monkeypatch, session) -> None:

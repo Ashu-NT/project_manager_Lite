@@ -42,7 +42,7 @@ def test_priority_pm_repositories_hide_other_organization_rows(services):
     comment_repo = services["collaboration_comment_commands"]._comment_repo
     presence_repo = services["collaboration_presence_query"]._presence_repo
     register_repo = services["register_query"]._register_repo
-    baseline_repo = services["baseline_service"]._baselines
+    baseline_repo = services['baseline_query']._baselines
 
     assert task_repo.get(seeded["task_b1"]) is None
     assert [row.id for row in task_repo.list_by_project(seeded["project_b"])] == []
@@ -89,7 +89,7 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
     assignment_repo = services["task_lookup_query"]._assignment_repo
     dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
     register_repo = services["register_query"]._register_repo
-    baseline_repo = services["baseline_service"]._baselines
+    baseline_repo = services['baseline_query']._baselines
 
     assignment_repo.delete(seeded["assignment_b"])
     assignment_repo.delete_by_task(seeded["task_b1"])
@@ -126,7 +126,7 @@ def test_priority_pm_repositories_reject_cross_organization_updates(services):
     dependency_repo = services["task_dependency_diagnostics"]._dependency_repo
     comment_repo = services["collaboration_comment_commands"]._comment_repo
     register_repo = services["register_query"]._register_repo
-    baseline_repo = services["baseline_service"]._baselines
+    baseline_repo = services['baseline_query']._baselines
 
     with pytest.raises(NotFoundError):
         task_repo.update(Task(id=seeded["task_b1"], project_id=seeded["project_b"], name="Blocked"))

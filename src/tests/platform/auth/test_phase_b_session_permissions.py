@@ -21,7 +21,7 @@ def test_user_session_enforces_manage_permissions(services):
     )
     _login_as(services, "viewer1", "StrongPass123")
 
-    ps = services['project_query']
+    services['project_query']
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         services['project_create'].create_project("Forbidden project")
 
@@ -29,7 +29,7 @@ def test_user_session_enforces_manage_permissions(services):
 def test_admin_session_can_execute_manage_operations(services):
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services['project_query']
+    services['project_query']
     p = services['project_create'].create_project("Allowed project")
     assert p.id
 
@@ -37,14 +37,14 @@ def test_admin_session_can_execute_manage_operations(services):
 def test_cleared_session_denies_core_read_models(services):
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     finance = services["finance_snapshot_query"]
     services["approval_commands"]
     audit = services["enterprise_audit_service"]
 
     project = services['project_create'].create_project("Read Permission Project")
-    ts.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2
     )
     services["resource_master_commands"].create_resource(
@@ -56,7 +56,7 @@ def test_cleared_session_denies_core_read_models(services):
     with pytest.raises(BusinessRuleError):
         services['project_query'].list_projects()
     with pytest.raises(BusinessRuleError):
-        ts.list_tasks_for_project(project.id)
+        services['task_lookup_query'].list_tasks_for_project(project.id)
     with pytest.raises(BusinessRuleError):
         services["resource_query"].list_resources()
     with pytest.raises(BusinessRuleError):
@@ -80,8 +80,8 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     cost_entries = services["cost_entry_service"]
     services["project_resource_query"]
 
@@ -94,8 +94,8 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
         resource_id=resource.id,
         planned_hours=40.0,
     )
-    task = ts.create_task(project_id=project.id, name="Permission task")
-    assignment = ts.assign_project_resource(task.id, project_resource.id, 50.0)
+    task = services['task_lifecycle_commands'].create_task(project_id=project.id, name="Permission task")
+    assignment = services['task_assignment_commands'].assign_project_resource(task.id, project_resource.id, 50.0)
 
     _login_as(services, "viewer2", "StrongPass123")
 
@@ -117,10 +117,10 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
         )
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ts.create_task(project_id=project.id, name="Forbidden task")
+        services['task_lifecycle_commands'].create_task(project_id=project.id, name="Forbidden task")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ts.set_assignment_allocation(
+        services['task_assignment_commands'].set_assignment_allocation(
             assignment.id, 40.0, expected_version=assignment.version
         )
 
@@ -128,7 +128,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
         services["task_assignment_commands"].set_assignment_hours(assignment.id, 2.0)
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ts.unassign_resource(assignment.id)
+        services['task_assignment_commands'].unassign_resource(assignment.id)
 
 
 def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services):
@@ -137,7 +137,7 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services['project_query']
+    services['project_query']
     services["project_resource_query"]
     ecs_commands = services["platform_calendar_commands"]
 
@@ -196,7 +196,7 @@ def test_governance_permissions_are_split_between_request_and_decide(
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services['project_query']
+    services['project_query']
     cost_entries = services["cost_entry_service"]
     configuration = services["financial_configuration_service"]
     approvals = services["approval_commands"]
@@ -237,11 +237,11 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project = services['project_create'].create_project("Timesheet Permission Split")
-    task = ts.create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Timesheet Permission Task",
         start_date=date(2026, 6, 1),
@@ -250,7 +250,7 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     resource = services["resource_master_commands"].create_resource(
         "Planner Logger", hourly_rate=100.0
     )
-    assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
+    assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
     services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 6, 2),
@@ -284,12 +284,12 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
 
 
 def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     user_session = services["user_session"]
 
     project = services['project_create'].create_project("Shared Time Permission Alias")
-    task = ts.create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Alias Permission Task",
         start_date=date(2026, 7, 1),
@@ -298,7 +298,7 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
     resource = services["resource_master_commands"].create_resource(
         "Alias Logger", hourly_rate=100.0
     )
-    assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
+    assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
     first = services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 7, 1),

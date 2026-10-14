@@ -62,7 +62,7 @@ class DashboardSnapshotService:
         project_service=None,
         project_dashboard=None,
         portfolio_dashboard=None,
-        baseline_service=None,
+        baseline_query=None,
         earned_value_report=None,
         collaboration_inbox_query=None,
         approval_queries=None,
@@ -70,7 +70,7 @@ class DashboardSnapshotService:
         self._project_service = project_service
         self._project_dashboard = project_dashboard
         self._portfolio_dashboard = portfolio_dashboard
-        self._baseline_service = baseline_service
+        self._baseline_query = baseline_query
         self._earned_value_report = earned_value_report
         self._collaboration_inbox_query = collaboration_inbox_query
         self._approval_queries = approval_queries
@@ -85,7 +85,7 @@ class DashboardSnapshotService:
     ) -> ProjectDashboardSnapshotDescriptor:
         project_options = build_project_options(self._project_service)
         selected_project_id = resolve_project_id(project_id, project_options)
-        baseline_options = build_baseline_options(selected_project_id, self._baseline_service)
+        baseline_options = build_baseline_options(selected_project_id, self._baseline_query)
         selected_baseline_id = resolve_baseline_id(baseline_id, baseline_options)
         has_baseline = any(option.value for option in baseline_options)
         period_options = build_period_options()
@@ -133,11 +133,11 @@ class DashboardSnapshotService:
             return ProjectDashboardSnapshotDescriptor(
                 overview=build_contextual_overview(project_name="Portfolio Overview", dashboard_data=dashboard_data, selected_view_key=selected_view_key, portfolio_mode=True),
                 **_selectors,
-                health_cards=build_health_cards(dashboard_data=dashboard_data, pending_approvals=pending_approvals, portfolio_mode=True, project_id=None, baseline_service=self._baseline_service),
+                health_cards=build_health_cards(dashboard_data=dashboard_data, pending_approvals=pending_approvals, portfolio_mode=True, project_id=None, baseline_query=self._baseline_query),
                 operational_tabs=build_operational_tabs(operational_tables),
                 operational_tables=operational_tables,
                 activity_feed=build_activity_feed(project_id=None, selected_period_key=selected_period_key, portfolio_mode=True, collaboration_inbox_query=self._collaboration_inbox_query),
-                panels=build_panels_from_dashboard_data(dashboard_data=dashboard_data, baseline_label="Portfolio view", selected_baseline_id="", portfolio_mode=True, baseline_service=self._baseline_service),
+                panels=build_panels_from_dashboard_data(dashboard_data=dashboard_data, baseline_label="Portfolio view", selected_baseline_id="", portfolio_mode=True, baseline_query=self._baseline_query),
                 charts=build_charts_from_dashboard_data(dashboard_data=dashboard_data, selected_period_key=selected_period_key, portfolio_mode=True, earned_value_report=self._earned_value_report),
                 sections=build_sections_from_dashboard_data(dashboard_data=dashboard_data, portfolio_mode=True),
                 empty_state=(
@@ -159,11 +159,11 @@ class DashboardSnapshotService:
         return ProjectDashboardSnapshotDescriptor(
             overview=build_contextual_overview(project_name=project_label, dashboard_data=dashboard_data, selected_view_key=selected_view_key, portfolio_mode=False),
             **_selectors,
-            health_cards=build_health_cards(dashboard_data=dashboard_data, pending_approvals=pending_approvals, portfolio_mode=False, project_id=selected_project_id, baseline_service=self._baseline_service),
+            health_cards=build_health_cards(dashboard_data=dashboard_data, pending_approvals=pending_approvals, portfolio_mode=False, project_id=selected_project_id, baseline_query=self._baseline_query),
             operational_tabs=build_operational_tabs(operational_tables),
             operational_tables=operational_tables,
             activity_feed=build_activity_feed(project_id=selected_project_id, selected_period_key=selected_period_key, portfolio_mode=False, collaboration_inbox_query=self._collaboration_inbox_query),
-            panels=build_panels_from_dashboard_data(dashboard_data=dashboard_data, baseline_label=baseline_label, selected_baseline_id=selected_baseline_id, portfolio_mode=False, baseline_service=self._baseline_service),
+            panels=build_panels_from_dashboard_data(dashboard_data=dashboard_data, baseline_label=baseline_label, selected_baseline_id=selected_baseline_id, portfolio_mode=False, baseline_query=self._baseline_query),
             charts=build_charts_from_dashboard_data(
                 dashboard_data=dashboard_data,
                 selected_period_key=selected_period_key,

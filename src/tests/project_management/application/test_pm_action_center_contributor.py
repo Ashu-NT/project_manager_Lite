@@ -91,33 +91,33 @@ def test_tasks_resolve_through_resource_identity_and_include_only_open_states(se
     )
     other_resource = services["resource_master_commands"].create_resource("Unrelated Resource")
 
-    todo = services["task_service"].create_task(
+    todo = services['task_lifecycle_commands'].create_task(
         project.id, "Todo task", start_date=date(2026, 6, 1), duration_days=2, deadline=date(2026, 9, 20)
     )
-    in_progress = services["task_service"].create_task(
+    in_progress = services['task_lifecycle_commands'].create_task(
         project.id,
         "In progress task",
         start_date=date(2026, 6, 3),
         duration_days=2,
         status=TaskStatus.IN_PROGRESS,
     )
-    blocked = services["task_service"].create_task(
+    blocked = services['task_lifecycle_commands'].create_task(
         project.id, "Blocked task", start_date=date(2026, 6, 5), duration_days=2,
     )
-    services["task_service"].set_status(blocked.id, TaskStatus.BLOCKED)
-    done = services["task_service"].create_task(
+    services['task_progress_commands'].set_status(blocked.id, TaskStatus.BLOCKED)
+    done = services['task_lifecycle_commands'].create_task(
         project.id, "Done task", start_date=date(2026, 6, 7), duration_days=2,
     )
-    services["task_service"].set_status(done.id, TaskStatus.DONE)
+    services['task_progress_commands'].set_status(done.id, TaskStatus.DONE)
 
-    services["task_service"].assign_resource(todo.id, resource.id, allocation_percent=50.0)
-    services["task_service"].assign_resource(in_progress.id, resource.id, allocation_percent=50.0)
-    services["task_service"].assign_resource(blocked.id, resource.id, allocation_percent=50.0)
-    services["task_service"].assign_resource(done.id, resource.id, allocation_percent=50.0)
-    unrelated_task = services["task_service"].create_task(
+    services['task_assignment_commands'].assign_resource(todo.id, resource.id, allocation_percent=50.0)
+    services['task_assignment_commands'].assign_resource(in_progress.id, resource.id, allocation_percent=50.0)
+    services['task_assignment_commands'].assign_resource(blocked.id, resource.id, allocation_percent=50.0)
+    services['task_assignment_commands'].assign_resource(done.id, resource.id, allocation_percent=50.0)
+    unrelated_task = services['task_lifecycle_commands'].create_task(
         project.id, "Unrelated task", start_date=date(2026, 6, 9), duration_days=2,
     )
-    services["task_service"].assign_resource(unrelated_task.id, other_resource.id, allocation_percent=50.0)
+    services['task_assignment_commands'].assign_resource(unrelated_task.id, other_resource.id, allocation_percent=50.0)
 
     reader = _resource_identity_reader(services)
     contributor = _contributor(services, reader)
@@ -150,27 +150,27 @@ def test_baselines_include_only_submitted_across_accessible_projects_regardless_
     on_hold_project = services['project_create'].create_project(
         "On Hold Baseline Project", financial_currency_code=organization.base_currency
     )
-    services["task_service"].create_task(
+    services['task_lifecycle_commands'].create_task(
         active_project.id, "Seed task A", start_date=date(2026, 6, 1), duration_days=2
     )
-    services["task_service"].create_task(
+    services['task_lifecycle_commands'].create_task(
         on_hold_project.id, "Seed task B", start_date=date(2026, 6, 1), duration_days=2
     )
 
-    submitted_baseline = services["baseline_service"].create_baseline(
+    submitted_baseline = services['baseline_commands'].create_baseline(
         active_project.id, "Baseline A", rate_as_of=date(2026, 6, 1)
     )
-    services["baseline_service"].submit_baseline(submitted_baseline.id, submitted_by="admin")
+    services['baseline_commands'].submit_baseline(submitted_baseline.id, submitted_by="admin")
 
-    draft_baseline = services["baseline_service"].create_baseline(
+    draft_baseline = services['baseline_commands'].create_baseline(
         active_project.id, "Baseline B (draft)", rate_as_of=date(2026, 6, 1)
     )
     assert draft_baseline.status == BaselineStatus.DRAFT
 
-    submitted_on_other_project = services["baseline_service"].create_baseline(
+    submitted_on_other_project = services['baseline_commands'].create_baseline(
         on_hold_project.id, "Baseline C", rate_as_of=date(2026, 6, 1)
     )
-    services["baseline_service"].submit_baseline(submitted_on_other_project.id, submitted_by="admin")
+    services['baseline_commands'].submit_baseline(submitted_on_other_project.id, submitted_by="admin")
 
     reader = _resource_identity_reader(services)
     contributor = _contributor(services, reader)
@@ -219,13 +219,13 @@ def test_submitted_baseline_with_authorized_reviewer_is_included(services):
     project = services['project_create'].create_project(
         "Authorized Reviewer Project", financial_currency_code=organization.base_currency
     )
-    services["task_service"].create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
     )
-    baseline = services["baseline_service"].create_baseline(
+    baseline = services['baseline_commands'].create_baseline(
         project.id, "Baseline", rate_as_of=date(2026, 6, 1)
     )
-    services["baseline_service"].submit_baseline(baseline.id, submitted_by="admin")
+    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
 
     context, contributor = _reviewer_context_and_contributor(
         services,
@@ -247,13 +247,13 @@ def test_submitted_baseline_with_unauthorized_user_is_excluded(services):
     project = services['project_create'].create_project(
         "Unauthorized Reviewer Project", financial_currency_code=organization.base_currency
     )
-    services["task_service"].create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
     )
-    baseline = services["baseline_service"].create_baseline(
+    baseline = services['baseline_commands'].create_baseline(
         project.id, "Baseline", rate_as_of=date(2026, 6, 1)
     )
-    services["baseline_service"].submit_baseline(baseline.id, submitted_by="admin")
+    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
 
     context, contributor = _reviewer_context_and_contributor(
         services, project_id=project.id, permissions=frozenset({"project.read"})
@@ -272,10 +272,10 @@ def test_non_submitted_baseline_with_authorized_reviewer_is_excluded(services):
         "Draft With Authorized Reviewer Project",
         financial_currency_code=organization.base_currency,
     )
-    services["task_service"].create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
     )
-    draft_baseline = services["baseline_service"].create_baseline(
+    draft_baseline = services['baseline_commands'].create_baseline(
         project.id, "Draft Baseline", rate_as_of=date(2026, 6, 1)
     )
     assert draft_baseline.status == BaselineStatus.DRAFT
@@ -301,10 +301,10 @@ def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(service
     project = services['project_create'].create_project(
         "Action Center Timesheet Project", financial_currency_code=organization.base_currency
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "Timesheet task", start_date=date(2026, 6, 1), duration_days=10
     )
-    assignment = services["task_service"].assign_resource(task.id, resource.id, allocation_percent=100.0)
+    assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
 
     # OPEN period: entries logged, never submitted.
     services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 6, 4), hours=4)
@@ -354,18 +354,18 @@ def test_all_action_items_equals_the_sum_of_the_three_pm_categories(services):
     project = services['project_create'].create_project(
         "Action Center Parity Project", financial_currency_code=organization.base_currency
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "Parity task", start_date=date(2026, 6, 1), duration_days=2
     )
-    services["task_service"].assign_resource(task.id, resource.id, allocation_percent=50.0)
+    services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=50.0)
 
-    baseline = services["baseline_service"].create_baseline(
+    baseline = services['baseline_commands'].create_baseline(
         project.id, "Parity Baseline", rate_as_of=date(2026, 6, 1)
     )
-    services["baseline_service"].submit_baseline(baseline.id, submitted_by="admin")
+    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
 
-    assignment = services["task_service"].assign_resource(
-        services["task_service"].create_task(
+    assignment = services['task_assignment_commands'].assign_resource(
+        services['task_lifecycle_commands'].create_task(
             project.id, "Timesheet task", start_date=date(2026, 6, 1), duration_days=2
         ).id,
         resource.id,

@@ -10,8 +10,8 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 
 
 def test_capacity_reader_preserves_cross_project_demand_and_utilization(services) -> None:
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     services["project_resource_query"]
     pool_service = services["portfolio_resource_pool_query"]
 
@@ -31,7 +31,7 @@ def test_capacity_reader_preserves_cross_project_demand_and_utilization(services
             end_date=date(2024, 1, 12),
             financial_currency_code="EUR",
         )
-        task = task_service.create_task(
+        task = services['task_lifecycle_commands'].create_task(
             project.id,
             f"{project_name} delivery",
             start_date=date(2024, 1, 8),
@@ -44,7 +44,7 @@ def test_capacity_reader_preserves_cross_project_demand_and_utilization(services
             hourly_rate=80.0,
             currency_code="EUR",
         )
-        task_service.assign_project_resource(
+        services['task_assignment_commands'].assign_project_resource(
             task_id=task.id,
             project_resource_id=project_resource.id,
             allocation_percent=allocation,

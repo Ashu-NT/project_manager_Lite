@@ -133,6 +133,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
         SimpleNamespace(
             assignment_id=assignment.id,
             allocation_percent=72.5,
+            expected_version=assignment.version,
         )
     )
 

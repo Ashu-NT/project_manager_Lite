@@ -7,6 +7,10 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, Protocol
 
+from src.core.modules.project_management.application.scheduling.baselines.commands.lifecycle import (
+    BaselineCommandHandler,
+)
+
 if TYPE_CHECKING:
     from src.core.modules.project_management.domain.scheduling.baseline import (
         BaselineTask,
@@ -109,8 +113,8 @@ from src.core.modules.project_management.application.reporting import (
     ProjectKpiReportBuilder,
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.modules.project_management.application.scheduling.baselines.queries.catalog import (
+    BaselineQueryHandler,
 )
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
@@ -128,13 +132,15 @@ from src.core.modules.project_management.application.scheduling.forecasting.quer
     ScheduleChangeImpactQueryHandler,
 )
 from src.core.modules.project_management.application.tasks import (
-    TaskLookupQueryHandler,
-    TaskHierarchyQueryHandler,
-    TaskDependencyQueryHandler,
-    TaskDependencyCommandHandler,
     ResourceLevelingCommandHandler,
+    TaskDependencyCommandHandler,
+    TaskDependencyQueryHandler,
+    TaskHierarchyQueryHandler,
+    TaskLookupQueryHandler,
 )
-from src.core.modules.project_management.application.tasks.queries.task_detail_page import TaskDetailPageQueryHandler
+from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
+    TaskDetailPageQueryHandler,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
@@ -172,7 +178,8 @@ class ProjectManagementSchedulingDesktopApi:
         platform_calendar_api: _PlatformWorkingDaysApi | None = None,
         work_calendar_service=None,
         work_calendar_engine: CalendarProtocol | None = None,
-        baseline_service: BaselineService | None = None,
+        baseline_query: BaselineQueryHandler | None = None,
+        baseline_commands: BaselineCommandHandler | None = None,
         baseline_compare_report: BaselineCompareReportBuilder | None = None,
         project_kpi_report: ProjectKpiReportBuilder | None = None,
         change_impact_service: ScheduleChangeImpactQueryHandler | None = None,
@@ -190,7 +197,8 @@ class ProjectManagementSchedulingDesktopApi:
         self._platform_calendar_api = platform_calendar_api
         self._work_calendar_service = work_calendar_service
         self._work_calendar_engine = work_calendar_engine
-        self._baseline_service = baseline_service
+        self._baseline_query = baseline_query
+        self._baseline_commands = baseline_commands
         self._baseline_compare_report = baseline_compare_report
         self._project_kpi_report = project_kpi_report
         self._change_impact_service = change_impact_service
@@ -387,7 +395,7 @@ class ProjectManagementSchedulingDesktopApi:
             )
             task_rows = tuple(list_tasks(normalized_id))
             # Lightweight desktop test adapters may expose canonical schedule
-            # DTOs without a hierarchy query. Production TaskService uses the
+            # DTOs without a hierarchy query. The composed hierarchy query uses the
             # authorized hierarchy method above.
             hierarchy = build_hierarchy_nodes(task_rows or schedule)
 
@@ -396,7 +404,7 @@ class ProjectManagementSchedulingDesktopApi:
         baseline_tasks: tuple[BaselineTask, ...] = ()
         if baseline_id:
             baseline_tasks = tuple(
-                self._require_baseline_service().list_baseline_tasks(
+                self._require_baseline_query().list_baseline_tasks(
                     baseline_id,
                     expected_project_id=normalized_id,
                 )
@@ -436,7 +444,7 @@ class ProjectManagementSchedulingDesktopApi:
         if not normalized_baseline_id:
             raise ValueError("Select a baseline before loading its Gantt overlay.")
         scope, _project = self._require_gantt_project_scope(normalized_project_id)
-        snapshots = self._require_baseline_service().list_baseline_tasks(
+        snapshots = self._require_baseline_query().list_baseline_tasks(
             normalized_baseline_id,
             expected_project_id=normalized_project_id,
         )
@@ -473,16 +481,16 @@ class ProjectManagementSchedulingDesktopApi:
     # ── Baselines ─────────────────────────────────────────────────────────────
 
     def list_baselines(self, project_id: str) -> tuple[SchedulingBaselineOptionDescriptor, ...]:
-        return build_baseline_options((project_id or "").strip(), self._baseline_service)
+        return build_baseline_options((project_id or "").strip(), self._baseline_query)
 
     def list_baseline_rows(self, project_id: str) -> tuple[SchedulingBaselineRowDto, ...]:
-        return build_baseline_rows((project_id or "").strip(), self._baseline_service)
+        return build_baseline_rows((project_id or "").strip(), self._baseline_query)
 
     def create_baseline(self, command: SchedulingBaselineCreateCommand) -> SchedulingBaselineOptionDescriptor:
         # No baseline-effective date is supplied by the desktop command, so
         # this boundary resolves "as of" itself — never inside
-        # BaselineService (see create_baseline's `rate_as_of` docstring).
-        baseline = self._require_baseline_service().create_baseline(
+        # BaselineQueryHandler (see create_baseline's `rate_as_of` docstring).
+        baseline = self._require_baseline_commands().create_baseline(
             command.project_id, command.name, rate_as_of=date.today()  # noqa: DTZ011
         )
         return SchedulingBaselineOptionDescriptor(
@@ -490,19 +498,19 @@ class ProjectManagementSchedulingDesktopApi:
         )
 
     def submit_baseline(self, command: SchedulingBaselineSubmitCommand) -> None:
-        self._require_baseline_service().submit_baseline(command.baseline_id, command.submitted_by, command.notes)
+        self._require_baseline_commands().submit_baseline(command.baseline_id, command.submitted_by, command.notes)
 
     def approve_baseline(self, command: SchedulingBaselineApproveCommand) -> None:
-        self._require_baseline_service().approve_baseline(command.baseline_id, command.approved_by, command.notes)
+        self._require_baseline_commands().approve_baseline(command.baseline_id, command.approved_by, command.notes)
 
     def reject_baseline(self, command: SchedulingBaselineRejectCommand) -> None:
-        self._require_baseline_service().reject_baseline(command.baseline_id, command.notes)
+        self._require_baseline_commands().reject_baseline(command.baseline_id, command.notes)
 
     def delete_baseline(self, baseline_id: str) -> None:
-        self._require_baseline_service().delete_baseline(baseline_id)
+        self._require_baseline_commands().delete_baseline(baseline_id)
 
     def list_baseline_variance_records(self, baseline_id: str) -> tuple[SchedulingBaselineVarianceRowDto, ...]:
-        return build_variance_rows((baseline_id or "").strip(), self._baseline_service)
+        return build_variance_rows((baseline_id or "").strip(), self._baseline_query)
 
     def compare_baselines(
         self, *, project_id: str, baseline_a_id: str, baseline_b_id: str, include_unchanged: bool = False
@@ -645,10 +653,15 @@ class ProjectManagementSchedulingDesktopApi:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
         return self._work_calendar_engine
 
-    def _require_baseline_service(self) -> BaselineService:
-        if self._baseline_service is None:
+    def _require_baseline_query(self) -> BaselineQueryHandler:
+        if self._baseline_query is None:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
-        return self._baseline_service
+        return self._baseline_query
+
+    def _require_baseline_commands(self) -> BaselineCommandHandler:
+        if self._baseline_commands is None:
+            raise RuntimeError("Project management baselines are not connected.")
+        return self._baseline_commands
 
     def _require_baseline_compare_report(self) -> BaselineCompareReportBuilder:
         if self._baseline_compare_report is None:

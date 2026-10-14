@@ -21,10 +21,10 @@ def _setup(services, *, suffix: str):
     resource = services["resource_master_commands"].create_resource(
         f"N+1 Engineer {suffix}", hourly_rate=0, currency_code=organization.base_currency
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id, f"N+1 Task {suffix}", start_date=date(2026, 5, 1), duration_days=60
     )
-    assignment = services["task_service"].assign_resource(
+    assignment = services['task_assignment_commands'].assign_resource(
         task.id, resource.id, allocation_percent=100
     )
     return project, resource, task, assignment

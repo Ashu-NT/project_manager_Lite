@@ -26,14 +26,14 @@ def _desktop_api(services):
 
 
 def _make_overload(services, name: str):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project(name, "")
-    task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-    task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+    task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
+    task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
     resource = services["resource_master_commands"].create_resource("Desktop API Dev", "Developer", hourly_rate=100.0)
-    ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
-    ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
+    services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
+    services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
     return project, task_b, task_c
 
 
@@ -54,10 +54,10 @@ class TestPreview:
 
     def test_preview_of_a_conflict_free_project_returns_no_moves(self, services):
         api = _desktop_api(services)
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Desktop API Leveling No Conflicts", "")
-        ts.create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
+        services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
 
         dto = api.preview_resource_leveling(project.id)
 
@@ -73,7 +73,7 @@ class TestPreview:
 class TestApply:
     def test_apply_after_preview_persists_the_move_and_returns_the_refreshed_schedule(self, services):
         api = _desktop_api(services)
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task_b, task_c = _make_overload(services, "Desktop API Leveling Apply")
 
         preview = api.preview_resource_leveling(project.id)
@@ -83,12 +83,12 @@ class TestApply:
 
         schedule = api.apply_resource_leveling(project.id)
 
-        assert ts.get_task(moved_task_id).resource_leveling_not_before.isoformat() == expected_new_start
+        assert services['task_detail_query'].get_task(moved_task_id).resource_leveling_not_before.isoformat() == expected_new_start
         assert any(item.id == moved_task_id for item in schedule)
 
     def test_apply_without_a_prior_preview_raises(self, services):
         api = _desktop_api(services)
-        ps = services['project_query']
+        services['project_query']
         project = services['project_create'].create_project("Desktop API Leveling No Preview", "")
 
         with pytest.raises(ValueError):

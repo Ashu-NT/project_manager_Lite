@@ -145,7 +145,7 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
         project_service=SimpleNamespace(
             list_projects=lambda: [SimpleNamespace(id="proj-1", name="Plant Upgrade")]
         ),
-        baseline_service=SimpleNamespace(
+        baseline_query=SimpleNamespace(
             list_baselines=lambda _project_id: [
                 SimpleNamespace(
                     id="base-1",

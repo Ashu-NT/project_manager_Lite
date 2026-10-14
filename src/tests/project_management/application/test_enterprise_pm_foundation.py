@@ -94,13 +94,13 @@ def test_security_admin_can_revoke_live_user_sessions(services):
 
 def test_project_memberships_restrict_project_and_task_queries(services):
     access = services["access_service"]
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project_alpha = services['project_create'].create_project("Scoped Alpha")
     project_beta = services['project_create'].create_project("Scoped Beta")
-    task_service.create_task(project_alpha.id, "Alpha Task")
-    task_service.create_task(project_beta.id, "Beta Task")
+    services['task_lifecycle_commands'].create_task(project_alpha.id, "Alpha Task")
+    services['task_lifecycle_commands'].create_task(project_beta.id, "Beta Task")
     viewer = services["user_registration"].register_user("scoped-viewer", "StrongPass123", role_names=["viewer"])
 
     access.assign_scope_grant(
@@ -117,21 +117,21 @@ def test_project_memberships_restrict_project_and_task_queries(services):
     assert services["user_session"].is_project_restricted() is True
     assert services["user_session"].has_project_permission(project_alpha.id, "task.read") is True
     assert services["user_session"].has_project_permission(project_beta.id, "task.read") is False
-    assert [task.name for task in task_service.list_tasks_for_project(project_alpha.id)] == ["Alpha Task"]
+    assert [task.name for task in services['task_lookup_query'].list_tasks_for_project(project_alpha.id)] == ["Alpha Task"]
 
     with pytest.raises(BusinessRuleError, match="Missing scoped 'task.read' access"):
-        task_service.list_tasks_for_project(project_beta.id)
+        services['task_lookup_query'].list_tasks_for_project(project_beta.id)
 
 
 def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(services):
     access = services["access_service"]
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project_alpha = services['project_create'].create_project("Collab Alpha")
     project_beta = services['project_create'].create_project("Collab Beta")
-    task_alpha = task_service.create_task(project_alpha.id, "Alpha Task")
-    task_beta = task_service.create_task(project_beta.id, "Beta Task")
+    task_alpha = services['task_lifecycle_commands'].create_task(project_alpha.id, "Alpha Task")
+    task_beta = services['task_lifecycle_commands'].create_task(project_beta.id, "Beta Task")
     viewer = services["user_registration"].register_user("collab-viewer", "StrongPass123", role_names=["viewer"])
     beta_viewer = services["user_registration"].register_user("collab-beta-viewer", "StrongPass123", role_names=["viewer"])
 
@@ -193,7 +193,7 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
 def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(services):
     access = services["access_service"]
     project = services['project_create'].create_project("Large collaboration inbox")
-    task = services["task_service"].create_task(project.id, "High-volume review")
+    task = services['task_lifecycle_commands'].create_task(project.id, "High-volume review")
     viewer = services["user_registration"].register_user(
         "bulk-inbox-viewer",
         "StrongPass123",
@@ -253,13 +253,13 @@ def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(se
 
 def test_collaboration_recent_activity_filters_project_scope(services):
     access = services["access_service"]
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project_alpha = services['project_create'].create_project("Notifications Alpha")
     project_beta = services['project_create'].create_project("Notifications Beta")
-    task_alpha = task_service.create_task(project_alpha.id, "Alpha Delivery Task")
-    task_beta = task_service.create_task(project_beta.id, "Beta Delivery Task")
+    task_alpha = services['task_lifecycle_commands'].create_task(project_alpha.id, "Alpha Delivery Task")
+    task_beta = services['task_lifecycle_commands'].create_task(project_beta.id, "Beta Delivery Task")
     viewer = services["user_registration"].register_user("notify-viewer", "StrongPass123", role_names=["viewer"])
 
     access.assign_scope_grant(
@@ -282,7 +282,7 @@ def test_collaboration_recent_activity_filters_project_scope(services):
 
 def test_collaboration_service_tracks_active_task_presence(services):
     project = services['project_create'].create_project("Presence Project")
-    task = services["task_service"].create_task(project.id, "Presence Task")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Presence Task")
 
     assert services["collaboration_presence_query"].list_task_presence(task.id) == []
 
@@ -303,7 +303,7 @@ def test_collaboration_service_tracks_active_task_presence(services):
 
 
 def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
-    project_service = services['project_query']
+    services['project_query']
     services["resource_master_commands"].create_resource("Portfolio Analyst", hourly_rate=100.0, capacity_percent=50.0)
     project = services['project_create'].create_project("Portfolio Project")
     _approve_project_budget(services, project.id, "500")
@@ -372,7 +372,7 @@ def test_portfolio_scoring_templates_drive_new_intake_scores(services):
 
 
 def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(services):
-    project_service = services['project_query']
+    services['project_query']
     services["resource_master_commands"].create_resource("Portfolio Capacity", hourly_rate=95.0, capacity_percent=100.0)
     project_alpha = services['project_create'].create_project("Portfolio Alpha")
     project_beta = services['project_create'].create_project("Portfolio Beta")
@@ -428,19 +428,19 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
 
 
 def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(services):
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project = services['project_create'].create_project("Executive Pressure Project")
     _approve_project_budget(services, project.id, "200")
     resource = services["resource_master_commands"].create_resource("Executive Analyst", hourly_rate=100.0, capacity_percent=80.0)
-    task = task_service.create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Late Executive Task",
         start_date=date(2026, 6, 1),
         duration_days=2,
     )
-    assignment = task_service.assign_resource(task.id, resource.id, 100.0)
+    assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, 100.0)
     services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 6, 2),
@@ -466,7 +466,7 @@ def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(service
 
 
 def test_portfolio_project_dependencies_track_cross_project_links(services):
-    project_service = services['project_query']
+    services['project_query']
 
     predecessor = services['project_create'].create_project("Dependency Program Alpha")
     successor = services['project_create'].create_project("Dependency Program Beta")

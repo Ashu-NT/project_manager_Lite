@@ -50,7 +50,7 @@ def _build_dashboard_api(services):
         project_service=services['project_query'],
         project_dashboard=services["project_dashboard_query"],
         portfolio_dashboard=services["portfolio_dashboard_query"],
-        baseline_service=services["baseline_service"],
+        baseline_query=services['baseline_query'],
         earned_value_report=services["earned_value_report"],
         collaboration_inbox_query=services["collaboration_inbox_query"],
         task_workspace_query=services["task_workspace_query"],

@@ -35,10 +35,10 @@ from src.core.modules.project_management.application.scheduling import (
     CalendarProtocol,
     SchedulingEngine,
 )
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.modules.project_management.application.scheduling.baselines.queries.catalog import (
+    BaselineQueryHandler,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import TaskLookupQueryHandler
 from src.core.modules.project_management.application.timesheets import (
     TimesheetReviewQueryHandler,
     TimesheetWorkspaceCommandHandler,
@@ -139,7 +139,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.collaboration_comment_commands, CollaborationCommentCommandHandler)
     assert isinstance(graph.collaboration_inbox_query, CollaborationInboxQueryHandler)
     assert isinstance(graph.project_query, ProjectQueryHandler)
-    assert isinstance(graph.task_service, TaskService)
+    assert isinstance(graph.task_lookup_query, TaskLookupQueryHandler)
     assert isinstance(graph.timesheet_workspace_query, TimesheetWorkspaceQueryHandler)
     assert isinstance(graph.timesheet_workspace_commands, TimesheetWorkspaceCommandHandler)
     assert isinstance(graph.timesheet_review_query, TimesheetReviewQueryHandler)
@@ -152,7 +152,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.scheduling_engine, SchedulingEngine)
     assert isinstance(graph.project_kpi_report, ProjectKpiReportBuilder)
     assert isinstance(graph.earned_value_report, EarnedValueReportBuilder)
-    assert isinstance(graph.baseline_service, BaselineService)
+    assert isinstance(graph.baseline_query, BaselineQueryHandler)
     assert isinstance(graph.project_dashboard_query, ProjectDashboardQueryHandler)
     assert isinstance(graph.portfolio_dashboard_query, PortfolioDashboardQueryHandler)
     assert isinstance(graph.portfolio_intake_commands, PortfolioIntakeCommandHandler)

@@ -672,7 +672,7 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
     project = services['project_create'].create_project(
         "Schedule Change Project", financial_currency_code="USD"
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Scheduled Delivery",
         start_date=date(2026, 8, 10),
@@ -706,7 +706,7 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
     services["approval_commands"].approve_and_apply(request.id)
 
     applied = changes.get_change(change.id)
-    scheduled = services["task_service"].get_task(task.id)
+    scheduled = services['task_detail_query'].get_task(task.id)
     applied_impact = changes.list_impacts(change.id)[0]
     assert applied.status is FinancialChangeStatus.APPLIED
     assert applied.applied_schedule_count == 1
@@ -724,7 +724,7 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
     project = services['project_create'].create_project(
         "Stale Schedule Project", financial_currency_code="USD"
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Schedule Target",
         start_date=date(2026, 8, 10),
@@ -742,7 +742,7 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)
-    services["task_service"].update_task(
+    services['task_lifecycle_commands'].update_task(
         task.id,
         description="Changed after impact capture",
         expected_version=task.version,
@@ -760,10 +760,10 @@ def test_schedule_impact_rejects_summary_task_at_draft_entry(services) -> None:
     project = services['project_create'].create_project(
         "Summary Schedule Project", financial_currency_code="USD"
     )
-    summary = services["task_service"].create_task(
+    summary = services['task_lifecycle_commands'].create_task(
         project.id, "Summary Delivery"
     )
-    services["task_service"].create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id,
         "Execution Delivery",
         start_date=date(2026, 8, 10),
@@ -829,7 +829,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
 
     _login(services, "admin", "ChangeMe123!")
     project, code, budget, budget_line, *_ = _seed_approved_finance(services)
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Atomic Schedule Target",
         start_date=date(2026, 8, 10),
@@ -882,7 +882,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
     assert changes.get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
     assert services["budget_service"].get_budget(budget.id).status is BudgetStatus.APPROVED
     assert len(services["budget_service"].list_budgets_for_project(project.id)) == 1
-    rolled_back_task = services["task_service"].get_task(task.id)
+    rolled_back_task = services['task_detail_query'].get_task(task.id)
     assert rolled_back_task.start_date == date(2026, 8, 10)
     assert rolled_back_task.end_date == date(2026, 8, 13)
     assert services["approval_queries"].list_pending(project_id=project.id)[0].id == request.id

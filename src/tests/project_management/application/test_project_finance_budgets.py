@@ -616,8 +616,8 @@ def test_add_line_rejects_cross_project_task(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services, name="Home project")
     other_project = _make_project(services, name="Other project")
-    task_service = services["task_service"]
-    other_task = task_service.create_task(
+    services['task_lookup_query']
+    other_task = services['task_lifecycle_commands'].create_task(
         other_project.id, "Other Task", start_date=date(2026, 3, 1), duration_days=1
     )
 
@@ -1021,7 +1021,7 @@ def test_governed_approve_checks_staleness_before_creating_request(services, mon
 
     project = _make_project(services, name="Stale Governance Project")
     budget_service = services["budget_service"]
-    approvals = services["approval_commands"]
+    services["approval_commands"]
     budget = budget_service.create_budget(project.id, "stale-governance")
     budget = _submit_with_line(services, budget)
     stale_version = budget.row_version - 1
@@ -1111,8 +1111,8 @@ def test_transition_notes_persist_independently_across_reload(services) -> None:
 def test_totals_by_cost_code_and_by_task_match_hand_computed_sums(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    task_service = services["task_service"]
-    task = task_service.create_task(
+    services['task_lookup_query']
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "Budget Task", start_date=date(2026, 4, 1), duration_days=1
     )
     budget_service = services["budget_service"]
@@ -1196,8 +1196,8 @@ def test_line_project_scope_is_enforced_by_the_composite_fk_at_db_level(services
 def test_task_referenced_by_budget_line_cannot_be_hard_deleted(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    task_service = services["task_service"]
-    task = task_service.create_task(
+    services['task_lookup_query']
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "Restricted Task", start_date=date(2026, 5, 1), duration_days=1
     )
     budget_service = services["budget_service"]

@@ -29,7 +29,7 @@ def _impact_service(services):
         task_repo=services["task_lookup_query"]._task_repo,
         dependency_repo=services["task_dependency_diagnostics"]._dependency_repo,
         calendar=services["work_calendar_engine"],
-        baseline_lookup=services["baseline_service"],
+        baseline_lookup=services['baseline_query'],
     )
 
 
@@ -38,13 +38,13 @@ class TestUnavailableReason:
         """The exact reported scenario: parent has a start_date set, but
         is still correctly excluded from CPM because it has a child --
         the reason must say so, not the generic "needs a start date"."""
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Schedule Impact Summary Task", "")
-        parent = ts.create_task(
+        parent = services['task_lifecycle_commands'].create_task(
             project.id, "Phase 1", "", start_date=date(2024, 1, 1), duration_days=5
         )
-        ts.create_task(project.id, "Sub-task", "", parent_task_id=parent.id, duration_days=2)
+        services['task_lifecycle_commands'].create_task(project.id, "Sub-task", "", parent_task_id=parent.id, duration_days=2)
         impact = _impact_service(services)
 
         overview = impact.get_task_schedule_overview(project.id, parent.id)
@@ -53,7 +53,7 @@ class TestUnavailableReason:
         assert overview.unavailable_reason == "summary_task"
 
     def test_unknown_task_id_reports_not_found_reason(self, services):
-        ps = services['project_query']
+        services['project_query']
         project = services['project_create'].create_project("Schedule Impact Not Found", "")
         impact = _impact_service(services)
 
@@ -77,10 +77,10 @@ class TestUnavailableReason:
             CPMResult,
         )
 
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Schedule Impact No Computed Date", "")
-        task = ts.create_task(project.id, "Untouched", "", start_date=date(2024, 1, 1), duration_days=2)
+        task = services['task_lifecycle_commands'].create_task(project.id, "Untouched", "", start_date=date(2024, 1, 1), duration_days=2)
         impact = _impact_service(services)
         impact._run_cpm = lambda _calendar, _tasks_by_id, _deps: CPMResult(
             schedule={}, project_early_finish=None, critical_path_task_ids=[]
@@ -95,10 +95,10 @@ class TestUnavailableReason:
         """Regression guard: a normal leaf task with its own start_date
         must be available -- confirms the reason logic did not
         accidentally regress the common case."""
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Schedule Impact Leaf Available", "")
-        task = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+        task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         impact = _impact_service(services)
 
         overview = impact.get_task_schedule_overview(project.id, task.id)
@@ -270,13 +270,13 @@ class TestScheduleOverviewInfeasibleFlag:
     (see test_backward_cpm_constraint_matrix.py for that coverage)."""
 
     def test_snlt_ceiling_infeasible_against_a_dependency_flags_overview(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Schedule Impact Infeasible Flag", "")
-        predecessor = ts.create_task(
+        predecessor = services['task_lifecycle_commands'].create_task(
             project.id, "Foundation", "", start_date=date(2026, 9, 7), duration_days=3
         )
-        successor = ts.create_task(
+        successor = services['task_lifecycle_commands'].create_task(
             project.id,
             "Cable Pull",
             "",
@@ -285,7 +285,7 @@ class TestScheduleOverviewInfeasibleFlag:
             constraint_type="start_no_later_than",
             constraint_date=date(2026, 9, 8),  # earlier than the FS-implied start
         )
-        ts.add_dependency(
+        services['task_dependency_commands'].add_dependency(
             predecessor_id=predecessor.id,
             successor_id=successor.id,
             dependency_type=DependencyType.FINISH_TO_START,
@@ -300,10 +300,10 @@ class TestScheduleOverviewInfeasibleFlag:
         assert overview.is_infeasible is True
 
     def test_feasible_task_does_not_flag_infeasible(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Schedule Impact Feasible Flag", "")
-        task = ts.create_task(
+        task = services['task_lifecycle_commands'].create_task(
             project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2
         )
         impact = _impact_service(services)
@@ -330,13 +330,13 @@ class TestTaskScheduleImpactOverviewDesktopDtoInfeasibleRoundTrip:
         )
 
     def test_is_infeasible_true_round_trip_through_desktop_dto(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        ts = services['task_lookup_query']
         project = services['project_create'].create_project("Desktop DTO Infeasible True", "")
-        predecessor = ts.create_task(
+        predecessor = services['task_lifecycle_commands'].create_task(
             project.id, "Foundation", "", start_date=date(2026, 9, 7), duration_days=3
         )
-        successor = ts.create_task(
+        successor = services['task_lifecycle_commands'].create_task(
             project.id,
             "Cable Pull",
             "",
@@ -345,7 +345,7 @@ class TestTaskScheduleImpactOverviewDesktopDtoInfeasibleRoundTrip:
             constraint_type="start_no_later_than",
             constraint_date=date(2026, 9, 8),
         )
-        ts.add_dependency(
+        services['task_dependency_commands'].add_dependency(
             predecessor_id=predecessor.id,
             successor_id=successor.id,
             dependency_type=DependencyType.FINISH_TO_START,
@@ -360,10 +360,10 @@ class TestTaskScheduleImpactOverviewDesktopDtoInfeasibleRoundTrip:
         assert dto.is_infeasible is True
 
     def test_is_infeasible_false_round_trip_through_desktop_dto(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        ts = services['task_lookup_query']
         project = services['project_create'].create_project("Desktop DTO Infeasible False", "")
-        task = ts.create_task(
+        task = services['task_lifecycle_commands'].create_task(
             project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2
         )
         api = self._desktop_api(services, ts)
@@ -379,8 +379,8 @@ class TestTaskScheduleImpactOverviewDesktopDtoInfeasibleRoundTrip:
         than raising or defaulting to some other value -- confirmed by
         actually reading the field, not just by the DTO construction not
         crashing."""
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        ts = services['task_lookup_query']
         project = services['project_create'].create_project("Desktop DTO Infeasible Unavailable", "")
         api = self._desktop_api(services, ts)
 
@@ -400,13 +400,13 @@ class TestScheduleImpactConflictConstraintLabel:
             build_task_schedule_overview_state,
         )
 
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Schedule Impact Constraint Label", "")
-        predecessor = ts.create_task(
+        predecessor = services['task_lifecycle_commands'].create_task(
             project.id, "Foundation", "", start_date=date(2026, 9, 7), duration_days=3
         )
-        successor = ts.create_task(
+        successor = services['task_lifecycle_commands'].create_task(
             project.id,
             "Cable Pull",
             "",
@@ -418,7 +418,7 @@ class TestScheduleImpactConflictConstraintLabel:
             # fact whose constraint_type this test is verifying.
             constraint_date=date(2026, 9, 8),
         )
-        ts.add_dependency(
+        services['task_dependency_commands'].add_dependency(
             predecessor_id=predecessor.id,
             successor_id=successor.id,
             dependency_type=DependencyType.FINISH_TO_START,
@@ -454,12 +454,12 @@ class TestPreviewDeadlineConflict:
     real, reportable outcome instead of crashing."""
 
     def test_analyse_working_day_delay_reports_deadline_conflict_instead_of_raising(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Schedule Impact Deadline Conflict", "")
         # Friday start, 1-day duration, deadline only a few days out --
         # a 2 working-day delay pushes the proposed start past it.
-        task = ts.create_task(
+        task = services['task_lifecycle_commands'].create_task(
             project.id,
             "Task With Deadline",
             "",
@@ -481,10 +481,10 @@ class TestPreviewDeadlineConflict:
         assert report.affected_tasks == []
 
     def test_analyse_working_day_delay_within_deadline_is_not_blocked(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Schedule Impact Deadline OK", "")
-        task = ts.create_task(
+        task = services['task_lifecycle_commands'].create_task(
             project.id,
             "Task With Deadline",
             "",
@@ -508,10 +508,10 @@ class TestPreviewDeadlineConflict:
             ProjectManagementTasksDesktopApi,
         )
 
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         project = services['project_create'].create_project("Schedule Impact Deadline Desktop API", "")
-        task = ts.create_task(
+        task = services['task_lifecycle_commands'].create_task(
             project.id,
             "Task With Deadline",
             "",

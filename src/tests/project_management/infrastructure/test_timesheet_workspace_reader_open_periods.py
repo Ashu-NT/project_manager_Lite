@@ -31,11 +31,11 @@ def _setup_resource_with_open_periods(services, *, month_count: int):
         .get_active_organization()
         .base_currency,
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id, "Parity task", start_date=date(2026, 1, 1), duration_days=2
     )
     resource = services["resource_master_commands"].create_resource("Parity Resource")
-    assignment = services["task_service"].assign_resource(
+    assignment = services['task_assignment_commands'].assign_resource(
         task.id, resource.id, allocation_percent=50.0
     )
     for month in range(1, month_count + 1):

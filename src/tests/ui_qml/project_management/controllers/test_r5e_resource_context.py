@@ -31,8 +31,8 @@ from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
 def _seed_resource_context(services):
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     services["project_resource_query"]
 
     resource = services["resource_master_commands"].create_resource("R5E Planner", role="Planner")
@@ -56,7 +56,7 @@ def _seed_resource_context(services):
     zulu_resource = services["project_resource_commands"].add_to_project(
         zulu.id, resource.id, planned_hours=Decimal(80)
     )
-    alpha_task = task_service.create_task(
+    alpha_task = services['task_lifecycle_commands'].create_task(
         alpha.id,
         "Alpha planning",
         code="R5E-A-TASK",
@@ -64,20 +64,20 @@ def _seed_resource_context(services):
         duration_days=4,
         status=TaskStatus.IN_PROGRESS,
     )
-    zulu_task = task_service.create_task(
+    zulu_task = services['task_lifecycle_commands'].create_task(
         zulu.id,
         "Zulu planning",
         code="R5E-Z-TASK",
         start_date=date(2026, 9, 10),
         duration_days=4,
     )
-    alpha_assignment = task_service.assign_project_resource(
+    alpha_assignment = services['task_assignment_commands'].assign_project_resource(
         alpha_task.id,
         alpha_resource.id,
         allocation_percent=50,
         allocated_planned_hours=Decimal(40),
     )
-    zulu_assignment = task_service.assign_project_resource(
+    zulu_assignment = services['task_assignment_commands'].assign_project_resource(
         zulu_task.id,
         zulu_resource.id,
         allocation_percent=25,

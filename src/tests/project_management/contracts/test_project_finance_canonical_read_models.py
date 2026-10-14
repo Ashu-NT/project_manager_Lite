@@ -506,10 +506,10 @@ def test_r6h_reporting_kpi_uses_the_requested_financial_as_of_date(services) -> 
 def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> None:
     project, *_ = _approved_controls(services)
     foreign = services['project_create'].create_project("Foreign baseline owner")
-    services["task_service"].create_task(
+    services['task_lifecycle_commands'].create_task(
         foreign.id, "Foreign task", start_date=date(2026, 8, 3), duration_days=2,
     )
-    baseline = services["baseline_service"].create_baseline(
+    baseline = services['baseline_commands'].create_baseline(
         foreign.id, "Foreign baseline", rate_as_of=date(2026, 8, 1),
     )
     for query in (
@@ -525,18 +525,18 @@ def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> No
             project.id, selected_baseline_id=baseline.id,
         )
     with pytest.raises(NotFoundError):
-        services["baseline_service"].list_variance_records(
+        services['baseline_query'].list_variance_records(
             baseline.id, expected_project_id=project.id,
         )
 
 
 def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) -> None:
     project, _budget, _forecast, _entry, _code = _approved_controls(services)
-    tasks = services["task_service"]
-    first = tasks.create_task(project.id, "Baseline task one", start_date=date(2026, 8, 3), duration_days=3)
-    second = tasks.create_task(project.id, "Baseline task two", start_date=date(2026, 8, 6), duration_days=2)
-    baselines = services["baseline_service"]
-    baseline = baselines.create_baseline(project.id, "Cost-loaded control", rate_as_of=date(2026, 8, 1))
+    services['task_lookup_query']
+    first = services['task_lifecycle_commands'].create_task(project.id, "Baseline task one", start_date=date(2026, 8, 3), duration_days=3)
+    second = services['task_lifecycle_commands'].create_task(project.id, "Baseline task two", start_date=date(2026, 8, 6), duration_days=2)
+    baselines = services['baseline_query']
+    baseline = services['baseline_commands'].create_baseline(project.id, "Cost-loaded control", rate_as_of=date(2026, 8, 1))
     session = services["session"]
     rows = session.execute(
         select(BaselineTaskORM).where(BaselineTaskORM.baseline_id == baseline.id)
@@ -545,12 +545,12 @@ def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) 
     for row in rows:
         row.baseline_planned_cost = Decimal(60 if row.task_id == first.id else 40)
     session.commit()
-    baselines.submit_baseline(baseline.id, submitted_by="admin")
-    baselines.approve_baseline(baseline.id, approved_by="admin")
+    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
+    services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
     with pytest.raises(NotFoundError):
-        baselines.list_variance_records(baseline.id, expected_project_id="other-project")
-    tasks.update_progress(first.id, percent_complete=50)
-    tasks.update_progress(second.id, percent_complete=25)
+        services['baseline_query'].list_variance_records(baseline.id, expected_project_id="other-project")
+    services['task_progress_commands'].update_progress(first.id, percent_complete=50)
+    services['task_progress_commands'].update_progress(second.id, percent_complete=25)
 
     as_of = date(2026, 8, 31)
     performance = services["finance_performance_query"]

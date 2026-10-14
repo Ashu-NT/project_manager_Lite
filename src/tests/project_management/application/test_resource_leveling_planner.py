@@ -16,7 +16,7 @@ from src.core.modules.project_management.domain.tasks.hierarchy import select_le
 
 
 def _snapshot(services, project_id):
-    ts = services["task_service"]
+    ts = services['task_lookup_query']
     tasks = select_leaf_tasks(ts._task_repo.list_by_project(project_id))
     tasks_by_id = {t.id: t for t in tasks}
     assignments = ts._assignment_repo.list_by_tasks([t.id for t in tasks]) if tasks else []
@@ -26,16 +26,16 @@ def _snapshot(services, project_id):
 
 class TestBasicOverloadResolution:
     def test_single_overload_between_two_independent_tasks_is_resolved(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner Single Overload", "")
-        task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-        task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+        task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
+        task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("Overload Dev", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
-        ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
         tasks_by_id, assignments, deps = _snapshot(services, project.id)
         planner = ResourceLevelingPlanner(calendar)
@@ -53,12 +53,12 @@ class TestBasicOverloadResolution:
         assert len(proposal.moves) >= 1
 
     def test_no_conflicts_produces_an_empty_feasible_proposal(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner No Conflicts", "")
-        ts.create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
+        services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
 
         tasks_by_id, assignments, deps = _snapshot(services, project.id)
         planner = ResourceLevelingPlanner(calendar)
@@ -80,20 +80,20 @@ class TestPreviewNeverPersists:
         """K1: preview must not update Task, increment versions, or
         commit -- confirmed by re-reading the task from the repository
         after building a proposal and asserting nothing changed."""
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner No Persist", "")
-        task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-        task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+        task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
+        task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("No Persist Dev", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
-        ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
-        before_version = ts.get_task(task_b.id).version
-        before_start = ts.get_task(task_b.id).start_date
-        before_floor = ts.get_task(task_b.id).resource_leveling_not_before
+        before_version = services['task_detail_query'].get_task(task_b.id).version
+        before_start = services['task_detail_query'].get_task(task_b.id).start_date
+        before_floor = services['task_detail_query'].get_task(task_b.id).resource_leveling_not_before
 
         tasks_by_id, assignments, deps = _snapshot(services, project.id)
         planner = ResourceLevelingPlanner(calendar)
@@ -106,7 +106,7 @@ class TestPreviewNeverPersists:
         )
         assert len(proposal.moves) >= 1  # setup precondition: a move was actually proposed
 
-        after = ts.get_task(task_b.id)
+        after = services['task_detail_query'].get_task(task_b.id)
         assert after.version == before_version
         assert after.start_date == before_start
         assert after.resource_leveling_not_before == before_floor
@@ -124,22 +124,22 @@ class TestDependencyAwarePropagation:
         (prefer moving a non-critical, positive-float task first) would
         legitimately choose it instead of task_a, which is the more
         interesting case for THIS test but not what it's checking."""
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner Propagation", "")
-        task_a = ts.create_task(project.id, "Task A (overloaded)", start_date=date(2026, 9, 7), duration_days=3)
-        task_other = ts.create_task(
+        task_a = services['task_lifecycle_commands'].create_task(project.id, "Task A (overloaded)", start_date=date(2026, 9, 7), duration_days=3)
+        task_other = services['task_lifecycle_commands'].create_task(
             project.id, "Task Other", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
         )
-        task_b = ts.create_task(project.id, "Task B (successor)", duration_days=2)
-        ts.add_dependency(task_a.id, task_b.id, DependencyType.FINISH_TO_START, lag_days=0)
+        task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B (successor)", duration_days=2)
+        services['task_dependency_commands'].add_dependency(task_a.id, task_b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
         resource = services["resource_master_commands"].create_resource("Propagation Dev", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_a.id, resource.id, allocation_percent=70.0)
-        ts.assign_resource(task_other.id, resource.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_a.id, resource.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_other.id, resource.id, allocation_percent=60.0)
 
         tasks_by_id, assignments, deps = _snapshot(services, project.id)
         planner = ResourceLevelingPlanner(calendar)
@@ -169,19 +169,19 @@ class TestDependencyAwarePropagation:
 
 class TestMovabilityRespectedByPlanner:
     def test_must_start_on_task_is_never_moved_another_candidate_is_used_instead(self, services):
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner MSO Respected", "")
-        task_pinned = ts.create_task(
+        task_pinned = services['task_lifecycle_commands'].create_task(
             project.id, "Pinned Task", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
         )
-        task_flexible = ts.create_task(project.id, "Flexible Task", start_date=date(2026, 9, 7), duration_days=3)
+        task_flexible = services['task_lifecycle_commands'].create_task(project.id, "Flexible Task", start_date=date(2026, 9, 7), duration_days=3)
         resource = services["resource_master_commands"].create_resource("MSO Dev", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_pinned.id, resource.id, allocation_percent=70.0)
-        ts.assign_resource(task_flexible.id, resource.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_pinned.id, resource.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_flexible.id, resource.id, allocation_percent=60.0)
 
         tasks_by_id, assignments, deps = _snapshot(services, project.id)
         planner = ResourceLevelingPlanner(calendar)
@@ -204,22 +204,22 @@ class TestUnresolvedConflictWhenNoLegalMoveExists:
         """R4.4G1/I2/T: when every candidate on an overloaded resource is
         an exact pin, the planner must surface an explicit unresolved
         conflict, never silently claim success."""
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner Unresolved", "")
-        task_1 = ts.create_task(
+        task_1 = services['task_lifecycle_commands'].create_task(
             project.id, "Pinned One", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
         )
-        task_2 = ts.create_task(
+        task_2 = services['task_lifecycle_commands'].create_task(
             project.id, "Pinned Two", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
         )
         resource = services["resource_master_commands"].create_resource("Unresolved Dev", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_1.id, resource.id, allocation_percent=70.0)
-        ts.assign_resource(task_2.id, resource.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_1.id, resource.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_2.id, resource.id, allocation_percent=60.0)
 
         tasks_by_id, assignments, deps = _snapshot(services, project.id)
         planner = ResourceLevelingPlanner(calendar)
@@ -244,21 +244,21 @@ class TestMultiResourceTaskCandidatePlacement:
         must not "resolve" that by shifting task_multi onto a date that
         is clear for Resource X but collides with task_y on Resource Y,
         which task_multi is also assigned to."""
-        ps = services['project_query']
-        ts = services["task_service"]
+        services['project_query']
+        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner Multi-Resource", "")
-        task_x = ts.create_task(project.id, "Task X", start_date=date(2026, 9, 7), duration_days=3)
-        task_multi = ts.create_task(project.id, "Task Multi", start_date=date(2026, 9, 7), duration_days=3)
-        task_y = ts.create_task(project.id, "Task Y", start_date=date(2026, 9, 14), duration_days=3)
+        task_x = services['task_lifecycle_commands'].create_task(project.id, "Task X", start_date=date(2026, 9, 7), duration_days=3)
+        task_multi = services['task_lifecycle_commands'].create_task(project.id, "Task Multi", start_date=date(2026, 9, 7), duration_days=3)
+        task_y = services['task_lifecycle_commands'].create_task(project.id, "Task Y", start_date=date(2026, 9, 14), duration_days=3)
 
         resource_x = services["resource_master_commands"].create_resource("Resource X", "Developer", hourly_rate=100.0)
         resource_y = services["resource_master_commands"].create_resource("Resource Y", "Developer", hourly_rate=100.0)
-        ts.assign_resource(task_x.id, resource_x.id, allocation_percent=70.0)
-        ts.assign_resource(task_multi.id, resource_x.id, allocation_percent=60.0)
-        ts.assign_resource(task_multi.id, resource_y.id, allocation_percent=60.0)
-        ts.assign_resource(task_y.id, resource_y.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_x.id, resource_x.id, allocation_percent=70.0)
+        services['task_assignment_commands'].assign_resource(task_multi.id, resource_x.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_multi.id, resource_y.id, allocation_percent=60.0)
+        services['task_assignment_commands'].assign_resource(task_y.id, resource_y.id, allocation_percent=70.0)
 
         tasks_by_id, assignments, deps = _snapshot(services, project.id)
         planner = ResourceLevelingPlanner(calendar)

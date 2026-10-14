@@ -52,7 +52,7 @@ def _seed_changes(services):
         code="R6B-CHANGE", name="Governed change"
     )
     _approve_finance_bases(services, project.id, code.id)
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Commission changed scope",
         start_date=date(2026, 9, 1),

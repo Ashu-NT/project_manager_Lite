@@ -57,7 +57,7 @@ def _seed_single_project_workspace(services):
         end_date=today + timedelta(days=30),
         financial_currency_code="EUR",
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Workspace Performance Task",
         start_date=today,
@@ -77,7 +77,7 @@ def _seed_single_project_workspace(services):
         hourly_rate=80.0,
         currency_code="EUR",
     )
-    services["task_service"].assign_project_resource(
+    services['task_assignment_commands'].assign_project_resource(
         task_id=task.id,
         project_resource_id=project_resource.id,
         allocation_percent=50.0,
@@ -147,7 +147,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
     cost_reports = services["cost_breakdown_report"]
     resources = services["resource_query"]
     registers = services["register_query"]
-    baselines = services["baseline_service"]
+    baselines = services['baseline_query']
     collaboration = services["collaboration_inbox_query"]
     approvals = services["approval_queries"]
     portfolio_templates = services["portfolio_template_query"]
@@ -162,7 +162,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
         project_service=services['project_query'],
         project_dashboard=dashboard,
         portfolio_dashboard=services["portfolio_dashboard_query"],
-        baseline_service=baselines,
+        baseline_query=baselines,
         earned_value_report=earned_value,
         collaboration_inbox_query=collaboration,
         approval_queries=approvals,
@@ -276,7 +276,7 @@ def test_dashboard_portfolio_scope_batches_shared_lookups_once_per_project(
             end_date=today + timedelta(days=30),
             financial_currency_code="EUR",
         )
-        services["task_service"].create_task(
+        services['task_lifecycle_commands'].create_task(
             project.id,
             f"Portfolio Scale Task {index}",
             start_date=today,

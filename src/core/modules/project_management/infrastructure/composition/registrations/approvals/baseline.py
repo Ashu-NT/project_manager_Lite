@@ -4,8 +4,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.modules.project_management.application.scheduling.baselines.commands.lifecycle import (
+    BaselineCommandHandler,
 )
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import (
     SchedulingEngine,
@@ -63,7 +63,7 @@ def build_baseline_approval_deps(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
-    baseline_service = BaselineService(
+    baseline_commands = BaselineCommandHandler(
         session=session,
         project_repo=project_repo,
         task_repo=task_repo,
@@ -77,7 +77,7 @@ def build_baseline_approval_deps(
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
     )
-    return BaselineApprovalDeps(baseline_service=baseline_service)
+    return BaselineApprovalDeps(baseline_commands=baseline_commands)
 
 
 __all__ = ["build_baseline_approval_deps"]

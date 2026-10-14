@@ -49,8 +49,8 @@ def test_task_wbs_migration_is_independent_and_reversible() -> None:
 def test_desktop_bulk_mutations_use_canonical_atomic_task_commands() -> None:
     source = TASK_DESKTOP_API.read_text(encoding="utf-8")
 
-    assert "service.set_tasks_status(" in source
-    assert "service.delete_tasks(" in source
+    assert "self._require_task_capability(self._task_progress_commands).set_tasks_status(" in source
+    assert "self._require_task_capability(self._task_deletion_commands).delete_tasks(" in source
     assert 'getattr(service, "set_tasks_status"' not in source
     assert 'getattr(service, "delete_tasks"' not in source
 

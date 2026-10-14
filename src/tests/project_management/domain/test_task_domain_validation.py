@@ -224,18 +224,18 @@ def test_task_dependency_dto_rejects_self_dependency():
 
 
 def test_task_service_update_validates_final_state_and_persists_code(services):
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project = services['project_create'].create_project("Task DTO Service", "")
-    task = task_service.create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Task Validation",
         start_date=date(2026, 7, 6),
         duration_days=2,
     )
 
-    updated = task_service.update_task(
+    updated = services['task_lifecycle_commands'].update_task(
         task.id,
         expected_version=task.version,
         start_date=date(2026, 7, 13),
@@ -247,20 +247,20 @@ def test_task_service_update_validates_final_state_and_persists_code(services):
     assert updated.end_date == date(2026, 7, 16)
     assert updated.code == "TSK-REN-1"
 
-    reloaded = task_service.get_task(task.id)
+    reloaded = services['task_detail_query'].get_task(task.id)
     assert reloaded is not None
     assert reloaded.code == "TSK-REN-1"
 
 
 def test_task_service_progress_update_uses_final_state_validation(services):
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project = services['project_create'].create_project("Task Progress DTO", "")
-    task = task_service.create_task(project.id, "Progress Task", duration_days=1)
+    task = services['task_lifecycle_commands'].create_task(project.id, "Progress Task", duration_days=1)
 
     with pytest.raises(ValidationError) as exc:
-        task_service.update_progress(
+        services['task_progress_commands'].update_progress(
             task.id,
             actual_start=date(2026, 7, 10),
             actual_end=date(2026, 7, 9),

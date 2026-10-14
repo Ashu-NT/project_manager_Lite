@@ -162,7 +162,22 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
         ),
         work_calendar_service=_FakeWorkCalendarService(),
         work_calendar_engine=_FakeWorkCalendarEngine(),
-        baseline_service=_FakeBaselineService(
+        baseline_query=_FakeBaselineService(
+            {
+                "proj-1": [
+                    _approved_baseline(
+                        "base-2",
+                        "Weekly Freeze",
+                        date(2026, 5, 7),
+                    ),
+                    _approved_baseline(
+                        "base-1",
+                        "Original Plan",
+                        date(2026, 5, 1),
+                    ),
+                ]
+            }
+        ), baseline_commands=_FakeBaselineService(
             {
                 "proj-1": [
                     _approved_baseline(

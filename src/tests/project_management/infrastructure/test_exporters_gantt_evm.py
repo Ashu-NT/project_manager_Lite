@@ -16,12 +16,12 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, monkeypatch):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     project = services['project_create'].create_project("Gantt One Day", "")
     pid = project.id
-    ts.create_task(pid, "One Day Task", start_date=date(2023, 11, 6), duration_days=1)
+    services['task_lifecycle_commands'].create_task(pid, "One Day Task", start_date=date(2023, 11, 6), duration_days=1)
 
     widths = []
     original_barh = Axes.barh
@@ -42,11 +42,11 @@ def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, m
 
 
 def test_gantt_render_uses_day_cell_alignment_for_inclusive_finish(services, tmp_path, monkeypatch):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Gantt Day Cell Alignment", "")
     pid = project.id
-    task = ts.create_task(pid, "Aligned Task", start_date=date(2023, 11, 6), duration_days=3)
+    task = services['task_lifecycle_commands'].create_task(pid, "Aligned Task", start_date=date(2023, 11, 6), duration_days=3)
 
     calls = []
     original_barh = Axes.barh

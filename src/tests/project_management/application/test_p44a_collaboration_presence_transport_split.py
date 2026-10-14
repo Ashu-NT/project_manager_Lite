@@ -33,7 +33,7 @@ def _durable_comment_hints(hints):
 
 def _setup(services):
     project = services['project_create'].create_project("P44A collaboration project")
-    task = services["task_service"].create_task(project.id, "P44A collaboration task")
+    task = services['task_lifecycle_commands'].create_task(project.id, "P44A collaboration task")
     return project, task
 
 

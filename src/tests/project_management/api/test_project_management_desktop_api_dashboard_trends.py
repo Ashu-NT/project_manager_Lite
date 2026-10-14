@@ -16,7 +16,7 @@ def test_project_management_dashboard_desktop_api_uses_real_period_labels_for_tr
         project_service=SimpleNamespace(
             list_projects=lambda: [SimpleNamespace(id="proj-1", name="Plant Upgrade")]
         ),
-        baseline_service=SimpleNamespace(
+        baseline_query=SimpleNamespace(
             list_baselines=lambda _project_id: [
                 SimpleNamespace(
                     id="base-1",
@@ -117,7 +117,7 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
         project_service=SimpleNamespace(
             list_projects=lambda: [SimpleNamespace(id="proj-1", name="Plant Upgrade")]
         ),
-        baseline_service=SimpleNamespace(list_baselines=lambda _project_id: []),
+        baseline_query=SimpleNamespace(list_baselines=lambda _project_id: []),
         project_dashboard=(_dashboard := SimpleNamespace(
             get_dashboard_data=lambda project_id, baseline_id=None, include_evm=True: SimpleNamespace(
                 kpi=SimpleNamespace(

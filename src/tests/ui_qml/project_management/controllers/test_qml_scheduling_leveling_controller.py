@@ -37,14 +37,14 @@ def _controller(qapp, services):
 
 
 def _make_overload(services, name: str):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project(name, "")
-    task_b = ts.create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-    task_c = ts.create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+    task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
+    task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
     resource = services["resource_master_commands"].create_resource("Controller Dev", "Developer", hourly_rate=100.0)
-    ts.assign_resource(task_b.id, resource.id, allocation_percent=70.0)
-    ts.assign_resource(task_c.id, resource.id, allocation_percent=60.0)
+    services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
+    services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
     return project, task_b, task_c
 
 
@@ -69,7 +69,7 @@ def test_preview_resource_leveling_populates_the_proposal_and_move_rows(qapp, se
 
 
 def test_apply_resource_leveling_persists_and_resets_the_pending_proposal(qapp, services):
-    ts = services["task_service"]
+    services['task_lookup_query']
     ctrl = _controller(qapp, services)
     project, task_b, task_c = _make_overload(services, "Controller Leveling Apply")
     ctrl.selectProject(project.id)
@@ -79,7 +79,7 @@ def test_apply_resource_leveling_persists_and_resets_the_pending_proposal(qapp, 
     result = ctrl.applyResourceLeveling()
 
     assert result["ok"] is True
-    assert ts.get_task(moved_task_id).resource_leveling_not_before is not None
+    assert services['task_detail_query'].get_task(moved_task_id).resource_leveling_not_before is not None
     # Applied proposal is consumed -- the pending preview state resets so
     # a stale set of moves can never be silently re-applied.
     assert ctrl.levelingProposal["hasPreview"] is False
@@ -88,7 +88,7 @@ def test_apply_resource_leveling_persists_and_resets_the_pending_proposal(qapp, 
 
 def test_apply_without_a_prior_preview_reports_an_error_not_a_crash(qapp, services):
     ctrl = _controller(qapp, services)
-    ps = services['project_query']
+    services['project_query']
     project = services['project_create'].create_project("Controller Leveling No Preview", "")
     ctrl.selectProject(project.id)
 

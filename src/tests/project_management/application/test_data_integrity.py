@@ -293,15 +293,15 @@ def test_baseline_snapshot_of_deleted_task_is_not_flagged(session):
 
 # ── service-level guard (friendly error before the DB constraint fires) ──────
 def test_assign_resource_twice_raises_assignment_duplicate(services):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Dup Assign", "")
-    task = ts.create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2)
+    task = services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2)
     resource = services["resource_master_commands"].create_resource("Dup Dev", "Developer", hourly_rate=100.0)
 
-    ts.assign_resource(task.id, resource.id, allocation_percent=50.0)
+    services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=50.0)
     with pytest.raises(ValidationError) as exc:
-        ts.assign_resource(task.id, resource.id, allocation_percent=20.0)
+        services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=20.0)
     assert exc.value.code == "ASSIGNMENT_DUPLICATE"
 
 

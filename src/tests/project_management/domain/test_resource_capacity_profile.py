@@ -83,30 +83,30 @@ def test_assignment_overallocation_uses_resource_capacity(services):
     112.5% of effective capacity) is genuinely over -- proving
     Resource.capacity_percent is actually applied by the calendar-based
     capacity authority (docs §44), not just carried as inert metadata."""
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Capacity Allocation Rules", "")
-    t1 = ts.create_task(project.id, "Task One", start_date=date(2024, 1, 2), duration_days=2)
-    t2 = ts.create_task(project.id, "Task Two", start_date=date(2024, 1, 2), duration_days=2)
+    t1 = services['task_lifecycle_commands'].create_task(project.id, "Task One", start_date=date(2024, 1, 2), duration_days=2)
+    t2 = services['task_lifecycle_commands'].create_task(project.id, "Task Two", start_date=date(2024, 1, 2), duration_days=2)
     resource = services["resource_master_commands"].create_resource("Capacity Dev", "Developer", capacity_percent=80.0)
 
-    ts.assign_resource(t1.id, resource.id, allocation_percent=60.0)
-    ts.assign_resource(t2.id, resource.id, allocation_percent=30.0)
-    warning = ts.consume_last_overallocation_warning()
+    services['task_assignment_commands'].assign_resource(t1.id, resource.id, allocation_percent=60.0)
+    services['task_assignment_commands'].assign_resource(t2.id, resource.id, allocation_percent=30.0)
+    warning = services['task_assignment_commands'].consume_last_overallocation_warning()
     assert warning is not None
     assert "112.5%" in warning
 
 
 def test_resource_load_summary_reports_capacity_and_utilization(services):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Capacity Load Summary", "")
-    t1 = ts.create_task(project.id, "Task A", start_date=date(2024, 1, 2), duration_days=2)
-    t2 = ts.create_task(project.id, "Task B", start_date=date(2024, 1, 2), duration_days=2)
+    t1 = services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 2), duration_days=2)
+    t2 = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2024, 1, 2), duration_days=2)
     resource = services["resource_master_commands"].create_resource("Load Resource", "Dev", capacity_percent=80.0)
 
-    ts.assign_resource(t1.id, resource.id, allocation_percent=50.0)
-    ts.assign_resource(t2.id, resource.id, allocation_percent=30.0)
+    services['task_assignment_commands'].assign_resource(t1.id, resource.id, allocation_percent=50.0)
+    services['task_assignment_commands'].assign_resource(t2.id, resource.id, allocation_percent=30.0)
 
     rows = services["project_kpi_report"].get_resource_load_summary(project.id)
     row = next(r for r in rows if r.resource_id == resource.id)
@@ -116,15 +116,15 @@ def test_resource_load_summary_reports_capacity_and_utilization(services):
 
 
 def test_resource_load_summary_uses_peak_concurrent_allocation(services):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Peak Resource Load", "")
-    t1 = ts.create_task(project.id, "Seq A", start_date=date(2024, 1, 2), duration_days=2)
-    t2 = ts.create_task(project.id, "Seq B", start_date=date(2024, 1, 8), duration_days=2)
+    t1 = services['task_lifecycle_commands'].create_task(project.id, "Seq A", start_date=date(2024, 1, 2), duration_days=2)
+    t2 = services['task_lifecycle_commands'].create_task(project.id, "Seq B", start_date=date(2024, 1, 8), duration_days=2)
     resource = services["resource_master_commands"].create_resource("Peak Dev", "Dev", capacity_percent=100.0)
 
-    ts.assign_resource(t1.id, resource.id, allocation_percent=60.0)
-    ts.assign_resource(t2.id, resource.id, allocation_percent=60.0)
+    services['task_assignment_commands'].assign_resource(t1.id, resource.id, allocation_percent=60.0)
+    services['task_assignment_commands'].assign_resource(t2.id, resource.id, allocation_percent=60.0)
 
     rows = services["project_kpi_report"].get_resource_load_summary(project.id)
     row = next(r for r in rows if r.resource_id == resource.id)
@@ -133,15 +133,15 @@ def test_resource_load_summary_uses_peak_concurrent_allocation(services):
 
 
 def test_resource_load_summary_batches_resource_lookup(services, monkeypatch):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     reporting = services["project_kpi_report"]
 
     project = services['project_create'].create_project("Batched Resource Load", "")
-    task = ts.create_task(project.id, "Work", start_date=date(2024, 1, 2), duration_days=2)
+    task = services['task_lifecycle_commands'].create_task(project.id, "Work", start_date=date(2024, 1, 2), duration_days=2)
     resources = [services["resource_master_commands"].create_resource(f"Batch {index}", "Dev") for index in range(2)]
     for resource in resources:
-        ts.assign_resource(task.id, resource.id, allocation_percent=25.0)
+        services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=25.0)
 
     repository = reporting._resource_repo
     original_list_by_ids = repository.list_by_ids

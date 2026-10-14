@@ -7,7 +7,7 @@ instead of the legacy working_calendars table.
 
 Used for:
   - Services that need a calendar without knowing the specific project/resource context
-    (DashboardService, BaselineService, PortfolioResourcePoolQueryHandler, ReportingService)
+    (DashboardService, BaselineQueryHandler, PortfolioResourcePoolQueryHandler, ReportingService)
   - The scheduling engine's _base_calendar (falls back here when no enterprise calendar
     bootstrapped and BoundProjectCalendar returns None)
 

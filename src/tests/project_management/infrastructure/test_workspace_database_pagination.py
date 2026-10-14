@@ -33,7 +33,7 @@ from src.core.platform.application.master_data.site.dto import (
 
 
 def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
-    project_service = services['project_query']
+    services['project_query']
     alpha = services['project_create'].create_project("Alpha Delivery", client_name="Northwind")
     beta = services['project_create'].create_project("Beta Upgrade", client_name="Contoso")
     services['project_status'].set_status(beta.id, ProjectStatus.ACTIVE)
@@ -57,10 +57,10 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
 
 
 def test_project_and_task_detail_activity_decode_canonical_payloads(services) -> None:
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Activity Contract Project")
-    task = task_service.create_task(project.id, "Activity Contract Task")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Activity Contract Task")
 
     project_activity = services["project_query"].query_project_activity_page(
         project.id,
@@ -80,7 +80,7 @@ def test_project_and_task_detail_activity_decode_canonical_payloads(services) ->
 
 
 def test_project_catalog_site_department_manager_and_date_filters_compose(services) -> None:
-    project_service = services['project_query']
+    services['project_query']
     # A real FK-valid user id (manager_user_id references users.id) -- the
     # admin principal authenticated by the `services` fixture.
     manager_id = services["user_session"].principal.user_id
@@ -174,7 +174,7 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
 
 
 def test_project_resource_activity_is_queryable_by_parent_project_id(services) -> None:
-    project_service = services['project_query']
+    services['project_query']
     services["project_resource_query"]
     activity_service = services["activity_service"]
 
@@ -224,7 +224,7 @@ def test_project_resource_activity_is_queryable_by_parent_project_id(services) -
 
 
 def test_project_catalog_project_name_and_client_name_filters_compose(services) -> None:
-    project_service = services['project_query']
+    services['project_query']
     site_a = services["site_commands"].create_site(SiteCreateCommand(site_code="SITE-N1", name="Name Filter Site"))
 
     hamburg = services['project_create'].create_project(
@@ -256,7 +256,7 @@ def test_project_catalog_project_name_and_client_name_filters_compose(services) 
 
 
 def test_project_department_id_round_trips_through_create_and_update(services) -> None:
-    project_service = services['project_query']
+    services['project_query']
 
     dept_a = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-RT-A", name="Engineering"))
     dept_b = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-RT-B", name="Operations"))
@@ -281,7 +281,7 @@ def test_project_update_records_actor_and_field_level_activity_diff(services) ->
     recorded activity entry must carry both who made the change (actor_id,
     resolved from the authenticated principal) and a before/after diff for
     every field that actually changed -- not just the final snapshot."""
-    project_service = services['project_query']
+    services['project_query']
     activity_service = services["activity_service"]
     actor_id = services["user_session"].principal.user_id
 
@@ -313,7 +313,7 @@ def test_project_update_records_actor_and_field_level_activity_diff(services) ->
 
 
 def test_project_set_status_records_before_and_after_status(services) -> None:
-    project_service = services['project_query']
+    services['project_query']
     activity_service = services["activity_service"]
 
     created = services['project_create'].create_project("Status Diff Project", status=ProjectStatus.PLANNED)
@@ -326,7 +326,7 @@ def test_project_set_status_records_before_and_after_status(services) -> None:
 
 
 def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
-    project_service = services['project_query']
+    services['project_query']
     alpha = services['project_create'].create_project("Alpha Sort")
     beta = services['project_create'].create_project("Beta Sort")
     gamma = services['project_create'].create_project("Gamma Sort")
@@ -364,10 +364,10 @@ def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
 
 
 def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -> None:
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("WBS Database Paging")
-    root = task_service.create_task(
+    root = services['task_lifecycle_commands'].create_task(
         project.id,
         "Summary Delivery",
         start_date=date(2026, 5, 1),
@@ -375,7 +375,7 @@ def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -
         status=TaskStatus.TODO,
         wbs_code="1",
     )
-    child = task_service.create_task(
+    child = services['task_lifecycle_commands'].create_task(
         project.id,
         "Blocked Work Package",
         start_date=date(2026, 5, 2),
@@ -419,13 +419,13 @@ def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -
 
 
 def test_task_workspace_milestones_only_filter(services) -> None:
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Milestone Filter Project")
-    task_service.create_task(
+    services['task_lifecycle_commands'].create_task(
         project.id, "Regular Task", start_date=date(2026, 5, 1), duration_days=5
     )
-    milestone = task_service.create_task(
+    milestone = services['task_lifecycle_commands'].create_task(
         project.id, "Handover", start_date=date(2026, 5, 5), duration_days=5, is_milestone=True
     )
 
@@ -443,10 +443,10 @@ def test_task_workspace_milestones_only_filter(services) -> None:
 
 def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
     project = services['project_create'].create_project("Task Sort Project")
-    task_service = services["task_service"]
-    alpha = task_service.create_task(project.id, "Alpha Task", wbs_code="1")
-    beta = task_service.create_task(project.id, "Beta Task", wbs_code="2")
-    gamma = task_service.create_task(project.id, "Gamma Task", wbs_code="3")
+    services['task_lookup_query']
+    alpha = services['task_lifecycle_commands'].create_task(project.id, "Alpha Task", wbs_code="1")
+    beta = services['task_lifecycle_commands'].create_task(project.id, "Beta Task", wbs_code="2")
+    gamma = services['task_lifecycle_commands'].create_task(project.id, "Gamma Task", wbs_code="3")
 
     ascending_first = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
@@ -728,7 +728,7 @@ def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
 
 def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> None:
     project = services['project_create'].create_project("Timesheet Database Paging")
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Database review task",
         start_date=date(2026, 6, 1),
@@ -738,7 +738,7 @@ def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> No
         name="Database Reviewer",
         role="Engineer",
     )
-    assignment = services["task_service"].assign_resource(
+    assignment = services['task_assignment_commands'].assign_resource(
         task.id,
         resource.id,
         allocation_percent=100.0,
@@ -767,8 +767,8 @@ def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> No
 
 
 def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None:
-    project_service = services['project_query']
-    task_service = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     alpha_project = services['project_create'].create_project("Alpha Review Project")
     beta_project = services['project_create'].create_project("Beta Review Project")
 
@@ -778,9 +778,9 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
         ("Maya Reviewer", alpha_project, 7),
         ("Zoe Reviewer", beta_project, 8),
     ):
-        task = task_service.create_task(project.id, f"{name} Task")
+        task = services['task_lifecycle_commands'].create_task(project.id, f"{name} Task")
         resource = services["resource_master_commands"].create_resource(name=name, role="Engineer")
-        assignment = task_service.assign_resource(task.id, resource.id)
+        assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id)
         period_start = date(2026, month, 1)
         services["time_entry_commands"].add_time_entry(
             assignment.id,

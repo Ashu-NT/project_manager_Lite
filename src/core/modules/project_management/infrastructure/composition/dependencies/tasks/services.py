@@ -11,7 +11,6 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
     AssignmentSkillValidator,
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
-from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
     ApprovedScheduleChangeHandler,
 )
@@ -283,26 +282,7 @@ def build_task_capabilities(
             work_calendar_engine=work_calendar_engine,
             user_session=platform_services.user_session,
         )
-    service = TaskService(
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
-        task_uow_scope=task_uow_scope,
-        deletion_handler=deletion_handler,
-        progress_handler=progress_handler,
-        approved_schedule_change_handler=approved_schedule_change_handler,
-        hierarchy_command_handler=hierarchy_command_handler,
-        scheduling_constraint_handler=scheduling_constraint_handler,
-        lifecycle_handler=lifecycle_handler,
-        dependency_command_handler=dependency_command_handler,
-        dependency_query_handler=dependency_query_handler,
-        assignment_handler=assignment_handler,
-        resource_leveling_handler=resource_leveling_handler,
-        detail_query_handler=detail_query_handler,
-        lookup_query_handler=lookup_query_handler,
-        hierarchy_query_handler=hierarchy_query_handler,
-    )
     return TaskComposition(
-        service=service,
         deletion=deletion_handler,
         schedule_changes=approved_schedule_change_handler,
         dependencies=dependency_command_handler,

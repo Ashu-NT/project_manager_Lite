@@ -29,19 +29,19 @@ def _login_eligible_reviewer(services):
 
 
 def _make_task(services, *, start_date=date(2026, 9, 1), duration_days=3):
-    ps = services['project_query']
-    ts = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     project = services['project_create'].create_project("Constraint Governance", "")
-    task = ts.create_task(project.id, "Constrained Task", "", start_date=start_date, duration_days=duration_days)
+    task = services['task_lifecycle_commands'].create_task(project.id, "Constrained Task", "", start_date=start_date, duration_days=duration_days)
     return project, task
 
 
 class TestImmediateApply:
     def test_ungoverned_update_applies_immediately_and_recalculates_schedule(self, services):
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task = _make_task(services)
 
-        updated = ts.update_task_scheduling_constraint(
+        updated = services['task_constraint_commands'].update_task_scheduling_constraint(
             task.id,
             constraint_type=ConstraintType.MUST_START_ON,
             constraint_date=date(2026, 9, 18),
@@ -53,41 +53,41 @@ class TestImmediateApply:
         assert updated.start_date == date(2026, 9, 18)
 
     def test_schedule_failure_rolls_back_constraint_write(self, services, monkeypatch):
-        ts = services["task_service"]
+        services['task_lookup_query']
         _, task = _make_task(services)
 
         def fail_schedule(*args, **kwargs):
             raise RuntimeError("schedule recalculation failed")
 
         monkeypatch.setattr(
-            ts._scheduling_constraint_handler._schedule_synchronizer,
+            services['task_constraint_commands']._schedule_synchronizer,
             "sync_project_schedule",
             fail_schedule,
         )
         with pytest.raises(RuntimeError, match="schedule recalculation failed"):
-            ts.update_task_scheduling_constraint(
+            services['task_constraint_commands'].update_task_scheduling_constraint(
                 task.id,
                 constraint_type=ConstraintType.MUST_START_ON,
                 constraint_date=date(2026, 9, 18),
                 expected_version=task.version,
             )
 
-        unchanged = ts.get_task(task.id)
+        unchanged = services['task_detail_query'].get_task(task.id)
         assert unchanged.constraint_type is None
         assert unchanged.constraint_date is None
 
     def test_clearing_a_constraint_back_to_asap_applies_immediately(self, services):
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task = _make_task(services)
-        ts.update_task_scheduling_constraint(
+        services['task_constraint_commands'].update_task_scheduling_constraint(
             task.id,
             constraint_type=ConstraintType.MUST_START_ON,
             constraint_date=date(2026, 9, 18),
             expected_version=task.version,
         )
-        constrained = ts.get_task(task.id)
+        constrained = services['task_detail_query'].get_task(task.id)
 
-        cleared = ts.update_task_scheduling_constraint(
+        cleared = services['task_constraint_commands'].update_task_scheduling_constraint(
             task.id,
             constraint_type=None,
             constraint_date=None,
@@ -100,11 +100,11 @@ class TestImmediateApply:
 
 class TestNonWorkingDatePolicy:
     def test_non_working_constraint_date_is_rejected_not_silently_snapped(self, services):
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task = _make_task(services)
 
         with pytest.raises(ValidationError) as exc_info:
-            ts.update_task_scheduling_constraint(
+            services['task_constraint_commands'].update_task_scheduling_constraint(
                 task.id,
                 constraint_type=ConstraintType.MUST_START_ON,
                 # A Saturday.
@@ -113,13 +113,13 @@ class TestNonWorkingDatePolicy:
             )
         assert exc_info.value.code == "CONSTRAINT_DATE_NON_WORKING"
         # Nothing was mutated.
-        assert ts.get_task(task.id).constraint_type is None
+        assert services['task_detail_query'].get_task(task.id).constraint_type is None
 
     def test_working_day_constraint_date_is_accepted(self, services):
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task = _make_task(services)
 
-        updated = ts.update_task_scheduling_constraint(
+        updated = services['task_constraint_commands'].update_task_scheduling_constraint(
             task.id,
             constraint_type=ConstraintType.MUST_START_ON,
             # A Friday.
@@ -131,9 +131,9 @@ class TestNonWorkingDatePolicy:
 
 class TestOptimisticConcurrency:
     def test_stale_expected_version_is_rejected(self, services):
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task = _make_task(services)
-        ts.update_task_scheduling_constraint(
+        services['task_constraint_commands'].update_task_scheduling_constraint(
             task.id,
             constraint_type=ConstraintType.START_NO_EARLIER_THAN,
             constraint_date=date(2026, 9, 18),
@@ -141,7 +141,7 @@ class TestOptimisticConcurrency:
         )
 
         with pytest.raises(ConcurrencyError):
-            ts.update_task_scheduling_constraint(
+            services['task_constraint_commands'].update_task_scheduling_constraint(
                 task.id,
                 constraint_type=ConstraintType.MUST_START_ON,
                 constraint_date=date(2026, 9, 4),
@@ -156,14 +156,14 @@ class TestGovernanceParity:
         _login(services, "admin", "ChangeMe123!")
 
         approvals = services["approval_commands"]
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task = _make_task(services)
 
         services["user_registration"].register_user("planner-constraint-governed", "StrongPass123", role_names=["planner"])
         _login(services, "planner-constraint-governed", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):
-            ts.update_task_scheduling_constraint(
+            services['task_constraint_commands'].update_task_scheduling_constraint(
                 task.id,
                 constraint_type=ConstraintType.MUST_START_ON,
                 constraint_date=date(2026, 9, 18),
@@ -171,7 +171,7 @@ class TestGovernanceParity:
             )
 
         # Not applied yet.
-        assert ts.get_task(task.id).constraint_type is None
+        assert services['task_detail_query'].get_task(task.id).constraint_type is None
 
         req = services["approval_queries"].list_pending(project_id=project.id)[0]
         assert req.request_type == "task.constraint.update"
@@ -182,16 +182,16 @@ class TestGovernanceParity:
         _login_eligible_reviewer(services)
         approvals.approve_and_apply(req.id)
 
-        assert ts.get_task(task.id).constraint_type is ConstraintType.MUST_START_ON
+        assert services['task_detail_query'].get_task(task.id).constraint_type is ConstraintType.MUST_START_ON
 
     def test_admin_session_bypasses_governance(self, services, monkeypatch):
         monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "task.constraint.update")
         _login(services, "admin", "ChangeMe123!")
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task = _make_task(services)
 
-        updated = ts.update_task_scheduling_constraint(
+        updated = services['task_constraint_commands'].update_task_scheduling_constraint(
             task.id,
             constraint_type=ConstraintType.MUST_START_ON,
             constraint_date=date(2026, 9, 18),
@@ -209,14 +209,14 @@ class TestGovernanceParity:
         _login(services, "admin", "ChangeMe123!")
 
         approvals = services["approval_commands"]
-        ts = services["task_service"]
+        services['task_lookup_query']
         project, task = _make_task(services)
 
         services["user_registration"].register_user("planner-constraint-toctou", "StrongPass123", role_names=["planner"])
         _login(services, "planner-constraint-toctou", "StrongPass123")
 
         with pytest.raises(BusinessRuleError, match="Approval required"):
-            ts.update_task_scheduling_constraint(
+            services['task_constraint_commands'].update_task_scheduling_constraint(
                 task.id,
                 constraint_type=ConstraintType.MUST_START_ON,
                 constraint_date=date(2026, 9, 18),
@@ -227,8 +227,8 @@ class TestGovernanceParity:
         # The task changes while the request is pending: an admin edits
         # it directly, bumping its version.
         _login(services, "admin", "ChangeMe123!")
-        ts.update_task(task.id, name="Renamed While Pending", expected_version=task.version)
-        assert ts.get_task(task.id).version == 2
+        services['task_lifecycle_commands'].update_task(task.id, name="Renamed While Pending", expected_version=task.version)
+        assert services['task_detail_query'].get_task(task.id).version == 2
 
         _login_eligible_reviewer(services)
         with pytest.raises(ConcurrencyError):
@@ -236,5 +236,5 @@ class TestGovernanceParity:
 
         # The admin's direct edit must survive -- the stale pending
         # request must not silently overwrite it.
-        assert ts.get_task(task.id).name == "Renamed While Pending"
-        assert ts.get_task(task.id).constraint_type is None
+        assert services['task_detail_query'].get_task(task.id).name == "Renamed While Pending"
+        assert services['task_detail_query'].get_task(task.id).constraint_type is None

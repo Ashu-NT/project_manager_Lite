@@ -121,8 +121,11 @@ from src.core.modules.project_management.application.risk.commands.register_life
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
 )
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.modules.project_management.application.scheduling.baselines.commands.lifecycle import (
+    BaselineCommandHandler,
+)
+from src.core.modules.project_management.application.scheduling.baselines.queries.catalog import (
+    BaselineQueryHandler,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
@@ -138,7 +141,6 @@ from src.core.modules.project_management.application.tasks import (
     TaskLifecycleCommandHandler,
     TaskProgressCommandHandler,
     TaskSchedulingConstraintHandler,
-    TaskService,
     TaskUowScope,
 )
 from src.core.modules.project_management.application.tasks.commands.assignment import (
@@ -403,7 +405,6 @@ class ServiceGraph:
     project_update: ProjectUpdateHandler
     project_status: ProjectStatusHandler
     project_deletion: ProjectDeletionHandler
-    task_service: TaskService
     task_hierarchy_query: TaskHierarchyQueryHandler
     task_deletion_commands: TaskDeletionCommandHandler
     task_progress_commands: TaskProgressCommandHandler
@@ -456,7 +457,8 @@ class ServiceGraph:
     schedule_variance_report: ScheduleVarianceReportBuilder
     profitability_report: ProfitabilityReportBuilder
     labor_report: LaborReportBuilder
-    baseline_service: BaselineService
+    baseline_query: BaselineQueryHandler
+    baseline_commands: BaselineCommandHandler
     schedule_change_impact_query: ScheduleChangeImpactQueryHandler
     project_dashboard_query: ProjectDashboardQueryHandler
     portfolio_dashboard_query: PortfolioDashboardQueryHandler
@@ -590,7 +592,6 @@ class ServiceGraph:
             "project_update": self.project_update,
             "project_status": self.project_status,
             "project_deletion": self.project_deletion,
-            "task_service": self.task_service,
             "task_hierarchy_query": self.task_hierarchy_query,
             "task_deletion_commands": self.task_deletion_commands,
             "task_progress_commands": self.task_progress_commands,
@@ -643,7 +644,8 @@ class ServiceGraph:
             "schedule_variance_report": self.schedule_variance_report,
             "profitability_report": self.profitability_report,
             "labor_report": self.labor_report,
-            "baseline_service": self.baseline_service,
+            "baseline_query": self.baseline_query,
+            "baseline_commands": self.baseline_commands,
             "schedule_change_impact_query": self.schedule_change_impact_query,
             "project_dashboard_query": self.project_dashboard_query,
             "portfolio_dashboard_query": self.portfolio_dashboard_query,

@@ -2,8 +2,8 @@
 `baseline.create` (apply only -- there is no `baseline.create` reject
 handler).
 
-Reuses `BaselineService._apply_baseline_creation_decision` verbatim rather
-than duplicating it, by constructing a fresh `BaselineService` bound to
+Reuses `BaselineCommandHandler._apply_baseline_creation_decision` verbatim rather
+than duplicating it, by constructing a fresh `BaselineCommandHandler` bound to
 whichever Session `build_baseline_approval_deps(session, ...)` was called
 with (never the shared startup instance) -- this is what makes the
 approval-facing call session-parameterizable. `apply()` only flushes, never
@@ -19,8 +19,8 @@ from datetime import UTC, date, datetime
 from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
     ProjectBaselineCreated,
 )
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
+from src.core.modules.project_management.application.scheduling.baselines.commands.lifecycle import (
+    BaselineCommandHandler,
 )
 from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 from src.core.platform.domain.approval import ApprovalRequest
@@ -28,12 +28,12 @@ from src.core.platform.domain.approval import ApprovalRequest
 
 @dataclass(frozen=True)
 class BaselineApprovalDeps:
-    """`baseline_service` is a fresh `BaselineService`, bound to the Session
+    """`baseline_commands` is a fresh `BaselineCommandHandler`, bound to the Session
     `build_baseline_approval_deps(session, ...)` was called with, constructed with
     `approval_commands=None` -- the apply path never calls back into `ApprovalCommands` (it only
     ever needs to *apply* an already-decided request, never to *request* a new one)."""
 
-    baseline_service: BaselineService
+    baseline_commands: BaselineCommandHandler
 
 
 class BaselineApprovalParticipant:
@@ -41,12 +41,12 @@ class BaselineApprovalParticipant:
         self, request: ApprovalRequest, deps: BaselineApprovalDeps
     ) -> ApprovalHandlerResult:
         project_id = request.payload["project_id"]
-        baseline = deps.baseline_service._apply_baseline_creation_decision(
+        baseline = deps.baseline_commands._apply_baseline_creation_decision(
             project_id=project_id,
             name=request.payload.get("name") or "Baseline",
             rate_as_of=date.today(),  # noqa: DTZ011
         )
-        context = deps.baseline_service._require_context("create baseline")
+        context = deps.baseline_commands._require_context("create baseline")
         return ApprovalHandlerResult(
             domain_events=(
                 ProjectBaselineCreated(

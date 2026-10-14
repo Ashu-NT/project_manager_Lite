@@ -33,12 +33,10 @@ from src.core.modules.project_management.application.tasks.queries.task_lookup i
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
 )
-from src.core.modules.project_management.application.tasks.service import TaskService
 
 
 @dataclass(frozen=True)
 class TaskComposition:
-    service: TaskService
     hierarchy_query: TaskHierarchyQueryHandler
     deletion: TaskDeletionCommandHandler
     progress: TaskProgressCommandHandler

@@ -28,7 +28,7 @@ def _seed_labor_finance_project(services) -> str:
         start_date=date(2026, 1, 5),
         financial_currency_code="EUR",
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Restricted labor",
         start_date=date(2026, 1, 5),
@@ -60,7 +60,7 @@ def _seed_labor_finance_project(services) -> str:
         hourly_rate=125.0,
         currency_code="EUR",
     )
-    assignment = services["task_service"].assign_project_resource(
+    assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id,
         project_resource_id=project_resource.id,
         allocation_percent=100.0,
@@ -75,7 +75,7 @@ def _seed_labor_finance_project(services) -> str:
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
     )
-    services["task_service"].update_assignment_planned_hours(
+    services['task_assignment_commands'].update_assignment_planned_hours(
         assignment.id,
         allocated_planned_hours=Decimal(16),
         expected_assignment_version=assignment.version,
@@ -365,9 +365,9 @@ def test_report_view_alone_gets_redacted_baseline_comparison_not_a_denial(servic
     call. Regression test for the F0 gap where this method authorized on
     report.view alone with no redaction."""
     project_id = _seed_labor_finance_project(services)
-    baseline_service = services["baseline_service"]
-    baseline_1 = baseline_service.create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
-    baseline_2 = baseline_service.create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
+    baseline_service = services['baseline_query']
+    baseline_1 = services['baseline_commands'].create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
+    baseline_2 = services['baseline_commands'].create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
     _register_and_login(services, "report-only-baseline", role_names=["viewer"])
 
     comparison = services["baseline_compare_report"].compare_baselines(
@@ -389,9 +389,9 @@ def test_finance_read_allows_baseline_comparison_cost_detail(services):
     """Case B: finance.read must allow the planned-cost fields in a
     baseline comparison to be visible."""
     project_id = _seed_labor_finance_project(services)
-    baseline_service = services["baseline_service"]
-    baseline_1 = baseline_service.create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
-    baseline_2 = baseline_service.create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
+    baseline_service = services['baseline_query']
+    baseline_1 = services['baseline_commands'].create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
+    baseline_2 = services['baseline_commands'].create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
     _register_and_login(services, "finance-reader-baseline", role_names=["project_manager"])
 
     comparison = services["baseline_compare_report"].compare_baselines(

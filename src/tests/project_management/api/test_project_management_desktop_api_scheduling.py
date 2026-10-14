@@ -55,7 +55,7 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
         scheduling_engine=scheduling_engine,
         work_calendar_service=work_calendar_service,
         work_calendar_engine=work_calendar_engine,
-        baseline_service=baseline_service,
+        baseline_query=baseline_service, baseline_commands=baseline_service,
         baseline_compare_report=reporting_service,
         project_kpi_report=reporting_service,
         constraint_validator=ConstraintValidator(work_calendar_engine),

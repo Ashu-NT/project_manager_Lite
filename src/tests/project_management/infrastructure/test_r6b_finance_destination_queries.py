@@ -332,7 +332,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "R6B Engineering",
         wbs_code="1.1",
@@ -349,12 +349,12 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
         currency_code="USD",
         planned_hours=Decimal(20),
     )
-    assignment = services["task_service"].assign_project_resource(
+    assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id,
         project_resource_id=project_resource.id,
         allocation_percent=100,
     )
-    services["task_service"].update_assignment_planned_hours(
+    services['task_assignment_commands'].update_assignment_planned_hours(
         assignment.id,
         allocated_planned_hours=Decimal(10),
         expected_assignment_version=assignment.version,
@@ -436,7 +436,7 @@ def _seed_forecast_reader(services):
         code="R6B-ETC",
         name="R6B ETC",
     )
-    task = services["task_service"].create_task(
+    task = services['task_lifecycle_commands'].create_task(
         project.id,
         "R6B Forecast Task",
         wbs_code="2.1",

@@ -28,7 +28,7 @@ def _assign(
         hourly_rate=80.0,
         currency_code="EUR",
     )
-    services["task_service"].assign_project_resource(
+    services['task_assignment_commands'].assign_project_resource(
         task_id=task_id,
         project_resource_id=project_resource.id,
         allocation_percent=allocation,
@@ -64,8 +64,8 @@ def _approve_budget(services, project_id: str, amount: str) -> None:
 
 
 def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(services) -> None:
-    projects = services['project_query']
-    tasks = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
 
     shared = services["resource_master_commands"].create_resource(
         "Shared",
@@ -90,13 +90,13 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
     _approve_budget(services, alpha.id, "400")
     _approve_budget(services, beta.id, "700")
 
-    alpha_scheduled = tasks.create_task(
+    alpha_scheduled = services['task_lifecycle_commands'].create_task(
         alpha.id,
         "Alpha scheduled",
         start_date=date(2024, 1, 8),
         duration_days=5,
     )
-    alpha_unscheduled = tasks.create_task(alpha.id, "Alpha unscheduled")
+    alpha_unscheduled = services['task_lifecycle_commands'].create_task(alpha.id, "Alpha unscheduled")
     _assign(
         services,
         project_id=alpha.id,
@@ -104,9 +104,9 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
         resource_id=shared.id,
         allocation=60.0,
     )
-    services["task_service"].assign_resource(alpha_unscheduled.id, shared.id, 20.0)
+    services['task_assignment_commands'].assign_resource(alpha_unscheduled.id, shared.id, 20.0)
 
-    beta_task = tasks.create_task(
+    beta_task = services['task_lifecycle_commands'].create_task(
         beta.id,
         "Beta scheduled",
         start_date=date(2024, 1, 8),

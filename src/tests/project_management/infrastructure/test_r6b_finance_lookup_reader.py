@@ -66,10 +66,10 @@ def test_task_lookup_is_project_dependent_paged_and_resolvable(services) -> None
         "R6B Lookup Other Tasks", financial_currency_code="XAF"
     )
     tasks = [
-        services["task_service"].create_task(project.id, f"Lookup Task {index:02d}")
+        services['task_lifecycle_commands'].create_task(project.id, f"Lookup Task {index:02d}")
         for index in range(5)
     ]
-    services["task_service"].create_task(other.id, "Lookup Task foreign")
+    services['task_lifecycle_commands'].create_task(other.id, "Lookup Task foreign")
     desktop = ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"]
     )

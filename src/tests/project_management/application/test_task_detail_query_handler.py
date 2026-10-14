@@ -9,19 +9,19 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services) -> None:
-    projects = services['project_query']
-    tasks = services["task_service"]
+    services['project_query']
+    services['task_lookup_query']
     detail = services["task_detail_query"]
     project = services['project_create'].create_project("Task detail query project")
-    predecessor = tasks.create_task(project.id, "Predecessor")
-    task = tasks.create_task(project.id, "Target")
-    successor = tasks.create_task(project.id, "Successor")
+    predecessor = services['task_lifecycle_commands'].create_task(project.id, "Predecessor")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Target")
+    successor = services['task_lifecycle_commands'].create_task(project.id, "Successor")
     zed = services["resource_master_commands"].create_resource("Zed Resource")
     ada = services["resource_master_commands"].create_resource("Ada Resource")
-    tasks.assign_resource(task.id, zed.id, allocation_percent=25)
-    tasks.assign_resource(task.id, ada.id, allocation_percent=25)
-    tasks.add_dependency(predecessor.id, task.id, DependencyType.FINISH_TO_START)
-    tasks.add_dependency(task.id, successor.id, DependencyType.FINISH_TO_START)
+    services['task_assignment_commands'].assign_resource(task.id, zed.id, allocation_percent=25)
+    services['task_assignment_commands'].assign_resource(task.id, ada.id, allocation_percent=25)
+    services['task_dependency_commands'].add_dependency(predecessor.id, task.id, DependencyType.FINISH_TO_START)
+    services['task_dependency_commands'].add_dependency(task.id, successor.id, DependencyType.FINISH_TO_START)
 
     first = detail.query_task_assignments_page(
         task.id, page=1, page_size=1, sort_key="resourceName", sort_direction="asc"
@@ -49,9 +49,9 @@ def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services)
 
 
 def test_task_detail_scope_denial_stops_before_reader(services, monkeypatch) -> None:
-    tasks = services["task_service"]
+    services['task_lookup_query']
     project = services['project_create'].create_project("Task detail scope project")
-    task = tasks.create_task(project.id, "Scoped task")
+    task = services['task_lifecycle_commands'].create_task(project.id, "Scoped task")
     detail = services["task_detail_query"]
     reader = detail._task_workspace_reader
     read_page = Mock(side_effect=AssertionError("reader reached after denial"))
