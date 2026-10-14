@@ -91,14 +91,12 @@ def build_assignment_preview(
                 # Resolve names via the caller's pre-scoped, batched lookup: a project the
                 # current user isn't authorized to see simply won't resolve a name here.
                 names = project_names or {}
-                for conflict_task_id in conflict_task_ids:
-                    conflict_task = task_query.get_task(conflict_task_id)
-                    if conflict_task is not None:
-                        project_name = str(
-                            names.get(getattr(conflict_task, "project_id", ""), "") or ""
-                        )
-                        if project_name and project_name not in conflict_projects:
-                            conflict_projects.append(project_name)
+                for conflict_task in task_query.list_tasks_by_ids(sorted(conflict_task_ids)):
+                    project_name = str(
+                        names.get(conflict_task.project_id, "") or ""
+                    )
+                    if project_name and project_name not in conflict_projects:
+                        conflict_projects.append(project_name)
 
     skills_matched = True
     certs_valid = True

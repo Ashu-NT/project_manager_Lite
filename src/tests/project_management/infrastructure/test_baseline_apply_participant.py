@@ -37,7 +37,6 @@ def _login(services, username: str, password: str) -> None:
 
 def _project_with_tasks(services):
     project = _make_project(services)
-    services['task_lookup_query']
     services['task_lifecycle_commands'].create_task(
         project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2
     )
@@ -87,11 +86,11 @@ def test_participant_apply_creates_baseline_on_the_supplied_session(services, se
 
     result = BaselineApprovalParticipant().apply(request, deps)
 
-    baseline = deps.baseline_query._baselines.get_latest_for_project(project.id)
+    baseline = deps.baseline_commands._baselines.get_latest_for_project(project.id)
     assert baseline is not None
     assert baseline.name == "My Baseline"
     assert baseline.status == BaselineStatus.DRAFT
-    tasks = deps.baseline_query._baselines.list_tasks(baseline.id)
+    tasks = deps.baseline_commands._baselines.list_tasks(baseline.id)
     assert len(tasks) == 2
     assert len(result.domain_events) == 1
     event = result.domain_events[0]
@@ -131,11 +130,11 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
 
         assert deps_a.baseline_commands._session is session_a
         assert deps_b.baseline_commands._session is session_b
-        assert deps_a.baseline_query._baselines.session is session_a
-        assert deps_b.baseline_query._baselines.session is session_b
-        assert deps_a.baseline_query is not deps_b.baseline_query
+        assert deps_a.baseline_commands._baselines.session is session_a
+        assert deps_b.baseline_commands._baselines.session is session_b
+        assert deps_a.baseline_commands is not deps_b.baseline_commands
 
-        assert deps_a.baseline_query._sched is not deps_b.baseline_query._sched
+        assert deps_a.baseline_commands._sched is not deps_b.baseline_commands._sched
         assert deps_a.baseline_query._sched._session is session_a
         assert deps_b.baseline_query._sched._session is session_b
 

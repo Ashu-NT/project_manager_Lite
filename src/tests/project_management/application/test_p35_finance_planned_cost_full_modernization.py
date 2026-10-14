@@ -54,23 +54,23 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
     project = services['project_create'].create_project(
         "P35 Planned Cost Project", financial_currency_code="USD"
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="P35-LABOR-DEFAULT", name="P35 Default Labor"
-    )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    ))
+    profile = services['financial_configuration_query'].get_profile(project.id)
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id, expected_version=profile.version, default_cost_code_id=cost_code.id,
-    )
+    ))
     resource = services["resource_master_commands"].create_resource(
         "P35 Engineer", hourly_rate=hourly_rate, currency_code="USD"
     )
-    rate_card = services["rate_card_service"].create_rate_card(
+    rate_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="P35 Planned Cost Project Rates", project_id=project.id,
-    )
-    services["rate_card_service"].create_line(
+    ))
+    services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
         rate_card.id, rate_type=RateType.COST, unit="HOUR",
         rate_amount=Decimal(str(hourly_rate)), rate_currency="USD", resource_id=resource.id,
-    )
+    ))
     project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=hourly_rate, currency_code="USD",
         planned_hours=planned_hours,
@@ -174,9 +174,9 @@ def test_calculate_snapshot_produces_exactly_one_planned_cost_hint(services):
     _allocate(services, ctx, Decimal(30))
     hints = _spy_hints(services)
 
-    result = services["planned_cost_service"].calculate_snapshot(
+    result = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    )
+    ))
 
     planned_cost_hints = _planned_cost_hints(hints)
     assert len(planned_cost_hints) == 1
@@ -188,13 +188,13 @@ def test_calculate_snapshot_produces_exactly_one_planned_cost_hint(services):
 def test_second_calculation_supersedes_and_produces_one_hint(services):
     ctx = _setup_project(services)
     _allocate(services, ctx, Decimal(10))
-    services["planned_cost_service"].calculate_snapshot(ctx["project"].id, calculated_by="admin")
+    services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(ctx["project"].id, calculated_by="admin"))
 
     _allocate(services, ctx, Decimal(20))
     hints = _spy_hints(services)
-    second = services["planned_cost_service"].calculate_snapshot(
+    second = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    ).version
+    )).version
 
     planned_cost_hints = _planned_cost_hints(hints)
     assert len(planned_cost_hints) == 1
@@ -207,7 +207,7 @@ def test_invalid_calculation_produces_zero_hints(services):
     )
     hints = _spy_hints(services)
     with pytest.raises(BusinessRuleError):
-        services["planned_cost_service"].calculate_snapshot(project.id, calculated_by="admin")
+        services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(project.id, calculated_by="admin"))
     assert _planned_cost_hints(hints) == []
 
 
@@ -238,7 +238,7 @@ def test_audit_failure_raises_and_produces_zero_hints(services, monkeypatch):
 
     hints = _spy_hints(services)
     with pytest.raises(RuntimeError):
-        services["planned_cost_service"].calculate_snapshot(ctx["project"].id, calculated_by="admin")
+        services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(ctx["project"].id, calculated_by="admin"))
 
     assert _planned_cost_hints(hints) == []
 
@@ -261,9 +261,9 @@ def test_concurrent_recalculation_second_writer_rejected_zero_hints(services, se
 
     ctx = _setup_project(services)
     _allocate(services, ctx, Decimal(10))
-    first = services["planned_cost_service"].calculate_snapshot(
+    first = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    ).version
+    )).version
     assert first.row_version == 1
 
     repo_a = SqlAlchemyProjectPlannedCostVersionRepository(session)

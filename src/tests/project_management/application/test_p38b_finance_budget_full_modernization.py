@@ -67,11 +67,13 @@ def _unique(prefix: str) -> str:
 
 
 def _setup(services):
-    project = services['project_create'].create_project(
+    project = services["project_create"].create_project(
         _unique("P38B Budget project"), financial_currency_code="USD"
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
-        code=_unique("P38B-CC"), name="P38B Cost Code"
+    cost_code = services["finance_governance_commands"].cost_code(
+        lambda handler: handler.create_cost_code(
+            code=_unique("P38B-CC"), name="P38B Cost Code"
+        )
     )
     return project, cost_code
 
@@ -98,22 +100,44 @@ def test_every_budget_event_maps_to_both_planning_and_summary_targets():
     now = datetime.now(UTC)
     events = (
         BudgetVersionCreated(
-            tenant_id="t1", organization_id="o1", project_id="p1", budget_id="b1",
-            status=BudgetStatus.DRAFT, predecessor_budget_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            budget_id="b1",
+            status=BudgetStatus.DRAFT,
+            predecessor_budget_id=None,
+            occurred_at=now,
         ),
         BudgetProfileUpdated(
-            tenant_id="t1", organization_id="o1", project_id="p1", budget_id="b1", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            budget_id="b1",
+            occurred_at=now,
         ),
         BudgetLineChanged(
-            tenant_id="t1", organization_id="o1", project_id="p1", budget_id="b1",
-            budget_line_id="l1", change_type=BudgetLineChangeType.ADDED, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            budget_id="b1",
+            budget_line_id="l1",
+            change_type=BudgetLineChangeType.ADDED,
+            occurred_at=now,
         ),
         BudgetStatusChanged(
-            tenant_id="t1", organization_id="o1", project_id="p1", budget_id="b1",
-            change_type=BudgetStatusChangeType.SUBMITTED, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            budget_id="b1",
+            change_type=BudgetStatusChangeType.SUBMITTED,
+            occurred_at=now,
         ),
         BudgetRemoved(
-            tenant_id="t1", organization_id="o1", project_id="p1", budget_id="b1", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            budget_id="b1",
+            occurred_at=now,
         ),
     )
     for index, event in enumerate(events):
@@ -126,7 +150,10 @@ def test_every_budget_event_maps_to_both_planning_and_summary_targets():
         assert hint.scope.entity_type == "project"
         assert hint.entity_id == "p1"
     scope_codes = {hint.scope_code for hint in channel.notified}
-    assert scope_codes == {BUDGET_PLANNING_SCOPE_CODE, BUDGET_PROJECT_SUMMARY_SCOPE_CODE}
+    assert scope_codes == {
+        BUDGET_PLANNING_SCOPE_CODE,
+        BUDGET_PROJECT_SUMMARY_SCOPE_CODE,
+    }
 
 
 def test_dedupe_by_target_within_one_transaction():
@@ -134,15 +161,23 @@ def test_dedupe_by_target_within_one_transaction():
     handler = build_budget_view_invalidation_handler(channel)
     now = datetime.now(UTC)
     event = BudgetProfileUpdated(
-        tenant_id="t1", organization_id="o1", project_id="p1", budget_id="b1", occurred_at=now
+        tenant_id="t1",
+        organization_id="o1",
+        project_id="p1",
+        budget_id="b1",
+        occurred_at=now,
     )
     context = DomainEventContext(correlation_id="same-tx")
     handler(event, context)
     handler(event, context)
-    assert len(channel.notified) == 2, "same two targets within one transaction coalesce"
+    assert len(channel.notified) == 2, (
+        "same two targets within one transaction coalesce"
+    )
 
     handler(event, DomainEventContext(correlation_id="same-tx"))
-    assert len(channel.notified) == 4, "a separate commit with the same trace must notify again"
+    assert len(channel.notified) == 4, (
+        "a separate commit with the same trace must notify again"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -154,11 +189,14 @@ def test_create_budget_produces_version_created_hints(services):
     project, _cost_code = _setup(services)
     hints = _spy_hints(services)
 
-    budget = services["budget_service"].create_budget(project.id, "P38B Budget")
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "P38B Budget")
+    )
 
     budget_hints = _budget_hints(hints)
     assert {h.scope_code for h in budget_hints} == {
-        BUDGET_PLANNING_SCOPE_CODE, BUDGET_PROJECT_SUMMARY_SCOPE_CODE
+        BUDGET_PLANNING_SCOPE_CODE,
+        BUDGET_PROJECT_SUMMARY_SCOPE_CODE,
     }
     assert all(h.entity_id == project.id for h in budget_hints)
     assert budget.status == BudgetStatus.DRAFT
@@ -166,40 +204,61 @@ def test_create_budget_produces_version_created_hints(services):
 
 def test_add_update_delete_line_each_produce_hints(services):
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "P38B Budget")
+    budgets = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "P38B Budget")
+    )
 
     hints = _spy_hints(services)
-    line = budgets.add_line(
-        budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal(100), expected_budget_version=budget.row_version,
+    line = services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=cost_code.id,
+            description="Line",
+            amount=Decimal(100),
+            expected_budget_version=budget.row_version,
+        )
     )
     assert len(_budget_hints(hints)) == 2
 
     hints.clear()
     budget = budgets.get_budget(budget.id)
-    budgets.update_line(
-        line.id, expected_line_version=line.row_version, expected_budget_version=budget.row_version,
-        amount=Decimal(150),
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.update_line(
+            line.id,
+            expected_line_version=line.row_version,
+            expected_budget_version=budget.row_version,
+            amount=Decimal(150),
+        )
     )
     assert len(_budget_hints(hints)) == 2
 
     hints.clear()
     budget = budgets.get_budget(budget.id)
     line = budgets.list_lines(budget.id)[0]
-    budgets.delete_line(
-        line.id, expected_line_version=line.row_version, expected_budget_version=budget.row_version,
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.delete_line(
+            line.id,
+            expected_line_version=line.row_version,
+            expected_budget_version=budget.row_version,
+        )
     )
     assert len(_budget_hints(hints)) == 2
 
 
 def test_update_header_produces_profile_updated_fact(services):
     project, _cost_code = _setup(services)
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "P38B Budget")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "P38B Budget")
+    )
 
     hints = _spy_hints(services)
-    budgets.update_budget_header(budget.id, name="Renamed Budget", expected_version=budget.row_version)
+    services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.update_budget_header(
+            budget.id, name="Renamed Budget", expected_version=budget.row_version
+        )
+    )
 
     budget_hints = _budget_hints(hints)
     assert len(budget_hints) == 2
@@ -207,11 +266,17 @@ def test_update_header_produces_profile_updated_fact(services):
 
 def test_delete_budget_produces_removed_fact(services):
     project, _cost_code = _setup(services)
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "P38B Budget")
+    budgets = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "P38B Budget")
+    )
 
     hints = _spy_hints(services)
-    budgets.delete_budget(budget.id, expected_version=budget.row_version)
+    services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.delete_budget(
+            budget.id, expected_version=budget.row_version
+        )
+    )
 
     assert len(_budget_hints(hints)) == 2
     assert budgets.list_budgets_for_project(project.id) == []
@@ -219,20 +284,35 @@ def test_delete_budget_produces_removed_fact(services):
 
 def test_submit_and_direct_approve_progression_produces_status_changed_facts(services):
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "P38B Budget")
-    budgets.add_line(
-        budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal(100), expected_budget_version=budget.row_version,
+    budgets = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "P38B Budget")
+    )
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=cost_code.id,
+            description="Line",
+            amount=Decimal(100),
+            expected_budget_version=budget.row_version,
+        )
     )
     budget = budgets.get_budget(budget.id)
 
     hints = _spy_hints(services)
-    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            budget.id, "admin", expected_version=budget.row_version
+        )
+    )
     assert len(_budget_hints(hints)) == 2
 
     hints.clear()
-    result = budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            budget.id, approved_by="admin", expected_version=budget.row_version
+        )
+    )
     approved_hints = _budget_hints(hints)
     assert result.outcome.value == "applied"
     # No prior approved budget for this project -- only the APPROVED fact, no SUPERSEDED one.
@@ -241,17 +321,32 @@ def test_submit_and_direct_approve_progression_produces_status_changed_facts(ser
 
 def test_reject_produces_status_changed_fact(services):
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "P38B Budget")
-    budgets.add_line(
-        budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal(100), expected_budget_version=budget.row_version,
+    budgets = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "P38B Budget")
+    )
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=cost_code.id,
+            description="Line",
+            amount=Decimal(100),
+            expected_budget_version=budget.row_version,
+        )
     )
     budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            budget.id, "admin", expected_version=budget.row_version
+        )
+    )
 
     hints = _spy_hints(services)
-    rejected = budgets.reject_budget(budget.id, rejected_by="admin", expected_version=budget.row_version)
+    rejected = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.reject_budget(
+            budget.id, rejected_by="admin", expected_version=budget.row_version
+        )
+    )
 
     assert rejected.status == BudgetStatus.REJECTED
     assert len(_budget_hints(hints)) == 2
@@ -259,19 +354,38 @@ def test_reject_produces_status_changed_fact(services):
 
 def test_close_produces_status_changed_fact(services):
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "P38B Budget")
-    budgets.add_line(
-        budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal(100), expected_budget_version=budget.row_version,
+    budgets = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "P38B Budget")
+    )
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=cost_code.id,
+            description="Line",
+            amount=Decimal(100),
+            expected_budget_version=budget.row_version,
+        )
     )
     budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
-    result = budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            budget.id, "admin", expected_version=budget.row_version
+        )
+    )
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            budget.id, approved_by="admin", expected_version=budget.row_version
+        )
+    )
     approved = budgets.get_budget(result.budget_id)
 
     hints = _spy_hints(services)
-    closed = budgets.close_budget(approved.id, "admin", expected_version=approved.row_version)
+    closed = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.close_budget(
+            approved.id, "admin", expected_version=approved.row_version
+        )
+    )
 
     assert closed.status == BudgetStatus.CLOSED
     assert len(_budget_hints(hints)) == 2
@@ -281,23 +395,48 @@ def test_approving_a_successor_supersedes_the_previous_approved_version(services
     """A single approval decision that supersedes a prior approved budget legitimately produces
     TWO `BudgetStatusChanged` facts -- one per affected `ProjectBudget` row."""
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
+    budgets = services["budget_query"]
 
-    first = budgets.create_budget(project.id, "V1")
-    budgets.add_line(
-        first.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal(100), expected_budget_version=first.row_version,
+    first = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "V1")
+    )
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            first.id,
+            cost_code_id=cost_code.id,
+            description="Line",
+            amount=Decimal(100),
+            expected_budget_version=first.row_version,
+        )
     )
     first = budgets.get_budget(first.id)
-    first = budgets.submit_budget(first.id, "admin", expected_version=first.row_version)
-    result = budgets.approve_budget(first.id, approved_by="admin", expected_version=first.row_version)
+    first = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            first.id, "admin", expected_version=first.row_version
+        )
+    )
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            first.id, approved_by="admin", expected_version=first.row_version
+        )
+    )
     approved_first = budgets.get_budget(result.budget_id)
 
-    successor = budgets.create_successor(approved_first.id, name="V2")
-    successor = budgets.submit_budget(successor.id, "admin", expected_version=successor.row_version)
+    successor = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_successor(approved_first.id, name="V2")
+    )
+    successor = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            successor.id, "admin", expected_version=successor.row_version
+        )
+    )
 
     hints = _spy_hints(services)
-    budgets.approve_budget(successor.id, approved_by="admin", expected_version=successor.row_version)
+    services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            successor.id, approved_by="admin", expected_version=successor.row_version
+        )
+    )
 
     approved_hints = _budget_hints(hints)
     # Successor and superseded-predecessor facts share the same project scope, deduped to one
@@ -312,19 +451,36 @@ def test_create_successor_alone_does_not_supersede_the_predecessor(services):
     """`create_successor` only creates a new DRAFT -- supersession is an approval-time fact, not a
     creation-time one."""
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
-    first = budgets.create_budget(project.id, "V1")
-    budgets.add_line(
-        first.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal(100), expected_budget_version=first.row_version,
+    budgets = services["budget_query"]
+    first = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "V1")
+    )
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            first.id,
+            cost_code_id=cost_code.id,
+            description="Line",
+            amount=Decimal(100),
+            expected_budget_version=first.row_version,
+        )
     )
     first = budgets.get_budget(first.id)
-    first = budgets.submit_budget(first.id, "admin", expected_version=first.row_version)
-    result = budgets.approve_budget(first.id, approved_by="admin", expected_version=first.row_version)
+    first = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            first.id, "admin", expected_version=first.row_version
+        )
+    )
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            first.id, approved_by="admin", expected_version=first.row_version
+        )
+    )
     approved_first = budgets.get_budget(result.budget_id)
 
     hints = _spy_hints(services)
-    budgets.create_successor(approved_first.id, name="V2")
+    services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_successor(approved_first.id, name="V2")
+    )
 
     assert len(_budget_hints(hints)) == 2
     unchanged = budgets.get_budget(approved_first.id)
@@ -336,23 +492,40 @@ def test_create_successor_alone_does_not_supersede_the_predecessor(services):
 # ---------------------------------------------------------------------------
 
 
-def test_governed_approval_participant_emits_the_same_typed_status_fact(services, monkeypatch):
+def test_governed_approval_participant_emits_the_same_typed_status_fact(
+    services, monkeypatch
+):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "budget.approve")
     _login(services, "admin", "ChangeMe123!")
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
+    budgets = services["budget_query"]
     approvals = services["approval_commands"]
 
-    budget = budgets.create_budget(project.id, "P38B Governed")
-    budgets.add_line(
-        budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal(100), expected_budget_version=budget.row_version,
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "P38B Governed")
+    )
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=cost_code.id,
+            description="Line",
+            amount=Decimal(100),
+            expected_budget_version=budget.row_version,
+        )
     )
     budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            budget.id, "admin", expected_version=budget.row_version
+        )
+    )
 
-    result = budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            budget.id, approved_by="admin", expected_version=budget.row_version
+        )
+    )
     assert result.outcome.value == "pending_approval"
     request_id = services["approval_queries"].list_pending(project_id=project.id)[0].id
 
@@ -375,7 +548,9 @@ def test_governed_approval_participant_emits_the_same_typed_status_fact(services
 # ---------------------------------------------------------------------------
 
 
-def test_financial_change_application_produces_budget_and_financial_change_facts_together(services):
+def test_financial_change_application_produces_budget_and_financial_change_facts_together(
+    services,
+):
     """One ApprovalCommandHandler transaction produces both a typed `FinancialChangeChanged` fact and
     typed Budget facts (`BudgetVersionCreated` for the new successor,
     `BudgetStatusChanged(SUPERSEDED)` for the base) in the same commit."""
@@ -385,31 +560,63 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
 
     _login(services, "admin", "ChangeMe123!")
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
-    changes = services["financial_change_service"]
+    budgets = services["budget_query"]
+    changes = services["financial_change_query"]
     principal = services["user_session"].principal
 
-    budget = budgets.create_budget(project.id, "FC Base Budget")
-    line = budgets.add_line(
-        budget.id, cost_code_id=cost_code.id, description="Scope",
-        amount=Decimal(100), expected_budget_version=budget.row_version,
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "FC Base Budget")
+    )
+    line = services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=cost_code.id,
+            description="Scope",
+            amount=Decimal(100),
+            expected_budget_version=budget.row_version,
+        )
     )
     budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
-    result = budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            budget.id, "admin", expected_version=budget.row_version
+        )
+    )
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            budget.id, approved_by="admin", expected_version=budget.row_version
+        )
+    )
     approved_budget = budgets.get_budget(result.budget_id)
 
-    change = changes.create_change(
-        project.id, title="Scope increase", reason="Customer request",
-        effective_date=date(2026, 6, 1), created_by=principal.user_id,
+    change = services["finance_governance_commands"].financial_change(
+        lambda handler: handler.create_change(
+            project.id,
+            title="Scope increase",
+            reason="Customer request",
+            effective_date=date(2026, 6, 1),
+            created_by=principal.user_id,
+        )
     )
-    changes.add_impact(
-        change.id, impact_type=FinancialChangeImpactType.BUDGET, description="Increase scope",
-        amount=Decimal(25), cost_code_id=cost_code.id, target_line_id=line.id,
-        expected_change_version=change.row_version,
+    services["finance_governance_commands"].financial_change(
+        lambda handler: handler.add_impact(
+            change.id,
+            impact_type=FinancialChangeImpactType.BUDGET,
+            description="Increase scope",
+            amount=Decimal(25),
+            cost_code_id=cost_code.id,
+            target_line_id=line.id,
+            expected_change_version=change.row_version,
+        )
     )
     change = changes.get_change(change.id)
-    change = changes.submit_change(change.id, submitted_by=principal.user_id, expected_version=change.row_version)
+    change = services["finance_governance_commands"].financial_change_submission(
+        lambda handler: handler.submit_change(
+            change.id,
+            submitted_by=principal.user_id,
+            expected_version=change.row_version,
+        )
+    )
     request_id = services["approval_queries"].list_pending(project_id=project.id)[0].id
 
     services["user_registration"].register_user(
@@ -441,16 +648,25 @@ def test_add_line_reports_the_command_permission_without_a_boundary_pre_read(ser
     """A viewer must be denied on `budget.manage`, not a masking read permission."""
     _login(services, "admin", "ChangeMe123!")
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "Permission Order Budget")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "Permission Order Budget")
+    )
 
-    services["user_registration"].register_user("p38b-viewer", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user(
+        "p38b-viewer", "StrongPass123", role_names=["viewer"]
+    )
     _login(services, "p38b-viewer", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="budget.manage"):
-        budgets.add_line(
-            budget.id, cost_code_id=cost_code.id, description="Line",
-            amount=Decimal(100), expected_budget_version=budget.row_version,
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.add_line(
+                budget.id,
+                cost_code_id=cost_code.id,
+                description="Line",
+                amount=Decimal(100),
+                expected_budget_version=budget.row_version,
+            )
         )
 
 
@@ -479,12 +695,16 @@ def test_audit_failure_rolls_back_and_leaves_the_session_usable(services, monkey
 
     hints = _spy_hints(services)
     with pytest.raises(RuntimeError):
-        services["budget_service"].create_budget(failed_project.id, "Should Roll Back")
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.create_budget(failed_project.id, "Should Roll Back")
+        )
     assert _budget_hints(hints) == []
 
     monkeypatch.undo()
     recovery_project, _cost_code2 = _setup(services)
-    recovered = services["budget_service"].create_budget(recovery_project.id, "Recovered Budget")
+    recovered = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(recovery_project.id, "Recovered Budget")
+    )
     assert recovered.name == "Recovered Budget", (
         "the shared session must remain usable for a subsequent legitimate operation"
     )
@@ -503,11 +723,18 @@ def test_concurrent_update_line_second_writer_rejected(services, session):
     )
 
     project, cost_code = _setup(services)
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "Concurrency Budget")
-    line = budgets.add_line(
-        budget.id, cost_code_id=cost_code.id, description="Line",
-        amount=Decimal(100), expected_budget_version=budget.row_version,
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "Concurrency Budget")
+    )
+    line = services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=cost_code.id,
+            description="Line",
+            amount=Decimal(100),
+            expected_budget_version=budget.row_version,
+        )
     )
     assert line.row_version == 1
 
@@ -533,7 +760,9 @@ def test_concurrent_update_line_second_writer_rejected(services, session):
         session_b.close()
 
     final = repo_a.get_line(line.id)
-    assert final.description == "Writer A wins", "the losing writer's change must not persist"
+    assert final.description == "Writer A wins", (
+        "the losing writer's change must not persist"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -541,7 +770,9 @@ def test_concurrent_update_line_second_writer_rejected(services, session):
 # ---------------------------------------------------------------------------
 
 
-def test_financials_controller_budget_planning_stale_invalidates_three_destinations(services):
+def test_financials_controller_budget_planning_stale_invalidates_three_destinations(
+    services,
+):
     catalog = _pm_catalog(services)
     controller = catalog.financialsWorkspace
     controller._set_selected_project_id("proj-a")
@@ -549,8 +780,14 @@ def test_financials_controller_budget_planning_stale_invalidates_three_destinati
     controller._request_domain_refresh = lambda: None
 
     controller.onBudgetPlanningStale("proj-a")
-    assert controller._invalidated_destinations == {"overview", "planning", "performance"}
+    assert controller._invalidated_destinations == {
+        "overview",
+        "planning",
+        "performance",
+    }
 
     controller._invalidated_destinations.clear()
     controller.onBudgetPlanningStale("proj-b")
-    assert controller._invalidated_destinations == set(), "non-selected project must not invalidate"
+    assert controller._invalidated_destinations == set(), (
+        "non-selected project must not invalidate"
+    )

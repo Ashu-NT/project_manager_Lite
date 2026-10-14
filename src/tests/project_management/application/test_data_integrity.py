@@ -293,8 +293,6 @@ def test_baseline_snapshot_of_deleted_task_is_not_flagged(session):
 
 # ── service-level guard (friendly error before the DB constraint fires) ──────
 def test_assign_resource_twice_raises_assignment_duplicate(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Dup Assign", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2)
     resource = services["resource_master_commands"].create_resource("Dup Dev", "Developer", hourly_rate=100.0)

@@ -8,12 +8,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.financials.forecasts.commands.approval import (
+    ForecastApprovalCommands,
+)
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastVersionChanged,
     ForecastVersionChangeType,
-)
-from src.core.modules.project_management.application.financials.forecasts.version_service import (
-    ForecastVersionService,
 )
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
@@ -38,35 +38,43 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _submitted_forecast(services, session):
-    project = services['project_create'].create_project(
+    project = services["project_create"].create_project(
         "Forecast approval project", financial_currency_code="USD"
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
-        code="FORECAST-APPROVAL", name="Forecast approval"
+    cost_code = services["finance_governance_commands"].cost_code(
+        lambda handler: handler.create_cost_code(
+            code="FORECAST-APPROVAL", name="Forecast approval"
+        )
     )
-    service = services["forecast_version_service"]
-    forecast = service.create_forecast(
-        project.id,
-        name="Approval candidate",
-        as_of_date=date(2026, 9, 1),
-        generation_mode=ForecastGenerationMode.MANUAL,
-        created_by="admin",
+    service = services["forecast_version_query"]
+    forecast = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.create_forecast(
+            project.id,
+            name="Approval candidate",
+            as_of_date=date(2026, 9, 1),
+            generation_mode=ForecastGenerationMode.MANUAL,
+            created_by="admin",
+        )
     )
-    service.add_line(
-        forecast.id,
-        cost_code_id=cost_code.id,
-        description="Remaining estimate",
-        amount=Decimal("100.00"),
-        source_kind=ForecastLineSourceKind.MANUAL,
-        source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
-        created_by="admin",
-        expected_forecast_version=forecast.row_version,
+    services["finance_governance_commands"].forecast_lines(
+        lambda handler: handler.add_line(
+            forecast.id,
+            cost_code_id=cost_code.id,
+            description="Remaining estimate",
+            amount=Decimal("100.00"),
+            source_kind=ForecastLineSourceKind.MANUAL,
+            source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
+            created_by="admin",
+            expected_forecast_version=forecast.row_version,
+        )
     )
     forecast = service.get_forecast(forecast.id)
-    forecast = service.submit_forecast(
-        forecast.id,
-        submitted_by="admin",
-        expected_version=forecast.row_version,
+    forecast = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.submit_forecast(
+            forecast.id,
+            submitted_by="admin",
+            expected_version=forecast.row_version,
+        )
     )
     session.expire_all()
     return project, forecast
@@ -107,7 +115,7 @@ def test_participant_approves_on_supplied_session_and_returns_typed_event(
 
     result = ForecastApprovalParticipant().apply(_request(forecast), deps)
 
-    approved = deps.forecast_service._forecast_repo.get(forecast.id)
+    approved = deps.forecast_commands._forecast_repo.get(forecast.id)
     assert approved.status is ForecastStatus.APPROVED
     assert approved.approved_by == services["user_session"].principal.user_id
     assert result.domain_events == (
@@ -164,15 +172,15 @@ def test_dependencies_are_bound_to_the_approval_uow_session(tmp_path, services) 
         deps_a = _deps(services, session_a)
         deps_b = _deps(services, session_b)
 
-        assert deps_a.forecast_service._session is session_a
-        assert deps_b.forecast_service._session is session_b
-        assert deps_a.forecast_service._forecast_repo.session is session_a
-        assert deps_b.forecast_service._forecast_repo.session is session_b
-        assert deps_a.forecast_service is not deps_b.forecast_service
-        assert deps_a.forecast_service._enterprise_audit_service._session is session_a
-        assert deps_b.forecast_service._enterprise_audit_service._session is session_b
-        assert deps_a.forecast_service._approval_commands is None
-        assert deps_b.forecast_service._approval_commands is None
+        assert deps_a.forecast_commands._session is session_a
+        assert deps_b.forecast_commands._session is session_b
+        assert deps_a.forecast_commands._forecast_repo.session is session_a
+        assert deps_b.forecast_commands._forecast_repo.session is session_b
+        assert deps_a.forecast_commands is not deps_b.forecast_commands
+        assert deps_a.forecast_commands._enterprise_audit_service._session is session_a
+        assert deps_b.forecast_commands._enterprise_audit_service._session is session_b
+        assert deps_a.forecast_commands._approval_commands is None
+        assert deps_b.forecast_commands._approval_commands is None
     finally:
         session_a.close()
         session_b.close()
@@ -183,10 +191,12 @@ def test_platform_approval_request_enforces_separation_of_duties(
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
     _, forecast = _submitted_forecast(services, session)
-    result = services["forecast_version_service"].request_forecast_approval(
-        forecast.id,
-        expected_version=forecast.row_version,
-        notes="Review independently",
+    result = services["finance_governance_commands"].forecast_approval(
+        lambda handler: handler.request_forecast_approval(
+            forecast.id,
+            expected_version=forecast.row_version,
+            notes="Review independently",
+        )
     )
 
     requester_view = services["finance_workspace_query"].get_forecast_workspace(
@@ -219,14 +229,14 @@ def test_platform_approval_request_enforces_separation_of_duties(
     )
 
     session.expire_all()
-    approved = services["forecast_version_service"].get_forecast(forecast.id)
+    approved = services["forecast_version_query"].get_forecast(forecast.id)
     assert approved.status is ForecastStatus.APPROVED
     assert approved.approved_by == services["user_session"].principal.user_id
 
 
 def test_generation_is_denied_without_forecast_manage_permission(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project = services['project_create'].create_project(
+    project = services["project_create"].create_project(
         "Forecast authorization project", financial_currency_code="USD"
     )
     user_session = services["user_session"]
@@ -241,11 +251,13 @@ def test_generation_is_denied_without_forecast_manage_permission(services) -> No
     )
     try:
         with pytest.raises(BusinessRuleError) as exc:
-            services["forecast_generation_service"].generate_draft(
-                project.id,
-                name="Forbidden forecast",
-                as_of_date=date(2026, 9, 1),
-                generated_by=original.user_id,
+            services["finance_governance_commands"].forecast_generation(
+                lambda handler: handler.generate_draft(
+                    project.id,
+                    name="Forbidden forecast",
+                    as_of_date=date(2026, 9, 1),
+                    generated_by=original.user_id,
+                )
             )
         assert exc.value.code == "PERMISSION_DENIED"
     finally:
@@ -257,23 +269,25 @@ def test_platform_approval_rolls_back_forecast_when_participant_fails(
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
     project, forecast = _submitted_forecast(services, session)
-    result = services["forecast_version_service"].request_forecast_approval(
-        forecast.id,
-        expected_version=forecast.row_version,
+    result = services["finance_governance_commands"].forecast_approval(
+        lambda handler: handler.request_forecast_approval(
+            forecast.id,
+            expected_version=forecast.row_version,
+        )
     )
     services["user_registration"].register_user(
         "forecast-rollback-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "forecast-rollback-reviewer", "StrongPass123")
 
-    apply_decision = ForecastVersionService._apply_approval_decision
+    apply_decision = ForecastApprovalCommands._apply_approval_decision
 
     def _fail_after_forecast_transition(service, **kwargs):
         apply_decision(service, **kwargs)
         raise RuntimeError("injected participant failure")
 
     monkeypatch.setattr(
-        ForecastVersionService,
+        ForecastApprovalCommands,
         "_apply_approval_decision",
         _fail_after_forecast_transition,
     )
@@ -282,7 +296,7 @@ def test_platform_approval_rolls_back_forecast_when_participant_fails(
         services["approval_commands"].approve_and_apply(result.approval_request_id)
 
     session.expire_all()
-    unchanged = services["forecast_version_service"].get_forecast(forecast.id)
+    unchanged = services["forecast_version_query"].get_forecast(forecast.id)
     pending = next(
         request
         for request in services["approval_queries"].list_pending(project_id=project.id)

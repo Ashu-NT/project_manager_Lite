@@ -48,7 +48,7 @@ def test_source_analytics_exposure_is_actual_plus_commitment_not_forecast():
     from src.core.modules.project_management.application.financials.models import (
         CostSourceRow,
     )
-    from src.core.modules.project_management.application.financials.reporting.analytics import (
+    from src.core.modules.project_management.application.financials.analytics.costs.source_breakdown import (
         build_source_analytics,
     )
 

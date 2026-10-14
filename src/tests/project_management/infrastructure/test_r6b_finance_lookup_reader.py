@@ -92,28 +92,28 @@ def test_cost_code_lookup_preserves_restriction_and_effective_date_policy(servic
     project = services['project_create'].create_project(
         "R6B Lookup Cost Codes", financial_currency_code="XAF"
     )
-    configuration = services["financial_configuration_service"]
-    profile = configuration.get_profile(project.id)
-    configuration.configure_profile(
+    configuration = services['financial_configuration_query']
+    profile = services['financial_configuration_query'].get_profile(project.id)
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,
         expected_version=profile.version,
         cost_code_policy="restricted",
-    )
-    allowed = configuration.create_cost_code(
+    ))
+    allowed = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6B-LKP-ALLOW",
         name="Allowed",
         available_to_project_id=project.id,
-    )
-    configuration.create_cost_code(
+    ))
+    services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6B-LKP-GLOBAL",
         name="Not restricted to project",
-    )
-    configuration.create_cost_code(
+    ))
+    services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6B-LKP-EXPIRED",
         name="Expired",
         available_to_project_id=project.id,
         effective_to=date.today() - timedelta(days=1),
-    )
+    ))
     desktop = ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"]
     )

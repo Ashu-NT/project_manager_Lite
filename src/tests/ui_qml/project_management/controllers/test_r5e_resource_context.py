@@ -31,8 +31,6 @@ from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
 def _seed_resource_context(services):
-    services['project_query']
-    services['task_lookup_query']
     services["project_resource_query"]
 
     resource = services["resource_master_commands"].create_resource("R5E Planner", role="Planner")

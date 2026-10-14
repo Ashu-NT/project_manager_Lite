@@ -32,15 +32,15 @@ def _setup(services):
     project = services['project_create'].create_project(
         "R6D-C Actual governance", financial_currency_code=organization.base_currency
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6DC-ACTUAL", name="R6D-C Actual"
-    )
+    ))
     return organization, project, cost_code
 
 
 def _draft(services):
     organization, project, cost_code = _setup(services)
-    entry = services["cost_entry_service"].create_manual_entry(
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id="r6dc-manual",
         description="Governed manual actual",
@@ -48,7 +48,7 @@ def _draft(services):
         currency_code=organization.base_currency,
         transaction_date=date(2026, 9, 9),
         cost_code_id=cost_code.id,
-    )
+    ))
     return organization, project, cost_code, entry
 
 
@@ -61,25 +61,25 @@ def _become(services, user_id: str) -> None:
 
 def test_requester_cannot_approve_or_reject_even_with_both_permissions(services):
     _organization, _project, _cost_code, draft = _draft(services)
-    service = services["cost_entry_service"]
-    submitted = service.submit(draft.id, expected_version=draft.row_version)
+    service = services['cost_entry_query']
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
 
     with pytest.raises(BusinessRuleError, match="cannot approve or reject") as approve_error:
-        service.approve(submitted.id, expected_version=submitted.row_version)
+        services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
     assert approve_error.value.code == "PROJECT_COST_ENTRY_SELF_DECISION_FORBIDDEN"
 
     with pytest.raises(BusinessRuleError, match="cannot approve or reject") as reject_error:
-        service.reject(submitted.id, expected_version=submitted.row_version)
+        services['finance_governance_commands'].cost_entry_review(lambda handler: handler.reject(submitted.id, expected_version=submitted.row_version))
     assert reject_error.value.code == "PROJECT_COST_ENTRY_SELF_DECISION_FORBIDDEN"
 
 
 def test_independent_decider_can_approve(services):
     _organization, _project, _cost_code, draft = _draft(services)
-    service = services["cost_entry_service"]
-    submitted = service.submit(draft.id, expected_version=draft.row_version)
+    service = services['cost_entry_query']
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
     _become(services, "r6dc-independent-decider")
 
-    result = service.approve(submitted.id, expected_version=submitted.row_version)
+    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
 
     assert result.outcome.value == "applied"
 
@@ -96,9 +96,9 @@ def test_desktop_actual_capabilities_are_permission_source_and_actor_aware(servi
     assert draft_dto.can_delete is True
     assert draft_dto.can_submit is True
 
-    submitted = services["cost_entry_service"].submit(
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(
         draft.id, expected_version=draft.row_version
-    )
+    ))
     submitted_dto = desktop_api.list_cost_entries(project.id).items[0]
     assert submitted_dto.can_approve is False
     assert submitted_dto.can_reject is False
@@ -142,7 +142,7 @@ def test_source_owned_entry_has_no_interactive_mutation_capability(services):
         actor_id=actor_id,
         occurred_at=datetime.now(UTC),
     )
-    capabilities = services["cost_entry_service"].capabilities_for(entry)
+    capabilities = services['cost_entry_query'].capabilities_for(entry)
     assert capabilities.project_visible is True
     assert capabilities.is_manual is False
     assert not any(
@@ -166,9 +166,9 @@ def test_source_owned_entry_has_no_interactive_mutation_capability(services):
 
 def test_actual_filters_are_server_owned_and_invalid_sources_fail_closed(services):
     _organization, project, _cost_code, draft = _draft(services)
-    service = services["cost_entry_service"]
+    service = services['cost_entry_query']
 
-    rows, total = service.list_for_project(
+    rows, total = services['cost_entry_query'].list_for_project(
         project.id,
         status=ProjectCostEntryStatus.DRAFT,
         source_module=FinancialSourceModule.PROJECT_MANAGEMENT,
@@ -176,7 +176,7 @@ def test_actual_filters_are_server_owned_and_invalid_sources_fail_closed(service
     assert total == 1
     assert [row.id for row in rows] == [draft.id]
 
-    rows, total = service.list_for_project(
+    rows, total = services['cost_entry_query'].list_for_project(
         project.id,
         source_module=FinancialSourceModule.INVENTORY_PROCUREMENT,
     )
@@ -184,7 +184,7 @@ def test_actual_filters_are_server_owned_and_invalid_sources_fail_closed(service
     assert total == 0
 
     with pytest.raises(ValidationError) as invalid:
-        service.list_for_project(project.id, source_module="future-module")
+        services['cost_entry_query'].list_for_project(project.id, source_module="future-module")
     assert invalid.value.code == "PROJECT_COST_ENTRY_SOURCE_INVALID"
 
 

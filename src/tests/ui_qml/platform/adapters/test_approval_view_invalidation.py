@@ -82,19 +82,19 @@ def _submitted_budget(services, session):
         code=_unique("VI-PRJ"),
         financial_currency_code="USD",
     )
-    budget_service = services["budget_service"]
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    budget_service = services['budget_query']
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("VI-CC"), name="View invalidation cost code"
-    )
-    budget = budget_service.create_budget(project.id, "View Invalidation Budget")
-    budget_service.add_line(
+    ))
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "View Invalidation Budget"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id, cost_code_id=cost_code.id, description="Line 1", amount=1000,
         expected_budget_version=budget.row_version,
-    )
-    budget = budget_service.get_budget(budget.id)
-    budget = budget_service.submit_budget(
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         budget.id, submitted_by="admin", expected_version=budget.row_version
-    )
+    ))
     session.expire_all()
     return project, budget
 
@@ -268,33 +268,33 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
     project = services['project_create'].create_project(
         _unique("View Invalidation Finance Project"), financial_currency_code="USD"
     )
-    code = services["financial_configuration_service"].create_cost_code(
+    code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("VI-FIN-CC"), name="View invalidation finance cost code"
-    )
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "VI approved budget")
-    budget_line = budgets.add_line(
+    ))
+    budgets = services['budget_query']
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "VI approved budget"))
+    budget_line = services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal(100),
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
-    budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(budget.id, "admin", expected_version=budget.row_version))
+    services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version))
     refresh_calls.clear()  # the approve_budget decision above also invalidates -- isolate submit_change's own
 
-    changes = services["financial_change_service"]
-    change = changes.create_change(
+    changes = services['financial_change_query']
+    change = services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
         project.id, title="VI change", reason="VI probe",
         effective_date=date(2026, 8, 11), created_by="admin",
-    )
-    changes.add_impact(
+    ))
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id, impact_type=FinancialChangeImpactType.BUDGET, description="Increase scope",
         amount=Decimal(10), cost_code_id=code.id, target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
+    ))
+    change = services['financial_change_query'].get_change(change.id)
 
-    changes.submit_change(change.id, submitted_by="admin", expected_version=change.row_version)
+    services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(change.id, submitted_by="admin", expected_version=change.row_version))
 
     assert refresh_calls == ["approvals"]
 

@@ -55,7 +55,7 @@ def _boundary(
             create=lambda project_id: SimpleNamespace(project_id=project_id)
         )
         return SimpleNamespace(
-            budgets=service,
+            budget_lifecycle=service,
             forecast_versions=service,
             forecast_generation=service,
             financial_changes=service,
@@ -74,8 +74,8 @@ def test_each_command_uses_a_fresh_uow_and_commits_exactly_once() -> None:
     factory = _FakeFactory()
     boundary = _boundary(factory)
 
-    boundary.budget(lambda service: service.create("project-a"))
-    boundary.budget(lambda service: service.create("project-b"))
+    boundary.budget_lifecycle(lambda service: service.create("project-a"))
+    boundary.budget_lifecycle(lambda service: service.create("project-b"))
 
     assert len(factory.created) == 2
     assert factory.created[0]._session is not factory.created[1]._session
@@ -92,7 +92,7 @@ def test_commit_failure_rolls_back_and_runs_no_post_commit_actions() -> None:
     boundary = _boundary(factory, post_commit_action=lambda: calls.append("ran"))
 
     with pytest.raises(RuntimeError, match="commit unavailable"):
-        boundary.budget(lambda service: service.create("project-a"))
+        boundary.budget_lifecycle(lambda service: service.create("project-a"))
 
     assert calls == []
     assert factory.created[0].rollback_count == 1
@@ -105,7 +105,7 @@ def test_post_commit_action_failure_does_not_undo_commit() -> None:
     factory = _FakeFactory()
     boundary = _boundary(factory, post_commit_action=_failing_action)
 
-    result = boundary.budget(lambda service: service.create("project-a"))
+    result = boundary.budget_lifecycle(lambda service: service.create("project-a"))
 
     assert result.project_id == "project-a"
     assert factory.created[0].commit_count == 1

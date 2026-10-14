@@ -135,20 +135,20 @@ def _submitted_budget_in_org_a1(services, *, org_a1_id: str):
     project = services['project_create'].create_project(
         _unique("XORG-Budget-Project"), financial_currency_code="USD"
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("XORG-CC"), name="Cross-org cost code"
-    )
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "Cross-org budget")
-    budgets.add_line(
+    ))
+    budgets = services['budget_query']
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Cross-org budget"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
         cost_code_id=cost_code.id,
         description="Line 1",
         amount=1000,
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(budget.id, "admin", expected_version=budget.row_version))
     # `submit_budget` only transitions the budget itself -- the governed `ApprovalRequest` is a
     # separate `request_change(...)` call (mirrors `test_approval_commands_unit_of_work_cutover.py
     # ::_request_budget_approval_as_a_different_user`'s exact shape).

@@ -1,0 +1,565 @@
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import replace
+from datetime import UTC, date, datetime
+from enum import Enum
+from typing import Any, Final
+
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.financials.configuration.events import (
+    CostCodeActivated,
+    CostCodeCreated,
+    CostCodeDeactivated,
+    CostCodeProfileUpdated,
+    ProjectCostCodeRestrictionAdded,
+    ProjectCostCodeRestrictionRemoved,
+)
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
+    ProjectCostCodeRepository,
+    ProjectFinancialProfileRepository,
+)
+from src.core.modules.project_management.contracts.repositories.projects.project import (
+    ProjectRepository,
+)
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
+    ProjectCostCode,
+    ProjectCostCodeRestriction,
+    ProjectFinancialProfile,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
+from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
+
+
+class _Unset(Enum):
+    """Typed sentinel distinguishing "argument omitted" from an explicit None."""
+
+    TOKEN = 0
+
+
+_UNSET: Final = _Unset.TOKEN
+
+
+class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
+    """Governed cost codes mutations in the caller's transaction."""
+
+    def __init__(
+        self,
+        *,
+        session: Session,
+        profile_repo: ProjectFinancialProfileRepository,
+        cost_code_repo: ProjectCostCodeRepository,
+        project_repo: ProjectRepository,
+        user_session=None,
+        enterprise_audit_service=None,
+        module_catalog_service=None,
+        tenant_context_service: TenantContextService | None = None,
+        record_event: Callable[[object], None] | None = None,
+    ) -> None:
+        self._session = session
+        self._profile_repo = profile_repo
+        self._cost_code_repo = cost_code_repo
+        self._project_repo = project_repo
+        self._user_session = user_session
+        self._enterprise_audit_service = enterprise_audit_service
+        self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
+        self._record_event = record_event
+
+    def _emit(self, event: object) -> None:
+        if self._record_event is not None:
+            self._record_event(event)
+
+    def create_cost_code(
+        self,
+        *,
+        code: str,
+        name: str,
+        available_to_project_id: str | None = None,
+        description: str = "",
+        parent_id: str | None = None,
+        external_system: str | None = None,
+        external_reference: str | None = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
+    ) -> ProjectCostCode:
+        require_permission(
+            self._user_session,
+            "finance.manage",
+            operation_label="create project cost code",
+        )
+        project_profile = None
+        if available_to_project_id:
+            self._require_project(
+                available_to_project_id,
+                "finance.manage",
+                "make a new cost code available to the project",
+            )
+            project_profile = self._require_profile(available_to_project_id)
+        context = self._require_context("create project cost code")
+        cost_code = ProjectCostCode.create(
+            tenant_id=context.tenant_id,
+            organization_id=context.organization_id,
+            code=code,
+            name=name,
+            description=description,
+            parent_id=parent_id,
+            external_system=external_system,
+            external_reference=external_reference,
+            effective_from=effective_from,
+            effective_to=effective_to,
+        )
+        self._ensure_parent_is_acyclic(cost_code.id, cost_code.parent_id)
+        self._cost_code_repo.add(cost_code)
+        duplicate_message = f"Cost code '{cost_code.code}' already exists."
+        if available_to_project_id and project_profile:
+            self._flush(duplicate_message=duplicate_message)
+        self._record_cost_code_audit("create", cost_code)
+        now = datetime.now(UTC)
+        self._emit(
+            CostCodeCreated(
+                tenant_id=cost_code.tenant_id,
+                organization_id=cost_code.organization_id,
+                cost_code_id=cost_code.id,
+                occurred_at=now,
+            )
+        )
+        if (
+            available_to_project_id
+            and project_profile
+            and project_profile.cost_code_policy == CostCodePolicy.RESTRICTED
+        ):
+            restriction = ProjectCostCodeRestriction.create(
+                tenant_id=context.tenant_id,
+                organization_id=context.organization_id,
+                project_id=available_to_project_id,
+                cost_code_id=cost_code.id,
+            )
+            self._cost_code_repo.add_restriction(restriction)
+            self._record_restriction_audit("create", restriction)
+            self._emit(
+                ProjectCostCodeRestrictionAdded(
+                    tenant_id=restriction.tenant_id,
+                    organization_id=restriction.organization_id,
+                    project_id=restriction.project_id,
+                    cost_code_id=restriction.cost_code_id,
+                    occurred_at=now,
+                )
+            )
+        self._flush(duplicate_message=duplicate_message)
+        return cost_code
+
+    def update_cost_code(
+        self,
+        cost_code_id: str,
+        *,
+        expected_version: int,
+        code: str | _Unset = _UNSET,
+        name: str | _Unset = _UNSET,
+        description: str | _Unset = _UNSET,
+        parent_id: str | None | _Unset = _UNSET,
+        external_system: str | None | _Unset = _UNSET,
+        external_reference: str | None | _Unset = _UNSET,
+        effective_from: date | None | _Unset = _UNSET,
+        effective_to: date | None | _Unset = _UNSET,
+    ) -> ProjectCostCode:
+        require_permission(
+            self._user_session,
+            "finance.manage",
+            operation_label="update project cost code",
+        )
+        current = self._require_cost_code(cost_code_id)
+        self._require_expected_version(current.version, expected_version, "Cost code")
+        candidate = replace(
+            current,
+            code=current.code if code is _UNSET else code,
+            name=current.name if name is _UNSET else name,
+            description=current.description if description is _UNSET else description,
+            parent_id=current.parent_id if parent_id is _UNSET else parent_id,
+            external_system=(
+                current.external_system if external_system is _UNSET else external_system
+            ),
+            external_reference=(
+                current.external_reference
+                if external_reference is _UNSET
+                else external_reference
+            ),
+            effective_from=(
+                current.effective_from if effective_from is _UNSET else effective_from
+            ),
+            effective_to=current.effective_to if effective_to is _UNSET else effective_to,
+        )
+        if candidate == current:
+            # True no-op: no write, audit, event, or version bump.
+            return current
+        self._ensure_parent_is_acyclic(
+            candidate.id,
+            candidate.parent_id,
+            require_active_ancestors=candidate.is_active,
+        )
+        now = datetime.now(UTC)
+        candidate = replace(candidate, updated_at=now)
+        self._cost_code_repo.update(candidate)
+        self._record_cost_code_audit("update", candidate, old=current)
+        self._flush(duplicate_message=f"Cost code '{candidate.code}' already exists.")
+        self._emit(
+            CostCodeProfileUpdated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                cost_code_id=candidate.id,
+                occurred_at=now,
+            )
+        )
+        return candidate
+
+    def deactivate_cost_code(
+        self,
+        cost_code_id: str,
+        *,
+        expected_version: int,
+    ) -> ProjectCostCode:
+        require_permission(
+            self._user_session,
+            "finance.manage",
+            operation_label="deactivate project cost code",
+        )
+        current = self._require_cost_code(cost_code_id)
+        self._require_expected_version(current.version, expected_version, "Cost code")
+        if not current.is_active:
+            return current
+        if any(
+            row.is_active and row.parent_id == current.id
+            for row in self._cost_code_repo.list(include_inactive=True)
+        ):
+            raise BusinessRuleError(
+                "Deactivate active child cost codes first.",
+                code="PROJECT_COST_CODE_HAS_ACTIVE_CHILDREN",
+            )
+        if self._cost_code_repo.is_default_for_any_profile(current.id):
+            raise BusinessRuleError(
+                "Cost code is a project default and cannot be deactivated.",
+                code="PROJECT_COST_CODE_IS_DEFAULT",
+            )
+        now = datetime.now(UTC)
+        candidate = replace(
+            current,
+            is_active=False,
+            updated_at=now,
+        )
+        self._cost_code_repo.update(candidate)
+        self._record_cost_code_audit("deactivate", candidate, old=current)
+        self._flush()
+        self._emit(
+            CostCodeDeactivated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                cost_code_id=candidate.id,
+                occurred_at=now,
+            )
+        )
+        return candidate
+
+    def activate_cost_code(
+        self,
+        cost_code_id: str,
+        *,
+        expected_version: int,
+    ) -> ProjectCostCode:
+        require_permission(
+            self._user_session,
+            "finance.manage",
+            operation_label="activate project cost code",
+        )
+        current = self._require_cost_code(cost_code_id)
+        self._require_expected_version(current.version, expected_version, "Cost code")
+        if current.is_active:
+            return current
+        self._ensure_parent_is_acyclic(current.id, current.parent_id)
+        now = datetime.now(UTC)
+        candidate = replace(
+            current,
+            is_active=True,
+            updated_at=now,
+        )
+        self._cost_code_repo.update(candidate)
+        self._record_cost_code_audit("activate", candidate, old=current)
+        self._flush()
+        self._emit(
+            CostCodeActivated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                cost_code_id=candidate.id,
+                occurred_at=now,
+            )
+        )
+        return candidate
+
+    def add_project_cost_code(
+        self,
+        *,
+        project_id: str,
+        cost_code_id: str,
+    ) -> ProjectCostCodeRestriction:
+        self._require_project(project_id, "finance.manage", "restrict project cost codes")
+        existing = {
+            row.cost_code_id: row
+            for row in self._cost_code_repo.list_restrictions(project_id)
+        }
+        if cost_code_id in existing:
+            raise BusinessRuleError(
+                "Cost code is already assigned to this project.",
+                code="PROJECT_COST_CODE_RESTRICTION_DUPLICATE",
+            )
+        context = self._require_context("restrict project cost codes")
+        restriction = ProjectCostCodeRestriction.create(
+            tenant_id=context.tenant_id,
+            organization_id=context.organization_id,
+            project_id=project_id,
+            cost_code_id=cost_code_id,
+        )
+        self._cost_code_repo.add_restriction(restriction)
+        self._record_restriction_audit("create", restriction)
+        self._flush(duplicate_message="Cost code is already assigned to this project.")
+        self._emit(
+            ProjectCostCodeRestrictionAdded(
+                tenant_id=restriction.tenant_id,
+                organization_id=restriction.organization_id,
+                project_id=restriction.project_id,
+                cost_code_id=restriction.cost_code_id,
+                occurred_at=datetime.now(UTC),
+            )
+        )
+        return restriction
+
+    def remove_project_cost_code(self, *, project_id: str, cost_code_id: str) -> bool:
+        self._require_project(
+            project_id,
+            "finance.manage",
+            "remove project cost-code restriction",
+        )
+        restrictions = self._cost_code_repo.list_restrictions(project_id)
+        current = next((row for row in restrictions if row.cost_code_id == cost_code_id), None)
+        if current is None:
+            return False
+        profile = self._require_profile(project_id)
+        if profile.default_cost_code_id == cost_code_id:
+            raise BusinessRuleError(
+                "The project default cost code cannot be removed.",
+                code="PROJECT_COST_CODE_IS_DEFAULT",
+            )
+        self._cost_code_repo.remove_restriction(
+            project_id=project_id,
+            cost_code_id=cost_code_id,
+        )
+        self._record_restriction_audit("delete", current)
+        self._flush()
+        self._emit(
+            ProjectCostCodeRestrictionRemoved(
+                tenant_id=current.tenant_id,
+                organization_id=current.organization_id,
+                project_id=current.project_id,
+                cost_code_id=current.cost_code_id,
+                occurred_at=datetime.now(UTC),
+            )
+        )
+        return True
+
+    def _require_project(self, project_id: str, permission: str, operation: str):
+        require_permission(self._user_session, permission, operation_label=operation)
+        project = self._project_repo.get(project_id)
+        if project is None:
+            raise NotFoundError("Project not found.")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            permission,
+            operation_label=operation,
+        )
+        return project
+
+    def _require_profile(self, project_id: str) -> ProjectFinancialProfile:
+        profile = self._profile_repo.get_by_project(project_id)
+        if profile is None:
+            raise NotFoundError(
+                "Project financial profile not found.",
+                code="FINANCIAL_PROFILE_NOT_FOUND",
+            )
+        return profile
+
+    def _require_cost_code(self, cost_code_id: str) -> ProjectCostCode:
+        cost_code = self._cost_code_repo.get(cost_code_id)
+        if cost_code is None:
+            raise NotFoundError("Project cost code not found.")
+        return cost_code
+
+    def _require_context(self, operation: str):
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                f"Active organization context is required to {operation}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label=operation
+        )
+
+    @staticmethod
+    def _require_expected_version(actual: int, expected: int, label: str) -> None:
+        if actual != expected:
+            raise ConcurrencyError(
+                f"{label} changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
+
+    def _ensure_parent_is_acyclic(
+        self,
+        cost_code_id: str,
+        parent_id: str | None,
+        *,
+        require_active_ancestors: bool = True,
+    ) -> None:
+        visited = {cost_code_id}
+        cursor = parent_id
+        while cursor:
+            if cursor in visited:
+                raise BusinessRuleError(
+                    "Cost-code hierarchy cannot contain a cycle.",
+                    code="PROJECT_COST_CODE_HIERARCHY_CYCLE",
+                )
+            visited.add(cursor)
+            parent = self._cost_code_repo.get(cursor)
+            if parent is None:
+                raise NotFoundError("Parent project cost code not found.")
+            if require_active_ancestors and not parent.is_active:
+                raise BusinessRuleError(
+                    "An active cost code requires active ancestors.",
+                    code="PROJECT_COST_CODE_PARENT_INACTIVE",
+                )
+            cursor = parent.parent_id
+
+    def _record_cost_code_audit(
+        self,
+        operation: str,
+        cost_code: ProjectCostCode,
+        *,
+        old: ProjectCostCode | None = None,
+    ) -> None:
+        self._record_audit(
+            operation=f"project_cost_code.{operation}",
+            entity_type="project_cost_code",
+            entity_id=cost_code.id,
+            project_id=None,
+            before_data=self._cost_code_audit_value(old),
+            after_data=self._cost_code_audit_value(cost_code),
+        )
+
+    def _record_restriction_audit(
+        self,
+        operation: str,
+        restriction: ProjectCostCodeRestriction,
+    ) -> None:
+        self._record_audit(
+            operation=f"project_cost_code_restriction.{operation}",
+            entity_type="project_cost_code_restriction",
+            entity_id=restriction.id,
+            project_id=restriction.project_id,
+            before_data=None,
+            after_data=(
+                None
+                if operation == "delete"
+                else {"cost_code_id": restriction.cost_code_id}
+            ),
+        )
+
+    def _record_audit(
+        self,
+        *,
+        operation: str,
+        entity_type: str,
+        entity_id: str,
+        project_id: str | None,
+        before_data: dict[str, Any] | None,
+        after_data: dict[str, Any] | None,
+    ) -> None:
+        record_audit_entry(
+            self,
+            operation=operation,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            entity_parent_id=project_id,
+            module="project_management",
+            category="FINANCIAL",
+            before_data=before_data,
+            after_data=after_data,
+            workspace_id=project_id,
+            source="application",
+            severity="high",
+            metadata={"action": operation},
+            commit=False,
+            fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=operation,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            parent_entity_id=project_id,
+            module="project_management",
+            workspace_id=project_id,
+            details={"action": operation},
+            commit=False,
+        )
+
+    @staticmethod
+    def _cost_code_audit_value(cost_code: ProjectCostCode | None) -> dict[str, Any] | None:
+        if cost_code is None:
+            return None
+        return {
+            "code": cost_code.code,
+            "effective_from": (
+                cost_code.effective_from.isoformat() if cost_code.effective_from else None
+            ),
+            "effective_to": (
+                cost_code.effective_to.isoformat() if cost_code.effective_to else None
+            ),
+            "external_reference": cost_code.external_reference,
+            "external_system": cost_code.external_system,
+            "is_active": cost_code.is_active,
+            "name": cost_code.name,
+            "parent_id": cost_code.parent_id,
+            "version": cost_code.version,
+        }
+
+    def _flush(self, *, duplicate_message: str | None = None) -> None:
+        try:
+            self._session.flush()
+        except IntegrityError as exc:
+            if duplicate_message:
+                raise ValidationError(
+                    duplicate_message,
+                    code="PROJECT_FINANCE_CONFIGURATION_DUPLICATE",
+                ) from exc
+            raise
+
+
+__all__ = ["CostCodeCommandHandler"]

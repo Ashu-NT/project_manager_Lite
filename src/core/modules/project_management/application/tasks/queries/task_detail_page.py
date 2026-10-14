@@ -73,6 +73,18 @@ class TaskDetailPageQueryHandler(ProjectManagementModuleGuardMixin):
             raise ValidationError("Task not found.", code="TASK_NOT_FOUND")
         return task
 
+    def list_tasks_by_ids(self, task_ids: list[str]) -> list[Task]:
+        require_permission(self._user_session, "task.read", operation_label="view task")
+        ids = list(dict.fromkeys(task_ids))
+        if not ids:
+            return []
+        tasks = self._task_repo.list_by_ids(ids)
+        for task in tasks:
+            require_project_permission(
+                self._user_session, task.project_id, "task.read", operation_label="view task"
+            )
+        return tasks
+
     def query_task_assignments_page(
         self,
         task_id: str,

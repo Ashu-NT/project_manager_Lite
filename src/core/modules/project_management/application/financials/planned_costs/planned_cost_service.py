@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -16,6 +15,9 @@ from src.core.modules.project_management.application.common.module_guard import 
 )
 from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
     PlannedCostSnapshotCalculated,
+)
+from src.core.modules.project_management.application.financials.planned_costs.result import (
+    PlannedCostCalculationResult,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
@@ -62,16 +64,6 @@ from src.core.shared.audit import record_audit_entry
 from src.core.shared.time.clock import CalendarClock
 
 _REVISION_CONSTRAINT = "uq_pf_planned_cost_versions_project_revision"
-
-
-@dataclass(frozen=True, slots=True)
-class PlannedCostCalculationResult:
-    """Return value of ``calculate_snapshot`` — the persisted version plus
-    the transient, computed-at-calculation-time allocation diagnostics
-    (not persisted; see ``ResourceAllocationDiagnostic``)."""
-
-    version: ProjectPlannedCostVersion
-    diagnostics: tuple[ResourceAllocationDiagnostic, ...]
 
 
 class PlannedCostService(ProjectManagementModuleGuardMixin):

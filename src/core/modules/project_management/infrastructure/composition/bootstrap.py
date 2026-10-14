@@ -21,22 +21,22 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
     build_dashboard_capabilities,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.billing import (
-    build_billing_services,
+    build_billing_queries,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.budgets import (
-    build_budget_service,
+    build_budget_query,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.changes import (
-    build_financial_change_service,
+    build_financial_change_queries,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.configuration import (
-    build_financial_configuration_service,
+    build_financial_configuration_query,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.costs import (
-    build_cost_services,
+    build_cost_queries,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.forecasts import (
-    build_forecast_services,
+    build_forecast_version_query,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governance_boundary import (
     build_finance_governance_boundary,
@@ -44,11 +44,8 @@ from src.core.modules.project_management.infrastructure.composition.dependencies
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governance_operations import (
     build_finance_governance_operations_factory,
 )
-from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governed_ports import (
-    wrap_finance_snapshot_query,
-)
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.rates import (
-    build_rate_card_services,
+    build_rate_card_query,
 )
 from src.core.modules.project_management.infrastructure.composition.dependencies.finance.reads import (
     build_finance_performance_query,
@@ -270,30 +267,15 @@ def build_project_management_service_bundle(
         repositories,
         platform_services,
     )
-    financial_configuration_service = build_financial_configuration_service(
-        session,
-        repositories,
-        platform_services,
-    )
-    rate_card_service, rate_card_resolver = build_rate_card_services(
+    financial_configuration_query = build_financial_configuration_query(repositories, platform_services)
+    rate_card_query, rate_card_resolver = build_rate_card_query(
         session,
         repositories,
         platform_services,
         clock=system_clock,
     )
-    budget_service = build_budget_service(
-        session,
-        repositories,
-        platform_services,
-        clock=system_clock,
-    )
-    cost_entry_service, commitment_service, planned_cost_service = build_cost_services(
-        session,
-        repositories,
-        platform_services,
-        clock=system_clock,
-        rate_resolver=rate_card_resolver,
-    )
+    budget_query = build_budget_query(repositories, platform_services)
+    cost_entry_query, commitment_query, planned_cost_query = build_cost_queries(repositories, platform_services)
     finance_workspace_query = build_finance_workspace_query(
         session,
         platform_services,
@@ -311,12 +293,7 @@ def build_project_management_service_bundle(
         platform_services,
         rate_resolver=rate_card_resolver,
     )
-    forecast_version_service, forecast_generation_service = build_forecast_services(
-        session,
-        repositories,
-        platform_services,
-        clock=system_clock,
-    )
+    forecast_version_query = build_forecast_version_query(repositories, platform_services)
 
     finance_governance_uow_factory = build_finance_worker_uow_factory(platform_services)
     build_approved_time_consumer, build_procurement_consumer = build_finance_worker_consumers(
@@ -359,13 +336,7 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
-    financial_change_service = build_financial_change_service(
-        session,
-        repositories,
-        platform_services,
-        task_service=task_capabilities.schedule_changes,
-        clock=system_clock,
-    )
+    financial_change_query = build_financial_change_queries(repositories, platform_services)
 
     build_finance_governance_operations = build_finance_governance_operations_factory(
         platform_services,
@@ -378,43 +349,7 @@ def build_project_management_service_bundle(
         finance_governance_uow_factory,
         build_finance_governance_operations,
     )
-    financial_configuration_service = wrap_finance_snapshot_query(
-        financial_configuration_service, finance_governance_commands, family="financial_setup"
-    )
-    budget_service = wrap_finance_snapshot_query(
-        budget_service, finance_governance_commands, family="budget"
-    )
-    forecast_version_service = wrap_finance_snapshot_query(
-        forecast_version_service, finance_governance_commands, family="forecast_version"
-    )
-    forecast_generation_service = wrap_finance_snapshot_query(
-        forecast_generation_service, finance_governance_commands, family="forecast_generation"
-    )
-    financial_change_service = wrap_finance_snapshot_query(
-        financial_change_service, finance_governance_commands, family="financial_change"
-    )
-    rate_card_service = wrap_finance_snapshot_query(
-        rate_card_service, finance_governance_commands, family="rate_card"
-    )
-    planned_cost_service = wrap_finance_snapshot_query(
-        planned_cost_service, finance_governance_commands, family="planned_cost"
-    )
-    cost_entry_service = wrap_finance_snapshot_query(
-        cost_entry_service, finance_governance_commands, family="cost_entry"
-    )
-    billing_profile_service, billing_preparation_service = build_billing_services(
-        session,
-        repositories,
-        platform_services,
-        clock=system_clock,
-        rate_resolver=rate_card_resolver,
-    )
-    billing_profile_service = wrap_finance_snapshot_query(
-        billing_profile_service, finance_governance_commands, family="billing_profile"
-    )
-    billing_preparation_service = wrap_finance_snapshot_query(
-        billing_preparation_service, finance_governance_commands, family="billing_preparation"
-    )
+    billing_profile_query, billing_preparation_query = build_billing_queries(repositories, platform_services)
     register_collaboration_view_invalidation(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
@@ -548,21 +483,20 @@ def build_project_management_service_bundle(
         resource_capability_query=resource_capabilities.capability_query,
         resource_context_query=resource_capabilities.context_query,
         finance_governance_commands=finance_governance_commands,
-        financial_configuration_service=financial_configuration_service,
-        forecast_generation_service=forecast_generation_service,
-        forecast_version_service=forecast_version_service,
-        financial_change_service=financial_change_service,
-        billing_profile_service=billing_profile_service,
-        billing_preparation_service=billing_preparation_service,
-        rate_card_service=rate_card_service,
+        financial_configuration_query=financial_configuration_query,
+        forecast_version_query=forecast_version_query,
+        financial_change_query=financial_change_query,
+        billing_profile_query=billing_profile_query,
+        billing_preparation_query=billing_preparation_query,
+        rate_card_query=rate_card_query,
         rate_card_resolver=rate_card_resolver,
-        budget_service=budget_service,
-        cost_entry_service=cost_entry_service,
+        budget_query=budget_query,
+        cost_entry_query=cost_entry_query,
         finance_worker_uow_factory=finance_governance_uow_factory,
         approved_time_consumer_factory=build_approved_time_consumer,
         procurement_consumer_factory=build_procurement_consumer,
-        commitment_service=commitment_service,
-        planned_cost_service=planned_cost_service,
+        commitment_query=commitment_query,
+        planned_cost_query=planned_cost_query,
         finance_workspace_query=finance_workspace_query,
         finance_performance_query=finance_performance_query,
         finance_snapshot_query=finance_snapshot_query,

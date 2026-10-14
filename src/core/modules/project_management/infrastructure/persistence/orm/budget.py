@@ -206,7 +206,7 @@ class BudgetLineORM(Base):
     # one belonging to a REJECTED/DRAFT budget — must not be silently
     # detached by deleting the task. SET NULL would let an already-
     # APPROVED, supposedly-immutable line lose its WBS dimension with no
-    # BudgetService call, no row_version bump, and no audit trail.
+    # BudgetCommands call, no row_version bump, and no audit trail.
     task_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tasks.id", ondelete="RESTRICT"),

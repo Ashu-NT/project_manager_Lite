@@ -97,7 +97,7 @@ def test_project_rate_card_scope() -> None:
 
 
 def _create_project_and_resource(services, *, name: str) -> tuple[str, str]:
-    project = services['project_create'].create_project(
+    project = services["project_create"].create_project(
         f"{name} project", financial_currency_code="USD"
     )
     resource = services["resource_master_commands"].create_resource(
@@ -110,11 +110,16 @@ def _create_project_and_resource(services, *, name: str) -> tuple[str, str]:
 
 def _context_ids(services) -> tuple[str, str]:
     user_session = services["user_session"]
-    return user_session.stored_active_tenant_id(), user_session.stored_active_organization_id()
+    return (
+        user_session.stored_active_tenant_id(),
+        user_session.stored_active_organization_id(),
+    )
 
 
 def test_resolver_fails_closed_when_no_rate_card_exists(services) -> None:
-    _project_id, resource_id = _create_project_and_resource(services, name="fail-closed")
+    _project_id, resource_id = _create_project_and_resource(
+        services, name="fail-closed"
+    )
     resolver = services["rate_card_resolver"]
     tenant_id, organization_id = _context_ids(services)
     with pytest.raises(BusinessRuleError, match="No applicable"):
@@ -131,18 +136,22 @@ def test_resolver_fails_closed_when_no_rate_card_exists(services) -> None:
 
 def test_resolver_prefers_project_override_over_organization_line(services) -> None:
     project_id, resource_id = _create_project_and_resource(services, name="precedence")
-    rate_card_service = services["rate_card_service"]
+    boundary = services["finance_governance_commands"]
     resolver = services["rate_card_resolver"]
     tenant_id, organization_id = _context_ids(services)
 
-    org_card = rate_card_service.create_rate_card(name="Org Rates")
-    rate_card_service.create_line(
-        org_card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(40),
-        rate_currency="USD",
-        resource_id=resource_id,
+    org_card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(name="Org Rates")
+    )
+    boundary.rate_line(
+        lambda handler: handler.create_line(
+            org_card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(40),
+            rate_currency="USD",
+            resource_id=resource_id,
+        )
     )
     org_snapshot = resolver.resolve(
         tenant_id=tenant_id,
@@ -156,14 +165,20 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
     assert org_snapshot.precedence_level == 4
     assert org_snapshot.monetary_rate.money.amount == Decimal(40)
 
-    project_card = rate_card_service.create_rate_card(name="Project Rates", project_id=project_id)
-    rate_card_service.create_line(
-        project_card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(65),
-        rate_currency="USD",
-        resource_id=resource_id,
+    project_card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(
+            name="Project Rates", project_id=project_id
+        )
+    )
+    boundary.rate_line(
+        lambda handler: handler.create_line(
+            project_card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(65),
+            rate_currency="USD",
+            resource_id=resource_id,
+        )
     )
     project_snapshot = resolver.resolve(
         tenant_id=tenant_id,
@@ -193,18 +208,22 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
 
 def test_resolver_never_crosses_cost_and_billing_rate_types(services) -> None:
     _project_id, resource_id = _create_project_and_resource(services, name="rate-type")
-    rate_card_service = services["rate_card_service"]
+    boundary = services["finance_governance_commands"]
     resolver = services["rate_card_resolver"]
     tenant_id, organization_id = _context_ids(services)
 
-    card = rate_card_service.create_rate_card(name="Org Rates")
-    rate_card_service.create_line(
-        card.id,
-        rate_type=RateType.BILLING,
-        unit="HOUR",
-        rate_amount=Decimal(120),
-        rate_currency="USD",
-        resource_id=resource_id,
+    card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(name="Org Rates")
+    )
+    boundary.rate_line(
+        lambda handler: handler.create_line(
+            card.id,
+            rate_type=RateType.BILLING,
+            unit="HOUR",
+            rate_amount=Decimal(120),
+            rate_currency="USD",
+            resource_id=resource_id,
+        )
     )
     with pytest.raises(BusinessRuleError, match="No applicable"):
         resolver.resolve(
@@ -228,63 +247,85 @@ def test_resolver_never_crosses_cost_and_billing_rate_types(services) -> None:
     assert billing_snapshot.monetary_rate.money.amount == Decimal(120)
 
 
-def test_reject_overlap_catches_cross_card_duplicates_in_the_same_scope(services) -> None:
+def test_reject_overlap_catches_cross_card_duplicates_in_the_same_scope(
+    services,
+) -> None:
     # Overlap prevention must compare across every card sharing the same
     # scope (here: the same project), not just siblings within one card —
     # otherwise two independently-managed cards could each define a
     # conflicting "engineer" line and neither creation would be rejected.
     project_id, _resource_id = _create_project_and_resource(services, name="cross-card")
-    rate_card_service = services["rate_card_service"]
+    boundary = services["finance_governance_commands"]
 
-    first_card = rate_card_service.create_rate_card(name="Card A", project_id=project_id)
-    rate_card_service.create_line(
-        first_card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(55),
-        rate_currency="USD",
-        role="engineer",
+    first_card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(name="Card A", project_id=project_id)
     )
-    second_card = rate_card_service.create_rate_card(name="Card B", project_id=project_id)
-    with pytest.raises(BusinessRuleError, match="overlapping effective window"):
-        rate_card_service.create_line(
-            second_card.id,
+    boundary.rate_line(
+        lambda handler: handler.create_line(
+            first_card.id,
             rate_type=RateType.COST,
             unit="HOUR",
-            rate_amount=Decimal(60),
+            rate_amount=Decimal(55),
             rate_currency="USD",
             role="engineer",
         )
+    )
+    second_card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(name="Card B", project_id=project_id)
+    )
+    with pytest.raises(BusinessRuleError, match="overlapping effective window"):
+        boundary.rate_line(
+            lambda handler: handler.create_line(
+                second_card.id,
+                rate_type=RateType.COST,
+                unit="HOUR",
+                rate_amount=Decimal(60),
+                rate_currency="USD",
+                role="engineer",
+            )
+        )
 
 
-def test_resolver_raises_on_ambiguous_equal_specificity_different_dimensions(services) -> None:
+def test_resolver_raises_on_ambiguous_equal_specificity_different_dimensions(
+    services,
+) -> None:
     # Two DIFFERENT selection keys (role-only vs skill-only) never trip the
     # overlap check (different shape), but can still tie in specificity
     # count (1 each) against a resource that satisfies both — this is the
     # genuine resolver-level ambiguity the equal-specificity check exists
     # for, distinct from the create-time overlap check above.
     project_id, resource_id = _create_project_and_resource(services, name="ambiguous")
-    services["resource_capability_commands"].add_resource_skill(resource_id, "python", "Python")
-    rate_card_service = services["rate_card_service"]
+    services["resource_capability_commands"].add_resource_skill(
+        resource_id, "python", "Python"
+    )
+    boundary = services["finance_governance_commands"]
     resolver = services["rate_card_resolver"]
     tenant_id, organization_id = _context_ids(services)
 
-    card = rate_card_service.create_rate_card(name="Project Rates", project_id=project_id)
-    rate_card_service.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(55),
-        rate_currency="USD",
-        role="engineer",
+    card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(
+            name="Project Rates", project_id=project_id
+        )
     )
-    rate_card_service.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(60),
-        rate_currency="USD",
-        skill_code="python",
+    boundary.rate_line(
+        lambda handler: handler.create_line(
+            card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(55),
+            rate_currency="USD",
+            role="engineer",
+        )
+    )
+    boundary.rate_line(
+        lambda handler: handler.create_line(
+            card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(60),
+            rate_currency="USD",
+            skill_code="python",
+        )
     )
     with pytest.raises(BusinessRuleError, match="equal specificity"):
         resolver.resolve(
@@ -300,30 +341,40 @@ def test_resolver_raises_on_ambiguous_equal_specificity_different_dimensions(ser
 
 def test_overlapping_same_selection_key_lines_are_rejected(services) -> None:
     project_id, resource_id = _create_project_and_resource(services, name="overlap")
-    rate_card_service = services["rate_card_service"]
+    boundary = services["finance_governance_commands"]
 
-    card = rate_card_service.create_rate_card(name="Project Rates", project_id=project_id)
-    rate_card_service.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(50),
-        rate_currency="USD",
-        resource_id=resource_id,
+    card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(
+            name="Project Rates", project_id=project_id
+        )
     )
-    with pytest.raises(BusinessRuleError, match="overlapping effective window"):
-        rate_card_service.create_line(
+    boundary.rate_line(
+        lambda handler: handler.create_line(
             card.id,
             rate_type=RateType.COST,
             unit="HOUR",
-            rate_amount=Decimal(70),
+            rate_amount=Decimal(50),
             rate_currency="USD",
             resource_id=resource_id,
+        )
+    )
+    with pytest.raises(BusinessRuleError, match="overlapping effective window"):
+        boundary.rate_line(
+            lambda handler: handler.create_line(
+                card.id,
+                rate_type=RateType.COST,
+                unit="HOUR",
+                rate_amount=Decimal(70),
+                rate_currency="USD",
+                resource_id=resource_id,
+            )
         )
 
 
 def test_resolver_requires_customer_and_contract_together(services) -> None:
-    _project_id, resource_id = _create_project_and_resource(services, name="cust-contract")
+    _project_id, resource_id = _create_project_and_resource(
+        services, name="cust-contract"
+    )
     resolver = services["rate_card_resolver"]
     tenant_id, organization_id = _context_ids(services)
     with pytest.raises(ValidationError, match="supplied together"):
@@ -340,19 +391,25 @@ def test_resolver_requires_customer_and_contract_together(services) -> None:
 
 
 def test_resolver_raises_when_requested_modifier_not_configured(services) -> None:
-    _project_id, resource_id = _create_project_and_resource(services, name="no-modifier")
-    rate_card_service = services["rate_card_service"]
+    _project_id, resource_id = _create_project_and_resource(
+        services, name="no-modifier"
+    )
+    boundary = services["finance_governance_commands"]
     resolver = services["rate_card_resolver"]
     tenant_id, organization_id = _context_ids(services)
 
-    card = rate_card_service.create_rate_card(name="Org Rates")
-    rate_card_service.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(50),
-        rate_currency="USD",
-        resource_id=resource_id,
+    card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(name="Org Rates")
+    )
+    boundary.rate_line(
+        lambda handler: handler.create_line(
+            card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(50),
+            rate_currency="USD",
+            resource_id=resource_id,
+        )
     )
     with pytest.raises(BusinessRuleError, match="no overtime multiplier configured"):
         resolver.resolve(
@@ -369,19 +426,23 @@ def test_resolver_raises_when_requested_modifier_not_configured(services) -> Non
 
 def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) -> None:
     _project_id, resource_id = _create_project_and_resource(services, name="modifier")
-    rate_card_service = services["rate_card_service"]
+    boundary = services["finance_governance_commands"]
     resolver = services["rate_card_resolver"]
     tenant_id, organization_id = _context_ids(services)
 
-    card = rate_card_service.create_rate_card(name="Org Rates")
-    rate_card_service.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(50),
-        rate_currency="USD",
-        resource_id=resource_id,
-        overtime_multiplier=Decimal("1.5"),
+    card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(name="Org Rates")
+    )
+    boundary.rate_line(
+        lambda handler: handler.create_line(
+            card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(50),
+            rate_currency="USD",
+            resource_id=resource_id,
+            overtime_multiplier=Decimal("1.5"),
+        )
     )
     snapshot = resolver.resolve(
         tenant_id=tenant_id,
@@ -401,14 +462,20 @@ def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) 
         snapshot.modifier_applied = None
 
 
-def test_resource_rate_metadata_does_not_manufacture_finance_rate_lines(services) -> None:
+def test_resource_rate_metadata_does_not_manufacture_finance_rate_lines(
+    services,
+) -> None:
     from sqlalchemy import func, select
 
     from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
         RateCardLineORM,
     )
+
     resource = services["resource_master_commands"].create_resource(
-        "Operational Rate Metadata", role="Developer", hourly_rate=80.0, currency_code="eur"
+        "Operational Rate Metadata",
+        role="Developer",
+        hourly_rate=80.0,
+        currency_code="eur",
     )
     services["resource_master_commands"].update_resource(
         resource_id=resource.id,

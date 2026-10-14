@@ -10,11 +10,11 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.financials.commitments.commitment_service import (
-    ProjectCommitmentService,
+from src.core.modules.project_management.application.financials.commitments.commands.projection import (
+    ProjectCommitmentCommandHandler,
 )
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
-    ProjectCostEntryService,
+from src.core.modules.project_management.application.financials.cost.entries.commands.procurement_receipt import (
+    ProcurementReceiptCostEntryCommandHandler,
 )
 from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
@@ -185,7 +185,7 @@ def _dispatcher(environment):
     )
 
     def consumer_factory(uow, service_principal):
-        cost_service = ProjectCostEntryService(
+        receipt_commands = ProcurementReceiptCostEntryCommandHandler(
             session=uow._session, entry_repo=uow.cost_entries, project_repo=uow.projects,
             financial_profile_repo=uow.profiles, cost_code_repo=uow.cost_codes,
             task_repo=uow.tasks, resource_repo=uow.resources,
@@ -197,7 +197,7 @@ def _dispatcher(environment):
             enterprise_audit_service=uow._enterprise_audit_service,
             tenant_context_service=tenant_context,
         )
-        commitment_service = ProjectCommitmentService(
+        commitment_commands = ProjectCommitmentCommandHandler(
             session=uow._session, commitment_repo=uow.commitments,
             cost_entry_repo=uow.cost_entries, project_repo=uow.projects,
             financial_profile_repo=uow.profiles, cost_code_repo=uow.cost_codes,
@@ -207,7 +207,7 @@ def _dispatcher(environment):
             tenant_context_service=tenant_context,
         )
         return ProcurementFinancialConsumer(
-            commitment_service=commitment_service, cost_entry_service=cost_service,
+            commitment_commands=commitment_commands, receipt_commands=receipt_commands,
             task_repo=uow.tasks, service_principal=service_principal,
         )
 

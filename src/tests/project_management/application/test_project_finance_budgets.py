@@ -39,13 +39,15 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _make_project(services, name: str = "Budget Project"):
-    return services['project_create'].create_project(
+    return services["project_create"].create_project(
         name, financial_currency_code="USD"
     )
 
 
 def _make_cost_code(services, code: str, name: str = "Cost Code"):
-    return services["financial_configuration_service"].create_cost_code(code=code, name=name)
+    return services["finance_governance_commands"].cost_code(
+        lambda handler: handler.create_cost_code(code=code, name=name)
+    )
 
 
 def _budget_line(**overrides) -> BudgetLine:
@@ -165,47 +167,63 @@ def test_per_transition_notes_do_not_overwrite_each_other() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_create_budget_assigns_sequential_revisions_and_defaults_currency(services) -> None:
+def test_create_budget_assigns_sequential_revisions_and_defaults_currency(
+    services,
+) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    services["budget_query"]
 
-    first = budget_service.create_budget(project.id, "v1")
+    first = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v1")
+    )
     assert first.revision == 1
     assert first.currency_code == "USD"
 
     # Reject the first so a second draft is allowed to be created.
     first_submitted = _submit_with_line(services, first)
-    budget_service.reject_budget(
-        first_submitted.id, rejected_by="admin", expected_version=first_submitted.row_version
+    services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.reject_budget(
+            first_submitted.id,
+            rejected_by="admin",
+            expected_version=first_submitted.row_version,
+        )
     )
 
-    second = budget_service.create_budget(project.id, "v2")
+    second = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v2")
+    )
     assert second.revision == 2
 
 
 def _submit_with_line(services, budget: ProjectBudget) -> ProjectBudget:
-    budget_service = services["budget_service"]
+    budget_query = services["budget_query"]
     code = _make_cost_code(services, code=f"CC-{budget.id[:8]}")
-    budget_service.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        description="Line",
-        amount=Decimal(10),
-        expected_budget_version=budget.row_version,
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code.id,
+            description="Line",
+            amount=Decimal(10),
+            expected_budget_version=budget.row_version,
+        )
     )
-    current = budget_service.get_budget(budget.id)
-    return budget_service.submit_budget(
-        budget.id, "admin", expected_version=current.row_version
+    current = budget_query.get_budget(budget.id)
+    return services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            budget.id, "admin", expected_version=current.row_version
+        )
     )
 
 
 def _approve_directly(services, budget: ProjectBudget) -> ProjectBudget:
-    budget_service = services["budget_service"]
-    result = budget_service.approve_budget(
-        budget.id,
-        approved_by="admin",
-        expected_version=budget.row_version,
+    budget_query = services["budget_query"]
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            budget.id,
+            approved_by="admin",
+            expected_version=budget.row_version,
+        )
     )
     assert isinstance(result, BudgetApprovalResult)
     assert result.outcome is BudgetApprovalOutcome.APPLIED
@@ -216,38 +234,46 @@ def _approve_directly(services, budget: ProjectBudget) -> ProjectBudget:
     assert result.budget_status is BudgetStatus.APPROVED
     assert result.row_version > budget.row_version
     assert result.approval_request_id is None
-    return budget_service.get_budget(result.budget_id)
+    return budget_query.get_budget(result.budget_id)
 
 
 def test_successor_clones_approved_lines_and_preserves_predecessor(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services, name="Budget successor lineage")
-    budget_service = services["budget_service"]
+    budget_query = services["budget_query"]
     cost_code = _make_cost_code(services, "SUCCESSOR")
 
-    predecessor = budget_service.create_budget(project.id, "Approved baseline")
-    source_line = budget_service.add_line(
-        predecessor.id,
-        cost_code_id=cost_code.id,
-        description="Approved amount",
-        amount=Decimal("125.50"),
-        expected_budget_version=predecessor.row_version,
+    predecessor = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "Approved baseline")
     )
-    predecessor = budget_service.get_budget(predecessor.id)
-    predecessor = budget_service.submit_budget(
-        predecessor.id,
-        "admin",
-        expected_version=predecessor.row_version,
+    source_line = services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            predecessor.id,
+            cost_code_id=cost_code.id,
+            description="Approved amount",
+            amount=Decimal("125.50"),
+            expected_budget_version=predecessor.row_version,
+        )
+    )
+    predecessor = budget_query.get_budget(predecessor.id)
+    predecessor = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            predecessor.id,
+            "admin",
+            expected_version=predecessor.row_version,
+        )
     )
     predecessor = _approve_directly(services, predecessor)
     predecessor_version = predecessor.row_version
 
-    successor = budget_service.create_successor(
-        predecessor.id, name="Working successor"
+    successor = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_successor(
+            predecessor.id, name="Working successor"
+        )
     )
-    successor_lines = budget_service._budget_repo.list_lines(successor.id)
-    unchanged = budget_service.get_budget(predecessor.id)
-    predecessor_lines = budget_service._budget_repo.list_lines(predecessor.id)
+    successor_lines = budget_query._budget_repo.list_lines(successor.id)
+    unchanged = budget_query.get_budget(predecessor.id)
+    predecessor_lines = budget_query._budget_repo.list_lines(predecessor.id)
 
     assert successor.status is BudgetStatus.DRAFT
     assert successor.predecessor_budget_id == predecessor.id
@@ -262,7 +288,11 @@ def test_successor_clones_approved_lines_and_preserves_predecessor(services) -> 
     assert successor_lines[0].amount == Decimal("125.50")
 
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.create_successor(predecessor.id, name="Second open successor")
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.create_successor(
+                predecessor.id, name="Second open successor"
+            )
+        )
     assert exc.value.code == "PROJECT_BUDGET_OPEN_VERSION_EXISTS"
 
 
@@ -272,20 +302,24 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services, name="Explicit Platform approval")
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "Approval candidate")
+    budget_query = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "Approval candidate")
+    )
     budget = _submit_with_line(services, budget)
 
-    result = budget_service.request_budget_approval(
-        budget.id,
-        notes="Review independently",
-        expected_version=budget.row_version,
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.request_budget_approval(
+            budget.id,
+            notes="Review independently",
+            expected_version=budget.row_version,
+        )
     )
 
     assert result.outcome is BudgetApprovalOutcome.PENDING_APPROVAL
     assert result.budget_status is BudgetStatus.SUBMITTED
     assert result.approval_request_id
-    assert budget_service.get_budget(budget.id).status is BudgetStatus.SUBMITTED
+    assert budget_query.get_budget(budget.id).status is BudgetStatus.SUBMITTED
 
     requester_view = services["finance_workspace_query"].get_budget_workspace(
         project.id, selected_budget_id=budget.id
@@ -319,10 +353,10 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
     services["approval_commands"].approve_and_apply(
         result.approval_request_id, note="Approved by another principal"
     )
-    approved = budget_service.get_budget(budget.id)
+    approved = budget_query.get_budget(budget.id)
     assert approved.status is BudgetStatus.APPROVED
     assert sum(
-        (line.amount for line in budget_service._budget_repo.list_lines(approved.id)),
+        (line.amount for line in budget_query._budget_repo.list_lines(approved.id)),
         Decimal(0),
     ) == Decimal(10)
 
@@ -334,49 +368,69 @@ def test_create_budget_requires_financial_profile(services, monkeypatch) -> None
 
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    services["budget_query"]
     monkeypatch.setattr(
         SqlAlchemyProjectFinancialProfileRepository,
         "get_by_project",
         lambda self, project_id: None,
     )
     with pytest.raises(NotFoundError, match="financial profile"):
-        budget_service.create_budget(project.id, "No profile")
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.create_budget(project.id, "No profile")
+        )
 
 
 def test_only_one_open_budget_per_project(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget_service.create_budget(project.id, "v1")
+    services["budget_query"]
+    services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v1")
+    )
 
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.create_budget(project.id, "v2")
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.create_budget(project.id, "v2")
+        )
     assert exc.value.code == "PROJECT_BUDGET_OPEN_VERSION_EXISTS"
 
 
-def test_new_draft_allowed_after_rejection_but_not_while_another_is_approved(services) -> None:
+def test_new_draft_allowed_after_rejection_but_not_while_another_is_approved(
+    services,
+) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    services["budget_query"]
 
-    v1 = budget_service.create_budget(project.id, "v1")
+    v1 = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v1")
+    )
     v1 = _submit_with_line(services, v1)
-    v1 = budget_service.reject_budget(v1.id, rejected_by="admin", expected_version=v1.row_version)
+    v1 = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.reject_budget(
+            v1.id, rejected_by="admin", expected_version=v1.row_version
+        )
+    )
 
-    v2 = budget_service.create_budget(project.id, "v2")
+    v2 = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v2")
+    )
     assert v2.revision == 2
 
     v2 = _submit_with_line(services, v2)
     v2 = _approve_directly(services, v2)
     assert v2.status == BudgetStatus.APPROVED
 
-    v3 = budget_service.create_budget(project.id, "v3")
+    v3 = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v3")
+    )
     assert v3.revision == 3
     assert v3.status == BudgetStatus.DRAFT
 
 
-def test_create_budget_open_version_race_translates_named_error(services, monkeypatch) -> None:
+def test_create_budget_open_version_race_translates_named_error(
+    services, monkeypatch
+) -> None:
     from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
         SqlAlchemyProjectBudgetRepository,
     )
@@ -386,31 +440,43 @@ def test_create_budget_open_version_race_translates_named_error(services, monkey
     # so the DB-level partial unique index is what actually fires.
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    services["budget_query"]
     monkeypatch.setattr(
         SqlAlchemyProjectBudgetRepository,
         "has_open_for_project",
         lambda self, project_id: False,
     )
 
-    budget_service.create_budget(project.id, "race-1")
+    services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "race-1")
+    )
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.create_budget(project.id, "race-2")
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.create_budget(project.id, "race-2")
+        )
     assert exc.value.code == "PROJECT_BUDGET_OPEN_VERSION_EXISTS"
 
 
-def test_create_budget_revision_race_translates_to_concurrency_error(services, monkeypatch) -> None:
+def test_create_budget_revision_race_translates_to_concurrency_error(
+    services, monkeypatch
+) -> None:
     from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
         SqlAlchemyProjectBudgetRepository,
     )
 
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    services["budget_query"]
 
-    v1 = budget_service.create_budget(project.id, "v1")
+    v1 = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v1")
+    )
     v1 = _submit_with_line(services, v1)
-    budget_service.approve_budget(v1.id, approved_by="admin", expected_version=v1.row_version)
+    services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            v1.id, approved_by="admin", expected_version=v1.row_version
+        )
+    )
 
     # Nothing open now, so has_open_for_project is truthfully False; force
     # get_latest_for_project to return a stale (already-used) revision so
@@ -421,7 +487,9 @@ def test_create_budget_revision_race_translates_to_concurrency_error(services, m
         lambda self, project_id: None,
     )
     with pytest.raises(ConcurrencyError) as exc:
-        budget_service.create_budget(project.id, "collides-with-v1")
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.create_budget(project.id, "collides-with-v1")
+        )
     assert exc.value.code == "PROJECT_BUDGET_REVISION_CONFLICT"
 
 
@@ -433,74 +501,106 @@ def test_create_budget_revision_race_translates_to_concurrency_error(services, m
 def test_submit_budget_requires_at_least_one_line(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "empty")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "empty")
+    )
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.submit_budget(budget.id, "admin", expected_version=budget.row_version)
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.submit_budget(
+                budget.id, "admin", expected_version=budget.row_version
+            )
+        )
     assert exc.value.code == "PROJECT_BUDGET_EMPTY"
 
 
 def test_submit_budget_requires_current_version(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "stale")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "stale")
+    )
     code = _make_cost_code(services, code="CC-STALE")
-    budget_service.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        description="Line",
-        amount=Decimal(10),
-        expected_budget_version=budget.row_version,
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code.id,
+            description="Line",
+            amount=Decimal(10),
+            expected_budget_version=budget.row_version,
+        )
     )
     with pytest.raises(ConcurrencyError):
-        budget_service.submit_budget(budget.id, "admin", expected_version=budget.row_version)
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.submit_budget(
+                budget.id, "admin", expected_version=budget.row_version
+            )
+        )
 
 
 def test_line_mutations_blocked_once_submitted(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "frozen")
-    code = _make_cost_code(services, code="CC-FROZEN")
-    line = budget_service.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        description="Line",
-        amount=Decimal(10),
-        expected_budget_version=budget.row_version,
+    budget_query = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "frozen")
     )
-    budget = budget_service.get_budget(budget.id)
-    budget = budget_service.submit_budget(budget.id, "admin", expected_version=budget.row_version)
-
-    with pytest.raises(BusinessRuleError) as exc:
-        budget_service.add_line(
+    code = _make_cost_code(services, code="CC-FROZEN")
+    line = services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
             budget.id,
             cost_code_id=code.id,
-            description="Another",
-            amount=Decimal(5),
+            description="Line",
+            amount=Decimal(10),
             expected_budget_version=budget.row_version,
         )
-    assert exc.value.code == "PROJECT_BUDGET_IMMUTABLE"
+    )
+    budget = budget_query.get_budget(budget.id)
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            budget.id, "admin", expected_version=budget.row_version
+        )
+    )
 
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.update_line(
-            line.id,
-            expected_line_version=line.row_version,
-            expected_budget_version=budget.row_version,
-            amount=Decimal(50),
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.add_line(
+                budget.id,
+                cost_code_id=code.id,
+                description="Another",
+                amount=Decimal(5),
+                expected_budget_version=budget.row_version,
+            )
         )
     assert exc.value.code == "PROJECT_BUDGET_IMMUTABLE"
 
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.delete_line(
-            line.id, expected_line_version=line.row_version, expected_budget_version=budget.row_version
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.update_line(
+                line.id,
+                expected_line_version=line.row_version,
+                expected_budget_version=budget.row_version,
+                amount=Decimal(50),
+            )
         )
     assert exc.value.code == "PROJECT_BUDGET_IMMUTABLE"
 
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.update_budget_header(
-            budget.id, name="New name", expected_version=budget.row_version
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.delete_line(
+                line.id,
+                expected_line_version=line.row_version,
+                expected_budget_version=budget.row_version,
+            )
+        )
+    assert exc.value.code == "PROJECT_BUDGET_IMMUTABLE"
+
+    with pytest.raises(BusinessRuleError) as exc:
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.update_budget_header(
+                budget.id, name="New name", expected_version=budget.row_version
+            )
         )
     assert exc.value.code == "PROJECT_BUDGET_IMMUTABLE"
 
@@ -508,45 +608,69 @@ def test_line_mutations_blocked_once_submitted(services) -> None:
 def test_delete_budget_only_succeeds_on_draft_and_cascades_lines(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "deletable")
-    code = _make_cost_code(services, code="CC-DEL")
-    budget_service.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        description="Line",
-        amount=Decimal(10),
-        expected_budget_version=budget.row_version,
+    budget_query = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "deletable")
     )
-    budget = budget_service.get_budget(budget.id)
-    lines_before = budget_service._budget_repo.list_lines(budget.id)
+    code = _make_cost_code(services, code="CC-DEL")
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code.id,
+            description="Line",
+            amount=Decimal(10),
+            expected_budget_version=budget.row_version,
+        )
+    )
+    budget = budget_query.get_budget(budget.id)
+    lines_before = budget_query._budget_repo.list_lines(budget.id)
     assert len(lines_before) == 1
 
-    budget_service.delete_budget(budget.id, expected_version=budget.row_version)
-    assert budget_service._budget_repo.get(budget.id) is None
-    assert budget_service._budget_repo.list_lines(budget.id) == []
+    services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.delete_budget(
+            budget.id, expected_version=budget.row_version
+        )
+    )
+    assert budget_query._budget_repo.get(budget.id) is None
+    assert budget_query._budget_repo.list_lines(budget.id) == []
 
 
 def test_delete_budget_rejects_non_draft_status(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "not deletable")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "not deletable")
+    )
     budget = _submit_with_line(services, budget)
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.delete_budget(budget.id, expected_version=budget.row_version)
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.delete_budget(
+                budget.id, expected_version=budget.row_version
+            )
+        )
     assert exc.value.code == "PROJECT_BUDGET_DELETE_STATUS_INVALID"
 
 
 def test_delete_budget_stale_version_raises_stale_write(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "race-delete")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "race-delete")
+    )
     stale_version = budget.row_version
-    budget_service.update_budget_header(budget.id, name="Renamed", expected_version=stale_version)
+    services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.update_budget_header(
+            budget.id, name="Renamed", expected_version=stale_version
+        )
+    )
     with pytest.raises(ConcurrencyError):
-        budget_service.delete_budget(budget.id, expected_version=stale_version)
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.delete_budget(
+                budget.id, expected_version=stale_version
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -557,19 +681,27 @@ def test_delete_budget_stale_version_raises_stale_write(services) -> None:
 def test_add_line_rejects_inactive_cost_code(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    config_service = services["financial_configuration_service"]
-    budget = budget_service.create_budget(project.id, "inactive-code")
+    services["budget_query"]
+    services["financial_configuration_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "inactive-code")
+    )
     code = _make_cost_code(services, code="CC-INACTIVE")
-    config_service.deactivate_cost_code(code.id, expected_version=code.version)
+    services["finance_governance_commands"].cost_code(
+        lambda handler: handler.deactivate_cost_code(
+            code.id, expected_version=code.version
+        )
+    )
 
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.add_line(
-            budget.id,
-            cost_code_id=code.id,
-            description="Line",
-            amount=Decimal(10),
-            expected_budget_version=budget.row_version,
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.add_line(
+                budget.id,
+                cost_code_id=code.id,
+                description="Line",
+                amount=Decimal(10),
+                expected_budget_version=budget.row_version,
+            )
         )
     assert exc.value.code == "PROJECT_BUDGET_LINE_COST_CODE_INACTIVE"
 
@@ -577,37 +709,49 @@ def test_add_line_rejects_inactive_cost_code(services) -> None:
 def test_add_line_rejects_cost_code_outside_restricted_allow_list(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    config_service = services["financial_configuration_service"]
-    budget = budget_service.create_budget(project.id, "restricted")
+    services["budget_query"]
+    config_query = services["financial_configuration_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "restricted")
+    )
     allowed = _make_cost_code(services, code="CC-ALLOWED")
     disallowed = _make_cost_code(services, code="CC-DISALLOWED")
 
-    config_service.add_project_cost_code(project_id=project.id, cost_code_id=allowed.id)
-    profile = config_service.get_profile(project.id)
-    config_service.configure_profile(
-        project.id,
-        expected_version=profile.version,
-        cost_code_policy=CostCodePolicy.RESTRICTED,
+    services["finance_governance_commands"].cost_code(
+        lambda handler: handler.add_project_cost_code(
+            project_id=project.id, cost_code_id=allowed.id
+        )
+    )
+    profile = config_query.get_profile(project.id)
+    services["finance_governance_commands"].financial_profile(
+        lambda handler: handler.configure_profile(
+            project.id,
+            expected_version=profile.version,
+            cost_code_policy=CostCodePolicy.RESTRICTED,
+        )
     )
 
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.add_line(
-            budget.id,
-            cost_code_id=disallowed.id,
-            description="Line",
-            amount=Decimal(10),
-            expected_budget_version=budget.row_version,
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.add_line(
+                budget.id,
+                cost_code_id=disallowed.id,
+                description="Line",
+                amount=Decimal(10),
+                expected_budget_version=budget.row_version,
+            )
         )
     assert exc.value.code == "PROJECT_BUDGET_LINE_COST_CODE_NOT_PERMITTED"
 
     # Allowed code still succeeds.
-    line = budget_service.add_line(
-        budget.id,
-        cost_code_id=allowed.id,
-        description="Line",
-        amount=Decimal(10),
-        expected_budget_version=budget.row_version,
+    line = services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=allowed.id,
+            description="Line",
+            amount=Decimal(10),
+            expected_budget_version=budget.row_version,
+        )
     )
     assert line.cost_code_id == allowed.id
 
@@ -616,23 +760,26 @@ def test_add_line_rejects_cross_project_task(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services, name="Home project")
     other_project = _make_project(services, name="Other project")
-    services['task_lookup_query']
-    other_task = services['task_lifecycle_commands'].create_task(
+    other_task = services["task_lifecycle_commands"].create_task(
         other_project.id, "Other Task", start_date=date(2026, 3, 1), duration_days=1
     )
 
-    budget_service = services["budget_service"]
+    services["budget_query"]
     code = _make_cost_code(services, code="CC-TASK")
-    budget = budget_service.create_budget(project.id, "task-scope")
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "task-scope")
+    )
 
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.add_line(
-            budget.id,
-            cost_code_id=code.id,
-            task_id=other_task.id,
-            description="Line",
-            amount=Decimal(10),
-            expected_budget_version=budget.row_version,
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.add_line(
+                budget.id,
+                cost_code_id=code.id,
+                task_id=other_task.id,
+                description="Line",
+                amount=Decimal(10),
+                expected_budget_version=budget.row_version,
+            )
         )
     assert exc.value.code == "PROJECT_BUDGET_LINE_TASK_PROJECT_MISMATCH"
 
@@ -640,18 +787,22 @@ def test_add_line_rejects_cross_project_task(services) -> None:
 def test_add_line_rejects_mismatched_currency(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    services["budget_query"]
     code = _make_cost_code(services, code="CC-CUR")
-    budget = budget_service.create_budget(project.id, "currency-check")
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "currency-check")
+    )
 
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.add_line(
-            budget.id,
-            cost_code_id=code.id,
-            description="Line",
-            amount=Decimal(10),
-            currency_code="EUR",
-            expected_budget_version=budget.row_version,
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.add_line(
+                budget.id,
+                cost_code_id=code.id,
+                description="Line",
+                amount=Decimal(10),
+                currency_code="EUR",
+                expected_budget_version=budget.row_version,
+            )
         )
     assert exc.value.code == "PROJECT_BUDGET_LINE_CURRENCY_MISMATCH"
 
@@ -660,8 +811,10 @@ def test_add_line_rejects_cross_organization_cost_code(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     original_organization = services["tenant_context_service"].get_active_organization()
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "cross-org")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "cross-org")
+    )
 
     other_organization = services["organization_commands"].create_organization(
         organization_code="PF-BUDGET-OTHER",
@@ -672,15 +825,19 @@ def test_add_line_rejects_cross_organization_cost_code(services) -> None:
     try:
         other_org_code = _make_cost_code(services, code="CC-OTHER-ORG")
     finally:
-        services["tenant_context_service"].set_active_organization(original_organization.id)
+        services["tenant_context_service"].set_active_organization(
+            original_organization.id
+        )
 
     with pytest.raises(NotFoundError):
-        budget_service.add_line(
-            budget.id,
-            cost_code_id=other_org_code.id,
-            description="Line",
-            amount=Decimal(10),
-            expected_budget_version=budget.row_version,
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.add_line(
+                budget.id,
+                cost_code_id=other_org_code.id,
+                description="Line",
+                amount=Decimal(10),
+                expected_budget_version=budget.row_version,
+            )
         )
 
 
@@ -692,39 +849,47 @@ def test_add_line_rejects_cross_organization_cost_code(services) -> None:
 def test_line_mutations_each_advance_parent_budget_row_version(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    budget_query = services["budget_query"]
     code = _make_cost_code(services, code="CC-TOUCH")
-    budget = budget_service.create_budget(project.id, "touch-test")
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "touch-test")
+    )
     version_after_create = budget.row_version
 
-    line = budget_service.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        description="Line",
-        amount=Decimal(10),
-        expected_budget_version=version_after_create,
+    line = services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code.id,
+            description="Line",
+            amount=Decimal(10),
+            expected_budget_version=version_after_create,
+        )
     )
-    budget = budget_service.get_budget(budget.id)
+    budget = budget_query.get_budget(budget.id)
     assert budget.row_version != version_after_create
     version_after_add = budget.row_version
 
-    budget_service.update_line(
-        line.id,
-        expected_line_version=line.row_version,
-        expected_budget_version=version_after_add,
-        amount=Decimal(20),
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.update_line(
+            line.id,
+            expected_line_version=line.row_version,
+            expected_budget_version=version_after_add,
+            amount=Decimal(20),
+        )
     )
-    budget = budget_service.get_budget(budget.id)
+    budget = budget_query.get_budget(budget.id)
     assert budget.row_version != version_after_add
     version_after_update = budget.row_version
 
-    line = budget_service._budget_repo.get_line(line.id)
-    budget_service.delete_line(
-        line.id,
-        expected_line_version=line.row_version,
-        expected_budget_version=version_after_update,
+    line = budget_query._budget_repo.get_line(line.id)
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.delete_line(
+            line.id,
+            expected_line_version=line.row_version,
+            expected_budget_version=version_after_update,
+        )
     )
-    budget = budget_service.get_budget(budget.id)
+    budget = budget_query.get_budget(budget.id)
     assert budget.row_version != version_after_update
 
 
@@ -733,25 +898,31 @@ def test_stale_expected_budget_version_blocks_line_mutation_even_with_current_li
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    services["budget_query"]
     code = _make_cost_code(services, code="CC-STALEBV")
-    budget = budget_service.create_budget(project.id, "stale-budget-version")
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "stale-budget-version")
+    )
     stale_budget_version = budget.row_version
 
-    line = budget_service.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        description="Line",
-        amount=Decimal(10),
-        expected_budget_version=stale_budget_version,
+    line = services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code.id,
+            description="Line",
+            amount=Decimal(10),
+            expected_budget_version=stale_budget_version,
+        )
     )
     # budget.row_version has now advanced past stale_budget_version.
     with pytest.raises(ConcurrencyError):
-        budget_service.update_line(
-            line.id,
-            expected_line_version=line.row_version,
-            expected_budget_version=stale_budget_version,
-            amount=Decimal(30),
+        services["finance_governance_commands"].budget_lines(
+            lambda handler: handler.update_line(
+                line.id,
+                expected_line_version=line.row_version,
+                expected_budget_version=stale_budget_version,
+                amount=Decimal(30),
+            )
         )
 
 
@@ -766,35 +937,45 @@ def test_submit_races_delete_of_last_line_exactly_one_succeeds(services) -> None
     # one left stale.
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    budget_query = services["budget_query"]
     code = _make_cost_code(services, code="CC-RACE")
-    budget = budget_service.create_budget(project.id, "race-submit-delete")
-    line = budget_service.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        description="Line",
-        amount=Decimal(10),
-        expected_budget_version=budget.row_version,
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "race-submit-delete")
     )
-    budget = budget_service.get_budget(budget.id)
+    line = services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code.id,
+            description="Line",
+            amount=Decimal(10),
+            expected_budget_version=budget.row_version,
+        )
+    )
+    budget = budget_query.get_budget(budget.id)
     captured_version = budget.row_version
 
-    budget_service.delete_line(
-        line.id,
-        expected_line_version=line.row_version,
-        expected_budget_version=captured_version,
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.delete_line(
+            line.id,
+            expected_line_version=line.row_version,
+            expected_budget_version=captured_version,
+        )
     )
 
     with pytest.raises(ConcurrencyError):
-        budget_service.submit_budget(budget.id, "admin", expected_version=captured_version)
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.submit_budget(
+                budget.id, "admin", expected_version=captured_version
+            )
+        )
 
     # A SUBMITTED budget with zero lines never exists as an end state: the
     # delete won the race, so the budget is still DRAFT with no lines —
     # submit_budget's own emptiness check would have caught it even if the
     # stale-version check somehow hadn't.
-    final = budget_service.get_budget(budget.id)
+    final = budget_query.get_budget(budget.id)
     assert final.status == BudgetStatus.DRAFT
-    assert budget_service._budget_repo.list_lines(budget.id) == []
+    assert budget_query._budget_repo.list_lines(budget.id) == []
 
 
 # ---------------------------------------------------------------------------
@@ -803,21 +984,30 @@ def test_submit_races_delete_of_last_line_exactly_one_succeeds(services) -> None
 
 
 def test_update_budget_header_has_no_currency_parameter() -> None:
-    from src.core.modules.project_management.application.financials.budgets.budget_service import (
-        BudgetService,
+    from src.core.modules.project_management.application.financials.budgets.commands.lifecycle import (
+        BudgetLifecycleCommands,
     )
 
-    signature = inspect.signature(BudgetService.update_budget_header)
+    signature = inspect.signature(BudgetLifecycleCommands.update_budget_header)
     assert "currency_code" not in signature.parameters
 
 
-def test_update_budget_header_renames_and_updates_notes_without_changing_currency(services) -> None:
+def test_update_budget_header_renames_and_updates_notes_without_changing_currency(
+    services,
+) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "header-test")
-    updated = budget_service.update_budget_header(
-        budget.id, name="Renamed", notes="new notes", expected_version=budget.row_version
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "header-test")
+    )
+    updated = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.update_budget_header(
+            budget.id,
+            name="Renamed",
+            notes="new notes",
+            expected_version=budget.row_version,
+        )
     )
     assert updated.name == "Renamed"
     assert updated.notes == "new notes"
@@ -832,40 +1022,50 @@ def test_update_budget_header_renames_and_updates_notes_without_changing_currenc
 def test_ordered_approve_supersedes_prior_approved_budget(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    budget_query = services["budget_query"]
 
-    v1 = budget_service.create_budget(project.id, "v1")
+    v1 = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v1")
+    )
     v1 = _submit_with_line(services, v1)
     v1 = _approve_directly(services, v1)
     assert v1.status == BudgetStatus.APPROVED
 
-    v2 = budget_service.create_budget(project.id, "v2")
+    v2 = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v2")
+    )
     v2 = _submit_with_line(services, v2)
     v2 = _approve_directly(services, v2)
     assert v2.status == BudgetStatus.APPROVED
 
-    v1_reloaded = budget_service._budget_repo.get(v1.id)
+    v1_reloaded = budget_query._budget_repo.get(v1.id)
     assert v1_reloaded.status == BudgetStatus.SUPERSEDED
     assert v1_reloaded.superseded_by == "admin"
 
-    approved = budget_service.get_approved_budget(project.id)
+    approved = budget_query.get_approved_budget(project.id)
     assert approved.id == v2.id
 
 
-def test_approve_conflict_translates_to_named_business_error(services, monkeypatch) -> None:
+def test_approve_conflict_translates_to_named_business_error(
+    services, monkeypatch
+) -> None:
     from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
         SqlAlchemyProjectBudgetRepository,
     )
 
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
+    budget_query = services["budget_query"]
 
-    v1 = budget_service.create_budget(project.id, "v1")
+    v1 = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v1")
+    )
     v1 = _submit_with_line(services, v1)
     v1 = _approve_directly(services, v1)
 
-    v2 = budget_service.create_budget(project.id, "v2")
+    v2 = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "v2")
+    )
     v2 = _submit_with_line(services, v2)
 
     # Simulate a concurrent read that missed v1 being approved — the DB's
@@ -877,13 +1077,17 @@ def test_approve_conflict_translates_to_named_business_error(services, monkeypat
         lambda self, project_id: None,
     )
     with pytest.raises(BusinessRuleError) as exc:
-        budget_service.approve_budget(v2.id, approved_by="admin", expected_version=v2.row_version)
+        services["finance_governance_commands"].budget_approval(
+            lambda handler: handler.approve_budget(
+                v2.id, approved_by="admin", expected_version=v2.row_version
+            )
+        )
     assert exc.value.code == "PROJECT_BUDGET_APPROVAL_CONFLICT"
 
     # v1 must still be APPROVED (rolled back to the nested savepoint, not
     # left half-superseded), v2 must still be SUBMITTED.
-    v1_reloaded = budget_service._budget_repo.get(v1.id)
-    v2_reloaded = budget_service._budget_repo.get(v2.id)
+    v1_reloaded = budget_query._budget_repo.get(v1.id)
+    v2_reloaded = budget_query._budget_repo.get(v2.id)
     assert v1_reloaded.status == BudgetStatus.APPROVED
     assert v2_reloaded.status == BudgetStatus.SUBMITTED
 
@@ -896,32 +1100,52 @@ def test_approve_conflict_translates_to_named_business_error(services, monkeypat
 def test_reject_budget_transitions_and_blocks_reopen(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "to-reject")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "to-reject")
+    )
     budget = _submit_with_line(services, budget)
-    rejected = budget_service.reject_budget(
-        budget.id, rejected_by="admin", expected_version=budget.row_version
+    rejected = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.reject_budget(
+            budget.id, rejected_by="admin", expected_version=budget.row_version
+        )
     )
     assert rejected.status == BudgetStatus.REJECTED
     with pytest.raises(BusinessRuleError):
-        budget_service.submit_budget(rejected.id, "admin", expected_version=rejected.row_version)
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.submit_budget(
+                rejected.id, "admin", expected_version=rejected.row_version
+            )
+        )
     with pytest.raises(BusinessRuleError):
-        budget_service.approve_budget(
-            rejected.id, approved_by="admin", expected_version=rejected.row_version
+        services["finance_governance_commands"].budget_approval(
+            lambda handler: handler.approve_budget(
+                rejected.id, approved_by="admin", expected_version=rejected.row_version
+            )
         )
 
 
 def test_close_budget_only_valid_from_approved(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "to-close")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "to-close")
+    )
     with pytest.raises(BusinessRuleError):
-        budget_service.close_budget(budget.id, "admin", expected_version=budget.row_version)
+        services["finance_governance_commands"].budget_lifecycle(
+            lambda handler: handler.close_budget(
+                budget.id, "admin", expected_version=budget.row_version
+            )
+        )
 
     budget = _submit_with_line(services, budget)
     budget = _approve_directly(services, budget)
-    closed = budget_service.close_budget(budget.id, "admin", expected_version=budget.row_version)
+    closed = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.close_budget(
+            budget.id, "admin", expected_version=budget.row_version
+        )
+    )
     assert closed.status == BudgetStatus.CLOSED
 
 
@@ -938,17 +1162,25 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     _login(services, "admin", "ChangeMe123!")
 
     project = _make_project(services, name="Governed Budget Project")
-    budget_service = services["budget_service"]
+    budget_query = services["budget_query"]
     approvals = services["approval_commands"]
 
-    budget = budget_service.create_budget(project.id, "governed")
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "governed")
+    )
     budget = _submit_with_line(services, budget)
 
-    services["user_registration"].register_user("budget-requester", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user(
+        "budget-requester", "StrongPass123", role_names=["planner"]
+    )
     _login(services, "budget-requester", "StrongPass123")
 
-    result = budget_service.approve_budget(
-        budget.id, approved_by="budget-requester", expected_version=budget.row_version
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            budget.id,
+            approved_by="budget-requester",
+            expected_version=budget.row_version,
+        )
     )
     assert result.outcome is BudgetApprovalOutcome.PENDING_APPROVAL
     assert result.is_pending_approval
@@ -965,12 +1197,14 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     requester_user_id = req.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    services["user_registration"].register_user("budget-reviewer", "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(
+        "budget-reviewer", "StrongPass123", role_names=["approver"]
+    )
     _login(services, "budget-reviewer", "StrongPass123")
     reviewer_user_id = services["user_session"].principal.user_id
     approvals.approve_and_apply(req.id, note="Approved via governance")
 
-    approved = budget_service.get_budget(budget.id)
+    approved = budget_query.get_budget(budget.id)
     assert approved.status == BudgetStatus.APPROVED
     # The deciding principal is recorded, never the requester.
     # the payload was written by budget-requester, but the actor sourced by
@@ -986,16 +1220,24 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
     _login(services, "admin", "ChangeMe123!")
 
     project = _make_project(services, name="Governed Reject Project")
-    budget_service = services["budget_service"]
+    budget_query = services["budget_query"]
     approvals = services["approval_commands"]
 
-    budget = budget_service.create_budget(project.id, "governed-reject")
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "governed-reject")
+    )
     budget = _submit_with_line(services, budget)
 
-    services["user_registration"].register_user("budget-requester-2", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user(
+        "budget-requester-2", "StrongPass123", role_names=["planner"]
+    )
     _login(services, "budget-requester-2", "StrongPass123")
-    result = budget_service.approve_budget(
-        budget.id, approved_by="budget-requester-2", expected_version=budget.row_version
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            budget.id,
+            approved_by="budget-requester-2",
+            expected_version=budget.row_version,
+        )
     )
     assert result.outcome is BudgetApprovalOutcome.PENDING_APPROVAL
     req = services["approval_queries"].list_pending(project_id=project.id)[0]
@@ -1003,31 +1245,41 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
     requester_user_id = req.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
-    services["user_registration"].register_user("budget-reject-reviewer", "StrongPass123", role_names=["approver"])
+    services["user_registration"].register_user(
+        "budget-reject-reviewer", "StrongPass123", role_names=["approver"]
+    )
     _login(services, "budget-reject-reviewer", "StrongPass123")
     reviewer_user_id = services["user_session"].principal.user_id
     approvals.reject(req.id, note="Not this time")
 
-    rejected = budget_service.get_budget(budget.id)
+    rejected = budget_query.get_budget(budget.id)
     assert rejected.status == BudgetStatus.REJECTED
     assert rejected.rejected_by == reviewer_user_id
     assert rejected.rejected_by != requester_user_id
 
 
-def test_governed_approve_checks_staleness_before_creating_request(services, monkeypatch) -> None:
+def test_governed_approve_checks_staleness_before_creating_request(
+    services, monkeypatch
+) -> None:
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "budget.approve")
     _login(services, "admin", "ChangeMe123!")
 
     project = _make_project(services, name="Stale Governance Project")
-    budget_service = services["budget_service"]
+    services["budget_query"]
     services["approval_commands"]
-    budget = budget_service.create_budget(project.id, "stale-governance")
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "stale-governance")
+    )
     budget = _submit_with_line(services, budget)
     stale_version = budget.row_version - 1
 
     with pytest.raises(ConcurrencyError):
-        budget_service.approve_budget(budget.id, approved_by="admin", expected_version=stale_version)
+        services["finance_governance_commands"].budget_approval(
+            lambda handler: handler.approve_budget(
+                budget.id, approved_by="admin", expected_version=stale_version
+            )
+        )
 
     assert services["approval_queries"].list_pending(project_id=project.id) == []
 
@@ -1040,21 +1292,24 @@ def test_internal_apply_methods_bypass_budget_approve_permission(services) -> No
     # a session that holds NO permissions at all.
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services, name="Bypass Project")
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "bypass")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "bypass")
+    )
     budget = _submit_with_line(services, budget)
 
-    real_user_session = budget_service._user_session
-    budget_service._user_session = None
-    try:
-        approved, _events = budget_service._apply_approval_decision(
+    def apply_without_permission_session(handler):
+        handler._user_session = None
+        return handler._apply_approval_decision(
             budget_id=budget.id,
             approved_by="approver-x",
             expected_version=budget.row_version,
             notes="",
         )
-    finally:
-        budget_service._user_session = real_user_session
+
+    approved, _events = services["finance_governance_commands"].budget_approval(
+        apply_without_permission_session
+    )
     assert approved.status == BudgetStatus.APPROVED
     assert approved.approved_by == "approver-x"
 
@@ -1062,19 +1317,31 @@ def test_internal_apply_methods_bypass_budget_approve_permission(services) -> No
 def test_direct_approve_and_reject_require_budget_approve_permission(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services, name="Permission Guard Project")
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "guarded")
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "guarded")
+    )
     budget = _submit_with_line(services, budget)
 
-    services["user_registration"].register_user("no-approve-user", "StrongPass123", role_names=["planner"])
+    services["user_registration"].register_user(
+        "no-approve-user", "StrongPass123", role_names=["planner"]
+    )
     _login(services, "no-approve-user", "StrongPass123")
     with pytest.raises(Exception):
-        budget_service.approve_budget(
-            budget.id, approved_by="no-approve-user", expected_version=budget.row_version
+        services["finance_governance_commands"].budget_approval(
+            lambda handler: handler.approve_budget(
+                budget.id,
+                approved_by="no-approve-user",
+                expected_version=budget.row_version,
+            )
         )
     with pytest.raises(Exception):
-        budget_service.reject_budget(
-            budget.id, rejected_by="no-approve-user", expected_version=budget.row_version
+        services["finance_governance_commands"].budget_approval(
+            lambda handler: handler.reject_budget(
+                budget.id,
+                rejected_by="no-approve-user",
+                expected_version=budget.row_version,
+            )
         )
 
 
@@ -1086,18 +1353,22 @@ def test_direct_approve_and_reject_require_budget_approve_permission(services) -
 def test_transition_notes_persist_independently_across_reload(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "notes-roundtrip")
+    budget_query = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "notes-roundtrip")
+    )
     budget = _submit_with_line(services, budget)
-    budget_service.reject_budget(
-        budget.id,
-        rejected_by="admin",
-        expected_version=budget.row_version,
-        notes="rejection note",
+    services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.reject_budget(
+            budget.id,
+            rejected_by="admin",
+            expected_version=budget.row_version,
+            notes="rejection note",
+        )
     )
 
     services["session"].expire_all()
-    reloaded = budget_service.get_budget(budget.id)
+    reloaded = budget_query.get_budget(budget.id)
     assert reloaded.rejection_notes == "rejection note"
     assert reloaded.submission_notes == ""
     assert reloaded.notes == ""
@@ -1111,45 +1382,52 @@ def test_transition_notes_persist_independently_across_reload(services) -> None:
 def test_totals_by_cost_code_and_by_task_match_hand_computed_sums(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    services['task_lookup_query']
-    task = services['task_lifecycle_commands'].create_task(
+    task = services["task_lifecycle_commands"].create_task(
         project.id, "Budget Task", start_date=date(2026, 4, 1), duration_days=1
     )
-    budget_service = services["budget_service"]
+    budget_query = services["budget_query"]
     code_a = _make_cost_code(services, code="CC-TOTALS-A")
     code_b = _make_cost_code(services, code="CC-TOTALS-B")
-    budget = budget_service.create_budget(project.id, "totals")
-
-    budget_service.add_line(
-        budget.id,
-        cost_code_id=code_a.id,
-        description="A1",
-        amount=Decimal(30),
-        expected_budget_version=budget.row_version,
-    )
-    budget = budget_service.get_budget(budget.id)
-    budget_service.add_line(
-        budget.id,
-        cost_code_id=code_a.id,
-        task_id=task.id,
-        description="A2",
-        amount=Decimal(20),
-        expected_budget_version=budget.row_version,
-    )
-    budget = budget_service.get_budget(budget.id)
-    budget_service.add_line(
-        budget.id,
-        cost_code_id=code_b.id,
-        description="B1",
-        amount=Decimal(50),
-        expected_budget_version=budget.row_version,
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "totals")
     )
 
-    totals_by_cost_code = budget_service.get_totals_by_cost_code(budget.id)
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code_a.id,
+            description="A1",
+            amount=Decimal(30),
+            expected_budget_version=budget.row_version,
+        )
+    )
+    budget = budget_query.get_budget(budget.id)
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code_a.id,
+            task_id=task.id,
+            description="A2",
+            amount=Decimal(20),
+            expected_budget_version=budget.row_version,
+        )
+    )
+    budget = budget_query.get_budget(budget.id)
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code_b.id,
+            description="B1",
+            amount=Decimal(50),
+            expected_budget_version=budget.row_version,
+        )
+    )
+
+    totals_by_cost_code = budget_query.get_totals_by_cost_code(budget.id)
     assert totals_by_cost_code[code_a.id] == Decimal(50)
     assert totals_by_cost_code[code_b.id] == Decimal(50)
 
-    totals_by_task = budget_service.get_totals_by_task(budget.id)
+    totals_by_task = budget_query.get_totals_by_task(budget.id)
     assert totals_by_task[task.id] == Decimal(20)
     assert totals_by_task[""] == Decimal(80)
 
@@ -1159,13 +1437,17 @@ def test_totals_by_cost_code_and_by_task_match_hand_computed_sums(services) -> N
 # ---------------------------------------------------------------------------
 
 
-def test_line_project_scope_is_enforced_by_the_composite_fk_at_db_level(services) -> None:
+def test_line_project_scope_is_enforced_by_the_composite_fk_at_db_level(
+    services,
+) -> None:
     _login(services, "admin", "ChangeMe123!")
     project_a = _make_project(services, name="FK Project A")
     project_b = _make_project(services, name="FK Project B")
-    budget_service = services["budget_service"]
+    services["budget_query"]
     code = _make_cost_code(services, code="CC-FKSCOPE")
-    budget = budget_service.create_budget(project_a.id, "fk-scope")
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project_a.id, "fk-scope")
+    )
 
     from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
         BudgetLineORM,
@@ -1196,20 +1478,23 @@ def test_line_project_scope_is_enforced_by_the_composite_fk_at_db_level(services
 def test_task_referenced_by_budget_line_cannot_be_hard_deleted(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    services['task_lookup_query']
-    task = services['task_lifecycle_commands'].create_task(
+    task = services["task_lifecycle_commands"].create_task(
         project.id, "Restricted Task", start_date=date(2026, 5, 1), duration_days=1
     )
-    budget_service = services["budget_service"]
+    services["budget_query"]
     code = _make_cost_code(services, code="CC-TASKRESTRICT")
-    budget = budget_service.create_budget(project.id, "task-restrict")
-    budget_service.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        task_id=task.id,
-        description="Task line",
-        amount=Decimal(10),
-        expected_budget_version=budget.row_version,
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "task-restrict")
+    )
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=code.id,
+            task_id=task.id,
+            description="Task line",
+            amount=Decimal(10),
+            expected_budget_version=budget.row_version,
+        )
     )
 
     from src.core.modules.project_management.infrastructure.persistence.orm.task import (
@@ -1228,8 +1513,10 @@ def test_tenant_isolation_across_organizations(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     original_organization = services["tenant_context_service"].get_active_organization()
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(project.id, "org-scoped")
+    budget_query = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "org-scoped")
+    )
 
     other_organization = services["organization_commands"].create_organization(
         organization_code="PF-BUDGET-ISOLATION",
@@ -1238,12 +1525,14 @@ def test_tenant_isolation_across_organizations(services) -> None:
     )
     services["tenant_context_service"].set_active_organization(other_organization.id)
     try:
-        assert budget_service._budget_repo.get(budget.id) is None
-        assert budget_service._budget_repo.list_for_project(project.id) == []
+        assert budget_query._budget_repo.get(budget.id) is None
+        assert budget_query._budget_repo.list_for_project(project.id) == []
     finally:
-        services["tenant_context_service"].set_active_organization(original_organization.id)
+        services["tenant_context_service"].set_active_organization(
+            original_organization.id
+        )
 
-    assert budget_service._budget_repo.get(budget.id).id == budget.id
+    assert budget_query._budget_repo.get(budget.id).id == budget.id
 
 
 # ---------------------------------------------------------------------------
@@ -1269,7 +1558,9 @@ def _engine_with_fk_enforcement(url: str):
     return engine
 
 
-def test_fresh_baseline_creates_budget_tables_and_cascades_line_delete(tmp_path) -> None:
+def test_fresh_baseline_creates_budget_tables_and_cascades_line_delete(
+    tmp_path,
+) -> None:
     database_path = tmp_path / "budget-migration.db"
     config = _alembic_config(database_path)
     command.upgrade(config, "head")
@@ -1400,12 +1691,9 @@ def test_existing_squashed_baseline_upgrades_budget_lineage_in_place(tmp_path) -
         }
         foreign_keys = {
             foreign_key["name"]
-            for foreign_key in inspector.get_foreign_keys(
-                "project_finance_budgets"
-            )
+            for foreign_key in inspector.get_foreign_keys("project_finance_budgets")
         }
         assert "predecessor_budget_id" in after
         assert "fk_pf_budgets_scoped_predecessor" in foreign_keys
     finally:
         engine.dispose()
-

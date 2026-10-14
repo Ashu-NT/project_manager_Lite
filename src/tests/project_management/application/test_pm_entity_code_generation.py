@@ -22,8 +22,6 @@ def test_task_autogenerates_code(services):
 
 
 def test_task_code_is_per_project_scoped(services):
-    services['task_lookup_query']
-    services['project_query']
     p1 = services['project_create'].create_project("Project One", "").id
     p2 = services['project_create'].create_project("Project Two", "").id
     a = services['task_lifecycle_commands'].create_task(p1, "Cabling Run", duration_days=1)
@@ -34,7 +32,6 @@ def test_task_code_is_per_project_scoped(services):
 
 
 def test_task_manual_duplicate_blocked_within_project(services):
-    services['task_lookup_query']
     pid = _project(services).id
     services['task_lifecycle_commands'].create_task(pid, "Alpha", duration_days=1, code="TSK-DUP-1")
     with pytest.raises(ValidationError) as exc:

@@ -12,8 +12,6 @@ from src.core.modules.project_management.domain.enums import DependencyType
 
 def _make_chain(services):
     """A -> B -> C, all FS lag 0."""
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Impact Preview", "")
     a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
@@ -47,8 +45,6 @@ def test_removal_preview_reports_shift_when_successor_has_its_own_conflicting_st
     ignore a task's own start_date whenever incoming_deps is non-empty).
     Removing the edge reveals that underlying, previously-overridden
     start_date -- a real, reportable shift."""
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Impact Preview Isolated", "")
     a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", start_date=date(2024, 1, 1), duration_days=1)
@@ -70,7 +66,6 @@ def test_removal_preview_reports_not_found_for_unknown_id(services):
 def test_removal_preview_never_mutates_anything(services):
     """The preview is advisory -- it must not persist the removal or touch
     the schedule."""
-    services['task_lookup_query']
     _project, a, b, c, dep_ab = _make_chain(services)
 
     services["task_dependency_diagnostics"].preview_dependency_removal(dep_ab.id)

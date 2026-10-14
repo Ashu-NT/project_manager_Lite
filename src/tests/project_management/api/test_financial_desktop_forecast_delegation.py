@@ -34,7 +34,7 @@ class _FinanceSnapshotQueryHandler:
         )
 
 
-class _CommitmentService:
+class _CommitmentQuery:
     def list_for_project(
         self,
         project_id,
@@ -89,13 +89,18 @@ def test_financial_desktop_maps_commitment_controls() -> None:
     assert finance_snapshot_query.overview_calls == 1
 
 
-@pytest.mark.parametrize("budget,commitment,expected", [
-    (Decimal(0), Decimal(0), None),
-    (Decimal(0), Decimal(20), None),
-    (Decimal(100), Decimal(0), 0.0),
-])
+@pytest.mark.parametrize(
+    "budget,commitment,expected",
+    [
+        (Decimal(0), Decimal(0), None),
+        (Decimal(0), Decimal(20), None),
+        (Decimal(100), Decimal(0), 0.0),
+    ],
+)
 def test_commitment_percentage_preserves_undefined_versus_available_zero(
-    budget, commitment, expected,
+    budget,
+    commitment,
+    expected,
 ):
     from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
         FinanceControlFact,
@@ -124,7 +129,7 @@ def test_financial_desktop_requires_canonical_finance_snapshot_query() -> None:
 
 
 def test_financial_desktop_maps_paged_canonical_commitment_lines() -> None:
-    page = _api(commitment_service=_CommitmentService()).list_commitments(
+    page = _api(commitment_query=_CommitmentQuery()).list_commitments(
         "project-1", offset=10, limit=20
     )
 

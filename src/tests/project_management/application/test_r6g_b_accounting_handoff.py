@@ -45,16 +45,16 @@ def approved_preparation(services):
     _login(services, "handoff-reviewer", "StrongPass123")
     services["approval_commands"].approve_and_apply(approval.id)
     _login(services, "admin", "ChangeMe123!")
-    return services["billing_preparation_service"].get_preparation(submitted.id)
+    return services['billing_preparation_query'].get_preparation(submitted.id)
 
 
 def test_durable_request_and_profile_independent_replay(accounting_services, session):
     services = accounting_services
     approved = approved_preparation(services)
-    billing = services["billing_preparation_service"]
-    payload = billing.request_delivery(
+    billing = services['billing_preparation_query']
+    payload = services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
-    )
+    ))
     row = session.scalars(select(ProjectAccountingHandoffORM)).one()
     outbox = session.scalars(select(ProjectAccountingOutboxORM)).one()
     snapshot = AccountingHandoffSnapshot.model_validate_json(row.payload_bytes)
@@ -76,7 +76,7 @@ def test_durable_request_and_profile_independent_replay(accounting_services, ses
     session.commit()
     hints = _spy_hints(services)
     assert (
-        billing.request_delivery(approved.id, expected_row_version=approved.row_version)
+        services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(approved.id, expected_row_version=approved.row_version))
         == payload
     )
     assert not hints
@@ -89,7 +89,7 @@ def test_durable_request_and_profile_independent_replay(accounting_services, ses
         session.scalar(select(func.count()).select_from(ProjectAccountingOutboxORM))
         == 1
     )
-    pending = billing.get_preparation(approved.id)
+    pending = services['billing_preparation_query'].get_preparation(approved.id)
     assert pending.status.value == "delivery_pending"
     assert pending.delivery_requested_at == snapshot.requested_at
     assert pending.delivered_at is None
@@ -135,9 +135,9 @@ def test_handoff_failure_rolls_back_everything_then_retry(
     with monkeypatch.context() as patch:
         patch.setattr(*targets[failure], fail)
         with pytest.raises(RuntimeError, match="injected request failure"):
-            services["billing_preparation_service"].request_delivery(
+            services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
                 approved.id, expected_row_version=approved.row_version
-            )
+            ))
     assert not hints
     session.expire_all()
     assert (
@@ -152,14 +152,14 @@ def test_handoff_failure_rolls_back_everything_then_retry(
         == 0
     )
     assert (
-        services["billing_preparation_service"]
+        services['billing_preparation_query']
         .get_preparation(approved.id)
         .status.value
         == "approved"
     )
-    services["billing_preparation_service"].request_delivery(
+    services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
-    )
+    ))
     assert (
         session.scalar(select(func.count()).select_from(ProjectAccountingHandoffORM))
         == 1
@@ -199,9 +199,9 @@ def test_command_rechecks_changed_capability(
         session.execute(update(AccountingConnectorORM).values(adapter_id="unknown"))
     session.commit()
     with pytest.raises(BusinessRuleError) as error:
-        services["billing_preparation_service"].request_delivery(
+        services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
             approved.id, expected_row_version=approved.row_version
-        )
+        ))
     assert error.value.code == reason
     assert (
         session.scalar(select(func.count()).select_from(ProjectAccountingHandoffORM))
@@ -213,9 +213,9 @@ def test_command_rechecks_changed_capability(
 def test_snapshot_rejects_invalid_money(accounting_services, session, value):
     services = accounting_services
     approved = approved_preparation(services)
-    services["billing_preparation_service"].request_delivery(
+    services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
-    )
+    ))
     snapshot = AccountingHandoffSnapshot.model_validate_json(
         session.scalars(select(ProjectAccountingHandoffORM)).one().payload_bytes
     )
@@ -245,9 +245,9 @@ def test_finance_manage_does_not_grant_handoff_or_external_status(accounting_ser
     assert detail.handoff_denial_reason == "permission_denied"
     assert not detail.can_view_accounting_status
     with pytest.raises(BusinessRuleError):
-        services["billing_preparation_service"].request_delivery(
+        services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
             approved.id, expected_row_version=approved.row_version
-        )
+        ))
     with pytest.raises(BusinessRuleError):
         query.get_accounting_statuses(approved.project_id)
 
@@ -265,9 +265,9 @@ def test_absent_accounting_does_not_block_preparation(services):
     assert not detail.can_request_delivery
     assert detail.can_view_accounting_status
     with pytest.raises(BusinessRuleError) as error:
-        services["billing_preparation_service"].request_delivery(
+        services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
             approved.id, expected_row_version=approved.row_version
-        )
+        ))
     assert error.value.code == "adapter_not_installed"
 
 
@@ -290,10 +290,10 @@ def test_invalid_approved_evidence_cannot_leave_a_partial_request(
     audit_count = session.scalar(select(func.count()).select_from(AuditEntryORM))
     hints = _spy_hints(accounting_services)
     with pytest.raises(ValueError):
-        accounting_services["billing_preparation_service"].request_delivery(
+        accounting_services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
             approved.id,
             expected_row_version=approved.row_version,
-        )
+        ))
     assert not hints
     assert (
         session.scalar(select(func.count()).select_from(ProjectAccountingHandoffORM))
@@ -307,7 +307,7 @@ def test_invalid_approved_evidence_cannot_leave_a_partial_request(
         session.scalar(select(func.count()).select_from(AuditEntryORM)) == audit_count
     )
     assert (
-        accounting_services["billing_preparation_service"]
+        accounting_services['billing_preparation_query']
         .get_preparation(approved.id)
         .status.value
         == "approved"
@@ -323,9 +323,9 @@ def test_changed_snapshot_is_rejected_and_history_survives_disable(
 
     services = accounting_services
     approved = approved_preparation(services)
-    services["billing_preparation_service"].request_delivery(
+    services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
-    )
+    ))
     repository = SqlAlchemyAccountingHandoffRepository(session)
     repository._tenant_context_service = services["tenant_context_service"]
     original = repository.get_for_preparation(approved.project_id, approved.id)
@@ -353,9 +353,9 @@ def test_snapshot_currency_sum_schema_and_empty_lines(
 ):
     services = accounting_services
     approved = approved_preparation(services)
-    services["billing_preparation_service"].request_delivery(
+    services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
-    )
+    ))
     snapshot = AccountingHandoffSnapshot.model_validate_json(
         session.scalars(select(ProjectAccountingHandoffORM)).one().payload_bytes
     )
@@ -471,10 +471,10 @@ def test_missing_connector_is_safe_and_does_not_block_billing(
     )
     assert detail.handoff_denial_reason == "integration_not_configured"
     with pytest.raises(BusinessRuleError) as error:
-        accounting_services["billing_preparation_service"].request_delivery(
+        accounting_services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
             approved.id,
             expected_row_version=approved.row_version,
-        )
+        ))
     assert error.value.code == "integration_not_configured"
 
 
@@ -491,10 +491,10 @@ def test_handoff_permission_for_another_project_is_not_sufficient(accounting_ser
         )
     )
     with pytest.raises(BusinessRuleError):
-        accounting_services["billing_preparation_service"].request_delivery(
+        accounting_services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
             approved.id,
             expected_row_version=approved.row_version,
-        )
+        ))
 
 
 @pytest.mark.parametrize("line_count", [1, 25])
@@ -537,10 +537,10 @@ def test_handoff_uses_one_scoped_line_query(accounting_services, session, line_c
 
     event.listen(session.bind, "before_cursor_execute", record)
     try:
-        accounting_services["billing_preparation_service"].request_delivery(
+        accounting_services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
             approved.id,
             expected_row_version=approved.row_version,
-        )
+        ))
     finally:
         event.remove(session.bind, "before_cursor_execute", record)
     line_queries = [
@@ -562,10 +562,10 @@ def test_correction_gets_new_identity_without_changing_parent(
 
     services = accounting_services
     approved = approved_preparation(services)
-    billing = services["billing_preparation_service"]
-    parent = billing.request_delivery(
+    billing = services['billing_preparation_query']
+    parent = services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
-    )
+    ))
     parent_bytes = session.scalars(
         select(ProjectAccountingHandoffORM.payload_bytes)
     ).one()
@@ -580,43 +580,43 @@ def test_correction_gets_new_identity_without_changing_parent(
             occurred_at=datetime.now(UTC),
             reconciliation_reference="confirmed",
         )
-    profiles = services["billing_profile_service"]
-    line = profiles.add_schedule_line(
+    profiles = services['billing_profile_query']
+    line = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         approved.project_id,
         name="Correction source",
         amount=Decimal(100),
         due_date=date(2026, 8, 20),
-    )
-    line = profiles.mark_schedule_line_ready(
+    ))
+    line = services['finance_governance_commands'].billing_schedule(lambda handler: handler.mark_schedule_line_ready(
         line.id, expected_row_version=line.row_version
-    )
-    correction = billing.create_preparation(
+    ))
+    correction = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         approved.project_id,
         preparation_number="CORRECTION",
         period_start=date(2026, 8, 1),
         period_end=date(2026, 8, 31),
         idempotency_key="correction",
         correction_of_preparation_id=approved.id,
-    )
-    billing.add_fixed_price_source(
+    ))
+    services['finance_governance_commands'].billing_source(lambda handler: handler.add_fixed_price_source(
         correction.id,
         schedule_line_id=line.id,
         expected_row_version=correction.row_version,
-    )
-    correction = billing.get_preparation(correction.id)
-    correction = billing.submit_preparation(
+    ))
+    correction = services['billing_preparation_query'].get_preparation(correction.id)
+    correction = services['finance_governance_commands'].billing_submission(lambda handler: handler.submit_preparation(
         correction.id, expected_row_version=correction.row_version
-    )
+    ))
     approval = services["approval_queries"].list_pending(
         project_id=approved.project_id
     )[0]
     _login(services, "handoff-reviewer", "StrongPass123")
     services["approval_commands"].approve_and_apply(approval.id)
     _login(services, "admin", "ChangeMe123!")
-    correction = billing.get_preparation(correction.id)
-    successor = billing.request_delivery(
+    correction = services['billing_preparation_query'].get_preparation(correction.id)
+    successor = services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         correction.id, expected_row_version=correction.row_version
-    )
+    ))
     assert successor.handoff_id != parent.handoff_id
     assert (
         session.scalars(

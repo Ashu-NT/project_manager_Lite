@@ -389,16 +389,16 @@ def _fake_capacity_fact(*, peak_utilization_percent: float, days: tuple) -> Simp
     )
 
 
-def test_da0_characterizes_assignment_preview_formula_and_per_conflict_lookup() -> None:
+def test_assignment_preview_preserves_formula_with_one_batched_conflict_lookup() -> None:
     conflict_tasks = {
         "task-2": SimpleNamespace(id="task-2", project_id="project-2"),
         "task-3": SimpleNamespace(id="task-3", project_id="project-3"),
     }
-    task_calls: list[str] = []
+    task_calls: list[list[str]] = []
 
-    def _get_task(task_id: str):
-        task_calls.append(task_id)
-        return conflict_tasks.get(task_id)
+    def _list_tasks(task_ids: list[str]):
+        task_calls.append(task_ids)
+        return [conflict_tasks[task_id] for task_id in task_ids]
 
     fact = _fake_capacity_fact(
         peak_utilization_percent=160.0,
@@ -411,8 +411,8 @@ def test_da0_characterizes_assignment_preview_formula_and_per_conflict_lookup() 
     preview = build_assignment_preview(
         "task-1",
         "project-resource-1",
-        task_service=SimpleNamespace(
-            get_task=_get_task,
+        task_query=SimpleNamespace(list_tasks_by_ids=_list_tasks),
+        assignment_commands=SimpleNamespace(
             preview_assignment_capacity=lambda *args, **kwargs: fact,
         ),
         project_resource_query=SimpleNamespace(
@@ -424,7 +424,7 @@ def test_da0_characterizes_assignment_preview_formula_and_per_conflict_lookup() 
 
     assert preview.overallocation_pct == 60.0
     assert set(preview.conflict_projects) == {"Project Two", "Project Three"}
-    assert set(task_calls) == {"task-2", "task-3"}
+    assert task_calls == [["task-2", "task-3"]]
 
 
 def test_da0_assignment_preview_omits_conflict_names_outside_authorized_project_scope() -> None:
@@ -437,8 +437,8 @@ def test_da0_assignment_preview_omits_conflict_names_outside_authorized_project_
         "task-3": SimpleNamespace(id="task-3", project_id="project-hidden"),
     }
 
-    def _get_task(task_id: str):
-        return conflict_tasks.get(task_id)
+    def _list_tasks(task_ids: list[str]):
+        return [conflict_tasks[task_id] for task_id in task_ids]
 
     fact = _fake_capacity_fact(
         peak_utilization_percent=160.0,
@@ -451,8 +451,8 @@ def test_da0_assignment_preview_omits_conflict_names_outside_authorized_project_
     preview = build_assignment_preview(
         "task-1",
         "project-resource-1",
-        task_service=SimpleNamespace(
-            get_task=_get_task,
+        task_query=SimpleNamespace(list_tasks_by_ids=_list_tasks),
+        assignment_commands=SimpleNamespace(
             preview_assignment_capacity=lambda *args, **kwargs: fact,
         ),
         project_resource_query=SimpleNamespace(

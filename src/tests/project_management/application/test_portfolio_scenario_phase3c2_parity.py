@@ -36,36 +36,34 @@ def _assign(
 
 
 def _approve_budget(services, project_id: str, amount: str) -> None:
-    configuration = services["financial_configuration_service"]
-    budgets = services["budget_service"]
-    code = configuration.create_cost_code(
+    configuration = services['financial_configuration_query']
+    budgets = services['budget_query']
+    code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"SCN-{project_id[:8]}",
         name="Scenario budget",
-    )
-    budget = budgets.create_budget(project_id, "Approved scenario budget")
-    budgets.add_line(
+    ))
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project_id, "Approved scenario budget"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
         cost_code_id=code.id,
         description="Authorized amount",
         amount=Decimal(amount),
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         budget.id,
         "admin",
         expected_version=budget.row_version,
-    )
-    budgets.approve_budget(
+    ))
+    services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
         budget.id,
         approved_by="admin",
         expected_version=budget.row_version,
-    )
+    ))
 
 
 def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(services) -> None:
-    services['project_query']
-    services['task_lookup_query']
 
     shared = services["resource_master_commands"].create_resource(
         "Shared",

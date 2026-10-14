@@ -46,9 +46,9 @@ def worker(accounting_services, session):
     )
 
     approved = approved_preparation(accounting_services)
-    accounting_services["billing_preparation_service"].request_delivery(
+    accounting_services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
-    )
+    ))
     scope = accounting_services["tenant_context_service"].require_active_scope_ids(
         operation_label="test"
     )
@@ -134,7 +134,7 @@ def test_durable_transport_receipt_does_not_acknowledge_business(
     receipt = ExternalAccountingReceipt.model_validate_json(row.transport_receipt_json)
     assert receipt.handoff_id == row.event_id
     assert row.target_adapter_id == "test_connector"
-    preparation = accounting_services["billing_preparation_service"].get_preparation(
+    preparation = accounting_services['billing_preparation_query'].get_preparation(
         approved.id
     )
     assert preparation.status.value == "delivered"
@@ -163,7 +163,7 @@ def test_typed_transport_failure_preserves_approved_evidence(
     assert row.status == status and row.last_error_code == kind.value
     assert row.transport_receipt_json is None
     assert (
-        accounting_services["billing_preparation_service"]
+        accounting_services['billing_preparation_query']
         .get_preparation(approved.id)
         .status.value
         == "delivery_pending"

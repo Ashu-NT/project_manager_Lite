@@ -30,20 +30,19 @@ from src.core.modules.project_management.application.dashboard import (
     ProjectDashboardQueryHandler,
 )
 from src.core.modules.project_management.application.financials import (
-    BudgetService,
+    BudgetQueries,
     FinanceSnapshotQueryHandler,
-    FinancialChangeService,
-    FinancialConfigurationService,
-    ForecastGenerationService,
-    ForecastVersionService,
-    PlannedCostService,
-    ProjectBillingPreparationService,
-    ProjectBillingProfileService,
-    ProjectCommitmentService,
-    ProjectCostEntryService,
+    FinancialChangeQueryHandler,
+    FinancialConfigurationQueryHandler,
+    ForecastVersionQueries,
+    PlannedCostQueryHandler,
+    ProjectBillingPreparationQueryHandler,
+    ProjectBillingProfileQueryHandler,
+    ProjectCommitmentQueryHandler,
+    ProjectCostEntryQueryHandler,
     ProjectFinancePerformanceQuery,
     ProjectFinanceWorkspaceQuery,
-    ProjectRateCardService,
+    ProjectRateCardQueryHandler,
     RateCardResolver,
 )
 from src.core.modules.project_management.application.financials.governance import (
@@ -433,18 +432,17 @@ class ServiceGraph:
     resource_capability_query: ResourceCapabilityQueryHandler
     resource_context_query: ResourceContextQueryHandler
     finance_governance_commands: FinanceGovernanceCommandBoundary
-    financial_configuration_service: FinancialConfigurationService
-    forecast_generation_service: ForecastGenerationService
-    forecast_version_service: ForecastVersionService
-    financial_change_service: FinancialChangeService
-    billing_profile_service: ProjectBillingProfileService
-    billing_preparation_service: ProjectBillingPreparationService
-    rate_card_service: ProjectRateCardService
+    financial_configuration_query: FinancialConfigurationQueryHandler
+    forecast_version_query: ForecastVersionQueries
+    financial_change_query: FinancialChangeQueryHandler
+    billing_profile_query: ProjectBillingProfileQueryHandler
+    billing_preparation_query: ProjectBillingPreparationQueryHandler
+    rate_card_query: ProjectRateCardQueryHandler
     rate_card_resolver: RateCardResolver
-    budget_service: BudgetService
-    cost_entry_service: ProjectCostEntryService
-    commitment_service: ProjectCommitmentService
-    planned_cost_service: PlannedCostService
+    budget_query: BudgetQueries
+    cost_entry_query: ProjectCostEntryQueryHandler
+    commitment_query: ProjectCommitmentQueryHandler
+    planned_cost_query: PlannedCostQueryHandler
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_performance_query: ProjectFinancePerformanceQuery
     finance_snapshot_query: FinanceSnapshotQueryHandler
@@ -620,18 +618,17 @@ class ServiceGraph:
             "resource_capability_query": self.resource_capability_query,
             "resource_context_query": self.resource_context_query,
             "finance_governance_commands": self.finance_governance_commands,
-            "financial_configuration_service": self.financial_configuration_service,
-            "forecast_generation_service": self.forecast_generation_service,
-            "forecast_version_service": self.forecast_version_service,
-            "financial_change_service": self.financial_change_service,
-            "billing_profile_service": self.billing_profile_service,
-            "billing_preparation_service": self.billing_preparation_service,
-            "rate_card_service": self.rate_card_service,
+            "financial_configuration_query": self.financial_configuration_query,
+            "forecast_version_query": self.forecast_version_query,
+            "financial_change_query": self.financial_change_query,
+            "billing_profile_query": self.billing_profile_query,
+            "billing_preparation_query": self.billing_preparation_query,
+            "rate_card_query": self.rate_card_query,
             "rate_card_resolver": self.rate_card_resolver,
-            "budget_service": self.budget_service,
-            "cost_entry_service": self.cost_entry_service,
-            "commitment_service": self.commitment_service,
-            "planned_cost_service": self.planned_cost_service,
+            "budget_query": self.budget_query,
+            "cost_entry_query": self.cost_entry_query,
+            "commitment_query": self.commitment_query,
+            "planned_cost_query": self.planned_cost_query,
             "finance_workspace_query": self.finance_workspace_query,
             "finance_performance_query": self.finance_performance_query,
             "finance_snapshot_query": self.finance_snapshot_query,

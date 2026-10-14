@@ -34,36 +34,46 @@ from src.ui_qml.modules.project_management.presenters.projects.projects_workspac
 
 def _approve_budget(services, project_id: str, *amounts: str, currency: str = "GBP"):
     suffix = uuid4().hex[:8]
-    cost_code = services["financial_configuration_service"].create_cost_code(
-        code=f"R42-{suffix}",
-        name=f"R4.2 {suffix}",
+    cost_code = services["finance_governance_commands"].cost_code(
+        lambda handler: handler.create_cost_code(
+            code=f"R42-{suffix}",
+            name=f"R4.2 {suffix}",
+        )
     )
-    budget_service = services["budget_service"]
-    budget = budget_service.create_budget(
-        project_id,
-        f"Approved {suffix}",
-        currency_code=currency,
+    budget_query = services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(
+            project_id,
+            f"Approved {suffix}",
+            currency_code=currency,
+        )
     )
     for index, amount in enumerate(amounts, start=1):
-        budget_service.add_line(
-            budget.id,
-            cost_code_id=cost_code.id,
-            description=f"Line {index}",
-            amount=Decimal(amount),
-            expected_budget_version=budget.row_version,
+        services["finance_governance_commands"].budget_lines(
+            lambda handler, budget=budget, index=index, amount=amount: handler.add_line(
+                budget.id,
+                cost_code_id=cost_code.id,
+                description=f"Line {index}",
+                amount=Decimal(amount),
+                expected_budget_version=budget.row_version,
+            )
         )
-        budget = budget_service.get_budget(budget.id)
-    budget = budget_service.submit_budget(
-        budget.id,
-        submitted_by="r42-author",
-        expected_version=budget.row_version,
+        budget = budget_query.get_budget(budget.id)
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            budget.id,
+            submitted_by="r42-author",
+            expected_version=budget.row_version,
+        )
     )
-    budget_service.approve_budget(
-        budget.id,
-        approved_by="r42-approver",
-        expected_version=budget.row_version,
+    services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            budget.id,
+            approved_by="r42-approver",
+            expected_version=budget.row_version,
+        )
     )
-    return budget_service.get_budget(budget.id)
+    return budget_query.get_budget(budget.id)
 
 
 def _set_principal(
@@ -97,8 +107,10 @@ def _desktop_api(services):
     )
 
 
-def test_approved_budget_projection_sums_lines_and_uses_budget_currency(services) -> None:
-    project = services['project_create'].create_project(
+def test_approved_budget_projection_sums_lines_and_uses_budget_currency(
+    services,
+) -> None:
+    project = services["project_create"].create_project(
         "Currency Authority",
         financial_currency_code="EUR",
     )
@@ -127,14 +139,17 @@ def test_approved_budget_projection_sums_lines_and_uses_budget_currency(services
     detail_state = presenter.build_project_detail_state(project_id=project.id)
     assert catalog_state.projects[0].state["approvedBudgetVisible"] is True
     assert catalog_state.projects[0].state["approvedBudgetLabel"] == "GBP 100.00"
-    assert detail_state.selected_project_detail.state["approvedBudgetLabel"] == "GBP 100.00"
+    assert (
+        detail_state.selected_project_detail.state["approvedBudgetLabel"]
+        == "GBP 100.00"
+    )
     assert "Approved Budget" in {
         field.label for field in detail_state.selected_project_detail.fields
     }
 
 
 def test_project_read_without_finance_read_redacts_catalog_and_detail(services) -> None:
-    project = services['project_create'].create_project(
+    project = services["project_create"].create_project(
         "Redacted Budget",
         financial_currency_code="EUR",
     )
@@ -177,9 +192,11 @@ def test_project_read_without_finance_read_redacts_catalog_and_detail(services) 
     }
 
 
-def test_project_scoped_finance_access_redacts_only_unauthorized_project(services) -> None:
-    project_a = services['project_create'].create_project("Scoped Finance A")
-    project_b = services['project_create'].create_project("Scoped Finance B")
+def test_project_scoped_finance_access_redacts_only_unauthorized_project(
+    services,
+) -> None:
+    project_a = services["project_create"].create_project("Scoped Finance A")
+    project_b = services["project_create"].create_project("Scoped Finance B")
     _approve_budget(services, project_a.id, "100", currency="USD")
     _approve_budget(services, project_b.id, "900", currency="CAD")
     _set_principal(
@@ -201,14 +218,17 @@ def test_project_scoped_finance_access_redacts_only_unauthorized_project(service
     assert by_id[project_b.id].approved_budget is None
     assert by_id[project_b.id].approved_budget_currency == ""
     assert by_id[project_b.id].approved_budget_visible is False
-    assert services["project_query"].query_project_detail(project_b.id).approved_budget is None
+    assert (
+        services["project_query"].query_project_detail(project_b.id).approved_budget
+        is None
+    )
 
 
 def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None:
     values = ("9", "100", "1000", None, "100")
     projects = []
     for index, amount in enumerate(values):
-        project = services['project_create'].create_project(f"Budget Sort {index}")
+        project = services["project_create"].create_project(f"Budget Sort {index}")
         projects.append(project)
         if amount is not None:
             _approve_budget(services, project.id, amount, currency="USD")
@@ -216,37 +236,47 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
     ascending = [
         item
         for page in (1, 2, 3)
-        for item in services["project_query"].query_catalog_page(
+        for item in services["project_query"]
+        .query_catalog_page(
             sort_key="approvedBudgetLabel",
             sort_direction="asc",
             page=page,
             page_size=2,
-        ).items
+        )
+        .items
     ]
     descending = [
         item
         for page in (1, 2, 3)
-        for item in services["project_query"].query_catalog_page(
+        for item in services["project_query"]
+        .query_catalog_page(
             sort_key="approvedBudgetLabel",
             sort_direction="desc",
             page=page,
             page_size=2,
-        ).items
+        )
+        .items
     ]
 
-    assert [item.approved_budget for item in ascending if item.approved_budget is not None] == [
+    assert [
+        item.approved_budget for item in ascending if item.approved_budget is not None
+    ] == [
         Decimal(9),
         Decimal(100),
         Decimal(100),
         Decimal(1000),
     ]
-    assert [item.approved_budget for item in descending if item.approved_budget is not None] == [
+    assert [
+        item.approved_budget for item in descending if item.approved_budget is not None
+    ] == [
         Decimal(1000),
         Decimal(100),
         Decimal(100),
         Decimal(9),
     ]
-    assert {item.project.id for item in ascending} == {project.id for project in projects}
+    assert {item.project.id for item in ascending} == {
+        project.id for project in projects
+    }
     assert [
         item.project.id for item in ascending if item.approved_budget == Decimal(100)
     ] == sorted(
@@ -255,22 +285,31 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
 
 
 def test_only_currently_approved_budget_is_projected(services) -> None:
-    project = services['project_create'].create_project("Budget Lifecycle")
-    assert services["project_query"].query_project_detail(project.id).approved_budget is None
+    project = services["project_create"].create_project("Budget Lifecycle")
+    assert (
+        services["project_query"].query_project_detail(project.id).approved_budget
+        is None
+    )
 
     first = _approve_budget(services, project.id, "10", currency="USD")
-    assert services["project_query"].query_project_detail(project.id).approved_budget == Decimal(10)
+    assert services["project_query"].query_project_detail(
+        project.id
+    ).approved_budget == Decimal(10)
 
     successor = _approve_budget(services, project.id, "25", currency="CAD")
-    assert services["budget_service"].get_budget(first.id).status is BudgetStatus.SUPERSEDED
+    assert (
+        services["budget_query"].get_budget(first.id).status is BudgetStatus.SUPERSEDED
+    )
     current = services["project_query"].query_project_detail(project.id)
     assert current.approved_budget == Decimal(25)
     assert current.approved_budget_currency == "CAD"
 
-    services["budget_service"].close_budget(
-        successor.id,
-        closed_by="r42-closer",
-        expected_version=successor.row_version,
+    services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.close_budget(
+            successor.id,
+            closed_by="r42-closer",
+            expected_version=successor.row_version,
+        )
     )
     closed = _desktop_api(services).get_project(project.id)
     assert closed is not None
@@ -279,30 +318,41 @@ def test_only_currently_approved_budget_is_projected(services) -> None:
     assert closed.approved_budget_currency == ""
 
 
-def test_single_project_reader_enforces_tenant_and_organization_scope(services, session) -> None:
-    project = services['project_create'].create_project("Scoped Detail")
+def test_single_project_reader_enforces_tenant_and_organization_scope(
+    services, session
+) -> None:
+    project = services["project_create"].create_project("Scoped Detail")
     _approve_budget(services, project.id, "333", currency="USD")
     user_session = services["user_session"]
     reader = SqlAlchemyProjectCatalogReader(session=session)
 
-    assert reader.read_one(
-        tenant_id=user_session.stored_active_tenant_id(),
-        organization_id=user_session.stored_active_organization_id(),
-        project_id=project.id,
-        include_approved_budget=True,
-    ) is not None
-    assert reader.read_one(
-        tenant_id="another-tenant",
-        organization_id=user_session.stored_active_organization_id(),
-        project_id=project.id,
-        include_approved_budget=True,
-    ) is None
-    assert reader.read_one(
-        tenant_id=user_session.stored_active_tenant_id(),
-        organization_id="another-organization",
-        project_id=project.id,
-        include_approved_budget=True,
-    ) is None
+    assert (
+        reader.read_one(
+            tenant_id=user_session.stored_active_tenant_id(),
+            organization_id=user_session.stored_active_organization_id(),
+            project_id=project.id,
+            include_approved_budget=True,
+        )
+        is not None
+    )
+    assert (
+        reader.read_one(
+            tenant_id="another-tenant",
+            organization_id=user_session.stored_active_organization_id(),
+            project_id=project.id,
+            include_approved_budget=True,
+        )
+        is None
+    )
+    assert (
+        reader.read_one(
+            tenant_id=user_session.stored_active_tenant_id(),
+            organization_id="another-organization",
+            project_id=project.id,
+            include_approved_budget=True,
+        )
+        is None
+    )
 
 
 class _RefreshProbe(ProjectManagementWorkspaceControllerBase):
@@ -347,7 +397,9 @@ def test_qml_budget_surfaces_are_deny_safe_and_sortable() -> None:
     columns = (root / "ProjectsColumnConfig.js").read_text(encoding="utf-8")
     state = (root / "ProjectsWorkspaceState.qml").read_text(encoding="utf-8")
     page = (root / "ProjectsWorkspacePage.qml").read_text(encoding="utf-8")
-    overview = (root / "sections/ProjectsOverviewSection.qml").read_text(encoding="utf-8")
+    overview = (root / "sections/ProjectsOverviewSection.qml").read_text(
+        encoding="utf-8"
+    )
 
     assert '"key": "approvedBudgetLabel"' in columns
     assert '"sortable": true' in columns

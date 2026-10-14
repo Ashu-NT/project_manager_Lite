@@ -2,8 +2,6 @@ from datetime import date
 
 
 def test_project_delete_cascade(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Delete Test", "")
     pid = project.id
 

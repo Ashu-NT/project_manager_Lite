@@ -11,8 +11,6 @@ from src.core.platform.common.exceptions import (
 
 
 def test_task_name_validation_rules(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Task Name Rules", "")
     pid = project.id
@@ -31,8 +29,6 @@ def test_task_name_validation_rules(services):
 
 
 def test_task_dates_must_fit_project_window(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project(
         "Project Date Window",
@@ -57,8 +53,6 @@ def test_task_dates_must_fit_project_window(services):
 
 
 def test_dependency_cross_project_and_duplicate_rules(services):
-    services['project_query']
-    services['task_lookup_query']
 
     p1 = services['project_create'].create_project("Deps P1", "")
     p2 = services['project_create'].create_project("Deps P2", "")
@@ -79,8 +73,6 @@ def test_dependency_cross_project_and_duplicate_rules(services):
 
 
 def test_assignment_allocation_and_resource_validation(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Assign Rules", "")
     pid = project.id
     task = services['task_lifecycle_commands'].create_task(
@@ -128,8 +120,6 @@ def test_work_calendar_next_and_negative_day_math(services):
 
 
 def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services):
-    services['project_query']
-    services['task_lookup_query']
     bs = services['baseline_query']
     no_task_project = services['project_create'].create_project("No Tasks Baseline", "")
     with pytest.raises(ValidationError):
@@ -153,8 +143,6 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
 
 
 def test_reporting_earned_value_reports_unavailable_without_baseline(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("No Baseline EVM", "")
     pid = project.id
     services['task_lifecycle_commands'].create_task(pid, "Any Task", start_date=date(2023, 11, 6), duration_days=1)
@@ -165,8 +153,6 @@ def test_reporting_earned_value_reports_unavailable_without_baseline(services):
 
 
 def test_dashboard_returns_none_evm_without_baseline(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Dashboard No Baseline", "")
     pid = project.id
     services['task_lifecycle_commands'].create_task(pid, "Dash Task", start_date=date(2023, 11, 6), duration_days=2)
@@ -176,8 +162,6 @@ def test_dashboard_returns_none_evm_without_baseline(services):
 
 
 def test_resource_load_summary_sorted_descending(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Resource Load Sort", "")
     pid = project.id
     t1 = services['task_lifecycle_commands'].create_task(pid, "Task One", start_date=date(2023, 11, 6), duration_days=2)
@@ -199,8 +183,6 @@ def test_resource_load_summary_sorted_descending(services):
 
 
 def test_dependency_diagnostics_flags_duplicates(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Dependency Diagnostics", "")
     t1 = services['task_lifecycle_commands'].create_task(
@@ -221,8 +203,6 @@ def test_dependency_diagnostics_flags_duplicates(services):
 
 
 def test_dependency_diagnostics_cycle_includes_path_names(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Cycle Detail", "")
     task_a = services['task_lifecycle_commands'].create_task(
@@ -246,8 +226,6 @@ def test_dependency_diagnostics_cycle_includes_path_names(services):
 
 
 def test_dependency_diagnostics_reports_schedule_impact(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Impact Preview", "")
     task_a = services['task_lifecycle_commands'].create_task(
@@ -273,8 +251,6 @@ def test_dependency_diagnostics_reports_schedule_impact(services):
 
 
 def test_dependency_diagnostics_no_shift_reports_none_risk(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("No Shift Preview", "")
     pred = services['task_lifecycle_commands'].create_task(
@@ -296,8 +272,6 @@ def test_dependency_diagnostics_no_shift_reports_none_risk(services):
 
 
 def test_add_dependency_uses_diagnostics_for_cycle_rule(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Cycle Enforcement", "")
     t1 = services['task_lifecycle_commands'].create_task(

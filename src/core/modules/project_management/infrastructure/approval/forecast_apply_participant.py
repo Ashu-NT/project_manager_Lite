@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.core.modules.project_management.application.financials.forecasts.commands.approval import (
+    ForecastApprovalCommands,
+)
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastVersionChanged,
     ForecastVersionChangeType,
-)
-from src.core.modules.project_management.application.financials.forecasts.version_service import (
-    ForecastVersionService,
 )
 from src.core.modules.project_management.infrastructure.approval._financial_decision_actor import (
     require_financial_decision_actor,
@@ -20,15 +20,15 @@ from src.core.platform.domain.approval import ApprovalRequest
 
 @dataclass(frozen=True)
 class ForecastApprovalDeps:
-    forecast_service: ForecastVersionService
+    forecast_commands: ForecastApprovalCommands
 
 
 class ForecastApprovalParticipant:
     def apply(
         self, request: ApprovalRequest, deps: ForecastApprovalDeps
     ) -> ApprovalHandlerResult:
-        actor = require_financial_decision_actor(deps.forecast_service._user_session)
-        forecast = deps.forecast_service._apply_approval_decision(
+        actor = require_financial_decision_actor(deps.forecast_commands._user_session)
+        forecast = deps.forecast_commands._apply_approval_decision(
             forecast_id=request.payload["forecast_id"],
             approved_by=actor,
             expected_version=request.payload["expected_version"],
@@ -50,8 +50,8 @@ class ForecastApprovalParticipant:
     def reject(
         self, request: ApprovalRequest, deps: ForecastApprovalDeps
     ) -> ApprovalHandlerResult:
-        actor = require_financial_decision_actor(deps.forecast_service._user_session)
-        forecast = deps.forecast_service._apply_rejection_decision(
+        actor = require_financial_decision_actor(deps.forecast_commands._user_session)
+        forecast = deps.forecast_commands._apply_rejection_decision(
             forecast_id=request.payload["forecast_id"],
             rejected_by=actor,
             expected_version=request.payload["expected_version"],

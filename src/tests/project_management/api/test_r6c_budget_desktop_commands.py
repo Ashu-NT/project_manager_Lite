@@ -19,9 +19,9 @@ from src.core.modules.project_management.application.financials.budgets.dto impo
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 
 
-class _BudgetService:
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, tuple, dict]] = []
+class _BudgetLifecycleCommands:
+    def __init__(self, calls) -> None:
+        self.calls = calls
 
     def create_budget(self, *args, **kwargs):
         self.calls.append(("create_budget", args, kwargs))
@@ -32,9 +32,19 @@ class _BudgetService:
             row_version=1,
         )
 
+
+class _BudgetLineCommands:
+    def __init__(self, calls) -> None:
+        self.calls = calls
+
     def add_line(self, *args, **kwargs):
         self.calls.append(("add_line", args, kwargs))
         return SimpleNamespace(id="line-1", budget_id=args[0], row_version=1)
+
+
+class _BudgetApprovalCommands:
+    def __init__(self, calls) -> None:
+        self.calls = calls
 
     def request_budget_approval(self, *args, **kwargs):
         self.calls.append(("request_budget_approval", args, kwargs))
@@ -50,12 +60,23 @@ class _BudgetService:
 
 class _Boundary:
     def __init__(self) -> None:
-        self.service = _BudgetService()
+        self.calls: list[tuple[str, tuple, dict]] = []
+        self.lifecycle = _BudgetLifecycleCommands(self.calls)
+        self.lines = _BudgetLineCommands(self.calls)
+        self.approval = _BudgetApprovalCommands(self.calls)
         self.command_count = 0
 
-    def budget(self, command):
+    def budget_lifecycle(self, command):
         self.command_count += 1
-        return command(self.service)
+        return command(self.lifecycle)
+
+    def budget_lines(self, command):
+        self.command_count += 1
+        return command(self.lines)
+
+    def budget_approval(self, command):
+        self.command_count += 1
+        return command(self.approval)
 
 
 def test_typed_budget_commands_route_through_governance_boundary() -> None:
@@ -91,11 +112,11 @@ def test_typed_budget_commands_route_through_governance_boundary() -> None:
     assert line.budget_id == created.budget_id
     assert requested.approval_request_id == "approval-1"
     assert boundary.command_count == 3
-    create_call = next(call for call in boundary.service.calls if call[0] == "create_budget")
+    create_call = next(call for call in boundary.calls if call[0] == "create_budget")
     assert create_call[1][0] == "project-1"
-    add_call = next(call for call in boundary.service.calls if call[0] == "add_line")
+    add_call = next(call for call in boundary.calls if call[0] == "add_line")
     assert add_call[2]["amount"] == Decimal("1250.50")
-    assert any(call[0] == "request_budget_approval" for call in boundary.service.calls)
+    assert any(call[0] == "request_budget_approval" for call in boundary.calls)
 
 
 def test_qml_budget_commands_use_explicit_typed_controller_slots() -> None:

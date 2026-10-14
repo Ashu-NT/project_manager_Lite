@@ -37,27 +37,29 @@ from src.core.platform.common.exceptions import BusinessRuleError, ValidationErr
 
 
 def _project(services, name: str = "Forecast Project"):
-    return services['project_create'].create_project(
+    return services["project_create"].create_project(
         name, financial_currency_code="USD"
     )
 
 
 def _cost_code(services, code: str = "FC-001"):
-    return services["financial_configuration_service"].create_cost_code(
-        code=code, name=code
+    return services["finance_governance_commands"].cost_code(
+        lambda handler: handler.create_cost_code(code=code, name=code)
     )
 
 
 def _manual_line(services, forecast, code, amount: str = "125.3750"):
-    return services["forecast_version_service"].add_line(
-        forecast.id,
-        cost_code_id=code.id,
-        description="Remaining engineering estimate",
-        amount=Decimal(amount),
-        source_kind=ForecastLineSourceKind.MANUAL,
-        source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
-        created_by="admin",
-        expected_forecast_version=forecast.row_version,
+    return services["finance_governance_commands"].forecast_lines(
+        lambda handler: handler.add_line(
+            forecast.id,
+            cost_code_id=code.id,
+            description="Remaining engineering estimate",
+            amount=Decimal(amount),
+            source_kind=ForecastLineSourceKind.MANUAL,
+            source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
+            created_by="admin",
+            expected_forecast_version=forecast.row_version,
+        )
     )
 
 
@@ -101,13 +103,15 @@ def _wire_generation_sources(
     )
     planned_lines = []
     if planned_amount is not None:
-        planned_lines.append(SimpleNamespace(
-            id="planned-line",
-            cost_code_id=cost_code.id,
-            task_id=None,
-            amount=Decimal(planned_amount),
-            currency_code="USD",
-        ))
+        planned_lines.append(
+            SimpleNamespace(
+                id="planned-line",
+                cost_code_id=cost_code.id,
+                task_id=None,
+                amount=Decimal(planned_amount),
+                currency_code="USD",
+            )
+        )
     monkeypatch.setattr(
         service._planned_cost_repo,
         "list_for_project",
@@ -122,24 +126,28 @@ def _wire_generation_sources(
     commitments = []
     if commitment_amount is not None:
         amount = Decimal(commitment_amount)
-        commitments.append(SimpleNamespace(
-            id="commitment-line",
-            purchase_order_line_id="po-line",
-            cost_code_id=cost_code.id,
-            task_id=None,
-            amount=amount,
-            matched_amount=Decimal(matched_amount),
-            currency_code="USD",
-            base_amount=amount,
-            base_currency_code="USD",
-            exchange_rate=Decimal(1),
-            state=ProjectCommitmentLineState.SENT,
-            updated_at=now,
-        ))
+        commitments.append(
+            SimpleNamespace(
+                id="commitment-line",
+                purchase_order_line_id="po-line",
+                cost_code_id=cost_code.id,
+                task_id=None,
+                amount=amount,
+                matched_amount=Decimal(matched_amount),
+                currency_code="USD",
+                base_amount=amount,
+                base_currency_code="USD",
+                exchange_rate=Decimal(1),
+                state=ProjectCommitmentLineState.SENT,
+                updated_at=now,
+            )
+        )
 
     def list_commitments(_project_id, *, offset, limit):
         del limit
-        return (commitments, len(commitments)) if offset == 0 else ([], len(commitments))
+        return (
+            (commitments, len(commitments)) if offset == 0 else ([], len(commitments))
+        )
 
     monkeypatch.setattr(
         service._commitment_repo, "list_lines_for_project", list_commitments
@@ -169,7 +177,9 @@ def _wire_generation_sources(
 
     def list_actuals(_project_id, *, status, offset, limit):
         del limit
-        rows = actuals if status is ProjectCostEntryStatus.POSTED and offset == 0 else []
+        rows = (
+            actuals if status is ProjectCostEntryStatus.POSTED and offset == 0 else []
+        )
         total = len(actuals) if status is ProjectCostEntryStatus.POSTED else 0
         return rows, total
 
@@ -260,27 +270,33 @@ def test_manual_line_cannot_masquerade_as_an_automatic_source() -> None:
 def test_service_persists_decimal_forecast_and_approves_it(services) -> None:
     project = _project(services)
     code = _cost_code(services)
-    service = services["forecast_version_service"]
-    forecast = service.create_forecast(
-        project.id,
-        name="August forecast",
-        as_of_date=date(2026, 8, 11),
-        generation_mode=ForecastGenerationMode.MANUAL,
-        created_by="admin",
+    service = services["forecast_version_query"]
+    forecast = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.create_forecast(
+            project.id,
+            name="August forecast",
+            as_of_date=date(2026, 8, 11),
+            generation_mode=ForecastGenerationMode.MANUAL,
+            created_by="admin",
+        )
     )
 
     line = _manual_line(services, forecast, code)
     assert line.amount == Decimal("125.3750")
     current = service.get_forecast(forecast.id)
-    submitted = service.submit_forecast(
-        forecast.id,
-        submitted_by="admin",
-        expected_version=current.row_version,
+    submitted = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.submit_forecast(
+            forecast.id,
+            submitted_by="admin",
+            expected_version=current.row_version,
+        )
     )
-    approved = service.approve_forecast(
-        forecast.id,
-        approved_by="admin",
-        expected_version=submitted.row_version,
+    approved = services["finance_governance_commands"].forecast_approval(
+        lambda handler: handler.approve_forecast(
+            forecast.id,
+            approved_by="admin",
+            expected_version=submitted.row_version,
+        )
     )
 
     assert approved.status is ForecastStatus.APPROVED
@@ -291,13 +307,15 @@ def test_service_persists_decimal_forecast_and_approves_it(services) -> None:
 def test_forecast_generation_mode_rejects_wrong_line_kind(services) -> None:
     project = _project(services, "Automatic Forecast")
     code = _cost_code(services, "FC-AUTO")
-    service = services["forecast_version_service"]
-    forecast = service.create_forecast(
-        project.id,
-        name="Automatic",
-        as_of_date=date(2026, 8, 11),
-        generation_mode=ForecastGenerationMode.AUTOMATIC,
-        created_by="admin",
+    services["forecast_version_query"]
+    forecast = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.create_forecast(
+            project.id,
+            name="Automatic",
+            as_of_date=date(2026, 8, 11),
+            generation_mode=ForecastGenerationMode.AUTOMATIC,
+            created_by="admin",
+        )
     )
 
     with pytest.raises(BusinessRuleError) as exc:
@@ -308,39 +326,51 @@ def test_forecast_generation_mode_rejects_wrong_line_kind(services) -> None:
 def test_approving_successor_supersedes_previous_forecast(services) -> None:
     project = _project(services, "Forecast Revisions")
     code = _cost_code(services, "FC-REV")
-    service = services["forecast_version_service"]
+    service = services["forecast_version_query"]
 
-    first = service.create_forecast(
-        project.id,
-        name="v1",
-        as_of_date=date(2026, 7, 31),
-        generation_mode=ForecastGenerationMode.MANUAL,
-        created_by="admin",
+    first = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.create_forecast(
+            project.id,
+            name="v1",
+            as_of_date=date(2026, 7, 31),
+            generation_mode=ForecastGenerationMode.MANUAL,
+            created_by="admin",
+        )
     )
     _manual_line(services, first, code, "100")
     first = service.get_forecast(first.id)
-    first = service.submit_forecast(
-        first.id, submitted_by="admin", expected_version=first.row_version
+    first = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.submit_forecast(
+            first.id, submitted_by="admin", expected_version=first.row_version
+        )
     )
-    service.approve_forecast(
-        first.id, approved_by="admin", expected_version=first.row_version
+    services["finance_governance_commands"].forecast_approval(
+        lambda handler: handler.approve_forecast(
+            first.id, approved_by="admin", expected_version=first.row_version
+        )
     )
 
-    second = service.create_forecast(
-        project.id,
-        name="v2",
-        as_of_date=date(2026, 8, 11),
-        generation_mode=ForecastGenerationMode.MANUAL,
-        created_by="admin",
+    second = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.create_forecast(
+            project.id,
+            name="v2",
+            as_of_date=date(2026, 8, 11),
+            generation_mode=ForecastGenerationMode.MANUAL,
+            created_by="admin",
+        )
     )
     assert second.revision == 2
     _manual_line(services, second, code, "120")
     second = service.get_forecast(second.id)
-    second = service.submit_forecast(
-        second.id, submitted_by="admin", expected_version=second.row_version
+    second = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.submit_forecast(
+            second.id, submitted_by="admin", expected_version=second.row_version
+        )
     )
-    service.approve_forecast(
-        second.id, approved_by="admin", expected_version=second.row_version
+    services["finance_governance_commands"].forecast_approval(
+        lambda handler: handler.approve_forecast(
+            second.id, approved_by="admin", expected_version=second.row_version
+        )
     )
 
     assert service.get_forecast(first.id).status is ForecastStatus.SUPERSEDED
@@ -349,13 +379,15 @@ def test_approving_successor_supersedes_previous_forecast(services) -> None:
 
 def test_forecast_repository_is_isolated_by_active_organization(services) -> None:
     project = _project(services, "Forecast Isolation")
-    service = services["forecast_version_service"]
-    forecast = service.create_forecast(
-        project.id,
-        name="Scoped",
-        as_of_date=date(2026, 8, 11),
-        generation_mode=ForecastGenerationMode.MANUAL,
-        created_by="admin",
+    service = services["forecast_version_query"]
+    forecast = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.create_forecast(
+            project.id,
+            name="Scoped",
+            as_of_date=date(2026, 8, 11),
+            generation_mode=ForecastGenerationMode.MANUAL,
+            created_by="admin",
+        )
     )
     original = services["tenant_context_service"].get_active_organization()
     other = services["organization_commands"].create_organization(
@@ -398,17 +430,18 @@ def test_generator_nets_actual_adjustments_and_does_not_double_count_commitments
     assert result.remaining_plan_total == Decimal(55)
     assert result.etc_total == Decimal(85)
     assert sorted(line.amount for line in result.lines) == [Decimal(30), Decimal(55)]
-    assert {
-        decision.reason for decision in result.decisions
-    } >= {
+    assert {decision.reason for decision in result.decisions} >= {
         ForecastDecisionReason.ACTUAL_CREDIT,
         ForecastDecisionReason.OPEN_COMMITMENT,
         ForecastDecisionReason.POSTED_ACTUAL_OFFSET,
         ForecastDecisionReason.REMAINING_PLAN,
     }
-    assert len(
-        services["forecast_version_service"].list_source_decisions(result.forecast.id)
-    ) == 4
+    assert (
+        len(
+            services["forecast_version_query"].list_source_decisions(result.forecast.id)
+        )
+        == 4
+    )
 
 
 def test_manual_etc_replaces_remaining_plan_but_keeps_open_commitments(
@@ -462,10 +495,12 @@ def test_generator_persists_evidence_backed_zero_etc_forecast(
     assert result.etc_total == Decimal(0)
     assert result.lines == ()
     assert result.decisions
-    submitted = services["forecast_version_service"].submit_forecast(
-        result.forecast.id,
-        submitted_by="admin",
-        expected_version=result.forecast.row_version,
+    submitted = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.submit_forecast(
+            result.forecast.id,
+            submitted_by="admin",
+            expected_version=result.forecast.row_version,
+        )
     )
     assert submitted.status is ForecastStatus.SUBMITTED
 
@@ -478,6 +513,7 @@ def test_explicit_active_risk_contingency_is_additive(services, monkeypatch) -> 
         entry_type=RegisterEntryType.RISK,
         title="Supplier delay",
     )
+
     def configure(service):
         monkeypatch.setattr(
             service._register_repo,
@@ -515,6 +551,7 @@ def test_generator_rolls_back_root_lines_and_decisions_when_audit_fails(
 ) -> None:
     project = _project(services, "Atomic ETC")
     code = _cost_code(services, "FC-ATOMIC")
+
     def configure(service):
         monkeypatch.setattr(
             service,
@@ -535,7 +572,7 @@ def test_generator_rolls_back_root_lines_and_decisions_when_audit_fails(
             configure=configure,
         )
 
-    assert services["forecast_version_service"].list_forecasts(project.id) == []
+    assert services["forecast_version_query"].list_forecasts(project.id) == []
 
 
 def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> None:
@@ -555,12 +592,12 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
         row["name"] for row in inspector.get_indexes("project_finance_forecasts")
     }
     line_checks = {
-        row["name"]: row["sqltext"] for row in inspector.get_check_constraints(
-            "project_finance_forecast_lines"
-        )
+        row["name"]: row["sqltext"]
+        for row in inspector.get_check_constraints("project_finance_forecast_lines")
     }
     decision_checks = {
-        row["name"] for row in inspector.get_check_constraints(
+        row["name"]
+        for row in inspector.get_check_constraints(
             "project_finance_forecast_source_decisions"
         )
     }
@@ -568,9 +605,7 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
     assert "uq_pf_forecasts_one_approved_per_project" in forecast_indexes
     assert "ck_pf_forecast_lines_source_metadata" in line_checks
     assert "'risk'" in line_checks["ck_pf_forecast_lines_source_metadata"]
-    assert "'financial_change'" in line_checks[
-        "ck_pf_forecast_lines_source_metadata"
-    ]
+    assert "'financial_change'" in line_checks["ck_pf_forecast_lines_source_metadata"]
     assert "ck_pf_forecast_decisions_reconciled" in decision_checks
     engine.dispose()
 

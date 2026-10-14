@@ -26,8 +26,6 @@ def _snapshot(services, project_id):
 
 class TestBasicOverloadResolution:
     def test_single_overload_between_two_independent_tasks_is_resolved(self, services):
-        services['project_query']
-        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner Single Overload", "")
@@ -53,8 +51,6 @@ class TestBasicOverloadResolution:
         assert len(proposal.moves) >= 1
 
     def test_no_conflicts_produces_an_empty_feasible_proposal(self, services):
-        services['project_query']
-        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner No Conflicts", "")
@@ -80,8 +76,6 @@ class TestPreviewNeverPersists:
         """K1: preview must not update Task, increment versions, or
         commit -- confirmed by re-reading the task from the repository
         after building a proposal and asserting nothing changed."""
-        services['project_query']
-        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner No Persist", "")
@@ -124,8 +118,6 @@ class TestDependencyAwarePropagation:
         (prefer moving a non-critical, positive-float task first) would
         legitimately choose it instead of task_a, which is the more
         interesting case for THIS test but not what it's checking."""
-        services['project_query']
-        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner Propagation", "")
@@ -169,8 +161,6 @@ class TestDependencyAwarePropagation:
 
 class TestMovabilityRespectedByPlanner:
     def test_must_start_on_task_is_never_moved_another_candidate_is_used_instead(self, services):
-        services['project_query']
-        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner MSO Respected", "")
@@ -204,8 +194,6 @@ class TestUnresolvedConflictWhenNoLegalMoveExists:
         """R4.4G1/I2/T: when every candidate on an overloaded resource is
         an exact pin, the planner must surface an explicit unresolved
         conflict, never silently claim success."""
-        services['project_query']
-        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner Unresolved", "")
@@ -244,8 +232,6 @@ class TestMultiResourceTaskCandidatePlacement:
         must not "resolve" that by shifting task_multi onto a date that
         is clear for Resource X but collides with task_y on Resource Y,
         which task_multi is also assigned to."""
-        services['project_query']
-        services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
         project = services['project_create'].create_project("Leveling Planner Multi-Resource", "")

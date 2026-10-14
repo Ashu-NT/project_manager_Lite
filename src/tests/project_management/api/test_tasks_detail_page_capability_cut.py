@@ -17,7 +17,6 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 def test_task_detail_pages_use_composed_query_handler(services) -> None:
     project = services['project_create'].create_project("Task Detail Pages")
-    services['task_lookup_query']
     predecessor = services['task_lifecycle_commands'].create_task(project.id, "Predecessor")
     task = services['task_lifecycle_commands'].create_task(project.id, "Delivery")
     resource = services["resource_master_commands"].create_resource("Planner")
@@ -81,7 +80,6 @@ def test_assignment_hours_command_checks_module_before_composed_handler() -> Non
 
 def test_dependency_previews_use_composed_handler(services) -> None:
     project = services['project_create'].create_project("Dependency Preview")
-    services['task_lookup_query']
     predecessor = services['task_lifecycle_commands'].create_task(project.id, "Predecessor")
     successor = services['task_lifecycle_commands'].create_task(project.id, "Successor")
     api = build_project_management_tasks_desktop_api(

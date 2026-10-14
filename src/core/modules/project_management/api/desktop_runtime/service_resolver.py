@@ -21,16 +21,15 @@ from src.core.modules.project_management.application.dashboard import (
 )
 from src.core.modules.project_management.application.financials import (
     FinanceSnapshotQueryHandler,
-    ProjectBillingPreparationService,
-    ProjectBillingProfileService,
-    ProjectCommitmentService,
-    ProjectCostEntryService,
+    ProjectBillingPreparationQueryHandler,
+    ProjectBillingProfileQueryHandler,
+    ProjectCommitmentQueryHandler,
+    ProjectCostEntryQueryHandler,
     ProjectFinancePerformanceQuery,
     ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
-    FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.portfolio.commands import (
     PortfolioDependencyCommandHandler,
@@ -224,10 +223,10 @@ class ProjectManagementDesktopRuntimeServices:
     finance_workspace_query: ProjectFinanceWorkspaceQuery | None
     finance_performance_query: ProjectFinancePerformanceQuery | None
     finance_governance_commands: FinanceGovernanceCommandBoundary | None
-    cost_entry_service: ProjectCostEntryService | FinanceGovernedServicePort | None
-    commitment_service: ProjectCommitmentService | None
-    billing_profile_service: ProjectBillingProfileService | None
-    billing_preparation_service: ProjectBillingPreparationService | None
+    cost_entry_query: ProjectCostEntryQueryHandler | None
+    commitment_query: ProjectCommitmentQueryHandler | None
+    billing_profile_query: ProjectBillingProfileQueryHandler | None
+    billing_preparation_query: ProjectBillingPreparationQueryHandler | None
     baseline_query: BaselineQueryHandler | None
     baseline_commands: BaselineCommandHandler | None
     schedule_change_impact_query: ScheduleChangeImpactQueryHandler | None
@@ -274,10 +273,10 @@ def resolve_project_management_desktop_runtime_services(
     finance_workspace_query = services.get("finance_workspace_query")
     finance_performance_query = services.get("finance_performance_query")
     finance_governance_commands = services.get("finance_governance_commands")
-    cost_entry_service = services.get("cost_entry_service")
-    commitment_service = services.get("commitment_service")
-    billing_profile_service = services.get("billing_profile_service")
-    billing_preparation_service = services.get("billing_preparation_service")
+    cost_entry_query = services.get("cost_entry_query")
+    commitment_query = services.get("commitment_query")
+    billing_profile_query = services.get("billing_profile_query")
+    billing_preparation_query = services.get("billing_preparation_query")
     baseline_query = services.get("baseline_query")
     schedule_change_impact_query = services.get("schedule_change_impact_query")
     tenant_context_service = services.get("tenant_context_service")
@@ -420,27 +419,27 @@ def resolve_project_management_desktop_runtime_services(
             if isinstance(finance_workspace_query, ProjectFinanceWorkspaceQuery)
             else None
         ),
-        cost_entry_service=(
-            cost_entry_service
+        cost_entry_query=(
+            cost_entry_query
             if isinstance(
-                cost_entry_service,
-                (ProjectCostEntryService, FinanceGovernedServicePort),
+                cost_entry_query,
+                ProjectCostEntryQueryHandler,
             )
             else None
         ),
-        commitment_service=(
-            commitment_service
-            if isinstance(commitment_service, ProjectCommitmentService)
+        commitment_query=(
+            commitment_query
+            if isinstance(commitment_query, ProjectCommitmentQueryHandler)
             else None
         ),
-        billing_profile_service=(
-            billing_profile_service
-            if isinstance(billing_profile_service, ProjectBillingProfileService)
+        billing_profile_query=(
+            billing_profile_query
+            if isinstance(billing_profile_query, ProjectBillingProfileQueryHandler)
             else None
         ),
-        billing_preparation_service=(
-            billing_preparation_service
-            if isinstance(billing_preparation_service, ProjectBillingPreparationService)
+        billing_preparation_query=(
+            billing_preparation_query
+            if isinstance(billing_preparation_query, ProjectBillingPreparationQueryHandler)
             else None
         ),
         baseline_query=(

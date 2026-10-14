@@ -36,8 +36,6 @@ def test_resource_workload_demand_fact_is_immutable() -> None:
 
 
 def test_resource_workload_reads_only_overlapping_assignment_demand(services) -> None:
-    services['project_query']
-    services['task_lookup_query']
     workload_service = services["resource_workload_query"]
     window_start = date.today() + timedelta(days=1)
     window_end = window_start + timedelta(days=6)

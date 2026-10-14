@@ -34,7 +34,6 @@ def _snapshot(ts, project_id):
 
 class TestPreviewApplyReloadIdempotence:
     def test_resource_conflict_resolution_survives_reload_and_repeated_cpm_via_the_pure_function(self, services):
-        services['project_query']
         ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
@@ -89,7 +88,6 @@ class TestPreviewApplyReloadIdempotence:
         path (SchedulingEngine.recalculate_project_schedule) rather than
         the pure function -- SchedulingEngine and pure_cpm.run_cpm are
         two independent orchestrations sharing only primitives."""
-        services['project_query']
         ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
         sched = services["scheduling_engine"]

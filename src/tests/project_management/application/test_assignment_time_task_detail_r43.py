@@ -21,8 +21,6 @@ from src.core.platform.common.exceptions import ConcurrencyError
 
 
 def _setup_assignment(services, *, allocation_percent: float = 50.0):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Assignment Concurrency Project")
     task = services['task_lifecycle_commands'].create_task(project.id, "Concurrency Task")
     resource = services["resource_master_commands"].create_resource("Concurrency Resource", hourly_rate=90.0)
@@ -36,7 +34,6 @@ def _setup_assignment(services, *, allocation_percent: float = 50.0):
 
 
 def test_set_assignment_allocation_with_expected_version_succeeds_and_increments_version(services):
-    services['task_lookup_query']
     _, _, _, assignment = _setup_assignment(services)
 
     updated = services['task_assignment_commands'].set_assignment_allocation(
@@ -48,7 +45,6 @@ def test_set_assignment_allocation_with_expected_version_succeeds_and_increments
 
 
 def test_set_assignment_allocation_stale_version_raises_concurrency_error(services):
-    services['task_lookup_query']
     _, _, _, assignment = _setup_assignment(services)
 
     services['task_assignment_commands'].set_assignment_allocation(assignment.id, 60.0, expected_version=assignment.version)
@@ -63,7 +59,6 @@ def test_set_assignment_allocation_stale_version_raises_concurrency_error(servic
 def test_set_assignment_allocation_requires_expected_version(services):
     """`expected_version` is a required keyword-only argument, not an optional bypass -- every
     caller must supply the version it read."""
-    services['task_lookup_query']
     _, _, _, assignment = _setup_assignment(services)
 
     with pytest.raises(TypeError):
@@ -82,7 +77,6 @@ def test_set_assignment_allocation_requires_expected_version(services):
 
 def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services):
     ps = services['project_query']
-    services['task_lookup_query']
     rs = services["resource_query"]
     prs = services["project_resource_query"]
 
@@ -120,8 +114,6 @@ def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services)
 
 
 def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Scope Leak Project")
     resource = services["resource_master_commands"].create_resource("Shared Resource", hourly_rate=70.0)
@@ -153,8 +145,6 @@ def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(servi
 
 
 def test_build_assignment_snapshot_planned_and_remaining_are_page_independent(services):
-    services['project_query']
-    services['task_lookup_query']
     services["project_resource_query"]
 
     project = services['project_create'].create_project("Planned Remaining Project")
@@ -376,7 +366,6 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
 
 def test_list_assignments_exposes_within_capacity_for_a_lightly_loaded_resource(services):
     ps = services['project_query']
-    services['task_lookup_query']
     rs = services["resource_query"]
 
     project = services['project_create'].create_project("List Assignments Capacity Project")
@@ -403,7 +392,6 @@ def test_list_assignments_exposes_within_capacity_for_a_lightly_loaded_resource(
 
 def test_list_assignments_exposes_over_capacity_for_a_double_booked_resource(services):
     ps = services['project_query']
-    services['task_lookup_query']
     rs = services["resource_query"]
 
     project = services['project_create'].create_project("List Assignments Over Capacity Project")

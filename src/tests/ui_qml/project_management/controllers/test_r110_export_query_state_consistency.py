@@ -222,8 +222,8 @@ def test_finance_actual_and_commitment_queries_return_normalized_offset() -> Non
     actuals = _OffsetService()
     commitments = _OffsetService()
     api = ProjectManagementFinancialsDesktopApi(
-        cost_entry_service=actuals,
-        commitment_service=commitments,
+        cost_entry_query=actuals,
+        commitment_query=commitments,
     )
 
     actual_page = api.list_cost_entries("project-1", offset=500, limit=2)

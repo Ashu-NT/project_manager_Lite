@@ -17,8 +17,8 @@ from src.core.modules.project_management.application.financials.cost.entries.app
     APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
     ApprovedTimeLaborCostConsumer,
 )
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
-    ProjectCostEntryService,
+from src.core.modules.project_management.application.financials.cost.entries.commands.approved_time import (
+    ApprovedTimeCostEntryCommandHandler,
 )
 from src.core.modules.project_management.application.financials.governance.command_boundary import (
     FinanceGovernanceCommandBoundary,
@@ -26,8 +26,8 @@ from src.core.modules.project_management.application.financials.governance.comma
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
     RateCardResolver,
 )
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
-    ProjectRateCardService,
+from src.core.modules.project_management.application.financials.rate_cards.commands.lines import (
+    RateCardLineCommandHandler,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourceModule,
@@ -362,7 +362,7 @@ def _build_dispatcher(postgres_test_environment):
             tenant_context_service=tenant_context,
             clock=SystemClock(),
         )
-        service = ProjectCostEntryService(
+        service = ApprovedTimeCostEntryCommandHandler(
             session=uow._session,
             entry_repo=uow.cost_entries,
             project_repo=uow.projects,
@@ -463,25 +463,11 @@ def _governed_rate_boundary(environment):
     )
 
     def operations(uow):
-        period_queries = FinancialPeriodQueryHandler(
-            period_repo=uow.financial_periods,
-            user_session=user_session,
-        )
         return SimpleNamespace(
             post_commit_actions=(),
-            rate_cards=ProjectRateCardService(
+            rate_lines=RateCardLineCommandHandler(
                 session=uow._session, rate_card_repo=uow.rate_cards,
                 project_repo=uow.projects, user_session=user_session,
-                enterprise_audit_service=uow._enterprise_audit_service,
-                tenant_context_service=scope, record_event=uow.record_event,
-            ),
-            cost_entries=ProjectCostEntryService(
-                session=uow._session, entry_repo=uow.cost_entries,
-                project_repo=uow.projects, financial_profile_repo=uow.profiles,
-                cost_code_repo=uow.cost_codes, task_repo=uow.tasks,
-                resource_repo=uow.resources,
-                financial_period_queries=period_queries,
-                clock=SystemClock(), user_session=user_session,
                 enterprise_audit_service=uow._enterprise_audit_service,
                 tenant_context_service=scope, record_event=uow.record_event,
             ),
@@ -716,7 +702,7 @@ def test_governed_rate_edit_races_labor_post_without_mixed_provenance(
             worker = pool.submit(dispatcher.dispatch_pending, limit=1)
             assert resolved.wait(timeout=10), "worker did not reach Rate resolution"
             try:
-                changed = boundary.rate_card(lambda service: service.update_line(
+                changed = boundary.rate_line(lambda service: service.update_line(
                     RATE_LINE_RACE, expected_version=1, rate_amount=Decimal("52.125")
                 ))
                 assert changed.version == 2
@@ -757,10 +743,10 @@ def test_governed_rate_edit_races_labor_post_without_mixed_provenance(
             session.close()
 
         with pytest.raises(BusinessRuleError):
-            boundary.rate_card(lambda service: service.update_line(
+            boundary.rate_line(lambda service: service.update_line(
                 RATE_LINE_RACE, expected_version=2, rate_amount=Decimal(60)
             ))
-        boundary.rate_card(lambda service: service.update_line(
+        boundary.rate_line(lambda service: service.update_line(
             RATE_LINE_RACE, expected_version=2, effective_to=max(date.today(), date(2026, 9, 20))
         ))
         with postgres_test_environment.admin_engine.connect() as connection:
@@ -809,7 +795,7 @@ def test_worker_share_lock_blocks_governed_economic_edit_until_posted(
 
     def governed_edit():
         editing.set()
-        return boundary.rate_card(lambda service: service.update_line(
+        return boundary.rate_line(lambda service: service.update_line(
             line_id, expected_version=1, rate_amount=Decimal(60)
         ))
 

@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from src.core.modules.project_management.application.financials.financial_changes.commands.approval import (
+    FinancialChangeApprovalCommandHandler,
+)
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeChanged,
     FinancialChangeEventType,
-)
-from src.core.modules.project_management.application.financials.financial_changes.service import (
-    FinancialChangeService,
 )
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastVersionChanged,
@@ -23,11 +23,12 @@ from src.core.platform.domain.approval import ApprovalRequest
 
 @dataclass(frozen=True)
 class FinancialChangeApprovalDeps:
-    """`financial_change_service` is a fresh `FinancialChangeService`,
-    constructed with `approval_commands=None` -- the apply path never calls
-    back into `ApprovalCommands`."""
+    """Commands and successor authorities share the deciding caller's session.
 
-    financial_change_service: FinancialChangeService
+    This participant owns event assembly, never transaction commit.
+    """
+
+    financial_change_commands: FinancialChangeApprovalCommandHandler
 
 
 class FinancialChangeApprovalParticipant:
@@ -35,9 +36,9 @@ class FinancialChangeApprovalParticipant:
         self, request: ApprovalRequest, deps: FinancialChangeApprovalDeps
     ) -> ApprovalHandlerResult:
         applied_by = require_financial_decision_actor(
-            deps.financial_change_service._user_session
+            deps.financial_change_commands._user_session
         )
-        change, budget_events = deps.financial_change_service._apply_approval_decision(
+        change, budget_events = deps.financial_change_commands._apply_approval_decision(
             change_id=request.payload["change_id"],
             approval_request_id=request.id,
             applied_by=applied_by,
@@ -78,9 +79,9 @@ class FinancialChangeApprovalParticipant:
         self, request: ApprovalRequest, deps: FinancialChangeApprovalDeps
     ) -> ApprovalHandlerResult:
         rejected_by = require_financial_decision_actor(
-            deps.financial_change_service._user_session
+            deps.financial_change_commands._user_session
         )
-        change = deps.financial_change_service._apply_rejection_decision(
+        change = deps.financial_change_commands._apply_rejection_decision(
             change_id=request.payload["change_id"],
             approval_request_id=request.id,
             rejected_by=rejected_by,

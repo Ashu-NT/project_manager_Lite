@@ -55,38 +55,38 @@ def _approved_controls(services):
         "Canonical finance read model",
         financial_currency_code=organization.base_currency,
     )
-    code = services["financial_configuration_service"].create_cost_code(
+    code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="D4-CONTROL",
         name="D.4 control",
-    )
+    ))
 
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "Approved budget")
-    budgets.add_line(
+    budgets = services['budget_query']
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Approved budget"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
         cost_code_id=code.id,
         description="Authorized scope",
         amount=Decimal(100),
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         budget.id, "admin", expected_version=budget.row_version
-    )
-    result = budgets.approve_budget(
+    ))
+    result = services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
         budget.id, approved_by="admin", expected_version=budget.row_version
-    )
-    budget = budgets.get_budget(result.budget_id)
+    ))
+    budget = services['budget_query'].get_budget(result.budget_id)
 
-    forecasts = services["forecast_version_service"]
-    forecast = forecasts.create_forecast(
+    forecasts = services['forecast_version_query']
+    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="Approved ETC",
         as_of_date=date(2026, 8, 1),
         generation_mode=ForecastGenerationMode.MANUAL,
         created_by="admin",
-    )
-    forecasts.add_line(
+    ))
+    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
         forecast.id,
         cost_code_id=code.id,
         description="Remaining delivery",
@@ -97,18 +97,18 @@ def _approved_controls(services):
         expected_forecast_version=forecast.row_version,
         period_start=date(2026, 8, 1),
         period_end=date(2026, 8, 31),
-    )
-    forecast = forecasts.get_forecast(forecast.id)
-    forecast = forecasts.submit_forecast(
+    ))
+    forecast = services['forecast_version_query'].get_forecast(forecast.id)
+    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
         forecast.id,
         submitted_by="admin",
         expected_version=forecast.row_version,
-    )
-    forecast = forecasts.approve_forecast(
+    ))
+    forecast = services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
         forecast.id,
         approved_by="admin",
         expected_version=forecast.row_version,
-    )
+    ))
 
     services["financial_period_commands"].create_period(
         code="D4-2026-08",
@@ -118,8 +118,8 @@ def _approved_controls(services):
         start_date=date(2026, 8, 1),
         end_date=date(2026, 8, 31),
     )
-    entries = services["cost_entry_service"]
-    entry = entries.create_manual_entry(
+    entries = services['cost_entry_query']
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id="d4-actual-1",
         description="Posted actual",
@@ -127,17 +127,17 @@ def _approved_controls(services):
         currency_code=organization.base_currency,
         transaction_date=date(2026, 8, 5),
         cost_code_id=code.id,
-    )
-    entry = entries.submit(entry.id, expected_version=entry.row_version)
+    ))
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(entry.id, expected_version=entry.row_version))
     _become_independent_decider(services)
-    entries.approve(entry.id, expected_version=entry.row_version)
+    services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(entry.id, expected_version=entry.row_version))
     _login(services, "admin", "ChangeMe123!")
-    entry = entries.get_entry(entry.id)
-    entry = entries.post(
+    entry = services['cost_entry_query'].get_entry(entry.id)
+    entry = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
         entry.id,
         expected_version=entry.row_version,
         posting_date=date(2026, 8, 5),
-    )
+    ))
     return project, budget, forecast, entry, code
 
 
@@ -293,14 +293,14 @@ def test_posted_reversal_nets_actual_without_rewriting_forecast(services) -> Non
         start_date=date(2026, 9, 1),
         end_date=date(2026, 9, 30),
     )
-    entries = services["cost_entry_service"]
-    entries.reverse(
+    entries = services['cost_entry_query']
+    services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.reverse(
         entry.id,
         expected_version=entry.row_version,
         command_id="d4-reversal-1",
         posting_date=date(2026, 9, 20),
         reason="Correct the test posting",
-    )
+    ))
 
     snapshot = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 9, 30)
@@ -318,15 +318,15 @@ def test_posted_reversal_nets_actual_without_rewriting_forecast(services) -> Non
 
 def test_as_of_selects_superseded_approved_forecast_version(services) -> None:
     project, _budget, first, _entry, code = _approved_controls(services)
-    forecasts = services["forecast_version_service"]
-    second = forecasts.create_forecast(
+    forecasts = services['forecast_version_query']
+    second = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="September ETC",
         as_of_date=date(2026, 9, 1),
         generation_mode=ForecastGenerationMode.MANUAL,
         created_by="admin",
-    )
-    forecasts.add_line(
+    ))
+    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
         second.id,
         cost_code_id=code.id,
         description="Revised remaining delivery",
@@ -335,14 +335,14 @@ def test_as_of_selects_superseded_approved_forecast_version(services) -> None:
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
         expected_forecast_version=second.row_version,
-    )
-    second = forecasts.get_forecast(second.id)
-    second = forecasts.submit_forecast(
+    ))
+    second = services['forecast_version_query'].get_forecast(second.id)
+    second = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
         second.id, submitted_by="admin", expected_version=second.row_version
-    )
-    second = forecasts.approve_forecast(
+    ))
+    second = services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
         second.id, approved_by="admin", expected_version=second.row_version
-    )
+    ))
 
     august = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 8, 31)
@@ -458,16 +458,16 @@ def test_r6e_cost_phasing_boundaries_reconcile_exactly_and_preserve_as_of(servic
 def test_cost_phasing_historical_actual_does_not_query_current_rates(services, monkeypatch) -> None:
     project, _budget, _forecast, entry, _code = _approved_controls(services)
     resource = services["resource_master_commands"].create_resource("Historical cost resource")
-    rate_service = services["rate_card_service"]
-    card = rate_service.create_rate_card(name="Historical cost rates", project_id=project.id)
-    rate_service.create_line(
+    rate_service = services['rate_card_query']
+    card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(name="Historical cost rates", project_id=project.id))
+    services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
         rate_amount=Decimal("123.45"),
         rate_currency=services["tenant_context_service"].get_active_organization().base_currency,
         resource_id=resource.id,
-    )
+    ))
     services["session"].get(ProjectCostEntryORM, entry.id).resource_id = resource.id
     services["session"].commit()
     query = services["finance_performance_query"]
@@ -476,7 +476,7 @@ def test_cost_phasing_historical_actual_does_not_query_current_rates(services, m
         date_from=date(2026, 8, 1),
         date_to=date(2026, 8, 31),
     )
-    rate_service.deactivate_rate_card(card.id, expected_version=card.version)
+    services['finance_governance_commands'].rate_card(lambda handler: handler.deactivate_rate_card(card.id, expected_version=card.version))
     resolver = services["finance_snapshot_query"]._labor._rate_resolver
     monkeypatch.setattr(
         resolver,
@@ -532,7 +532,6 @@ def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> No
 
 def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) -> None:
     project, _budget, _forecast, _entry, _code = _approved_controls(services)
-    services['task_lookup_query']
     first = services['task_lifecycle_commands'].create_task(project.id, "Baseline task one", start_date=date(2026, 8, 3), duration_days=3)
     second = services['task_lifecycle_commands'].create_task(project.id, "Baseline task two", start_date=date(2026, 8, 6), duration_days=2)
     baselines = services['baseline_query']

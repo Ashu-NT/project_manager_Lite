@@ -92,21 +92,21 @@ def _setup(services):
     project = services['project_create'].create_project(
         "P36 Commitment project", financial_currency_code=organization.base_currency
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="P36-PROCURE", name="P36 Procurement"
-    )
+    ))
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="P36-COMMIT", name="P36 Commitment Site", currency_code=organization.base_currency))
     supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="P36-COMMIT-SUP", party_name="P36 Commitment Supplier", roles=["SUPPLIER"]))
     period = services["financial_period_commands"].create_period(
         code="P36-COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
     )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    profile = services['financial_configuration_query'].get_profile(project.id)
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
-    )
+    ))
     return organization, project, cost_code, site, supplier, period
 
 
@@ -115,7 +115,7 @@ def _apply_source(services, source):
         name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
     )
     reference = source.reference
-    services["commitment_service"].apply_procurement_source(
+    services['commitment_query'].apply_procurement_source(
         source,
         execution=ProcurementExecutionContext(
             service_principal=principal,
@@ -128,7 +128,7 @@ def _apply_source(services, source):
         ),
     )
     services["session"].commit()
-    return services["commitment_service"]._commitment_repo.get_line_by_source(
+    return services['commitment_query']._commitment_repo.get_line_by_source(
         source.purchase_order_id,
         source.purchase_order_line_id,
     )
@@ -217,7 +217,7 @@ def _posted_receipt_entry(services, *, organization, project, cost_code, period,
         exchange_rate_source="identity",
         exchange_rate_captured_at=now,
     )
-    services["cost_entry_service"]._entry_repo.add(entry)
+    services['cost_entry_query']._entry_repo.add(entry)
     services["session"].commit()
     return entry
 
@@ -318,7 +318,7 @@ def test_dispatcher_builds_procurement_consumer_inside_fresh_finance_uow(service
     assert dispatcher._uow_factory is not None
     assert callable(dispatcher._consumer_factory)
     assert callable(dispatcher._principal_resolver)
-    service = services["commitment_service"]
+    service = services['commitment_query']
     assert not hasattr(service, "ingest_procurement_source")
     assert not hasattr(service, "match_cost_entry")
     assert not hasattr(service, "reverse_match")

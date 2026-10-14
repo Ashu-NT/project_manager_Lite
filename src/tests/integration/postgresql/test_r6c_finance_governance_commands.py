@@ -287,13 +287,13 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
         postgres_test_environment,
         scope=_TenantContext(TENANT_A, ORG_A),
     )
-    setup = boundary.financial_setup(
+    setup = boundary.cost_code(
         lambda service: service.create_cost_code(code="R6C-RUNTIME", name="Runtime"),
     )
-    budget = boundary.budget(
+    budget = boundary.budget_lifecycle(
         lambda service: service.create_budget(PROJECT_A, "R6C Budget")
     )
-    budget_line = boundary.budget(
+    budget_line = boundary.budget_lines(
         lambda service: service.add_line(
             budget.id,
             cost_code_id=setup.id,
@@ -397,7 +397,7 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
     profile = boundary.financial_setup(
         lambda service: service.get_profile(PROJECT_A)
     )
-    updated = boundary.financial_setup(
+    updated = boundary.financial_profile(
         lambda service: service.configure_profile(
             PROJECT_A,
             expected_version=profile.version,
@@ -405,13 +405,13 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
             cost_code_policy="restricted",
         )
     )
-    cost_code = boundary.financial_setup(
+    cost_code = boundary.cost_code(
         lambda service: service.create_cost_code(
             code="R6CE-RUNTIME",
             name="R6C-E runtime code",
         )
     )
-    restriction = boundary.financial_setup(
+    restriction = boundary.cost_code(
         lambda service: service.add_project_cost_code(
             project_id=PROJECT_A,
             cost_code_id=cost_code.id,
@@ -539,7 +539,7 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
         foreign_org.rollback()
         foreign_org.close()
 
-    boundary.financial_setup(
+    boundary.financial_profile(
         lambda service: service.configure_profile(
             PROJECT_A,
             expected_version=updated.version,
@@ -554,7 +554,7 @@ def test_r6c_command_foreign_scope_insert_is_denied(postgres_test_environment):
         scope=_TenantContext(TENANT_B, ORG_B),
     )
     with pytest.raises(DBAPIError):
-        boundary.financial_setup(
+        boundary.cost_code(
             lambda service: service.create_cost_code(
                 code="R6C-FOREIGN",
                 name="Must be denied",
@@ -570,7 +570,7 @@ def test_r6c_command_same_tenant_foreign_organization_is_denied(
         scope=_TenantContext(TENANT_A, ORG_A2),
     )
     with pytest.raises(DBAPIError):
-        boundary.financial_setup(
+        boundary.cost_code(
             lambda service: service.create_cost_code(
                 code="R6C-FOREIGN-ORG",
                 name="Must be denied",

@@ -20,7 +20,6 @@ def test_project_create_emits_typed_domain_event_and_view_invalidation(services)
         PROJECT_LIST_SCOPE_CODE,
     )
 
-    services['project_query']
 
     class _AnyOrgFilter:
         def matches(self, scope) -> bool:
@@ -48,7 +47,6 @@ def test_project_update_emits_typed_domain_event_and_view_invalidation(services)
         PROJECT_LIST_SCOPE_CODE,
     )
 
-    services['project_query']
     project = services['project_create'].create_project("Event Update Project", "")
 
     class _AnyOrgFilter:
@@ -79,8 +77,6 @@ def test_task_create_dependency_assignment_emit_typed_domain_events_and_view_inv
         TASK_LIST_SCOPE_CODE,
     )
 
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Event Task Ops", "")
     t1 = services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
     t2 = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2)
@@ -115,8 +111,6 @@ def test_task_update_emits_typed_domain_event_and_view_invalidation(services):
         TASK_LIST_SCOPE_CODE,
     )
 
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Event Task Update", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
 
@@ -154,8 +148,6 @@ def test_approve_baseline_request_emits_project_baseline_view_invalidation(servi
     _login_as(services, "admin", "ChangeMe123!")
     services["role_assignment_commands"].assign_role(services["authentication"].authenticate("admin", "ChangeMe123!").id, "approver")
 
-    services['project_query']
-    services['task_lookup_query']
     approvals = services["approval_commands"]
     baseline = services['baseline_query']
     project = services['project_create'].create_project("Approval baseline events")

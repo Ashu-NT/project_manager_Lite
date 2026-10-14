@@ -232,20 +232,19 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         finance_governance_commands=(
             project_management_services.finance_governance_commands
         ),
-        financial_configuration_service=(
-            project_management_services.financial_configuration_service
+        financial_configuration_query=(
+            project_management_services.financial_configuration_query
         ),
-        forecast_generation_service=project_management_services.forecast_generation_service,
-        forecast_version_service=project_management_services.forecast_version_service,
-        financial_change_service=project_management_services.financial_change_service,
-        billing_profile_service=project_management_services.billing_profile_service,
-        billing_preparation_service=project_management_services.billing_preparation_service,
-        rate_card_service=project_management_services.rate_card_service,
+        forecast_version_query=project_management_services.forecast_version_query,
+        financial_change_query=project_management_services.financial_change_query,
+        billing_profile_query=project_management_services.billing_profile_query,
+        billing_preparation_query=project_management_services.billing_preparation_query,
+        rate_card_query=project_management_services.rate_card_query,
         rate_card_resolver=project_management_services.rate_card_resolver,
-        budget_service=project_management_services.budget_service,
-        cost_entry_service=project_management_services.cost_entry_service,
-        commitment_service=project_management_services.commitment_service,
-        planned_cost_service=project_management_services.planned_cost_service,
+        budget_query=project_management_services.budget_query,
+        cost_entry_query=project_management_services.cost_entry_query,
+        commitment_query=project_management_services.commitment_query,
+        planned_cost_query=project_management_services.planned_cost_query,
         finance_workspace_query=project_management_services.finance_workspace_query,
         finance_performance_query=project_management_services.finance_performance_query,
         finance_snapshot_query=project_management_services.finance_snapshot_query,

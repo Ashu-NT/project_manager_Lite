@@ -41,12 +41,12 @@ def _seed_rates(services):
     project = services['project_create'].create_project(
         "R6B Rate Reader", financial_currency_code="USD"
     )
-    rates = services["rate_card_service"]
-    organization_card = rates.create_rate_card(name="Alpha Organization Rates")
-    project_card = rates.create_rate_card(
+    rates = services['rate_card_query']
+    organization_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(name="Alpha Organization Rates"))
+    project_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="Zulu Project Rates", project_id=project.id
-    )
-    current = rates.create_line(
+    ))
+    current = services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
         project_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
@@ -54,8 +54,8 @@ def _seed_rates(services):
         rate_currency="USD",
         role="engineer",
         effective_from=date(2026, 1, 1),
-    )
-    future = rates.create_line(
+    ))
+    future = services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
         project_card.id,
         rate_type=RateType.BILLING,
         unit="HOUR",
@@ -64,8 +64,8 @@ def _seed_rates(services):
         role="architect",
         effective_from=date(2027, 1, 1),
         effective_to=date(2027, 12, 31),
-    )
-    rates.create_line(
+    ))
+    services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
         organization_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
@@ -73,7 +73,7 @@ def _seed_rates(services):
         rate_currency="USD",
         skill_code="python",
         effective_from=date(2025, 1, 1),
-    )
+    ))
     return project, organization_card, project_card, current, future
 
 

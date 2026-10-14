@@ -168,8 +168,8 @@ def boundary(environment, scope, actor, *, barrier=None):
 
 
 def request(boundary, scope):
-    return boundary.billing_preparation(
-        lambda service: service.request_delivery(
+    return boundary.accounting_handoff(
+        lambda service: service.request(
             scope.preparation, expected_row_version=1
         )
     )

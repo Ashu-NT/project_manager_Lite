@@ -23,7 +23,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"],
-        cost_entry_service=services["cost_entry_service"],
+        cost_entry_query=services['cost_entry_query'],
     )
 
 
@@ -42,10 +42,10 @@ def _setup_project(services):
         project.id,
         "Commission equipment",
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="ACTUAL-MANUAL",
         name="Manual actuals",
-    )
+    ))
     services["financial_period_commands"].create_period(
         code="FY26-P01",
         name="January 2026",

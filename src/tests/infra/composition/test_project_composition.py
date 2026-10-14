@@ -68,8 +68,6 @@ def test_project_desktop_consumers_reuse_composed_handlers(services):
 
 
 def test_project_events_share_one_post_commit_handler(services) -> None:
-    services['project_query']
-    services['task_lookup_query']
     bus = services['project_create']._uow_factory._post_commit_bus
 
     assert bus is services['task_uow_scope']._factory._post_commit_bus
@@ -96,7 +94,6 @@ def test_project_events_share_one_post_commit_handler(services) -> None:
 
 
 def test_project_uow_factory_opens_a_fresh_session(services, session) -> None:
-    services['project_query']
     scoped_session = services['project_create']._uow_factory._session_factory()
     try:
         assert scoped_session is not session
@@ -204,7 +201,7 @@ def test_resource_readers_clock_uow_and_events_preserve_identity(services, sessi
 
 def test_scheduling_and_baseline_keep_shared_engine_and_ambient_uow(services, session) -> None:
     engine = services["scheduling_engine"]
-    baseline = services['baseline_query']
+    baseline = services['baseline_commands']
     assert baseline._sched is engine
     assert (
         engine._project_calendar_adapter

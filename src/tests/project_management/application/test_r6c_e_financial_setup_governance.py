@@ -57,18 +57,25 @@ SECTION_PATH = Path(
 
 
 def test_setup_reader_pages_filters_sorts_and_projects_capabilities(services) -> None:
-    project = services['project_create'].create_project("R6C-E Setup")
-    setup = services["financial_configuration_service"]
+    project = services["project_create"].create_project("R6C-E Setup")
+    setup = services["financial_configuration_query"]
+    boundary = services["finance_governance_commands"]
     profile = setup.get_profile(project.id)
-    setup.configure_profile(
-        project.id,
-        expected_version=profile.version,
-        cost_code_policy=CostCodePolicy.RESTRICTED,
+    boundary.financial_profile(
+        lambda handler: handler.configure_profile(
+            project.id,
+            expected_version=profile.version,
+            cost_code_policy=CostCodePolicy.RESTRICTED,
+        )
     )
-    alpha = setup.create_cost_code(
-        code="R6CE.A", name="Alpha", available_to_project_id=project.id
+    alpha = boundary.cost_code(
+        lambda handler: handler.create_cost_code(
+            code="R6CE.A", name="Alpha", available_to_project_id=project.id
+        )
     )
-    setup.create_cost_code(code="R6CE.Z", name="Zulu")
+    boundary.cost_code(
+        lambda handler: handler.create_cost_code(code="R6CE.Z", name="Zulu")
+    )
     desktop = ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"]
     )
@@ -98,36 +105,59 @@ def test_setup_reader_pages_filters_sorts_and_projects_capabilities(services) ->
 def test_setup_service_rejects_stale_edits_inactive_default_and_duplicate_restriction(
     services,
 ) -> None:
-    project = services['project_create'].create_project("R6C-E Rules")
-    setup = services["financial_configuration_service"]
-    code = setup.create_cost_code(code="R6CE.RULE", name="Rules")
-    inactive = setup.deactivate_cost_code(code.id, expected_version=code.version)
+    project = services["project_create"].create_project("R6C-E Rules")
+    setup = services["financial_configuration_query"]
+    boundary = services["finance_governance_commands"]
+    code = boundary.cost_code(
+        lambda handler: handler.create_cost_code(code="R6CE.RULE", name="Rules")
+    )
+    inactive = boundary.cost_code(
+        lambda handler: handler.deactivate_cost_code(
+            code.id, expected_version=code.version
+        )
+    )
     profile = setup.get_profile(project.id)
 
     with pytest.raises(BusinessRuleError, match="active and effective"):
-        setup.configure_profile(
-            project.id,
-            expected_version=profile.version,
-            default_cost_code_id=inactive.id,
+        boundary.financial_profile(
+            lambda handler: handler.configure_profile(
+                project.id,
+                expected_version=profile.version,
+                default_cost_code_id=inactive.id,
+            )
         )
     with pytest.raises(ConcurrencyError, match="changed since"):
-        setup.update_cost_code(
-            inactive.id,
-            expected_version=code.version,
-            name="Stale edit",
+        boundary.cost_code(
+            lambda handler: handler.update_cost_code(
+                inactive.id,
+                expected_version=code.version,
+                name="Stale edit",
+            )
         )
 
-    active = setup.activate_cost_code(inactive.id, expected_version=inactive.version)
-    setup.add_project_cost_code(project_id=project.id, cost_code_id=active.id)
+    active = boundary.cost_code(
+        lambda handler: handler.activate_cost_code(
+            inactive.id, expected_version=inactive.version
+        )
+    )
+    boundary.cost_code(
+        lambda handler: handler.add_project_cost_code(
+            project_id=project.id, cost_code_id=active.id
+        )
+    )
     with pytest.raises(BusinessRuleError, match="already assigned"):
-        setup.add_project_cost_code(project_id=project.id, cost_code_id=active.id)
+        boundary.cost_code(
+            lambda handler: handler.add_project_cost_code(
+                project_id=project.id, cost_code_id=active.id
+            )
+        )
 
 
 def test_setup_authorization_denies_hidden_project_and_missing_manage_permission(
     services,
 ) -> None:
-    visible = services['project_create'].create_project("Visible Setup project")
-    hidden = services['project_create'].create_project("Hidden Setup project")
+    visible = services["project_create"].create_project("Visible Setup project")
+    hidden = services["project_create"].create_project("Hidden Setup project")
     current = services["user_session"].principal
     assert current is not None
     tenant_id = services["user_session"].stored_active_tenant_id()
@@ -145,13 +175,9 @@ def test_setup_authorization_denies_hidden_project_and_missing_manage_permission
             role_names=frozenset({"finance_test"}),
             permissions=frozenset({"finance.read", "finance.manage"}),
             scoped_access={
-                "project": {
-                    visible.id: frozenset({"finance.read", "finance.manage"})
-                }
+                "project": {visible.id: frozenset({"finance.read", "finance.manage"})}
             },
-            project_access={
-                visible.id: frozenset({"finance.read", "finance.manage"})
-            },
+            project_access={visible.id: frozenset({"finance.read", "finance.manage"})},
             active_tenant_id=tenant_id,
             active_organization_id=organization_id,
         )
@@ -194,7 +220,8 @@ def test_setup_authorization_denies_hidden_project_and_missing_manage_permission
 
 class _SetupBoundary:
     def __init__(self) -> None:
-        self.service = SimpleNamespace()
+        self.profile_handler = SimpleNamespace()
+        self.cost_code_handler = SimpleNamespace()
         self.calls: list[tuple[str, tuple, dict]] = []
         for name in (
             "configure_profile",
@@ -205,16 +232,24 @@ class _SetupBoundary:
             "add_project_cost_code",
             "remove_project_cost_code",
         ):
-            setattr(self.service, name, self._operation(name))
+            handler = (
+                self.profile_handler
+                if name in {"configure_profile", "transition_profile"}
+                else self.cost_code_handler
+            )
+            setattr(handler, name, self._operation(name))
 
     def _operation(self, name):
         def call(*args, **kwargs):
             self.calls.append((name, args, kwargs))
+
         return call
 
-    def financial_setup(self, command, *, project_id=None):
-        del project_id
-        return command(self.service)
+    def financial_profile(self, command):
+        return command(self.profile_handler)
+
+    def cost_code(self, command):
+        return command(self.cost_code_handler)
 
 
 def test_typed_setup_commands_use_one_governance_boundary() -> None:
@@ -336,14 +371,16 @@ def test_setup_dialogs_fit_supported_viewports(
             ApplicationWindow {{
                 width: {width}; height: {height}; visible: true
                 readonly property var setupDialog: loader.item
-                Loader {{ id: loader; source: "{(DIALOG_ROOT / f'{dialog_type}.qml').as_uri()}"; onLoaded: item.open() }}
+                Loader {{ id: loader; source: "{(DIALOG_ROOT / f"{dialog_type}.qml").as_uri()}"; onLoaded: item.open() }}
             }}
             """
         ).encode(),
         "r6ce-dialog.qml",
     )
     window = component.create()
-    assert window is not None, "\n".join(error.toString() for error in component.errors())
+    assert window is not None, "\n".join(
+        error.toString() for error in component.errors()
+    )
     qapp.processEvents()
     dialog = window.property("setupDialog")
     assert dialog is not None
@@ -372,7 +409,7 @@ def test_setup_dialogs_preserve_keyboard_escape_and_focus_return(
                 Button {{ id: opener; objectName: "setupDialogOpener"; text: "Open" }}
                 Loader {{
                     id: loader
-                    source: "{(DIALOG_ROOT / f'{dialog_type}.qml').as_uri()}"
+                    source: "{(DIALOG_ROOT / f"{dialog_type}.qml").as_uri()}"
                     onLoaded: {{
                         opener.forceActiveFocus()
                         item.focusReturnTarget = opener
@@ -385,7 +422,9 @@ def test_setup_dialogs_preserve_keyboard_escape_and_focus_return(
         "r6ce-dialog-keyboard.qml",
     )
     window = component.create()
-    assert window is not None, "\n".join(error.toString() for error in component.errors())
+    assert window is not None, "\n".join(
+        error.toString() for error in component.errors()
+    )
     qapp.processEvents()
     dialog = window.property("setupDialog")
     opener = window.findChild(QObject, "setupDialogOpener")
@@ -422,7 +461,9 @@ def test_setup_qml_uses_authoritative_tables_and_central_dialog_host() -> None:
 
 
 @pytest.mark.parametrize(("width", "height"), VIEWPORTS)
-def test_setup_section_loads_at_supported_viewports(qapp, width: int, height: int) -> None:
+def test_setup_section_loads_at_supported_viewports(
+    qapp, width: int, height: int
+) -> None:
     engine = create_qml_engine()
     component = QQmlComponent(engine)
     component.setData(
@@ -439,7 +480,9 @@ def test_setup_section_loads_at_supported_viewports(qapp, width: int, height: in
         "r6ce-section.qml",
     )
     window = component.create()
-    assert window is not None, "\n".join(error.toString() for error in component.errors())
+    assert window is not None, "\n".join(
+        error.toString() for error in component.errors()
+    )
     qapp.processEvents()
     assert float(window.property("width")) == width
     window.deleteLater()

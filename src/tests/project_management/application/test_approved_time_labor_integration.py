@@ -58,15 +58,15 @@ def _setup(services):
     project = services['project_create'].create_project(
         "Approved Time Finance", financial_currency_code=organization.base_currency
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(
         code="LABOR-ACTUAL", name="Labor actual"
-    )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    ))
+    profile = services["financial_configuration_query"].get_profile(project.id)
+    services["finance_governance_commands"].financial_profile(lambda commands: commands.configure_profile(
         project.id,
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
-    )
+    ))
     services["financial_period_commands"].create_period(
         code="LABOR-2026-05", name="May 2026", fiscal_year=2026,
         period_number=5, start_date=date(2026, 5, 1), end_date=date(2026, 5, 31),
@@ -74,13 +74,13 @@ def _setup(services):
     resource = services["resource_master_commands"].create_resource(
         "Approved Time Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
-    card = services["rate_card_service"].create_rate_card(
+    card = services["finance_governance_commands"].rate_card(lambda commands: commands.create_rate_card(
         name="Approved Time rates", project_id=project.id
-    )
-    services["rate_card_service"].create_line(
+    ))
+    services["finance_governance_commands"].rate_line(lambda commands: commands.create_line(
         card.id, rate_type=RateType.COST, unit="HOUR", rate_amount=Decimal(50),
         rate_currency=organization.base_currency, resource_id=resource.id,
-    )
+    ))
     task = services['task_lifecycle_commands'].create_task(
         project.id, "Approved Time Task", start_date=date(2026, 5, 1), duration_days=10
     )
@@ -120,7 +120,7 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
     )
     assert approved.locked_at is None
 
-    rows, total = services["cost_entry_service"].list_for_project(project.id)
+    rows, total = services["cost_entry_query"].list_for_project(project.id)
     outbox_debug = services["session"].execute(select(TimeFinancialOutboxORM)).scalars().all()
     assert total == 1, [
         (row.status, row.last_error_code, row.last_error_message) for row in outbox_debug
@@ -159,7 +159,7 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
         approved.period_id, expected_version=approved.version
     )
     assert locked.status.value == "LOCKED"
-    _, unchanged_total = services["cost_entry_service"].list_for_project(project.id)
+    _, unchanged_total = services["cost_entry_query"].list_for_project(project.id)
     assert unchanged_total == 1
     unlocked = services["timesheet_period_transitions"].unlock_timesheet_period(
         locked.period_id,
@@ -185,7 +185,7 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
         note="Correction approved",
     )
 
-    rows, total = services["cost_entry_service"].list_for_project(project.id)
+    rows, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 3
     statuses = sorted(row.status.value for row in rows)
     assert statuses == ["posted", "posted", "reversed"]
@@ -302,7 +302,7 @@ def test_closed_financial_period_keeps_approved_time_retryable_without_posting(s
     )
 
     assert approved.status is TimesheetPeriodStatus.APPROVED
-    _, total = services["cost_entry_service"].list_for_project(project.id)
+    _, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 0
     outbox = services["session"].execute(select(TimeFinancialOutboxORM)).scalar_one()
     assert outbox.status == OutboxDeliveryStatus.RETRY.value
@@ -338,7 +338,7 @@ def test_post_commit_delivery_emits_scoped_refresh_after_durable_processing(serv
     finally:
         subscription.dispose()
 
-    _, total = services["cost_entry_service"].list_for_project(project.id)
+    _, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 1
     outbox = services["session"].execute(select(TimeFinancialOutboxORM)).scalar_one()
     inbox = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
@@ -377,7 +377,7 @@ def test_refresh_subscriber_failure_does_not_retry_approved_time_delivery(servic
         subscription.dispose()
 
     assert approved.status is TimesheetPeriodStatus.APPROVED
-    _, total = services["cost_entry_service"].list_for_project(project.id)
+    _, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 1
     outbox = services["session"].execute(select(TimeFinancialOutboxORM)).scalar_one()
     inbox = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
@@ -397,7 +397,7 @@ def test_exact_delivery_replay_after_finance_commit_has_one_monetary_effect(serv
     assert dispatcher._consume_under_unit_of_work(envelope).value == "ready"
     assert dispatcher._consume_under_unit_of_work(envelope).value == "duplicate_processed"
 
-    rows, total = services["cost_entry_service"].list_for_project(project.id)
+    rows, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 1
     assert rows[0].amount == Decimal("100.0000")
     assert services["session"].execute(
@@ -430,15 +430,15 @@ def test_approved_time_worker_records_success_and_replay_statement_counts(servic
 
     print("R6D-F approved-Time worker SQL statements:", {"post": posted, "replay": replay})
     assert posted > 0 and replay > 0
-    assert services["cost_entry_service"].list_for_project(project.id)[1] == 1
+    assert services["cost_entry_query"].list_for_project(project.id)[1] == 1
 
 
 def test_approved_time_worker_no_rate_failure_statement_count(services) -> None:
     _, project, resource, _, assignment = _setup(services)
     line = services["session"].execute(select(RateCardLineORM)).scalar_one()
-    services["rate_card_service"].deactivate_line(
+    services["finance_governance_commands"].rate_line(lambda commands: commands.deactivate_line(
         line.id, expected_version=line.version
-    )
+    ))
     _approve_without_immediate_dispatch(
         services, resource_id=resource.id, assignment_id=assignment.id
     )
@@ -455,7 +455,7 @@ def test_approved_time_worker_no_rate_failure_statement_count(services) -> None:
     finally:
         sa.event.remove(engine, "before_cursor_execute", capture)
     assert failed > 0
-    assert services["cost_entry_service"].list_for_project(project.id)[1] == 0
+    assert services["cost_entry_query"].list_for_project(project.id)[1] == 0
     failure = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
     assert failure.status == "retry"
     assert failure.last_error_code == "RATE_CARD_NO_APPLICABLE_RATE"
@@ -514,7 +514,7 @@ def test_approved_time_correction_worker_statement_count(services) -> None:
     finally:
         sa.event.remove(engine, "before_cursor_execute", capture)
     assert correction > 0
-    assert services["cost_entry_service"].list_for_project(project.id)[1] == 3
+    assert services["cost_entry_query"].list_for_project(project.id)[1] == 3
     print("R6D-F approved-Time correction worker SQL statements:", correction)
 
 
@@ -535,7 +535,7 @@ def test_disabled_worker_identity_is_quarantined_without_posting(services) -> No
         submitted.period_id, expected_version=submitted.version
     )
 
-    _, total = services["cost_entry_service"].list_for_project(project.id)
+    _, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 0
     assert services["session"].execute(
         select(sa.func.count()).select_from(ApprovedTimeLaborPostingORM)
@@ -547,10 +547,10 @@ def test_disabled_worker_identity_is_quarantined_without_posting(services) -> No
 
 def test_missing_cost_rate_is_durable_and_never_posts_zero_actual(services) -> None:
     _, project, resource, _, assignment = _setup(services)
-    card = services["rate_card_service"].list_rate_cards(project_id=project.id)[0]
-    services["rate_card_service"].deactivate_rate_card(
+    card = services["rate_card_query"].list_rate_cards(project_id=project.id)[0]
+    services["finance_governance_commands"].rate_card(lambda commands: commands.deactivate_rate_card(
         card.id, expected_version=card.version
-    )
+    ))
 
     services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 13), hours=Decimal(2)
@@ -562,7 +562,7 @@ def test_missing_cost_rate_is_durable_and_never_posts_zero_actual(services) -> N
         submitted.period_id, expected_version=submitted.version
     )
 
-    _, total = services["cost_entry_service"].list_for_project(project.id)
+    _, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 0
     inbox = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
     assert inbox.status == InboxProcessingStatus.RETRY.value
@@ -574,11 +574,11 @@ def test_posting_failure_read_is_bounded_scoped_and_sensitive_by_permission(
     services,
 ) -> None:
     _, project, resource, _, assignment = _setup(services)
-    card = services["rate_card_service"].list_rate_cards(project_id=project.id)[0]
-    services["rate_card_service"].deactivate_rate_card(
+    card = services["rate_card_query"].list_rate_cards(project_id=project.id)[0]
+    services["finance_governance_commands"].rate_card(lambda commands: commands.deactivate_rate_card(
         card.id,
         expected_version=card.version,
-    )
+    ))
     services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 5, 13),
@@ -672,19 +672,19 @@ def test_rate_changes_do_not_revalue_existing_labor_provenance(services) -> None
         original.rate_resolved_at,
     )
 
-    card = services["rate_card_service"].list_rate_cards(project_id=project.id)[0]
-    services["rate_card_service"].deactivate_rate_card(card.id, expected_version=card.version)
-    successor = services["rate_card_service"].create_rate_card(
+    card = services["rate_card_query"].list_rate_cards(project_id=project.id)[0]
+    services["finance_governance_commands"].rate_card(lambda commands: commands.deactivate_rate_card(card.id, expected_version=card.version))
+    successor = services["finance_governance_commands"].rate_card(lambda commands: commands.create_rate_card(
         name="Approved Time successor rates", project_id=project.id
-    )
-    services["rate_card_service"].create_line(
+    ))
+    services["finance_governance_commands"].rate_line(lambda commands: commands.create_line(
         successor.id,
         rate_type=RateType.COST,
         unit="HOUR",
         rate_amount=Decimal(75),
         rate_currency=organization.base_currency,
         resource_id=resource.id,
-    )
+    ))
     services["session"].expire_all()
     persisted = services["session"].execute(select(ApprovedTimeLaborPostingORM)).scalar_one()
     assert (
@@ -720,7 +720,7 @@ def test_same_source_revision_with_different_hash_is_quarantined(services) -> No
     services["session"].commit()
     dispatcher.dispatch_pending()
 
-    _, total = services["cost_entry_service"].list_for_project(project.id)
+    _, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 1
     conflict = services["session"].execute(
         select(ProjectFinanceInboxORM).where(
@@ -740,7 +740,7 @@ def test_finance_audit_failure_rolls_back_labor_cost_and_inbox_success(
         raise RuntimeError("finance audit unavailable")
 
     monkeypatch.setattr(
-        "src.core.modules.project_management.application.financials.cost.entries.cost_entry_service.record_project_cost_entry_audit",
+        "src.core.modules.project_management.application.financials.cost.entries.commands.approved_time.record_project_cost_entry_audit",
         fail_audit,
     )
     services["time_entry_commands"].add_time_entry(
@@ -753,7 +753,7 @@ def test_finance_audit_failure_rolls_back_labor_cost_and_inbox_success(
         submitted.period_id, expected_version=submitted.version
     )
 
-    _, total = services["cost_entry_service"].list_for_project(project.id)
+    _, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 0
     assert services["session"].execute(
         select(sa.func.count()).select_from(ApprovedTimeLaborPostingORM)
@@ -837,7 +837,7 @@ def test_approved_time_transactional_handler_failure_rolls_back_and_yields_zero_
         subscription.dispose()
         post_commit_subscription.dispose()
 
-    _, total = services["cost_entry_service"].list_for_project(project.id)
+    _, total = services["cost_entry_query"].list_for_project(project.id)
     assert total == 0, "the failed-precommit-handler mutation must not persist"
     assert postcommit_seen == [], "a precommit failure must never reach the postcommit bus"
 

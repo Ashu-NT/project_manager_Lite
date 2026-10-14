@@ -85,22 +85,22 @@ def _submitted_budget(services, session):
     project = services['project_create'].create_project(
         _unique("Approval Events Project"), financial_currency_code="USD"
     )
-    budget_service = services["budget_service"]
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    budget_service = services['budget_query']
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("EVT-CC"), name="Approval events cost code"
-    )
-    budget = budget_service.create_budget(project.id, "Events Budget")
-    budget_service.add_line(
+    ))
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Events Budget"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
         cost_code_id=cost_code.id,
         description="Line 1",
         amount=1000,
         expected_budget_version=budget.row_version,
-    )
-    budget = budget_service.get_budget(budget.id)
-    budget = budget_service.submit_budget(
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         budget.id, submitted_by="admin", expected_version=budget.row_version
-    )
+    ))
     session.expire_all()
     return project, budget
 
@@ -310,37 +310,37 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
     project = services['project_create'].create_project(
         _unique("Events Finance Project"), financial_currency_code="USD"
     )
-    code = services["financial_configuration_service"].create_cost_code(
+    code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("EVT-FIN-CC"), name="Events finance cost code"
-    )
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "Events approved budget")
-    budget_line = budgets.add_line(
+    ))
+    budgets = services['budget_query']
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Events approved budget"))
+    budget_line = services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal(100),
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
-    budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(budget.id, "admin", expected_version=budget.row_version))
+    services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version))
 
-    changes = services["financial_change_service"]
-    change = changes.create_change(
+    changes = services['financial_change_query']
+    change = services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
         project.id, title="Events change", reason="Events probe",
         effective_date=date(2026, 8, 11), created_by="admin",
-    )
-    changes.add_impact(
+    ))
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id, impact_type=FinancialChangeImpactType.BUDGET, description="Increase scope",
         amount=Decimal(10), cost_code_id=code.id, target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
+    ))
+    change = services['financial_change_query'].get_change(change.id)
 
     recorded = _spy_recorded_events(
         services["finance_governance_commands"]._uow_factory, monkeypatch
     )
-    submitted = changes.submit_change(
+    submitted = services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         change.id, submitted_by="admin", expected_version=change.row_version
-    )
+    ))
 
     # Filtered by type: submission also records FinancialChangeChanged.
     approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
@@ -367,46 +367,46 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
     project = services['project_create'].create_project(
         _unique("Events Billing Project"), financial_currency_code=organization.base_currency
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("EVT-BILL-CC"), name="Events billing cost code"
-    )
+    ))
     services["financial_period_commands"].create_period(
         code=_unique("EVT-FY26"), name="Events period", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
     )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    profile = services['financial_configuration_query'].get_profile(project.id)
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id, expected_version=profile.version, default_cost_code_id=cost_code.id,
         billing_method=BillingMethod.FIXED_PRICE, is_billable=True,
-    )
-    billing_profile_service = services["billing_profile_service"]
-    bp_profile = billing_profile_service.create_profile(
+    ))
+    billing_profile_service = services['billing_profile_query']
+    bp_profile = services['finance_governance_commands'].billing_profile(lambda handler: handler.create_profile(
         project.id, contract_reference=_unique("EVT-CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",
-    )
-    billing_profile_service.activate_profile(project.id, expected_row_version=bp_profile.row_version)
-    line = billing_profile_service.add_schedule_line(
+    ))
+    services['finance_governance_commands'].billing_profile(lambda handler: handler.activate_profile(project.id, expected_row_version=bp_profile.row_version))
+    line = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
-    )
-    line = billing_profile_service.mark_schedule_line_ready(line.id, expected_row_version=line.row_version)
+    ))
+    line = services['finance_governance_commands'].billing_schedule(lambda handler: handler.mark_schedule_line_ready(line.id, expected_row_version=line.row_version))
 
-    billing_preparation_service = services["billing_preparation_service"]
-    preparation = billing_preparation_service.create_preparation(
+    billing_preparation_service = services['billing_preparation_query']
+    preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id, preparation_number=_unique("EVT-BP"),
         period_start=date(2026, 8, 1), period_end=date(2026, 8, 31),
         idempotency_key=_unique("evt-bill-key"),
-    )
-    billing_preparation_service.add_fixed_price_source(
+    ))
+    services['finance_governance_commands'].billing_source(lambda handler: handler.add_fixed_price_source(
         preparation.id, schedule_line_id=line.id, expected_row_version=preparation.row_version
-    )
-    preparation = billing_preparation_service.get_preparation(preparation.id)
+    ))
+    preparation = services['billing_preparation_query'].get_preparation(preparation.id)
 
     recorded = _spy_recorded_events(
         services["finance_governance_commands"]._uow_factory, monkeypatch
     )
-    submitted = billing_preparation_service.submit_preparation(
+    submitted = services['finance_governance_commands'].billing_submission(lambda handler: handler.submit_preparation(
         preparation.id, expected_row_version=preparation.row_version
-    )
+    ))
 
     # Filtered by type: submission also records BillingPreparationStatusChanged(SUBMITTED).
     approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]

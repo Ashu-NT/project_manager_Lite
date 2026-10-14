@@ -11,8 +11,6 @@ from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services):
-    services['project_query']
-    services['task_lookup_query']
     bs = services['baseline_query']
     project = services['project_create'].create_project("Baseline Compare", "")
     pid = project.id
@@ -53,8 +51,6 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
 
 
 def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
-    services['project_query']
-    services['task_lookup_query']
     bs = services['baseline_query']
     project = services['project_create'].create_project("Baseline Compare Filter", "")
     pid = project.id
@@ -76,8 +72,6 @@ def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
 
 
 def test_compare_baselines_validates_input_and_missing_ids(services):
-    services['project_query']
-    services['task_lookup_query']
     bs = services['baseline_query']
     project = services['project_create'].create_project("Baseline Compare Validation", "")
     pid = project.id
@@ -94,8 +88,6 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
 
 
 def test_baseline_approval_tracks_current_approved_and_variance_records(services):
-    services['project_query']
-    services['task_lookup_query']
     bs = services['baseline_query']
 
     project = services['project_create'].create_project("Baseline Governance", "")

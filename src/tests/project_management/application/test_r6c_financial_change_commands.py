@@ -51,7 +51,7 @@ def _change(version: int = 1):
     )
 
 
-class _ChangeService:
+class _ChangeDraftCommands:
     def __init__(self) -> None:
         self.calls: list[tuple[str, tuple, dict]] = []
         self._user_session = SimpleNamespace(
@@ -64,7 +64,7 @@ class _ChangeService:
         principal = getattr(self._user_session, "principal", None)
         return getattr(principal, "user_id", None)
 
-    def get_change(self, _change_id):
+    def _require_change(self, _change_id):
         return self.change
 
     def create_change(self, *args, **kwargs):
@@ -94,6 +94,15 @@ class _ChangeService:
         self.calls.append(("remove_impact", args, kwargs))
         return _change(4)
 
+
+class _ChangeSubmissionCommands:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, tuple, dict]] = []
+
+    @property
+    def current_actor_user_id(self):
+        return "user-1"
+
     def submit_change(self, *args, **kwargs):
         self.calls.append(("submit_change", args, kwargs))
         result = _change(5)
@@ -104,13 +113,22 @@ class _ChangeService:
 
 class _Boundary:
     def __init__(self) -> None:
-        self.service = _ChangeService()
+        self.drafts = _ChangeDraftCommands()
+        self.submissions = _ChangeSubmissionCommands()
+        self.routes: list[str] = []
 
-    def financial_change(self, command, *, project_id=None):
-        return command(self.service)
+    def financial_change(self, command):
+        self.routes.append("draft")
+        return command(self.drafts)
+
+    def financial_change_submission(self, command):
+        self.routes.append("submission")
+        return command(self.submissions)
 
 
-def test_typed_financial_change_commands_route_through_one_governance_boundary() -> None:
+def test_typed_financial_change_commands_route_through_one_governance_boundary() -> (
+    None
+):
     boundary = _Boundary()
     api = ProjectManagementFinancialsDesktopApi(
         finance_governance_commands=boundary  # type: ignore[arg-type]
@@ -168,15 +186,16 @@ def test_typed_financial_change_commands_route_through_one_governance_boundary()
     )
 
     assert submitted.approval_request_id == "approval-1"
-    assert [call[0] for call in boundary.service.calls] == [
+    assert boundary.routes == ["draft"] * 5 + ["submission"]
+    assert [call[0] for call in boundary.drafts.calls] == [
         "create_change",
         "update_change",
         "add_impact",
         "update_impact",
         "remove_impact",
-        "submit_change",
     ]
-    add_call = boundary.service.calls[2]
+    assert [call[0] for call in boundary.submissions.calls] == ["submit_change"]
+    add_call = boundary.drafts.calls[2]
     assert add_call[2]["impact_type"] is FinancialChangeImpactType.BUDGET
     assert add_call[2]["amount"] == Decimal("125.50")
 
@@ -226,7 +245,9 @@ def test_financial_change_event_invalidation_is_typed_and_effect_specific() -> N
     ]
 
 
-def test_qml_financial_change_commands_use_central_dialog_host_and_typed_slots() -> None:
+def test_qml_financial_change_commands_use_central_dialog_host_and_typed_slots() -> (
+    None
+):
     controller = Path(
         "src/ui_qml/modules/project_management/controllers/financials/"
         "financials_workspace_controller.py"
@@ -296,9 +317,7 @@ def test_financial_change_dialogs_fit_supported_viewports(
         f"r6c-{dialog_type}-{width}x{height}.qml",
     )
     root = component.create()
-    assert root is not None, "\n".join(
-        error.toString() for error in component.errors()
-    )
+    assert root is not None, "\n".join(error.toString() for error in component.errors())
     qapp.processEvents()
     dialog = root.property("changeDialog")
     assert dialog is not None

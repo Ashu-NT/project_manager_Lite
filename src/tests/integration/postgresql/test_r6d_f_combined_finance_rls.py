@@ -145,7 +145,7 @@ def _deliver_legal_paths(environment) -> None:
         code="R6DF-RLS-GOVERNED",
     )
     boundary = time_case._governed_rate_boundary(environment)
-    changed = boundary.rate_card(lambda service: service.update_line(
+    changed = boundary.rate_line(lambda service: service.update_line(
         rate_line_id, expected_version=1, rate_amount=Decimal("44.125")
     ))
     assert changed.version == 2 and changed.rate_amount == Decimal("44.125")

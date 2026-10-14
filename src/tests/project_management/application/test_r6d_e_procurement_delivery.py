@@ -58,15 +58,15 @@ def _setup(services):
     project = services['project_create'].create_project(
         "Procurement delivery", financial_currency_code=organization.base_currency
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(
         code="PROC-DELIVERY", name="Procurement delivery"
-    )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    ))
+    profile = services["financial_configuration_query"].get_profile(project.id)
+    services["finance_governance_commands"].financial_profile(lambda commands: commands.configure_profile(
         project.id,
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
-    )
+    ))
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="PROC-DELIVERY", name="Procurement delivery site", currency_code=organization.base_currency))
     supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="PROC-DELIVERY", party_name="Procurement supplier", roles=["SUPPLIER"]))
     services["financial_period_commands"].create_period(
@@ -291,7 +291,7 @@ def test_newer_line_revision_wins_and_terminal_line_remains_visible(services):
     assert len(session.execute(select(ProjectCommitmentSourceRevisionORM)).scalars().all()) == 2
 
     assert _deliver(services, _commitment(organization, project, site, supplier, revision=6, state="CLOSED", quantity="12")) == 1
-    visible = services["commitment_service"].get_line(line.id)
+    visible = services["commitment_query"].get_line(line.id)
     assert visible.source_revision == 6
     assert visible.remaining_money.amount == 0
     assert len(session.execute(select(ProjectCommitmentLineORM)).scalars().all()) == 1
@@ -308,7 +308,7 @@ def test_receipt_match_over_commitment_keeps_actual_and_zero_open(services):
     assert entry.amount == Decimal(120)
     assert match.amount == Decimal(100)
     assert line.matched_amount == Decimal(100)
-    assert services["commitment_service"].get_line(line.id).remaining_money.amount == 0
+    assert services["commitment_query"].get_line(line.id).remaining_money.amount == 0
 
 
 def test_distinct_partial_receipts_reach_full_match_without_duplicate_actual(services):
@@ -319,7 +319,7 @@ def test_distinct_partial_receipts_reach_full_match_without_duplicate_actual(ser
     session = services["session"]
     line = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
     assert line.matched_amount == Decimal(100)
-    assert services["commitment_service"].get_line(line.id).remaining_money.amount == 0
+    assert services["commitment_query"].get_line(line.id).remaining_money.amount == 0
     assert sorted(row.amount for row in session.execute(select(ProjectCostEntryORM)).scalars()) == [
         Decimal(30), Decimal(70)
     ]
@@ -354,7 +354,7 @@ def test_exposure_filter_is_server_scoped_and_paged(services):
     )) == 1
 
     api = ProjectManagementFinancialsDesktopApi(
-        commitment_service=services["commitment_service"]
+        commitment_query=services["commitment_query"]
     )
     first = api.list_commitments(project.id, exposure="open", limit=1, offset=0)
     second = api.list_commitments(project.id, exposure="open", limit=1, offset=1)

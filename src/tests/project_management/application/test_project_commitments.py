@@ -8,6 +8,13 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
+from src.core.modules.project_management.application.common.clock import SystemClock
+from src.core.modules.project_management.application.financials.commitments.commands import (
+    ProjectCommitmentCommandHandler,
+)
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    build_approval_repository_context,
+)
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
@@ -64,21 +71,21 @@ def _setup(services):
     project = services['project_create'].create_project(
         "Commitment project", financial_currency_code=organization.base_currency
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(
         code="PROCURE", name="Procurement"
-    )
+    ))
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="COMMIT", name="Commitment Site", currency_code=organization.base_currency))
     supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="COMMIT-SUP", party_name="Commitment Supplier", roles=["SUPPLIER"]))
     period = services["financial_period_commands"].create_period(
         code="COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
     )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    profile = services["financial_configuration_query"].get_profile(project.id)
+    services["finance_governance_commands"].financial_profile(lambda commands: commands.configure_profile(
         project.id,
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
-    )
+    ))
     return organization, project, cost_code, site, supplier, period
 
 
@@ -98,13 +105,36 @@ def _execution(services, source, *, event_id: str | None = None):
     )
 
 
+def _commitment_commands(services):
+    session = services["session"]
+    repositories = build_approval_repository_context(
+        session, services["tenant_context_service"]
+    )
+    return ProjectCommitmentCommandHandler(
+        session=session,
+        commitment_repo=repositories.pm.project_commitment_repo,
+        cost_entry_repo=repositories.pm.project_cost_entry_repo,
+        project_repo=repositories.pm.project_repo,
+        financial_profile_repo=repositories.pm.project_financial_profile_repo,
+        cost_code_repo=repositories.pm.project_cost_code_repo,
+        task_repo=repositories.pm.task_repo,
+        party_repo=repositories.platform.party_repo,
+        site_repo=repositories.platform.site_repo,
+        clock=SystemClock(),
+        user_session=services["user_session"],
+        enterprise_audit_service=services["enterprise_audit_service"],
+        module_catalog_service=services["module_catalog_service"],
+        tenant_context_service=services["tenant_context_service"],
+    )
+
+
 def _apply_source(services, source):
-    services["commitment_service"].apply_procurement_source(
+    _commitment_commands(services).apply_procurement_source(
         source,
         execution=_execution(services, source),
     )
     services["session"].commit()
-    return services["commitment_service"]._commitment_repo.get_line_by_source(
+    return services["commitment_query"]._commitment_repo.get_line_by_source(
         source.purchase_order_id,
         source.purchase_order_line_id,
     )
@@ -200,7 +230,7 @@ def _posted_receipt_entry(
         exchange_rate_source="identity",
         exchange_rate_captured_at=now,
     )
-    services["cost_entry_service"]._entry_repo.add(entry)
+    services["cost_entry_query"]._entry_repo.add(entry)
     services["session"].commit()
     return entry
 
@@ -287,7 +317,7 @@ def test_commitment_query_pages_and_sorts_before_the_former_fifty_row_cap(
     services,
 ) -> None:
     organization, project, _cost_code, site, supplier, _period = _setup(services)
-    service = services["commitment_service"]
+    service = services["commitment_query"]
     for index in range(1, 56):
         _apply_source(
             services,
@@ -323,7 +353,7 @@ def test_commitment_query_pages_and_sorts_before_the_former_fifty_row_cap(
         sort_direction="desc",
     )
     desktop_page = ProjectManagementFinancialsDesktopApi(
-        commitment_service=service
+        commitment_query=service
     ).list_commitments(
         project.id,
         offset=50,
@@ -351,7 +381,7 @@ def test_commitment_query_pages_and_sorts_before_the_former_fifty_row_cap(
 
 def test_posted_receipt_actual_matches_once_and_reduces_remaining(services) -> None:
     organization, project, cost_code, site, supplier, period = _setup(services)
-    service = services["commitment_service"]
+    service = services["commitment_query"]
     source = _commitment_source(
         organization=organization, project=project, site=site, supplier=supplier, revision=1
     )
@@ -363,7 +393,7 @@ def test_posted_receipt_actual_matches_once_and_reduces_remaining(services) -> N
         services, organization=organization, project=project,
         cost_code=cost_code, period=period, amount="30",
     )
-    event = service.apply_procurement_receipt_match(
+    event = _commitment_commands(services).apply_procurement_receipt_match(
         purchase_order_id=source.purchase_order_id,
         purchase_order_line_id=source.purchase_order_line_id,
         cost_entry_id=entry.id,
@@ -373,7 +403,7 @@ def test_posted_receipt_actual_matches_once_and_reduces_remaining(services) -> N
     )
     services["session"].commit()
     assert event is not None
-    replay = service.apply_procurement_receipt_match(
+    replay = _commitment_commands(services).apply_procurement_receipt_match(
         purchase_order_id=source.purchase_order_id,
         purchase_order_line_id=source.purchase_order_line_id,
         cost_entry_id=entry.id,
@@ -462,10 +492,10 @@ def test_commitment_repository_isolates_active_organization(services) -> None:
     services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError):
-            services["commitment_service"].get_line(line.id)
+            services["commitment_query"].get_line(line.id)
     finally:
         services["tenant_context_service"].set_active_organization(organization.id)
-    assert services["commitment_service"].get_line(line.id).id == line.id
+    assert services["commitment_query"].get_line(line.id).id == line.id
 
 
 def test_commitment_migration_installs_immutable_revision_and_match_guards(tmp_path) -> None:

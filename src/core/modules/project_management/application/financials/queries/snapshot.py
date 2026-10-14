@@ -24,7 +24,7 @@ from src.core.modules.project_management.application.financials.models.finance_m
     FinanceReconciliation,
     FinanceSnapshot,
 )
-from src.core.modules.project_management.application.financials.reporting.analytics import (
+from src.core.modules.project_management.application.financials.analytics.costs.source_breakdown import (
     build_source_analytics,
 )
 from src.core.modules.project_management.application.financials.utils.helpers import (

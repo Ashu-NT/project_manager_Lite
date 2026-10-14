@@ -27,8 +27,8 @@ from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
-        billing_profile_service=services["billing_profile_service"],
-        billing_preparation_service=services["billing_preparation_service"],
+        billing_profile_query=services['billing_profile_query'],
+        billing_preparation_query=services['billing_preparation_query'],
     )
 
 
@@ -43,9 +43,9 @@ def _setup_billable_project(services, *, name: str = "Billing Command Surface", 
     project = services['project_create'].create_project(
         name, financial_currency_code=organization.base_currency
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"BILL-{project.id[-4:].upper()}", name="Billing cost code"
-    )
+    ))
     if create_period:
         services["financial_period_commands"].create_period(
             code="FY26-BILL",
@@ -55,14 +55,14 @@ def _setup_billable_project(services, *, name: str = "Billing Command Surface", 
             start_date=date(2026, 8, 1),
             end_date=date(2026, 8, 31),
         )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    profile = services['financial_configuration_query'].get_profile(project.id)
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
         billing_method=BillingMethod.FIXED_PRICE,
         is_billable=True,
-    )
+    ))
     return organization, project, cost_code
 
 

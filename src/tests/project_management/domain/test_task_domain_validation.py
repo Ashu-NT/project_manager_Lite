@@ -224,8 +224,6 @@ def test_task_dependency_dto_rejects_self_dependency():
 
 
 def test_task_service_update_validates_final_state_and_persists_code(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Task DTO Service", "")
     task = services['task_lifecycle_commands'].create_task(
@@ -253,8 +251,6 @@ def test_task_service_update_validates_final_state_and_persists_code(services):
 
 
 def test_task_service_progress_update_uses_final_state_validation(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Task Progress DTO", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Progress Task", duration_days=1)

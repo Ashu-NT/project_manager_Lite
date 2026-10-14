@@ -15,8 +15,6 @@ _SIZES = {"small": 1, "medium": 5, "large": 12}
 
 
 def _seed_collaboration_workspace(services, *, project_count: int) -> None:
-    services['project_query']
-    services['task_lookup_query']
     for index in range(project_count):
         project = services['project_create'].create_project(f"Phase 3D Project {index}")
         task = services['task_lifecycle_commands'].create_task(project.id, f"Phase 3D Task {index}")

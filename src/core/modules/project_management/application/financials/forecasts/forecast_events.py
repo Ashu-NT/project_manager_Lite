@@ -32,7 +32,7 @@ class ForecastLineChangeType(str, Enum):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ForecastLineChanged:
     """Forecast lines can only be mutated while their owning forecast is mutable
-    (DRAFT/SUBMITTED, never APPROVED -- see `ForecastVersionService._require_mutable_forecast`),
+    (DRAFT/SUBMITTED, never APPROVED -- see `ForecastLineCommands._require_mutable_forecast`),
     so a line change never affects the project's approved ETC basis; it only invalidates the
     forecast planning projection."""
 

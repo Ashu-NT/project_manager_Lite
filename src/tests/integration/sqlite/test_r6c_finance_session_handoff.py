@@ -25,7 +25,7 @@ def test_budget_command_uses_fresh_uow_after_shared_session_reads(tmp_path) -> N
 
         project = services['project_create'].create_project("SQLite Finance")
         boundary = services["finance_governance_commands"]
-        budget = boundary.budget(
+        budget = boundary.budget_lifecycle(
             lambda service: service.create_budget(project.id, "Draft", "XAF"),
         )
 
@@ -36,7 +36,7 @@ def test_budget_command_uses_fresh_uow_after_shared_session_reads(tmp_path) -> N
         # Reproduce the runtime condition: another operation has left the
         # process-wide desktop session holding SQLite's writer reservation.
         shared_session.connection().exec_driver_sql("BEGIN IMMEDIATE")
-        boundary.budget(
+        boundary.budget_lifecycle(
             lambda service: service.delete_budget(
                 budget.id,
                 expected_version=budget.row_version,

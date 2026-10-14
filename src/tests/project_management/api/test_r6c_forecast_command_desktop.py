@@ -16,30 +16,20 @@ from src.core.modules.project_management.application.financials.forecasts.dto im
 from src.core.platform.common.exceptions import ValidationError
 
 
-class _Boundary:
-    def __init__(self) -> None:
-        self._user_session = SimpleNamespace(
-            principal=SimpleNamespace(user_id="actor-1")
-        )
-        self.generation_service = SimpleNamespace(
-            _user_session=SimpleNamespace(principal=SimpleNamespace(user_id="actor-1"))
-        )
-        self.version_service = SimpleNamespace(
-            _user_session=SimpleNamespace(principal=SimpleNamespace(user_id="actor-1"))
-        )
-        self.generated = None
-        self.versioned = None
+class _ForecastActor:
+    def __init__(self, user_session, calls) -> None:
+        self._user_session = user_session
+        self.calls = calls
 
     @property
     def current_actor_user_id(self):
-        principal = getattr(self._user_session, "principal", None)
+        principal = self._user_session.principal
         return getattr(principal, "user_id", None)
 
-    def forecast_generation(self, command):
-        return command(self)
 
+class _GenerationCommands(_ForecastActor):
     def generate_draft(self, project_id, **kwargs):
-        self.generated = (project_id, kwargs)
+        self.calls["generated"] = (project_id, kwargs)
         return SimpleNamespace(
             forecast=SimpleNamespace(
                 id="forecast-1",
@@ -49,11 +39,10 @@ class _Boundary:
             )
         )
 
-    def forecast_version(self, command):
-        return command(self)
 
+class _LifecycleCommands(_ForecastActor):
     def submit_forecast(self, forecast_id, **kwargs):
-        self.versioned = ("submit", forecast_id, kwargs)
+        self.calls["versioned"] = ("submit", forecast_id, kwargs)
         return SimpleNamespace(
             id=forecast_id,
             project_id="project-1",
@@ -61,8 +50,10 @@ class _Boundary:
             row_version=4,
         )
 
+
+class _ApprovalCommands(_ForecastActor):
     def request_forecast_approval(self, forecast_id, **kwargs):
-        self.versioned = ("request", forecast_id, kwargs)
+        self.calls["versioned"] = ("request", forecast_id, kwargs)
         return SimpleNamespace(
             forecast_id=forecast_id,
             project_id="project-1",
@@ -70,6 +61,34 @@ class _Boundary:
             row_version=4,
             approval_request_id="approval-1",
         )
+
+
+class _Boundary:
+    def __init__(self) -> None:
+        self._user_session = SimpleNamespace(
+            principal=SimpleNamespace(user_id="actor-1")
+        )
+        self.calls = {"generated": None, "versioned": None}
+        self.generation = _GenerationCommands(self._user_session, self.calls)
+        self.lifecycle = _LifecycleCommands(self._user_session, self.calls)
+        self.approval = _ApprovalCommands(self._user_session, self.calls)
+
+    @property
+    def generated(self):
+        return self.calls["generated"]
+
+    @property
+    def versioned(self):
+        return self.calls["versioned"]
+
+    def forecast_generation(self, command):
+        return command(self.generation)
+
+    def forecast_lifecycle(self, command):
+        return command(self.lifecycle)
+
+    def forecast_approval(self, command):
+        return command(self.approval)
 
 
 def test_generate_forecast_maps_typed_decimal_and_dates_to_boundary() -> None:
@@ -124,13 +143,17 @@ def test_submit_and_request_approval_preserve_expected_version() -> None:
 
     requested = api.request_forecast_approval(command)
     assert boundary.versioned == (
-        "request", "forecast-1", {"expected_version": 3, "notes": "Ready"}
+        "request",
+        "forecast-1",
+        {"expected_version": 3, "notes": "Ready"},
     )
     assert requested.approval_request_id == "approval-1"
 
 
 @pytest.mark.parametrize("amount", ("NaN", "Infinity", "not-money"))
-def test_generate_forecast_rejects_non_canonical_or_non_finite_money(amount: str) -> None:
+def test_generate_forecast_rejects_non_canonical_or_non_finite_money(
+    amount: str,
+) -> None:
     boundary = _Boundary()
     api = ProjectManagementFinancialsDesktopApi(finance_governance_commands=boundary)
     command = FinancialGenerateForecastCommand(

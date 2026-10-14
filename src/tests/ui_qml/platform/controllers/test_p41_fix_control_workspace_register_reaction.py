@@ -128,7 +128,7 @@ def test_control_does_not_refresh_from_an_unrelated_view_invalidation_category(s
     project = services['project_create'].create_project(
         "P41-FIX unrelated budget project", financial_currency_code=organization.base_currency
     )
-    services["budget_service"].create_budget(project.id, "P41-FIX unrelated budget")
+    services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "P41-FIX unrelated budget"))
 
     assert stale_calls == [], (
         "a Budget-only mutation (a different ViewInvalidation category) must not fire the "

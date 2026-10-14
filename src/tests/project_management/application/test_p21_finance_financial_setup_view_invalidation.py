@@ -81,12 +81,14 @@ def _spy_events(services, *event_types):
     seen: list = []
     bus = services["finance_governance_commands"]._uow_factory._post_commit_bus
     for event_type in event_types:
-        bus.subscribe(event_type, lambda event, _context, _seen=seen: _seen.append(event))
+        bus.subscribe(
+            event_type, lambda event, _context, _seen=seen: _seen.append(event)
+        )
     return seen
 
 
 def _seed_project(services):
-    project = services['project_create'].create_project(
+    project = services["project_create"].create_project(
         _unique("P21 Finance Project"), financial_currency_code="USD"
     )
     return project
@@ -104,7 +106,10 @@ def test_profile_updated_maps_to_financial_profile_target():
 
     handler(
         ProjectFinancialProfileUpdated(
-            tenant_id="t1", organization_id="o1", project_id="p1", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            occurred_at=now,
         ),
         _context("c1"),
     )
@@ -126,7 +131,11 @@ def test_profile_transitioned_maps_to_financial_profile_target():
 
     handler(
         ProjectFinancialProfileTransitioned(
-            tenant_id="t1", organization_id="o1", project_id="p1", status="ON_HOLD", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            status="ON_HOLD",
+            occurred_at=now,
         ),
         _context("c1"),
     )
@@ -142,63 +151,93 @@ def test_profile_dedupe_by_project_target_within_one_transaction():
 
     handler(
         ProjectFinancialProfileUpdated(
-            tenant_id="t1", organization_id="o1", project_id="p1", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            occurred_at=now,
         ),
         context,
     )
     handler(
         ProjectFinancialProfileTransitioned(
-            tenant_id="t1", organization_id="o1", project_id="p1", status="ACTIVE", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            status="ACTIVE",
+            occurred_at=now,
         ),
         context,
     )
-    assert len(channel.notified) == 1, "same project target within one transaction coalesces"
+    assert len(channel.notified) == 1, (
+        "same project target within one transaction coalesces"
+    )
 
     handler(
         ProjectFinancialProfileUpdated(
-            tenant_id="t1", organization_id="o1", project_id="p2", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p2",
+            occurred_at=now,
         ),
         context,
     )
-    assert len(channel.notified) == 2, "a distinct project within the same transaction is separate"
+    assert len(channel.notified) == 2, (
+        "a distinct project within the same transaction is separate"
+    )
 
     handler(
         ProjectFinancialProfileUpdated(
-            tenant_id="t1", organization_id="o1", project_id="p1", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            occurred_at=now,
         ),
         _context("same-tx"),
     )
-    assert len(channel.notified) == 3, "a new transaction is never coalesced with the previous one"
+    assert len(channel.notified) == 3, (
+        "a new transaction is never coalesced with the previous one"
+    )
 
 
 # ---------------------------------------------------------------------------
-# Real FinancialConfigurationService producer path
+# Real financial profile and cost-code command producer paths
 # ---------------------------------------------------------------------------
 
 
 def test_configure_profile_true_no_op_produces_zero_hints(services):
     project = _seed_project(services)
-    setup = services["financial_configuration_service"]
+    setup = services["financial_configuration_query"]
+    boundary = services["finance_governance_commands"]
     profile = setup.get_profile(project.id)
     hints = _spy_hints(services)
 
-    unchanged = setup.configure_profile(
-        project.id, expected_version=profile.version, currency_code=profile.currency_code,
+    unchanged = boundary.financial_profile(
+        lambda handler: handler.configure_profile(
+            project.id,
+            expected_version=profile.version,
+            currency_code=profile.currency_code,
+        )
     )
 
     assert unchanged.version == profile.version, "true no-op: no synthetic version bump"
     assert _setup_hints(hints) == []
 
 
-def test_configure_profile_real_change_produces_exactly_one_financial_profile_hint(services):
+def test_configure_profile_real_change_produces_exactly_one_financial_profile_hint(
+    services,
+):
     project = _seed_project(services)
-    setup = services["financial_configuration_service"]
+    setup = services["financial_configuration_query"]
+    boundary = services["finance_governance_commands"]
     profile = setup.get_profile(project.id)
     hints = _spy_hints(services)
 
-    updated = setup.configure_profile(
-        project.id, expected_version=profile.version,
-        budget_control_mode=BudgetControlMode.BLOCK,
+    updated = boundary.financial_profile(
+        lambda handler: handler.configure_profile(
+            project.id,
+            expected_version=profile.version,
+            budget_control_mode=BudgetControlMode.BLOCK,
+        )
     )
 
     assert updated.budget_control_mode == BudgetControlMode.BLOCK
@@ -210,12 +249,17 @@ def test_configure_profile_real_change_produces_exactly_one_financial_profile_hi
 
 def test_transition_profile_produces_exactly_one_financial_profile_hint(services):
     project = _seed_project(services)
-    setup = services["financial_configuration_service"]
+    setup = services["financial_configuration_query"]
+    boundary = services["finance_governance_commands"]
     profile = setup.get_profile(project.id)
     hints = _spy_hints(services)
 
-    transitioned = setup.transition_profile(
-        project.id, target=FinancialProfileStatus.ON_HOLD, expected_version=profile.version,
+    transitioned = boundary.financial_profile(
+        lambda handler: handler.transition_profile(
+            project.id,
+            target=FinancialProfileStatus.ON_HOLD,
+            expected_version=profile.version,
+        )
     )
 
     assert transitioned.status == FinancialProfileStatus.ON_HOLD
@@ -226,12 +270,17 @@ def test_transition_profile_produces_exactly_one_financial_profile_hint(services
 
 def test_transition_profile_true_no_op_produces_zero_hints(services):
     project = _seed_project(services)
-    setup = services["financial_configuration_service"]
+    setup = services["financial_configuration_query"]
+    boundary = services["finance_governance_commands"]
     profile = setup.get_profile(project.id)
     hints = _spy_hints(services)
 
-    unchanged = setup.transition_profile(
-        project.id, target=profile.status, expected_version=profile.version,
+    unchanged = boundary.financial_profile(
+        lambda handler: handler.transition_profile(
+            project.id,
+            target=profile.status,
+            expected_version=profile.version,
+        )
     )
 
     assert unchanged.version == profile.version
@@ -239,11 +288,15 @@ def test_transition_profile_true_no_op_produces_zero_hints(services):
 
 
 def test_create_cost_code_invalidates_the_authoritative_setup_catalog(services):
-    setup = services["financial_configuration_service"]
+    boundary = services["finance_governance_commands"]
     events = _spy_events(services, CostCodeCreated)
     hints = _spy_hints(services)
 
-    cost_code = setup.create_cost_code(code=_unique("P21-CC"), name="P21 Cost Code")
+    cost_code = boundary.cost_code(
+        lambda handler: handler.create_cost_code(
+            code=_unique("P21-CC"), name="P21 Cost Code"
+        )
+    )
 
     assert len(events) == 1
     assert events[0].cost_code_id == cost_code.id
@@ -254,25 +307,43 @@ def test_create_cost_code_invalidates_the_authoritative_setup_catalog(services):
 
 
 def test_update_cost_code_true_no_op_records_zero_events(services):
-    setup = services["financial_configuration_service"]
-    cost_code = setup.create_cost_code(code=_unique("P21-CC"), name="P21 Cost Code")
+    boundary = services["finance_governance_commands"]
+    cost_code = boundary.cost_code(
+        lambda handler: handler.create_cost_code(
+            code=_unique("P21-CC"), name="P21 Cost Code"
+        )
+    )
     events = _spy_events(services, CostCodeProfileUpdated)
 
-    unchanged = setup.update_cost_code(
-        cost_code.id, expected_version=cost_code.version, name="P21 Cost Code",
+    unchanged = boundary.cost_code(
+        lambda handler: handler.update_cost_code(
+            cost_code.id,
+            expected_version=cost_code.version,
+            name="P21 Cost Code",
+        )
     )
 
-    assert unchanged.version == cost_code.version, "true no-op: no synthetic version bump"
+    assert unchanged.version == cost_code.version, (
+        "true no-op: no synthetic version bump"
+    )
     assert events == []
 
 
 def test_update_cost_code_real_change_records_exactly_one_event(services):
-    setup = services["financial_configuration_service"]
-    cost_code = setup.create_cost_code(code=_unique("P21-CC"), name="P21 Cost Code")
+    boundary = services["finance_governance_commands"]
+    cost_code = boundary.cost_code(
+        lambda handler: handler.create_cost_code(
+            code=_unique("P21-CC"), name="P21 Cost Code"
+        )
+    )
     events = _spy_events(services, CostCodeProfileUpdated)
 
-    updated = setup.update_cost_code(
-        cost_code.id, expected_version=cost_code.version, name="Renamed Cost Code",
+    updated = boundary.cost_code(
+        lambda handler: handler.update_cost_code(
+            cost_code.id,
+            expected_version=cost_code.version,
+            name="Renamed Cost Code",
+        )
     )
 
     assert updated.name == "Renamed Cost Code"
@@ -281,43 +352,76 @@ def test_update_cost_code_real_change_records_exactly_one_event(services):
 
 
 def test_activate_and_deactivate_cost_code_invalidate_the_setup_catalog(services):
-    setup = services["financial_configuration_service"]
-    cost_code = setup.create_cost_code(code=_unique("P21-CC"), name="P21 Cost Code")
+    boundary = services["finance_governance_commands"]
+    cost_code = boundary.cost_code(
+        lambda handler: handler.create_cost_code(
+            code=_unique("P21-CC"), name="P21 Cost Code"
+        )
+    )
     events = _spy_events(services, CostCodeDeactivated, CostCodeActivated)
     hints = _spy_hints(services)
 
-    deactivated = setup.deactivate_cost_code(cost_code.id, expected_version=cost_code.version)
-    reactivated = setup.activate_cost_code(deactivated.id, expected_version=deactivated.version)
+    deactivated = boundary.cost_code(
+        lambda handler: handler.deactivate_cost_code(
+            cost_code.id, expected_version=cost_code.version
+        )
+    )
+    reactivated = boundary.cost_code(
+        lambda handler: handler.activate_cost_code(
+            deactivated.id, expected_version=deactivated.version
+        )
+    )
 
     assert deactivated.is_active is False
     assert reactivated.is_active is True
-    assert [type(e).__name__ for e in events] == ["CostCodeDeactivated", "CostCodeActivated"]
+    assert [type(e).__name__ for e in events] == [
+        "CostCodeDeactivated",
+        "CostCodeActivated",
+    ]
     assert [hint.scope_code for hint in _setup_hints(hints)] == [
         FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
         FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
     ]
 
 
-def test_add_and_remove_project_cost_code_restriction_invalidate_project_setup(services):
+def test_add_and_remove_project_cost_code_restriction_invalidate_project_setup(
+    services,
+):
     project = _seed_project(services)
-    setup = services["financial_configuration_service"]
-    setup.configure_profile(
-        project.id,
-        expected_version=setup.get_profile(project.id).version,
-        cost_code_policy=CostCodePolicy.RESTRICTED,
+    setup = services["financial_configuration_query"]
+    boundary = services["finance_governance_commands"]
+    boundary.financial_profile(
+        lambda handler: handler.configure_profile(
+            project.id,
+            expected_version=setup.get_profile(project.id).version,
+            cost_code_policy=CostCodePolicy.RESTRICTED,
+        )
     )
-    cost_code = setup.create_cost_code(code=_unique("P21-CC"), name="P21 Cost Code")
+    cost_code = boundary.cost_code(
+        lambda handler: handler.create_cost_code(
+            code=_unique("P21-CC"), name="P21 Cost Code"
+        )
+    )
     events = _spy_events(
         services, ProjectCostCodeRestrictionAdded, ProjectCostCodeRestrictionRemoved
     )
     hints = _spy_hints(services)
 
-    setup.add_project_cost_code(project_id=project.id, cost_code_id=cost_code.id)
-    removed = setup.remove_project_cost_code(project_id=project.id, cost_code_id=cost_code.id)
+    boundary.cost_code(
+        lambda handler: handler.add_project_cost_code(
+            project_id=project.id, cost_code_id=cost_code.id
+        )
+    )
+    removed = boundary.cost_code(
+        lambda handler: handler.remove_project_cost_code(
+            project_id=project.id, cost_code_id=cost_code.id
+        )
+    )
 
     assert removed is True
     assert [type(e).__name__ for e in events] == [
-        "ProjectCostCodeRestrictionAdded", "ProjectCostCodeRestrictionRemoved",
+        "ProjectCostCodeRestrictionAdded",
+        "ProjectCostCodeRestrictionRemoved",
     ]
     assert [hint.scope_code for hint in _setup_hints(hints)] == [
         FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
@@ -330,7 +434,9 @@ def test_add_and_remove_project_cost_code_restriction_invalidate_project_setup(s
 # ---------------------------------------------------------------------------
 
 
-def test_financials_controller_financial_profile_stale_invalidates_only_controls(services):
+def test_financials_controller_financial_profile_stale_invalidates_only_controls(
+    services,
+):
     from src.application.runtime import build_desktop_api_registry
     from src.ui_qml.modules.project_management.context import (
         ProjectManagementWorkspaceCatalog,
@@ -351,7 +457,9 @@ def test_financials_controller_financial_profile_stale_invalidates_only_controls
 
     controller._invalidated_destinations.clear()
     controller.onFinancialProfileStale("proj-b")
-    assert controller._invalidated_destinations == set(), "non-selected project must not invalidate"
+    assert controller._invalidated_destinations == set(), (
+        "non-selected project must not invalidate"
+    )
 
 
 # ---------------------------------------------------------------------------

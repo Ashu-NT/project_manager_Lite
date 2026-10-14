@@ -7,7 +7,6 @@ from pathlib import Path
 
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
-    FinanceGovernedServicePort,
 )
 
 PM_ROOT = Path("src/core/modules/project_management")
@@ -47,13 +46,18 @@ def test_finance_governance_boundary_has_one_transaction_contract() -> None:
     assert "_project_id" not in source
 
     for family in (
-        "budget",
-        "forecast_version",
+        "budget_lifecycle",
+        "budget_lines",
+        "budget_approval",
+        "forecast_lifecycle",
+        "forecast_lines",
+        "forecast_approval",
         "forecast_generation",
         "financial_change",
         "planned_cost",
         "cost_entry",
-        "financial_setup",
+        "financial_profile",
+        "cost_code",
         "rate_card",
         "billing_profile",
         "billing_preparation",
@@ -63,7 +67,7 @@ def test_finance_governance_boundary_has_one_transaction_contract() -> None:
         )
         assert tuple(signature.parameters) == ("self", "command")
 
-    assert not hasattr(FinanceGovernedServicePort, "_project_id")
+    assert "__getattr__" not in source
 
 
 def test_r6c_desktop_runtime_has_no_superseded_write_service_dependencies() -> None:

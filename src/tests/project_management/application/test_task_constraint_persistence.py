@@ -27,8 +27,6 @@ def _repo(services):
     ],
 )
 def test_every_editable_constraint_type_round_trips_through_persistence(services, constraint_type):
-    services['project_query']
-    services['task_lookup_query']
     repo = _repo(services)
     project = services['project_create'].create_project("Constraint Persistence", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)
@@ -46,8 +44,6 @@ def test_every_editable_constraint_type_round_trips_through_persistence(services
 
 
 def test_no_constraint_round_trips_as_none(services):
-    services['project_query']
-    services['task_lookup_query']
     repo = _repo(services)
     project = services['project_create'].create_project("Constraint Persistence No Constraint", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Plain Task", "", start_date=date(2026, 9, 1), duration_days=3)
@@ -58,8 +54,6 @@ def test_no_constraint_round_trips_as_none(services):
 
 
 def test_clearing_a_constraint_round_trips_as_none(services):
-    services['project_query']
-    services['task_lookup_query']
     repo = _repo(services)
     project = services['project_create'].create_project("Constraint Persistence Clear", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)
@@ -87,8 +81,6 @@ def test_is_milestone_update_persists(services):
     version-checked write-column dict -- a change to it via update_task
     silently never persisted. Fixed alongside the constraint columns
     while touching this exact dict."""
-    services['project_query']
-    services['task_lookup_query']
     repo = _repo(services)
     project = services['project_create'].create_project("Milestone Persistence Update", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Regular Task", "", start_date=date(2026, 9, 1), duration_days=3)
@@ -104,8 +96,6 @@ def test_is_milestone_update_persists(services):
 
 
 def test_constraint_update_respects_optimistic_concurrency(services):
-    services['project_query']
-    services['task_lookup_query']
     repo = _repo(services)
     project = services['project_create'].create_project("Constraint Persistence Concurrency", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)

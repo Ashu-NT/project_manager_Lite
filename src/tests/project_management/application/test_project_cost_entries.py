@@ -63,10 +63,10 @@ def _create_project_finance_setup(services):
         "Canonical actuals",
         financial_currency_code=organization.base_currency,
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="ACTUAL-LABOR",
         name="Actual labor",
-    )
+    ))
     period = services["financial_period_commands"].create_period(
         code="FY26-P01",
         name="January 2026",
@@ -80,7 +80,7 @@ def _create_project_finance_setup(services):
 
 def _create_draft(services, *, command_id: str = "manual-1", amount: str = "125.50"):
     organization, project, cost_code, period = _create_project_finance_setup(services)
-    entry = services["cost_entry_service"].create_manual_entry(
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id=command_id,
         description="Approved labor adjustment",
@@ -88,7 +88,7 @@ def _create_draft(services, *, command_id: str = "manual-1", amount: str = "125.
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 12),
         cost_code_id=cost_code.id,
-    )
+    ))
     return organization, project, cost_code, period, entry
 
 
@@ -159,9 +159,9 @@ def test_cost_entry_domain_enforces_signed_lifecycle_and_complete_posting_snapsh
 
 def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(services) -> None:
     organization, project, cost_code, _period, draft = _create_draft(services)
-    service = services["cost_entry_service"]
+    service = services['cost_entry_query']
 
-    replay = service.create_manual_entry(
+    replay = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id="manual-1",
         description="Approved labor adjustment",
@@ -169,10 +169,10 @@ def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(service
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 12),
         cost_code_id=cost_code.id,
-    )
+    ))
     assert replay.id == draft.id
     with pytest.raises(BusinessRuleError) as conflict:
-        service.create_manual_entry(
+        services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
             project_id=project.id,
             command_id="manual-1",
             description="Conflicting replay",
@@ -180,34 +180,34 @@ def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(service
             currency_code=organization.base_currency,
             transaction_date=date(2026, 1, 12),
             cost_code_id=cost_code.id,
-        )
+        ))
     assert conflict.value.code == "PROJECT_COST_ENTRY_SOURCE_REPLAY_CONFLICT"
 
-    submitted = service.submit(draft.id, expected_version=draft.row_version)
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
     _become_independent_decider(services)
-    approved_result = service.approve(
+    approved_result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(
         submitted.id,
         expected_version=submitted.row_version,
-    )
+    ))
     assert approved_result.outcome == CostEntryApprovalOutcome.APPLIED
-    approved = service.get_entry(draft.id)
-    posted = service.post(
+    approved = services['cost_entry_query'].get_entry(draft.id)
+    posted = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
         approved.id,
         expected_version=approved.row_version,
         posting_date=date(2026, 1, 15),
-    )
+    ))
     assert posted.status == ProjectCostEntryStatus.POSTED
     assert posted.base_amount == posted.amount
     assert posted.exchange_rate == Decimal(1)
 
-    reversal = service.reverse(
+    reversal = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.reverse(
         posted.id,
         expected_version=posted.row_version,
         command_id="reverse-manual-1",
         posting_date=date(2026, 1, 20),
         reason="Correct duplicate source transaction",
-    )
-    original = service.get_entry(posted.id)
+    ))
+    original = services['cost_entry_query'].get_entry(posted.id)
     assert original.status == ProjectCostEntryStatus.REVERSED
     assert original.reversed_by_entry_id == reversal.id
     assert reversal.entry_kind == ProjectCostEntryKind.REVERSAL
@@ -219,16 +219,16 @@ def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(service
     assert reversal.base_currency_code == original.base_currency_code
     assert reversal.amount + original.amount == Decimal(0)
 
-    reversal_retry = service.reverse(
+    reversal_retry = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.reverse(
         posted.id,
         expected_version=posted.row_version,
         command_id="reverse-manual-1",
         posting_date=date(2026, 1, 20),
         reason="Correct duplicate source transaction",
-    )
+    ))
     assert reversal_retry.id == reversal.id
 
-    entries, total = service.list_for_project(project.id, limit=1)
+    entries, total = services['cost_entry_query'].list_for_project(project.id, limit=1)
     assert total == 2
     assert len(entries) == 1
 
@@ -237,9 +237,9 @@ def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
     services,
 ) -> None:
     organization, project, cost_code, _period = _create_project_finance_setup(services)
-    service = services["cost_entry_service"]
+    service = services['cost_entry_query']
     for index in range(55):
-        service.create_manual_entry(
+        services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
             project_id=project.id,
             command_id=f"r17-actual-{index:03d}",
             description=f"Actual {index:03d}",
@@ -247,13 +247,13 @@ def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
             currency_code=organization.base_currency,
             transaction_date=date(2026, 1, 12),
             cost_code_id=cost_code.id,
-        )
+        ))
 
     foreign_project = services['project_create'].create_project(
         "Other scoped actuals",
         financial_currency_code=organization.base_currency,
     )
-    service.create_manual_entry(
+    services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=foreign_project.id,
         command_id="r17-foreign-actual",
         description="Foreign Actual",
@@ -261,23 +261,23 @@ def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 12),
         cost_code_id=cost_code.id,
-    )
+    ))
 
-    first_page, first_total = service.list_for_project(
+    first_page, first_total = services['cost_entry_query'].list_for_project(
         project.id,
         offset=0,
         limit=20,
         sort_key="title",
         sort_direction="asc",
     )
-    third_page, third_total = service.list_for_project(
+    third_page, third_total = services['cost_entry_query'].list_for_project(
         project.id,
         offset=40,
         limit=20,
         sort_key="title",
         sort_direction="asc",
     )
-    descending_page, _ = service.list_for_project(
+    descending_page, _ = services['cost_entry_query'].list_for_project(
         project.id,
         offset=0,
         limit=5,
@@ -285,7 +285,7 @@ def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
         sort_direction="desc",
     )
     desktop_page = ProjectManagementFinancialsDesktopApi(
-        cost_entry_service=service
+        cost_entry_query=service
     ).list_cost_entries(
         project.id,
         offset=50,
@@ -311,8 +311,8 @@ def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
 def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> None:
     organization, project, cost_code, _period = _create_project_finance_setup(services)
     transaction_currency = "USD" if organization.base_currency != "USD" else "EUR"
-    service = services["cost_entry_service"]
-    draft = service.create_manual_entry(
+    service = services['cost_entry_query']
+    draft = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id="fx-command",
         description="Imported equipment charge",
@@ -320,21 +320,21 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
         currency_code=transaction_currency,
         transaction_date=date(2026, 1, 5),
         cost_code_id=cost_code.id,
-    )
-    submitted = service.submit(draft.id, expected_version=draft.row_version)
+    ))
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
     _become_independent_decider(services)
-    service.approve(submitted.id, expected_version=submitted.row_version)
-    approved = service.get_entry(draft.id)
+    services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
+    approved = services['cost_entry_query'].get_entry(draft.id)
     with pytest.raises(ValidationError) as missing_fx:
-        service.post(
+        services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
             approved.id,
             expected_version=approved.row_version,
             posting_date=date(2026, 1, 8),
-        )
+        ))
     assert missing_fx.value.code == "PROJECT_COST_ENTRY_FX_SNAPSHOT_REQUIRED"
 
     captured_at = datetime(2026, 1, 8, 9, 0, tzinfo=UTC)
-    posted = service.post(
+    posted = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
         approved.id,
         expected_version=approved.row_version,
         posting_date=date(2026, 1, 8),
@@ -342,7 +342,7 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
         exchange_rate_date=date(2026, 1, 8),
         exchange_rate_source="ECB closing rate",
         exchange_rate_captured_at=captured_at,
-    )
+    ))
     assert posted.base_amount == Decimal("90.00")
     assert posted.base_currency_code == organization.base_currency
     assert posted.exchange_rate_source == "ECB closing rate"
@@ -351,21 +351,21 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
 
 def test_posting_rejects_closed_period(services) -> None:
     _organization, _project, _cost_code, period, draft = _create_draft(services)
-    service = services["cost_entry_service"]
-    submitted = service.submit(draft.id, expected_version=draft.row_version)
+    service = services['cost_entry_query']
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
     _become_independent_decider(services)
-    service.approve(submitted.id, expected_version=submitted.row_version)
-    approved = service.get_entry(draft.id)
+    services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
+    approved = services['cost_entry_query'].get_entry(draft.id)
     services["financial_period_commands"].close_period(
         period.id,
         expected_version=period.version,
     )
     with pytest.raises(BusinessRuleError) as blocked:
-        service.post(
+        services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
             approved.id,
             expected_version=approved.row_version,
             posting_date=date(2026, 1, 15),
-        )
+        ))
     assert blocked.value.code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
 
 
@@ -375,15 +375,15 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _organization, project, _cost_code, _period, draft = _create_draft(services)
-    service = services["cost_entry_service"]
-    submitted = service.submit(draft.id, expected_version=draft.row_version)
+    service = services['cost_entry_query']
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
     services["user_registration"].register_user(
         "cost-requester",
         "StrongPass123",
         role_names=["planner"],
     )
     _login(services, "cost-requester", "StrongPass123")
-    result = service.approve(submitted.id, expected_version=submitted.row_version)
+    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
     assert result.outcome == CostEntryApprovalOutcome.PENDING_APPROVAL
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
     requester_id = request.requested_by_user_id
@@ -392,7 +392,7 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     _become_independent_decider(services, role="approver")
     approver_id = services["user_session"].principal.user_id
     services["approval_commands"].approve_and_apply(request.id, note="Approved actual")
-    approved = service.get_entry(submitted.id)
+    approved = services['cost_entry_query'].get_entry(submitted.id)
     assert approved.status == ProjectCostEntryStatus.APPROVED
     assert approved.approved_by == approver_id
     assert approved.approved_by != requester_id
@@ -410,12 +410,12 @@ def test_cost_entry_repository_isolates_active_organization(services) -> None:
     services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError) as hidden:
-            services["cost_entry_service"].get_entry(draft.id)
+            services['cost_entry_query'].get_entry(draft.id)
         assert getattr(hidden.value, "code", None) == "PROJECT_COST_ENTRY_NOT_FOUND"
     finally:
         services["tenant_context_service"].set_active_organization(original.id)
 
-    assert services["cost_entry_service"].get_entry(draft.id).id == draft.id
+    assert services['cost_entry_query'].get_entry(draft.id).id == draft.id
 
 
 def test_cost_entry_migration_installs_database_immutability_guards(tmp_path) -> None:

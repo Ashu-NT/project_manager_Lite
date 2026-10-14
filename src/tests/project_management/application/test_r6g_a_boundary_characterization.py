@@ -25,13 +25,13 @@ def test_pm_only_commercial_workflow_needs_no_optional_operational_module(servic
     _, project, cost_code = _setup_billable_project(services, name="PM-only commercial")
     _create_billing_profile(services, project.id, contract_value=Decimal(1000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="750")
-    preparation = services["billing_preparation_service"].create_preparation(
+    preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id,
         preparation_number="PM-ONLY",
         period_start=date(2026, 8, 1),
         period_end=date(2026, 8, 31),
         idempotency_key="pm-only-preparation",
-    )
+    ))
     projection = services["profitability_report"].get_project_commercial_projection(
         project.id, as_of_date=date(2026, 8, 31)
     )

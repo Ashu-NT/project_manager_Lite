@@ -26,7 +26,9 @@ from src.infra.persistence.orm.base import Base
 
 
 def _make_project(services, name: str = "Budget Project"):
-    return services['project_create'].create_project(name, financial_currency_code="USD")
+    return services["project_create"].create_project(
+        name, financial_currency_code="USD"
+    )
 
 
 def _login(services, username: str, password: str) -> None:
@@ -37,27 +39,37 @@ def _login(services, username: str, password: str) -> None:
 
 def _submitted_budget(services, session):
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    cost_code = services["financial_configuration_service"].create_cost_code(
-        code="APPROVAL-TEST", name="Approval test cost code"
+    budget_query = services["budget_query"]
+    cost_code = services["finance_governance_commands"].cost_code(
+        lambda handler: handler.create_cost_code(
+            code="APPROVAL-TEST", name="Approval test cost code"
+        )
     )
-    budget = budget_service.create_budget(project.id, "Initial Budget")
-    budget_service.add_line(
-        budget.id,
-        cost_code_id=cost_code.id,
-        description="Line 1",
-        amount=Decimal(1000),
-        expected_budget_version=budget.row_version,
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(project.id, "Initial Budget")
     )
-    budget = budget_service.get_budget(budget.id)
-    budget = budget_service.submit_budget(
-        budget.id, submitted_by="admin", expected_version=budget.row_version
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            budget.id,
+            cost_code_id=cost_code.id,
+            description="Line 1",
+            amount=Decimal(1000),
+            expected_budget_version=budget.row_version,
+        )
+    )
+    budget = budget_query.get_budget(budget.id)
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            budget.id, submitted_by="admin", expected_version=budget.row_version
+        )
     )
     session.expire_all()
     return project, budget
 
 
-def _approval_request(budget, *, expected_version: int, notes: str = "") -> ApprovalRequest:
+def _approval_request(
+    budget, *, expected_version: int, notes: str = ""
+) -> ApprovalRequest:
     return ApprovalRequest.create(
         request_type="budget.approve",
         entity_type="project_budget",
@@ -92,7 +104,7 @@ def test_participant_apply_approves_budget_on_the_supplied_session(services, ses
 
     result = BudgetApprovalParticipant().apply(request, deps)
 
-    approved = deps.budget_service._budget_repo.get(budget.id)
+    approved = deps.budget_commands._budget_repo.get(budget.id)
     assert approved.status == BudgetStatus.APPROVED
     assert approved.approved_by == services["user_session"].principal.user_id
     assert result.domain_events == (
@@ -115,7 +127,9 @@ def test_participant_never_calls_commit_or_rollback(services, session, monkeypat
     request = _approval_request(budget, expected_version=budget.row_version)
 
     def _forbidden(*_args, **_kwargs):
-        raise AssertionError("the participant must never commit or roll back its own Session")
+        raise AssertionError(
+            "the participant must never commit or roll back its own Session"
+        )
 
     monkeypatch.setattr(type(session), "commit", _forbidden)
     monkeypatch.setattr(type(session), "rollback", _forbidden)
@@ -154,17 +168,17 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         deps_a = _deps(services, session_a)
         deps_b = _deps(services, session_b)
 
-        assert deps_a.budget_service._session is session_a
-        assert deps_b.budget_service._session is session_b
-        assert deps_a.budget_service._budget_repo.session is session_a
-        assert deps_b.budget_service._budget_repo.session is session_b
-        assert deps_a.budget_service is not deps_b.budget_service
-        assert deps_a.budget_service._enterprise_audit_service is not (
-            deps_b.budget_service._enterprise_audit_service
+        assert deps_a.budget_commands._session is session_a
+        assert deps_b.budget_commands._session is session_b
+        assert deps_a.budget_commands._budget_repo.session is session_a
+        assert deps_b.budget_commands._budget_repo.session is session_b
+        assert deps_a.budget_commands is not deps_b.budget_commands
+        assert deps_a.budget_commands._enterprise_audit_service is not (
+            deps_b.budget_commands._enterprise_audit_service
         )
-        assert deps_a.budget_service._enterprise_audit_service._session is session_a
-        assert deps_b.budget_service._enterprise_audit_service._session is session_b
-        assert deps_a.budget_service._approval_commands is None, (
+        assert deps_a.budget_commands._enterprise_audit_service._session is session_a
+        assert deps_b.budget_commands._enterprise_audit_service._session is session_b
+        assert deps_a.budget_commands._approval_commands is None, (
             "the apply path must never reach back into ApprovalCommandHandler"
         )
     finally:
@@ -174,6 +188,6 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
 
 def test_dependencies_factory_never_opens_its_own_session(services, session):
     deps = _deps(services, session)
-    assert deps.budget_service._session is session, (
+    assert deps.budget_commands._session is session, (
         "the factory must use the supplied Session, never a fresh one"
     )

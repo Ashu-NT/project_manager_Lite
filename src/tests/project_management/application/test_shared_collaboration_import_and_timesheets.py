@@ -21,8 +21,6 @@ from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 
 def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Timesheet Project")
     task = services['task_lifecycle_commands'].create_task(project.id, "Timesheet Task", start_date=date(2026, 3, 2), duration_days=3)
     resource = services["resource_master_commands"].create_resource("Time Logger", hourly_rate=110.0)
@@ -64,8 +62,6 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
 
 
 def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Legacy Hours Project")
     task = services['task_lifecycle_commands'].create_task(project.id, "Legacy Hours Task", start_date=date(2026, 3, 4), duration_days=2)
     resource = services["resource_master_commands"].create_resource("Legacy Logger", hourly_rate=95.0)
@@ -98,8 +94,6 @@ def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(serv
 
 
 def test_time_entries_capture_platform_work_entry_context_for_employee_resources(services):
-    services['project_query']
-    services['task_lookup_query']
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="HAM", name="Hamburg Yard"))
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="OPS", name="Operations", site_id=site.id))
 
@@ -136,8 +130,6 @@ def test_time_entries_capture_platform_work_entry_context_for_employee_resources
 
 
 def test_shared_time_work_allocation_aliases_preserve_pm_timesheet_flows(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Shared Time Alias Project")
     task = services['task_lifecycle_commands'].create_task(project.id, "Alias Task", start_date=date(2026, 9, 1), duration_days=2)
     resource = services["resource_master_commands"].create_resource("Alias Resource", hourly_rate=105.0)
@@ -166,8 +158,6 @@ def test_shared_time_work_allocation_aliases_preserve_pm_timesheet_flows(service
 
 
 def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Timesheet Approval Project")
     task = services['task_lifecycle_commands'].create_task(project.id, "Approval Task", start_date=date(2026, 3, 1), duration_days=5)
     resource = services["resource_master_commands"].create_resource("Submitted Dev", hourly_rate=100.0)
@@ -224,8 +214,6 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
 
 
 def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Timesheet Lock Project")
     task = services['task_lifecycle_commands'].create_task(project.id, "Lock Task", start_date=date(2026, 5, 1), duration_days=3)
     resource = services["resource_master_commands"].create_resource("Locked Dev", hourly_rate=90.0)
@@ -270,8 +258,6 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
 
 def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy_costs(services):
     importer = services["data_import_service"]
-    services['project_query']
-    services['task_lookup_query']
     expected_currency = services["tenant_context_service"].get_active_organization().base_currency
 
     tmp = create_test_workspace("import")
@@ -288,7 +274,7 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
         project_summary = importer.import_csv("projects", tmp / "projects.csv")
         assert project_summary.created_count == 1
         project = next(item for item in services['project_query'].list_projects() if item.name == "Import Alpha")
-        profile = services["financial_configuration_service"].get_profile(project.id)
+        profile = services['financial_configuration_query'].get_profile(project.id)
         assert profile.currency_code == expected_currency
 
         (tmp / "resources.csv").write_text(
@@ -346,7 +332,7 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
         assert updated_project.description == "Updated import"
         assert not hasattr(updated_project, "currency")
         assert not hasattr(updated_project, "planned_budget")
-        assert services["financial_configuration_service"].get_profile(
+        assert services['financial_configuration_query'].get_profile(
             project.id
         ).currency_code == expected_currency
     finally:

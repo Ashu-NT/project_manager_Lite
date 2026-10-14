@@ -42,9 +42,9 @@ def _setup_billable_project(
     project = services['project_create'].create_project(
         name, financial_currency_code=organization.base_currency
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"PROF-{project.id[-4:].upper()}", name="Profitability cost code"
-    )
+    ))
     if create_period:
         services["financial_period_commands"].create_period(
             code="FY26-PROF",
@@ -54,44 +54,44 @@ def _setup_billable_project(
             start_date=date(2026, 8, 1),
             end_date=date(2026, 8, 31),
         )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    profile = services['financial_configuration_query'].get_profile(project.id)
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
         billing_method=billing_method,
         is_billable=True,
-    )
+    ))
     return organization, project, cost_code
 
 
 def _create_billing_profile(
     services, project_id: str, *, contract_value: Decimal, activate: bool = True
 ):
-    billing_profile_service = services["billing_profile_service"]
-    profile = billing_profile_service.create_profile(
+    billing_profile_service = services['billing_profile_query']
+    profile = services['finance_governance_commands'].billing_profile(lambda handler: handler.create_profile(
         project_id,
         contract_reference="CONTRACT-PROFIT",
         contract_value=contract_value,
         customer_party_id="party-1" if contract_value > 0 else None,
-    )
+    ))
     if activate:
-        profile = billing_profile_service.activate_profile(
+        profile = services['finance_governance_commands'].billing_profile(lambda handler: handler.activate_profile(
             project_id, expected_row_version=profile.row_version
-        )
+        ))
     return profile
 
 
 def _approve_forecast_with_etc(services, project_id: str, cost_code, *, etc_amount: str):
-    forecast_service = services["forecast_version_service"]
-    forecast = forecast_service.create_forecast(
+    forecast_service = services['forecast_version_query']
+    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project_id,
         name="Profitability forecast",
         as_of_date=date(2026, 8, 11),
         generation_mode=ForecastGenerationMode.MANUAL,
         created_by="admin",
-    )
-    forecast_service.add_line(
+    ))
+    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
         forecast.id,
         cost_code_id=cost_code.id,
         description="Remaining cost estimate",
@@ -100,14 +100,14 @@ def _approve_forecast_with_etc(services, project_id: str, cost_code, *, etc_amou
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
         expected_forecast_version=forecast.row_version,
-    )
-    current = forecast_service.get_forecast(forecast.id)
-    submitted = forecast_service.submit_forecast(
+    ))
+    current = services['forecast_version_query'].get_forecast(forecast.id)
+    submitted = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
         forecast.id, submitted_by="admin", expected_version=current.row_version
-    )
-    return forecast_service.approve_forecast(
+    ))
+    return services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
         forecast.id, approved_by="admin", expected_version=submitted.row_version
-    )
+    ))
 
 
 def _register_and_login(services, username: str, *, role_names: list[str]) -> None:
@@ -332,47 +332,47 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
         services, billing_method=BillingMethod.FIXED_PRICE
     )
     _create_billing_profile(services, project.id, contract_value=Decimal(24000))
-    api_profile_service = services["billing_profile_service"]
-    line = api_profile_service.add_schedule_line(
+    api_profile_service = services['billing_profile_query']
+    line = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
-    )
-    line = api_profile_service.mark_schedule_line_ready(
+    ))
+    line = services['finance_governance_commands'].billing_schedule(lambda handler: handler.mark_schedule_line_ready(
         line.id, expected_row_version=line.row_version
-    )
+    ))
 
-    preparation_service = services["billing_preparation_service"]
+    preparation_service = services['billing_preparation_query']
     services["user_registration"].register_user(
         "profit-billing-reviewer", "StrongPass123", role_names=["approver"]
     )
     _register_and_login(services, "profit-billing-requester", role_names=["finance_controller"])
-    preparation = preparation_service.create_preparation(
+    preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id,
         preparation_number="BP-PROFIT-0001",
         period_start=date(2026, 8, 1),
         period_end=date(2026, 8, 31),
         idempotency_key="billing-run-profitability",
-    )
-    preparation_service.add_fixed_price_source(
+    ))
+    services['finance_governance_commands'].billing_source(lambda handler: handler.add_fixed_price_source(
         preparation.id, schedule_line_id=line.id, expected_row_version=preparation.row_version
-    )
-    preparation = preparation_service.get_preparation(preparation.id)
+    ))
+    preparation = services['billing_preparation_query'].get_preparation(preparation.id)
 
     # A distinct eligible reviewer decides the request.
-    preparation_service.submit_preparation(
+    services['finance_governance_commands'].billing_submission(lambda handler: handler.submit_preparation(
         preparation.id, expected_row_version=preparation.row_version
-    )
+    ))
     reviewer = services["authentication"].authenticate("profit-billing-reviewer", "StrongPass123")
     services["user_session"].set_principal(services["principal_builder"].build(reviewer))
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
     services["approval_commands"].approve_and_apply(request.id, note="Approved for delivery")
 
-    approved = preparation_service.get_preparation(preparation.id)
+    approved = services['billing_preparation_query'].get_preparation(preparation.id)
     admin = services["authentication"].authenticate("admin", "ChangeMe123!")
     services["user_session"].set_principal(services["principal_builder"].build(admin))
-    preparation_service.request_delivery(
+    services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
-    )
-    delivery_pending = preparation_service.get_preparation(approved.id)
+    ))
+    delivery_pending = services['billing_preparation_query'].get_preparation(approved.id)
 
     before_events = services["profitability_report"].get_project_commercial_projection(project.id)
     assert before_events.approved_preparation_amount == Decimal(24000)
@@ -386,7 +386,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
         event_id="ext-evt-1",
         occurred_at=now,
     )
-    acknowledged = preparation_service.get_preparation(delivery_pending.id)
+    acknowledged = services['billing_preparation_query'].get_preparation(delivery_pending.id)
 
     after_invoice = services["profitability_report"].get_project_commercial_projection(project.id)
     assert after_invoice.approved_preparation_amount == Decimal(24000)
@@ -410,21 +410,21 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
         services, billing_method=BillingMethod.FIXED_PRICE
     )
     _create_billing_profile(services, project.id, contract_value=Decimal(48000))
-    profile_service = services["billing_profile_service"]
-    line_a = profile_service.add_schedule_line(
+    profile_service = services['billing_profile_query']
+    line_a = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         project.id, name="Milestone A", amount=Decimal(24000), due_date=date(2026, 8, 15)
-    )
-    line_a = profile_service.mark_schedule_line_ready(
+    ))
+    line_a = services['finance_governance_commands'].billing_schedule(lambda handler: handler.mark_schedule_line_ready(
         line_a.id, expected_row_version=line_a.row_version
-    )
-    line_b = profile_service.add_schedule_line(
+    ))
+    line_b = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         project.id, name="Milestone B", amount=Decimal(24000), due_date=date(2026, 8, 25)
-    )
-    line_b = profile_service.mark_schedule_line_ready(
+    ))
+    line_b = services['finance_governance_commands'].billing_schedule(lambda handler: handler.mark_schedule_line_ready(
         line_b.id, expected_row_version=line_b.row_version
-    )
+    ))
 
-    preparation_service = services["billing_preparation_service"]
+    preparation_service = services['billing_preparation_query']
     services["user_registration"].register_user(
         "profit-multi-reviewer", "StrongPass123", role_names=["approver"]
     )
@@ -436,25 +436,25 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
         # Create/add-source/submit as a requester, then use a distinct reviewer.
         requester = services["authentication"].authenticate("profit-multi-requester", "StrongPass123")
         services["user_session"].set_principal(services["principal_builder"].build(requester))
-        preparation = preparation_service.create_preparation(
+        preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
             project.id,
             preparation_number=preparation_number,
             period_start=date(2026, 8, 1),
             period_end=date(2026, 8, 31),
             idempotency_key=idempotency_key,
-        )
-        preparation_service.add_fixed_price_source(
+        ))
+        services['finance_governance_commands'].billing_source(lambda handler: handler.add_fixed_price_source(
             preparation.id, schedule_line_id=line.id, expected_row_version=preparation.row_version
-        )
-        preparation = preparation_service.get_preparation(preparation.id)
-        preparation_service.submit_preparation(
+        ))
+        preparation = services['billing_preparation_query'].get_preparation(preparation.id)
+        services['finance_governance_commands'].billing_submission(lambda handler: handler.submit_preparation(
             preparation.id, expected_row_version=preparation.row_version
-        )
+        ))
         reviewer = services["authentication"].authenticate("profit-multi-reviewer", "StrongPass123")
         services["user_session"].set_principal(services["principal_builder"].build(reviewer))
         request = services["approval_queries"].list_pending(project_id=project.id)[-1]
         services["approval_commands"].approve_and_apply(request.id, note="Approved")
-        return preparation_service.get_preparation(preparation.id)
+        return services['billing_preparation_query'].get_preparation(preparation.id)
 
     _govern("BP-PROFIT-A", line_a, "billing-run-a")
     _govern("BP-PROFIT-B", line_b, "billing-run-b")
@@ -466,13 +466,13 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
 def test_commercial_aggregate_is_bounded_and_nets_correction_history(services) -> None:
     _organization, project, _code = _setup_billable_project(services)
     _create_billing_profile(services, project.id, contract_value=Decimal(100))
-    preparation = services["billing_preparation_service"].create_preparation(
+    preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id,
         preparation_number="BP-AGG-BASE",
         period_start=date(2026, 8, 1),
         period_end=date(2026, 8, 31),
         idempotency_key="bp-aggregate-base",
-    )
+    ))
     session = services["session"]
     original = session.get(ProjectBillingPreparationORM, preparation.id)
     original.status = "reconciled"
@@ -533,20 +533,20 @@ def test_commercial_aggregate_is_bounded_and_nets_correction_history(services) -
 def test_billing_line_rate_evidence_is_redacted_without_sensitive_read(services) -> None:
     _organization, project, _code = _setup_billable_project(services)
     _create_billing_profile(services, project.id, contract_value=Decimal(100))
-    schedule = services["billing_profile_service"].add_schedule_line(
+    schedule = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         project.id, name="Accepted milestone", amount=Decimal(100), due_date=date(2026, 8, 20)
-    )
-    schedule = services["billing_profile_service"].mark_schedule_line_ready(
+    ))
+    schedule = services['finance_governance_commands'].billing_schedule(lambda handler: handler.mark_schedule_line_ready(
         schedule.id, expected_row_version=schedule.row_version
-    )
-    preparation = services["billing_preparation_service"].create_preparation(
+    ))
+    preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id, preparation_number="BP-REDACT", period_start=date(2026, 8, 1),
         period_end=date(2026, 8, 31), idempotency_key="bp-redaction",
-    )
-    services["billing_preparation_service"].add_fixed_price_source(
+    ))
+    services['finance_governance_commands'].billing_source(lambda handler: handler.add_fixed_price_source(
         preparation.id, schedule_line_id=schedule.id,
         expected_row_version=preparation.row_version,
-    )
+    ))
     query = services["finance_workspace_query"]
     visible = query.get_billing_read_workspace(project.id, selected_preparation_id=preparation.id)
     assert visible.lines.items[0].unit_rate == Decimal(100)
@@ -611,12 +611,12 @@ def test_commercial_statement_shape_ignores_growing_cost_schedule_and_time_colle
 
     organization, project, code = _setup_billable_project(services)
     _create_billing_profile(services, project.id, contract_value=Decimal(1000))
-    schedule = services["billing_profile_service"].add_schedule_line(
-        project.id, name="Scale", amount=Decimal(1), due_date=date(2026, 8, 31))
-    draft = services["cost_entry_service"].create_manual_entry(
+    schedule = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
+        project.id, name="Scale", amount=Decimal(1), due_date=date(2026, 8, 31)))
+    draft = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id, command_id="scale-cost", description="Scale cost",
         amount=Decimal(1), currency_code=organization.base_currency,
-        transaction_date=date(2026, 8, 1), cost_code_id=code.id)
+        transaction_date=date(2026, 8, 1), cost_code_id=code.id))
     session = services["session"]
 
     def measured():

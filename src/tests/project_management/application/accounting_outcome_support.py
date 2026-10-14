@@ -90,7 +90,7 @@ def outcome_sender(services, session):
         occurred_at=None,
         reconciliation_reference=None,
     ):
-        preparation = services["billing_preparation_service"].get_preparation(
+        preparation = services['billing_preparation_query'].get_preparation(
             preparation_id
         )
         if preparation.status.value == "delivery_pending":

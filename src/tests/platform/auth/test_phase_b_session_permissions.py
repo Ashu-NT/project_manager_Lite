@@ -21,7 +21,6 @@ def test_user_session_enforces_manage_permissions(services):
     )
     _login_as(services, "viewer1", "StrongPass123")
 
-    services['project_query']
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         services['project_create'].create_project("Forbidden project")
 
@@ -29,7 +28,6 @@ def test_user_session_enforces_manage_permissions(services):
 def test_admin_session_can_execute_manage_operations(services):
     _login_as(services, "admin", "ChangeMe123!")
 
-    services['project_query']
     p = services['project_create'].create_project("Allowed project")
     assert p.id
 
@@ -37,8 +35,6 @@ def test_admin_session_can_execute_manage_operations(services):
 def test_cleared_session_denies_core_read_models(services):
     _login_as(services, "admin", "ChangeMe123!")
 
-    services['project_query']
-    services['task_lookup_query']
     finance = services["finance_snapshot_query"]
     services["approval_commands"]
     audit = services["enterprise_audit_service"]
@@ -80,9 +76,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    services['project_query']
-    services['task_lookup_query']
-    cost_entries = services["cost_entry_service"]
+    cost_entries = services['cost_entry_query']
     services["project_resource_query"]
 
     project = services['project_create'].create_project("Permission project")
@@ -106,7 +100,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
         services["resource_master_commands"].create_resource("Forbidden resource")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        cost_entries.create_manual_entry(
+        services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
             project_id=project.id,
             command_id="viewer-forbidden-cost",
             description="Forbidden cost",
@@ -114,7 +108,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
             currency_code="EUR",
             transaction_date=date(2026, 1, 1),
             cost_code_id="forbidden-cost-code",
-        )
+        ))
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         services['task_lifecycle_commands'].create_task(project_id=project.id, name="Forbidden task")
@@ -137,7 +131,6 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    services['project_query']
     services["project_resource_query"]
     ecs_commands = services["platform_calendar_commands"]
 
@@ -196,15 +189,14 @@ def test_governance_permissions_are_split_between_request_and_decide(
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    services['project_query']
-    cost_entries = services["cost_entry_service"]
-    configuration = services["financial_configuration_service"]
+    cost_entries = services['cost_entry_query']
+    configuration = services['financial_configuration_query']
     approvals = services["approval_commands"]
 
     project = services['project_create'].create_project("Governance permission split")
     organization = services["tenant_context_service"].get_active_organization()
-    cost_code = configuration.create_cost_code(code="HOTEL", name="Hotel")
-    item = cost_entries.create_manual_entry(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(code="HOTEL", name="Hotel"))
+    item = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id="governance-permission-split",
         description="Hotel",
@@ -212,16 +204,16 @@ def test_governance_permissions_are_split_between_request_and_decide(
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 1),
         cost_code_id=cost_code.id,
-    )
-    item = cost_entries.submit(item.id, expected_version=item.row_version)
+    ))
+    item = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(item.id, expected_version=item.row_version))
     _login_as(services, "planner4", "StrongPass123")
-    result = cost_entries.approve(item.id, expected_version=item.row_version)
+    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(item.id, expected_version=item.row_version))
     assert result.outcome.value == "pending_approval"
     request_id = services["approval_queries"].list_pending(project_id=project.id)[0].id
 
     _login_as(services, "viewer4", "StrongPass123")
     with pytest.raises(BusinessRuleError, match="approval.request"):
-        cost_entries.approve(item.id, expected_version=item.row_version)
+        services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(item.id, expected_version=item.row_version))
     with pytest.raises(BusinessRuleError, match="approval.decide"):
         approvals.approve_and_apply(request_id)
 
@@ -237,8 +229,6 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Timesheet Permission Split")
     task = services['task_lifecycle_commands'].create_task(
@@ -284,8 +274,6 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
 
 
 def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
-    services['project_query']
-    services['task_lookup_query']
     user_session = services["user_session"]
 
     project = services['project_create'].create_project("Shared Time Permission Alias")

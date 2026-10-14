@@ -71,10 +71,10 @@ def build_project_management_desktop_runtime_apis(
             finance_workspace_query=resolved.finance_workspace_query,
             finance_performance_query=resolved.finance_performance_query,
             finance_governance_commands=resolved.finance_governance_commands,
-            cost_entry_service=resolved.cost_entry_service,
-            commitment_service=resolved.commitment_service,
-            billing_profile_service=resolved.billing_profile_service,
-            billing_preparation_service=resolved.billing_preparation_service,
+            cost_entry_query=resolved.cost_entry_query,
+            commitment_query=resolved.commitment_query,
+            billing_profile_query=resolved.billing_profile_query,
+            billing_preparation_query=resolved.billing_preparation_query,
             report_sources=(
                 ProjectReportSources(
                     kpi=resolved.project_kpi_report,

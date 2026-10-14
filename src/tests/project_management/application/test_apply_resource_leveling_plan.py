@@ -27,7 +27,6 @@ def _snapshot(ts, project_id):
 
 
 def _build_overload_proposal(services):
-    services['project_query']
     ts = services['task_lookup_query']
     calendar = services["work_calendar_engine"]
 
@@ -52,7 +51,6 @@ def _build_overload_proposal(services):
 
 class TestApplyHappyPath:
     def test_apply_writes_the_floor_and_the_move_survives_a_fresh_recalculation(self, services):
-        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services)
         assert len(proposal.moves) >= 1, "setup precondition: the preview must have proposed a move"
 
@@ -71,7 +69,6 @@ class TestApplyHappyPath:
         assert services['task_detail_query'].get_task(moved_task_id).start_date == new_start
 
     def test_apply_bumps_the_moved_tasks_version(self, services):
-        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services)
         moved_task_id = proposal.moves[0].task_id
         before_version = services['task_detail_query'].get_task(moved_task_id).version
@@ -81,7 +78,6 @@ class TestApplyHappyPath:
         assert services['task_detail_query'].get_task(moved_task_id).version > before_version
 
     def test_schedule_failure_rolls_back_every_proposed_move(self, services, monkeypatch):
-        services['task_lookup_query']
         project, _, _, proposal = _build_overload_proposal(services)
         assert proposal.moves
         before = {
@@ -106,7 +102,6 @@ class TestApplyHappyPath:
         )
 
     def test_applying_an_empty_proposal_is_a_no_op(self, services):
-        services['project_query']
         ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
@@ -138,7 +133,6 @@ class TestApplyRecordsPerTaskAudit:
         updates, approved financial schedule changes), so the moved
         task's OWN activity feed explains why it moved -- not just a
         project-level summary a viewer would have to go find separately."""
-        services['task_lookup_query']
         activity = services["activity_service"]
         project, task_b, task_c, proposal = _build_overload_proposal(services)
         moved = proposal.moves[0]
@@ -156,7 +150,6 @@ class TestApplyRecordsPerTaskAudit:
 
 class TestApplyRejectsStaleness:
     def test_apply_rejects_a_proposal_whose_schedule_has_drifted_since_preview(self, services):
-        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services)
         assert len(proposal.moves) >= 1
 
@@ -171,7 +164,6 @@ class TestApplyRejectsStaleness:
         assert services['task_detail_query'].get_task(task_b.id).resource_leveling_not_before is None
 
     def test_apply_succeeds_when_the_schedule_is_unchanged_since_preview(self, services):
-        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services)
 
         updated = services['task_leveling_commands'].apply_resource_leveling_plan(project.id, proposal)

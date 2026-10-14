@@ -10,8 +10,6 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 
 
 def test_capacity_reader_preserves_cross_project_demand_and_utilization(services) -> None:
-    services['project_query']
-    services['task_lookup_query']
     services["project_resource_query"]
     pool_service = services["portfolio_resource_pool_query"]
 

@@ -31,8 +31,6 @@ def _desktop_api(services):
 
 
 def _make_overload(services, name: str):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project(name, "")
     task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
@@ -52,8 +50,6 @@ class TestBuildResourceLevelingState:
 
     def test_conflict_free_project_reports_no_moves_with_an_explanatory_empty_state(self, services):
         api = _desktop_api(services)
-        services['project_query']
-        services['task_lookup_query']
         project = services['project_create'].create_project("Presenter Leveling No Conflicts", "")
         services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
 
@@ -81,8 +77,6 @@ class TestBuildResourceLevelingState:
 
     def test_unresolved_conflict_is_reported_never_silently_dropped(self, services):
         api = _desktop_api(services)
-        services['project_query']
-        services['task_lookup_query']
         project = services['project_create'].create_project("Presenter Leveling Unresolved", "")
         task_1 = services['task_lifecycle_commands'].create_task(
             project.id, "Pinned One", start_date=date(2026, 9, 7), duration_days=3,
@@ -114,7 +108,6 @@ class TestPresenterDelegation:
         assert len(state["moves"]) >= 1
 
     def test_apply_resource_leveling_persists_after_a_preview(self, services):
-        services['task_lookup_query']
         api = _desktop_api(services)
         presenter = ProjectSchedulingWorkspacePresenter(desktop_api=api)
         project, task_b, task_c = _make_overload(services, "Presenter Delegation Apply")
@@ -128,7 +121,6 @@ class TestPresenterDelegation:
 
     def test_apply_resource_leveling_without_a_prior_preview_raises(self, services):
         presenter = ProjectSchedulingWorkspacePresenter(desktop_api=_desktop_api(services))
-        services['project_query']
         project = services['project_create'].create_project("Presenter Delegation No Preview", "")
 
         with pytest.raises(ValueError):

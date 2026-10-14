@@ -25,8 +25,6 @@ def test_service_rejects_foreign_scope_without_database_rls(services, operation)
 
 
 def test_same_organization_foreign_project_rejected_by_service(services):
-    services['project_query']
-    services['task_lookup_query']
     visible = services['project_create'].create_project("Visible")
     hidden = services['project_create'].create_project("Hidden")
     task = services['task_lifecycle_commands'].create_task(hidden.id, "Private task")

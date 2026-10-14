@@ -5,13 +5,29 @@ from src.core.modules.project_management.application.financials.cost.entries.app
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     ApprovedTimeLaborCostConsumer,
 )
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
-    ProjectCostEntryService,
+from src.core.modules.project_management.application.financials.cost.entries.commands.approved_time import (
+    ApprovedTimeCostEntryCommandHandler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.commands import (
+    ProjectCostEntryLifecycleCommandHandler,
+    ProjectCostEntryReviewCommandHandler,
+    ProjectCostEntryPostingCommandHandler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.commands.procurement_receipt import (
+    ProcurementReceiptCostEntryCommandHandler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.queries import (
+    ProjectCostEntryQueryHandler,
 )
 
 __all__ = [
     "ApprovedTimeLaborCostConsumer",
     "CostEntryApprovalOutcome",
     "CostEntryApprovalResult",
-    "ProjectCostEntryService",
+    "ApprovedTimeCostEntryCommandHandler",
+    "ProjectCostEntryLifecycleCommandHandler",
+    "ProjectCostEntryReviewCommandHandler",
+    "ProjectCostEntryPostingCommandHandler",
+    "ProcurementReceiptCostEntryCommandHandler",
+    "ProjectCostEntryQueryHandler",
 ]

@@ -141,17 +141,17 @@ def test_real_budget_approval_still_emits_its_own_real_view_invalidation(service
     project = services['project_create'].create_project(
         name=_unique("P7C Budget Project"), code=_unique("P7C-BUD"), financial_currency_code="USD"
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("P7C-CC"), name="P7C cost code"
-    )
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "P7C Budget")
-    budgets.add_line(
+    ))
+    budgets = services['budget_query']
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "P7C Budget"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id, cost_code_id=cost_code.id, description="Line", amount=Decimal(100),
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(budget.id, "admin", expected_version=budget.row_version))
 
     hints = []
 
@@ -163,7 +163,7 @@ def test_real_budget_approval_still_emits_its_own_real_view_invalidation(service
         _AnyOrgFilter(), lambda hint: hints.append(hint)
     )
 
-    budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
+    services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version))
 
     budget_hints = [
         h for h in hints if h.category == BUDGET_CATEGORY and h.scope_code == BUDGET_PLANNING_SCOPE_CODE

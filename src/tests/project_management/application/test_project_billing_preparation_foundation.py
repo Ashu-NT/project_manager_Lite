@@ -171,9 +171,12 @@ def test_pm_schema_does_not_manufacture_accounting_truth() -> None:
     assert pm_billing_tables
     assert not any(token in table for token in forbidden_tokens for table in pm_billing_tables)
 
-    service_source = Path(
-        "src/core/modules/project_management/application/financials/invoicing/preparation_service.py"
-    ).read_text(encoding="utf-8")
+    service_source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(
+            Path("src/core/modules/project_management/application/financials/invoicing/commands").glob("*.py")
+        )
+    )
     assert "def issue_invoice" not in service_source
     assert "def create_receivable" not in service_source
     assert "def post_payment" not in service_source

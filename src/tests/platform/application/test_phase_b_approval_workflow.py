@@ -22,12 +22,12 @@ def _become_independent_admin_decider(services) -> None:
 def _submitted_cost_entry(services, name: str):
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(name)
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="MANUAL-ACTUAL",
         name="Manual actual",
-    )
-    service = services["cost_entry_service"]
-    entry = service.create_manual_entry(
+    ))
+    service = services['cost_entry_query']
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id=f"{name}-command",
         description="Travel",
@@ -35,8 +35,8 @@ def _submitted_cost_entry(services, name: str):
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 10),
         cost_code_id=cost_code.id,
-    )
-    entry = service.submit(entry.id, expected_version=entry.row_version)
+    ))
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(entry.id, expected_version=entry.row_version))
     return project, entry
 
 
@@ -45,14 +45,14 @@ def test_cost_entry_requester_can_lack_approve_and_admin_can_approve(services, m
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    cost_entries = services["cost_entry_service"]
+    cost_entries = services['cost_entry_query']
     approvals = services["approval_commands"]
 
     project, item = _submitted_cost_entry(services, "Governed Cost Project")
     services["user_registration"].register_user("planner-req", "StrongPass123", role_names=["planner"])
     _login(services, "planner-req", "StrongPass123")
 
-    result = cost_entries.approve(item.id, expected_version=item.row_version)
+    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(item.id, expected_version=item.row_version))
     assert result.outcome.value == "pending_approval"
 
     pending = services["approval_queries"].list_pending(project_id=project.id)
@@ -66,7 +66,7 @@ def test_cost_entry_requester_can_lack_approve_and_admin_can_approve(services, m
     _become_independent_admin_decider(services)
     approvals.approve_and_apply(req.id, note="Approved")
 
-    updated = cost_entries.get_entry(item.id)
+    updated = services['cost_entry_query'].get_entry(item.id)
     assert updated.status.value == "approved"
 
 
@@ -75,8 +75,6 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.add")
     _login(services, "admin", "ChangeMe123!")
 
-    services['project_query']
-    services['task_lookup_query']
     approvals = services["approval_commands"]
 
     project = services['project_create'].create_project("Governed Dependency Project")
@@ -105,14 +103,14 @@ def test_admin_does_not_bypass_governance_requests_for_governed_actions(services
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    cost_entries = services["cost_entry_service"]
+    cost_entries = services['cost_entry_query']
     services["approval_commands"]
 
     project, item = _submitted_cost_entry(services, "Admin bypass")
-    result = cost_entries.approve(item.id, expected_version=item.row_version)
+    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(item.id, expected_version=item.row_version))
     assert result.outcome.value == "pending_approval"
 
-    unchanged = cost_entries.get_entry(item.id)
+    unchanged = services['cost_entry_query'].get_entry(item.id)
     assert unchanged.status.value == "submitted"
     assert len(services["approval_queries"].list_pending(project_id=project.id)) == 1
 
@@ -128,9 +126,9 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     project, item = _submitted_cost_entry(services, "Atomic approval")
     services["user_registration"].register_user("atomic-requester", "StrongPass123", role_names=["planner"])
     _login(services, "atomic-requester", "StrongPass123")
-    result = services["cost_entry_service"].approve(
+    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(
         item.id, expected_version=item.row_version
-    )
+    ))
     assert result.outcome.value == "pending_approval"
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
@@ -153,8 +151,8 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     with pytest.raises(RuntimeError, match="simulated decision persistence failure"):
         approvals.approve_and_apply(request.id, note="Should roll back")
 
-    services["cost_entry_service"]._session.expire_all()
-    unchanged = services["cost_entry_service"].get_entry(item.id)
+    services['cost_entry_query']._session.expire_all()
+    unchanged = services['cost_entry_query'].get_entry(item.id)
     assert unchanged.status.value == "submitted"
 
 
@@ -169,9 +167,9 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
     project, item = _submitted_cost_entry(services, "Atomic approval audit")
     services["user_registration"].register_user("audit-requester", "StrongPass123", role_names=["planner"])
     _login(services, "audit-requester", "StrongPass123")
-    result = services["cost_entry_service"].approve(
+    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(
         item.id, expected_version=item.row_version
-    )
+    ))
     assert result.outcome.value == "pending_approval"
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
@@ -196,8 +194,8 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
     with pytest.raises(RuntimeError, match="simulated audit failure"):
         approvals.approve_and_apply(request.id, note="Should roll back")
 
-    services["cost_entry_service"]._session.expire_all()
-    unchanged = services["cost_entry_service"].get_entry(item.id)
+    services['cost_entry_query']._session.expire_all()
+    unchanged = services['cost_entry_query'].get_entry(item.id)
     assert unchanged.status.value == "submitted"
 
 

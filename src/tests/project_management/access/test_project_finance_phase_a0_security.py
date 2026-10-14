@@ -40,11 +40,11 @@ def _seed_labor_finance_project(services) -> str:
         hourly_rate=125.0,
         currency_code="EUR",
     )
-    rate_card = services["rate_card_service"].create_rate_card(
+    rate_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="Phase A0 Project Rates",
         project_id=project.id,
-    )
-    services["rate_card_service"].create_line(
+    ))
+    services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
         rate_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
@@ -52,7 +52,7 @@ def _seed_labor_finance_project(services) -> str:
         rate_currency="EUR",
         resource_id=resource.id,
         effective_from=date(2026, 1, 5),
-    )
+    ))
     project_resource = services["project_resource_commands"].add_to_project(
         project_id=project.id,
         resource_id=resource.id,
@@ -65,27 +65,27 @@ def _seed_labor_finance_project(services) -> str:
         project_resource_id=project_resource.id,
         allocation_percent=100.0,
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="SEC-LABOR",
         name="Sensitive labor",
-    )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    ))
+    profile = services['financial_configuration_query'].get_profile(project.id)
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
-    )
+    ))
     services['task_assignment_commands'].update_assignment_planned_hours(
         assignment.id,
         allocated_planned_hours=Decimal(16),
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )
-    services["planned_cost_service"].calculate_snapshot(
+    services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         project.id,
         calculated_by="admin",
         as_of=date(2026, 1, 5),
-    )
+    ))
     return project.id
 
 
@@ -202,11 +202,11 @@ def _create_audited_cost_entry(services, *, command_id: str):
         "Audited canonical cost",
         financial_currency_code=organization.base_currency,
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"AUD-{command_id[-4:].upper()}",
         name="Audit evidence",
-    )
-    entry = services["cost_entry_service"].create_manual_entry(
+    ))
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id=command_id,
         description="Audit evidence",
@@ -214,7 +214,7 @@ def _create_audited_cost_entry(services, *, command_id: str):
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 12),
         cost_code_id=cost_code.id,
-    )
+    ))
     return project, entry
 
 
@@ -250,10 +250,10 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
         "Fail-closed canonical cost audit",
         financial_currency_code=organization.base_currency,
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="AUD-FAIL",
         name="Fail-closed audit",
-    )
+    ))
     original_record = EnterpriseAuditService.record
 
     def _fail_cost_audit(self, **kwargs):
@@ -264,7 +264,7 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_cost_audit)
 
     with pytest.raises(RuntimeError, match="simulated cost audit failure"):
-        services["cost_entry_service"].create_manual_entry(
+        services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
             project_id=project.id,
             command_id="audit-failure-1",
             description="Must roll back",
@@ -272,9 +272,9 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
             currency_code=organization.base_currency,
             transaction_date=date(2026, 1, 12),
             cost_code_id=cost_code.id,
-        )
+        ))
 
-    entries, total = services["cost_entry_service"].list_for_project(project.id)
+    entries, total = services['cost_entry_query'].list_for_project(project.id)
     assert entries == []
     assert total == 0
 

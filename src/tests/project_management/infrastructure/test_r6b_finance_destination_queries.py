@@ -233,40 +233,40 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
         "R6B budget reader",
         financial_currency_code="USD",
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6B-BUDGET",
         name="R6B Budget",
-    )
-    budgets = services["budget_service"]
+    ))
+    budgets = services['budget_query']
 
-    first = budgets.create_budget(project.id, "Alpha", currency_code="USD")
-    budgets.add_line(
+    first = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Alpha", currency_code="USD"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         first.id,
         cost_code_id=cost_code.id,
         description="Alpha line",
         amount=Decimal(125),
         expected_budget_version=first.row_version,
-    )
-    first = budgets.get_budget(first.id)
-    first = budgets.submit_budget(
+    ))
+    first = services['budget_query'].get_budget(first.id)
+    first = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         first.id,
         submitted_by="admin",
         expected_version=first.row_version,
-    )
-    budgets.reject_budget(
+    ))
+    services['finance_governance_commands'].budget_approval(lambda handler: handler.reject_budget(
         first.id,
         rejected_by="admin",
         expected_version=first.row_version,
-    )
+    ))
 
-    second = budgets.create_budget(project.id, "Zulu", currency_code="USD")
-    budgets.add_line(
+    second = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Zulu", currency_code="USD"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         second.id,
         cost_code_id=cost_code.id,
         description="Zulu line",
         amount=Decimal(250),
         expected_budget_version=second.row_version,
-    )
+    ))
 
     query = services["finance_workspace_query"]
     with _statement_count(services["session"]) as statements:
@@ -322,16 +322,16 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
         "R6B planned-cost reader",
         financial_currency_code="USD",
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6B-LABOR",
         name="R6B Labor",
-    )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    ))
+    profile = services['financial_configuration_query'].get_profile(project.id)
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
-    )
+    ))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "R6B Engineering",
@@ -360,11 +360,11 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
         expected_assignment_version=assignment.version,
         expected_project_resource_version=project_resource.version,
     )
-    rate_card = services["rate_card_service"].create_rate_card(
+    rate_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="R6B Rates",
         project_id=project.id,
-    )
-    services["rate_card_service"].create_line(
+    ))
+    services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
         rate_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
@@ -372,18 +372,18 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
         rate_currency="USD",
         resource_id=resource.id,
         effective_from=date(2026, 1, 1),
-    )
-    planned_costs = services["planned_cost_service"]
-    first = planned_costs.calculate_snapshot(
+    ))
+    planned_costs = services['planned_cost_query']
+    first = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         project.id,
         calculated_by="admin",
         as_of=date(2026, 8, 1),
-    ).version
-    second = planned_costs.calculate_snapshot(
+    )).version
+    second = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         project.id,
         calculated_by="admin",
         as_of=date(2026, 8, 2),
-    ).version
+    )).version
 
     query = services["finance_workspace_query"]
     with _statement_count(services["session"]) as statements:
@@ -432,24 +432,24 @@ def _seed_forecast_reader(services):
         "R6B forecast reader",
         financial_currency_code="USD",
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6B-ETC",
         name="R6B ETC",
-    )
+    ))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "R6B Forecast Task",
         wbs_code="2.1",
     )
-    forecasts = services["forecast_version_service"]
-    first = forecasts.create_forecast(
+    forecasts = services['forecast_version_query']
+    first = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="Alpha Forecast",
         as_of_date=date(2026, 8, 1),
         generation_mode=ForecastGenerationMode.MANUAL,
         created_by="admin",
-    )
-    forecasts.add_line(
+    ))
+    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
         first.id,
         cost_code_id=cost_code.id,
         task_id=task.id,
@@ -461,9 +461,9 @@ def _seed_forecast_reader(services):
         expected_forecast_version=first.row_version,
         period_start=date(2026, 9, 1),
         period_end=date(2026, 9, 30),
-    )
-    first = forecasts.get_forecast(first.id)
-    forecasts.add_line(
+    ))
+    first = services['forecast_version_query'].get_forecast(first.id)
+    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
         first.id,
         cost_code_id=cost_code.id,
         description="Risk contingency",
@@ -475,27 +475,27 @@ def _seed_forecast_reader(services):
         source_snapshot_at=datetime(2026, 8, 1, tzinfo=UTC),
         created_by="admin",
         expected_forecast_version=first.row_version,
-    )
-    first = forecasts.get_forecast(first.id)
-    first = forecasts.submit_forecast(
+    ))
+    first = services['forecast_version_query'].get_forecast(first.id)
+    first = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
         first.id,
         submitted_by="admin",
         expected_version=first.row_version,
-    )
-    first = forecasts.approve_forecast(
+    ))
+    first = services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
         first.id,
         approved_by="admin",
         expected_version=first.row_version,
-    )
+    ))
 
-    second = forecasts.create_forecast(
+    second = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="Zulu Forecast",
         as_of_date=date(2026, 8, 2),
         generation_mode=ForecastGenerationMode.MANUAL,
         created_by="admin",
-    )
-    forecasts.add_line(
+    ))
+    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
         second.id,
         cost_code_id=cost_code.id,
         description="Second manual ETC",
@@ -504,7 +504,7 @@ def _seed_forecast_reader(services):
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
         expected_forecast_version=second.row_version,
-    )
+    ))
     return project, first, second
 
 
@@ -1220,40 +1220,40 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services
         "R6B bounded overview",
         financial_currency_code="USD",
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6B-OVERVIEW",
         name="R6B Overview",
-    )
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "Approved control", currency_code="USD")
-    budgets.add_line(
+    ))
+    budgets = services['budget_query']
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Approved control", currency_code="USD"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
         cost_code_id=cost_code.id,
         description="Authorized scope",
         amount=Decimal(1000),
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         budget.id,
         submitted_by="admin",
         expected_version=budget.row_version,
-    )
-    budgets.approve_budget(
+    ))
+    services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
         budget.id,
         approved_by="admin",
         expected_version=budget.row_version,
-    )
+    ))
 
-    forecasts = services["forecast_version_service"]
-    forecast = forecasts.create_forecast(
+    forecasts = services['forecast_version_query']
+    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="Approved ETC",
         as_of_date=date(2026, 8, 1),
         generation_mode=ForecastGenerationMode.MANUAL,
         created_by="admin",
-    )
-    forecasts.add_line(
+    ))
+    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
         forecast.id,
         cost_code_id=cost_code.id,
         description="Remaining delivery",
@@ -1262,18 +1262,18 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
         expected_forecast_version=forecast.row_version,
-    )
-    forecast = forecasts.get_forecast(forecast.id)
-    forecast = forecasts.submit_forecast(
+    ))
+    forecast = services['forecast_version_query'].get_forecast(forecast.id)
+    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
         forecast.id,
         submitted_by="admin",
         expected_version=forecast.row_version,
-    )
-    forecasts.approve_forecast(
+    ))
+    services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
         forecast.id,
         approved_by="admin",
         expected_version=forecast.row_version,
-    )
+    ))
 
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="test bounded finance overview"

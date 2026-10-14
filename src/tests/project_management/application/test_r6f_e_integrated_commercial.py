@@ -35,7 +35,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     _, project, cost_code = _setup_billable_project(services)
     profile, schedule = _ready_schedule_line(services, project, amount=Decimal(24000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="30000")
-    billing = services["billing_preparation_service"]
+    billing = services['billing_preparation_query']
     reporting = services["profitability_report"]
     cutoff = date(2026, 8, 31)
     original = _submitted_preparation(services, project, schedule)
@@ -53,19 +53,19 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
             request.id, note="Independent review"
         )
         _login(services, "admin", "ChangeMe123!")
-        value = billing.get_preparation(preparation_id)
+        value = services['billing_preparation_query'].get_preparation(preparation_id)
         assert value.status is BillingPreparationStatus.APPROVED
         assert value.approved_by != value.created_by
         return value
 
     approved = approve(original.id)
-    saved_lines = billing.list_lines(approved.id)
+    saved_lines = services['billing_preparation_query'].list_lines(approved.id)
     with pytest.raises(BusinessRuleError):
-        billing.remove_draft_line(
+        services['finance_governance_commands'].billing_source(lambda handler: handler.remove_draft_line(
             approved.id,
             line_id=saved_lines[0].id,
             expected_row_version=approved.row_version,
-        )
+        ))
     initial = services["profitability_report"].get_project_commercial_projection(project.id, as_of_date=cutoff)
     assert initial.approved_preparation_amount == Decimal(24000)
     assert (
@@ -76,8 +76,8 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     assert initial.projected_margin_amount == Decimal(20000)
     assert initial.projected_margin_percent == Decimal(40)
 
-    billing.request_delivery(approved.id, expected_row_version=approved.row_version)
-    pending = billing.get_preparation(approved.id)
+    services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(approved.id, expected_row_version=approved.row_version))
+    pending = services['billing_preparation_query'].get_preparation(approved.id)
     assert pending.status is BillingPreparationStatus.DELIVERY_PENDING
     assert pending.delivered_at is None
     # External evidence is injected at the existing gateway, not manufactured by PM.
@@ -92,56 +92,56 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
             occurred_at=datetime(2026, 8, 25, tzinfo=UTC),
             reconciliation_reference="external-confirmation",
         )
-    parent = billing.get_preparation(approved.id)
-    correction = billing.create_preparation(
+    parent = services['billing_preparation_query'].get_preparation(approved.id)
+    correction = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id,
         preparation_number="GOLDEN-CORRECTION",
         period_start=date(2026, 8, 1),
         period_end=cutoff,
         idempotency_key="golden-correction",
         correction_of_preparation_id=parent.id,
-    )
-    assert billing.list_external_events(correction.id) == []
+    ))
+    assert services['billing_preparation_query'].list_external_events(correction.id) == []
     _, other_project, _ = _setup_other_project(
         services, name="Other commercial scope", create_period=False
     )
     _create_billing_profile(services, other_project.id, contract_value=Decimal(1000))
-    other = billing.create_preparation(
+    other = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         other_project.id,
         preparation_number="OTHER-PROJECT",
         period_start=date(2026, 8, 1),
         period_end=cutoff,
         idempotency_key="other-project-preparation",
-    )
-    assert billing.list_external_events(other.id) == []
+    ))
+    assert services['billing_preparation_query'].list_external_events(other.id) == []
     with pytest.raises(BusinessRuleError):
-        billing.add_fixed_price_source(
+        services['finance_governance_commands'].billing_source(lambda handler: handler.add_fixed_price_source(
             correction.id,
             schedule_line_id=schedule.id,
             expected_row_version=correction.row_version,
-        )
-    schedule_service = services["billing_profile_service"]
-    delta = schedule_service.add_schedule_line(
+        ))
+    schedule_service = services['billing_profile_query']
+    delta = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         project.id,
         name="Additional governed milestone",
         amount=Decimal(1000),
         due_date=cutoff,
-    )
-    delta = schedule_service.mark_schedule_line_ready(
+    ))
+    delta = services['finance_governance_commands'].billing_schedule(lambda handler: handler.mark_schedule_line_ready(
         delta.id, expected_row_version=delta.row_version
-    )
-    billing.add_fixed_price_source(
+    ))
+    services['finance_governance_commands'].billing_source(lambda handler: handler.add_fixed_price_source(
         correction.id,
         schedule_line_id=delta.id,
         expected_row_version=correction.row_version,
-    )
-    correction = billing.get_preparation(correction.id)
-    billing.submit_preparation(
+    ))
+    correction = services['billing_preparation_query'].get_preparation(correction.id)
+    services['finance_governance_commands'].billing_submission(lambda handler: handler.submit_preparation(
         correction.id, expected_row_version=correction.row_version
-    )
+    ))
     approve(correction.id)
-    assert billing.get_preparation(parent.id) == parent
-    assert billing.list_lines(parent.id) == saved_lines
+    assert services['billing_preparation_query'].get_preparation(parent.id) == parent
+    assert services['billing_preparation_query'].list_lines(parent.id) == saved_lines
     result = services["profitability_report"].get_project_commercial_projection(project.id, as_of_date=cutoff)
     assert result.approved_preparation_amount == Decimal(25000)
     assert (

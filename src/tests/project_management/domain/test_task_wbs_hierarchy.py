@@ -27,7 +27,6 @@ def _project(services, name: str):
 
 def test_task_wbs_builds_ordered_hierarchy_and_rolls_up_execution(services) -> None:
     project = _project(services, "WBS Rollup")
-    services['task_lookup_query']
     summary = services['task_lifecycle_commands'].create_task(project.id, "Delivery Package", duration_days=10)
     first = services['task_lifecycle_commands'].create_task(
         project.id,
@@ -65,7 +64,6 @@ def test_task_wbs_builds_ordered_hierarchy_and_rolls_up_execution(services) -> N
 
 def test_task_wbs_move_recodes_subtree_and_prevents_cycles(services) -> None:
     project = _project(services, "WBS Move")
-    services['task_lookup_query']
     source = services['task_lifecycle_commands'].create_task(project.id, "Source Package")
     target = services['task_lifecycle_commands'].create_task(project.id, "Target Package")
     child = services['task_lifecycle_commands'].create_task(project.id, "Child Package", parent_task_id=source.id)
@@ -88,7 +86,6 @@ def test_task_wbs_move_recodes_subtree_and_prevents_cycles(services) -> None:
 
 def test_task_wbs_move_rolls_back_partial_subtree_updates(services, monkeypatch) -> None:
     project = _project(services, "WBS move rollback")
-    services['task_lookup_query']
     source = services['task_lifecycle_commands'].create_task(project.id, "Source")
     target = services['task_lifecycle_commands'].create_task(project.id, "Target")
     child = services['task_lifecycle_commands'].create_task(project.id, "Child", parent_task_id=source.id)
@@ -117,7 +114,6 @@ def test_task_wbs_move_rolls_back_partial_subtree_updates(services, monkeypatch)
 
 def test_task_wbs_recode_writes_descendants_before_reusing_their_code(services) -> None:
     project = _project(services, "WBS Recode Ordering")
-    services['task_lookup_query']
     summary = services['task_lifecycle_commands'].create_task(project.id, "Recode Package")
     leaf = services['task_lifecycle_commands'].create_task(project.id, "Recode Execution", parent_task_id=summary.id)
 
@@ -131,7 +127,6 @@ def test_task_wbs_recode_writes_descendants_before_reusing_their_code(services) 
 def test_task_wbs_rejects_cross_project_parent_and_summary_execution(services) -> None:
     first_project = _project(services, "WBS Project One")
     second_project = _project(services, "WBS Project Two")
-    services['task_lookup_query']
     summary = services['task_lifecycle_commands'].create_task(first_project.id, "Summary Package")
     leaf = services['task_lifecycle_commands'].create_task(first_project.id, "Execution Leaf", parent_task_id=summary.id)
 
@@ -167,7 +162,6 @@ def test_task_wbs_rejects_cross_project_parent_and_summary_execution(services) -
 
 def test_task_wbs_bulk_mutations_prevalidate_and_delete_children_atomically(services) -> None:
     project = _project(services, "WBS Bulk Mutation")
-    services['task_lookup_query']
     summary = services['task_lifecycle_commands'].create_task(project.id, "Bulk Summary")
     leaf = services['task_lifecycle_commands'].create_task(project.id, "Bulk Execution", parent_task_id=summary.id)
     surviving_root = services['task_lifecycle_commands'].create_task(project.id, "Surviving Root")
@@ -191,7 +185,6 @@ def test_task_wbs_bulk_mutations_prevalidate_and_delete_children_atomically(serv
 
 def test_scheduling_runs_only_execution_leaves(services) -> None:
     project = _project(services, "WBS Scheduling")
-    services['task_lookup_query']
     summary = services['task_lifecycle_commands'].create_task(
         project.id,
         "Schedule Package",

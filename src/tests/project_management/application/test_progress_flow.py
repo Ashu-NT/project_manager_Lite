@@ -9,8 +9,6 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 
 
 def test_task_progress_and_status_transitions(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Progress Test", "")
     pid = project.id
@@ -29,8 +27,6 @@ def test_task_progress_and_status_transitions(services):
 
 
 def test_task_progress_accepts_explicit_status_updates(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Progress Status Override", "")
     pid = project.id
@@ -45,8 +41,6 @@ def test_task_progress_accepts_explicit_status_updates(services):
 
 
 def test_set_status_updates_percent_complete_defaults(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Status Defaults", "")
     pid = project.id
@@ -68,7 +62,6 @@ def test_set_status_updates_percent_complete_defaults(services):
 
 def test_bulk_status_failure_rolls_back_all_tasks(services, monkeypatch):
     project = services['project_create'].create_project("Bulk status rollback")
-    services['task_lookup_query']
     first = services['task_lifecycle_commands'].create_task(project.id, "First")
     second = services['task_lifecycle_commands'].create_task(project.id, "Second")
     original_update = SqlAlchemyTaskRepository.update

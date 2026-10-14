@@ -62,8 +62,6 @@ def test_task_presence_dto_rejects_missing_identity_and_invalid_timestamps():
 
 
 def test_presence_handlers_use_presence_dto_normalization(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Presence DTO Service Proof")
     task = services['task_lifecycle_commands'].create_task(

@@ -40,22 +40,22 @@ def _make_project(services):
 def _submitted_budget(services, session):
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services["budget_service"]
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    budget_service = services['budget_query']
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"UOW-CUTOVER-{_REQUESTER_COUNTER['n']}-{project.id[:8]}", name="UoW cutover cost code"
-    )
-    budget = budget_service.create_budget(project.id, "Cutover Budget")
-    budget_service.add_line(
+    ))
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Cutover Budget"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
         cost_code_id=cost_code.id,
         description="Line 1",
         amount=1000,
         expected_budget_version=budget.row_version,
-    )
-    budget = budget_service.get_budget(budget.id)
-    budget = budget_service.submit_budget(
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         budget.id, submitted_by="admin", expected_version=budget.row_version
-    )
+    ))
     session.expire_all()
     return project, budget
 

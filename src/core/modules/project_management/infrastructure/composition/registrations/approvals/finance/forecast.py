@@ -3,8 +3,8 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.financials.forecasts.version_service import (
-    ForecastVersionService,
+from src.core.modules.project_management.application.financials.forecasts.commands.approval import (
+    ForecastApprovalCommands,
 )
 from src.core.modules.project_management.infrastructure.approval.forecast_apply_participant import (
     ForecastApprovalDeps,
@@ -33,13 +33,9 @@ def build_forecast_approval_deps(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
-    service = ForecastVersionService(
+    forecast_commands = ForecastApprovalCommands(
         session=session,
         forecast_repo=forecast_repo,
-        project_repo=bundle.pm.project_repo,
-        financial_profile_repo=bundle.pm.project_financial_profile_repo,
-        cost_code_repo=bundle.pm.project_cost_code_repo,
-        task_repo=bundle.pm.task_repo,
         clock=SystemClock(),
         user_session=user_session,
         enterprise_audit_service=audit,
@@ -47,7 +43,7 @@ def build_forecast_approval_deps(
         tenant_context_service=tenant_context_service,
         approval_commands=None,
     )
-    return ForecastApprovalDeps(forecast_service=service)
+    return ForecastApprovalDeps(forecast_commands=forecast_commands)
 
 
 __all__ = ["build_forecast_approval_deps"]

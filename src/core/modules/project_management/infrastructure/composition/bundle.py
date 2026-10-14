@@ -22,21 +22,20 @@ from src.core.modules.project_management.application.dashboard import (
 )
 from src.core.modules.project_management.application.financials import (
     ApprovedTimeLaborCostConsumer,
-    BudgetService,
+    BudgetQueries,
     FinanceSnapshotQueryHandler,
-    FinancialChangeService,
-    FinancialConfigurationService,
-    ForecastGenerationService,
-    ForecastVersionService,
-    PlannedCostService,
+    FinancialChangeQueryHandler,
+    FinancialConfigurationQueryHandler,
+    ForecastVersionQueries,
+    PlannedCostQueryHandler,
     ProcurementFinancialConsumer,
-    ProjectBillingPreparationService,
-    ProjectBillingProfileService,
-    ProjectCommitmentService,
-    ProjectCostEntryService,
+    ProjectBillingPreparationQueryHandler,
+    ProjectBillingProfileQueryHandler,
+    ProjectCommitmentQueryHandler,
+    ProjectCostEntryQueryHandler,
     ProjectFinancePerformanceQuery,
     ProjectFinanceWorkspaceQuery,
-    ProjectRateCardService,
+    ProjectRateCardQueryHandler,
     RateCardResolver,
 )
 from src.core.modules.project_management.application.financials.governance import (
@@ -229,16 +228,15 @@ class ProjectManagementServiceBundle:
     resource_capability_query: ResourceCapabilityQueryHandler
     resource_context_query: ResourceContextQueryHandler
     finance_governance_commands: FinanceGovernanceCommandBoundary
-    financial_configuration_service: FinancialConfigurationService
-    forecast_generation_service: ForecastGenerationService
-    forecast_version_service: ForecastVersionService
-    financial_change_service: FinancialChangeService
-    billing_profile_service: ProjectBillingProfileService
-    billing_preparation_service: ProjectBillingPreparationService
-    rate_card_service: ProjectRateCardService
+    financial_configuration_query: FinancialConfigurationQueryHandler
+    forecast_version_query: ForecastVersionQueries
+    financial_change_query: FinancialChangeQueryHandler
+    billing_profile_query: ProjectBillingProfileQueryHandler
+    billing_preparation_query: ProjectBillingPreparationQueryHandler
+    rate_card_query: ProjectRateCardQueryHandler
     rate_card_resolver: RateCardResolver
-    budget_service: BudgetService
-    cost_entry_service: ProjectCostEntryService
+    budget_query: BudgetQueries
+    cost_entry_query: ProjectCostEntryQueryHandler
     finance_worker_uow_factory: SqlAlchemyFinanceGovernanceUnitOfWorkFactory
     approved_time_consumer_factory: Callable[
         [FinanceGovernanceUnitOfWork, ServicePrincipal],
@@ -248,8 +246,8 @@ class ProjectManagementServiceBundle:
         [FinanceGovernanceUnitOfWork, ServicePrincipal],
         ProcurementFinancialConsumer,
     ]
-    commitment_service: ProjectCommitmentService
-    planned_cost_service: PlannedCostService
+    commitment_query: ProjectCommitmentQueryHandler
+    planned_cost_query: PlannedCostQueryHandler
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_performance_query: ProjectFinancePerformanceQuery
     finance_snapshot_query: FinanceSnapshotQueryHandler

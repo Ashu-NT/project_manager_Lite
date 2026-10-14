@@ -139,7 +139,6 @@ def test_leveling_floor_survives_the_live_persisting_scheduling_engine_too(servi
     DashboardService/leveling actually calls (per R4.4A verification,
     pure_cpm.run_cpm and SchedulingEngine have separate orchestrations
     sharing the same primitives; both must apply this floor)."""
-    services['project_query']
     ts = services['task_lookup_query']
     sched = services["scheduling_engine"]
 

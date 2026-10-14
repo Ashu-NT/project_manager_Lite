@@ -40,7 +40,6 @@ def _snapshot(ts, project_id):
 
 
 def _build_overload_proposal(services, name: str):
-    services['project_query']
     ts = services['task_lookup_query']
     calendar = services["work_calendar_engine"]
 
@@ -70,7 +69,6 @@ class TestGovernanceParity:
         _login(services, "admin", "ChangeMe123!")
 
         approvals = services["approval_commands"]
-        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance Apply")
         assert len(proposal.moves) >= 1
         moved_task_id = proposal.moves[0].task_id
@@ -100,7 +98,6 @@ class TestGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "scheduling.leveling.apply")
         _login(services, "admin", "ChangeMe123!")
-        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance Admin Bypass")
         assert len(proposal.moves) >= 1
         moved_task_id = proposal.moves[0].task_id
@@ -120,7 +117,6 @@ class TestGovernanceParity:
         _login(services, "admin", "ChangeMe123!")
 
         approvals = services["approval_commands"]
-        services['task_lookup_query']
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance TOCTOU")
         assert len(proposal.moves) >= 1
         moved_task_id = proposal.moves[0].task_id

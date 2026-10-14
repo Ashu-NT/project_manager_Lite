@@ -1,7 +1,7 @@
 """Session-parameterized approval transaction participant for
 `project_billing_preparation.approve`/`reject`.
 
-Constructs a fresh `ProjectBillingPreparationService` bound to whichever
+Constructs a fresh `BillingPreparationApprovalCommandHandler` bound to whichever
 Session `build_billing_preparation_approval_deps(session, ...)` was called
 with (never the shared startup instance), then calls its
 `_apply_approval_decision`/`_apply_rejection_decision` directly rather than
@@ -16,23 +16,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.modules.project_management.application.financials.invoicing.preparation_service import (
-    ProjectBillingPreparationService,
+from src.core.modules.project_management.application.financials.invoicing.commands.preparation_approval import (
+    BillingPreparationApprovalCommandHandler,
 )
 from src.core.modules.project_management.infrastructure.approval._financial_decision_actor import (
     require_financial_decision_actor,
 )
 from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 from src.core.platform.domain.approval import ApprovalRequest
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 @dataclass(frozen=True)
 class BillingPreparationApprovalDeps:
-    """`billing_preparation_service` is a fresh `ProjectBillingPreparationService`,
-    constructed with `approval_commands=None` -- the apply path never calls
-    back into `ApprovalCommands`."""
+    """Commands share the participant Session and never request another approval."""
 
-    billing_preparation_service: ProjectBillingPreparationService
+    billing_preparation_commands: BillingPreparationApprovalCommandHandler
+    user_session: UserSessionContext | None
 
 
 class BillingPreparationApprovalParticipant:
@@ -40,9 +40,9 @@ class BillingPreparationApprovalParticipant:
         self, request: ApprovalRequest, deps: BillingPreparationApprovalDeps
     ) -> ApprovalHandlerResult:
         approved_by = require_financial_decision_actor(
-            deps.billing_preparation_service._user_session
+            deps.user_session
         )
-        _preparation, event = deps.billing_preparation_service._apply_approval_decision(
+        _preparation, event = deps.billing_preparation_commands._apply_approval_decision(
             request.payload["preparation_id"],
             approved_by=approved_by,
             expected_version=request.payload["expected_version"] + 1,
@@ -53,9 +53,9 @@ class BillingPreparationApprovalParticipant:
         self, request: ApprovalRequest, deps: BillingPreparationApprovalDeps
     ) -> ApprovalHandlerResult:
         rejected_by = require_financial_decision_actor(
-            deps.billing_preparation_service._user_session
+            deps.user_session
         )
-        _preparation, event = deps.billing_preparation_service._apply_rejection_decision(
+        _preparation, event = deps.billing_preparation_commands._apply_rejection_decision(
             request.payload["preparation_id"],
             rejected_by=rejected_by,
             expected_version=request.payload["expected_version"] + 1,

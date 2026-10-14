@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from src.core.modules.project_management.application.financials.commitments import (
-    ProjectCommitmentService,
+from src.core.modules.project_management.application.financials.commitments.commands import (
+    ProjectCommitmentCommandHandler,
 )
-from src.core.modules.project_management.application.financials.cost.entries import (
-    ProjectCostEntryService,
+from src.core.modules.project_management.application.financials.cost.entries.commands.procurement_receipt import (
+    ProcurementReceiptCostEntryCommandHandler,
 )
 from src.core.modules.project_management.contracts.financial_sources.procurement import (
     ProcurementCommitmentFinancialSource,
@@ -62,13 +62,13 @@ class ProcurementFinancialConsumer:
     def __init__(
         self,
         *,
-        commitment_service: ProjectCommitmentService,
-        cost_entry_service: ProjectCostEntryService,
+        commitment_commands: ProjectCommitmentCommandHandler,
+        receipt_commands: ProcurementReceiptCostEntryCommandHandler,
         task_repo: TaskRepository,
         service_principal: ServicePrincipal,
     ) -> None:
-        self._commitment_service = commitment_service
-        self._cost_entry_service = cost_entry_service
+        self._commitment_commands = commitment_commands
+        self._receipt_commands = receipt_commands
         self._task_repo = task_repo
         self._service_principal = service_principal
 
@@ -117,9 +117,11 @@ class ProcurementFinancialConsumer:
             source_requisition_line_id=payload.source_requisition_line_id,
             task_id=task_id,
         )
-        event = self._commitment_service.apply_procurement_source(
+        event = self._commitment_commands.apply_procurement_source(
             source,
-            execution=self._execution(envelope, source_revision=payload.source_revision),
+            execution=self._execution(
+                envelope, source_revision=payload.source_revision
+            ),
         )
         return ProcurementFinancialConsumption(
             project_id=project_id,
@@ -158,11 +160,13 @@ class ProcurementFinancialConsumer:
             task_id=task_id,
         )
         execution = self._execution(envelope, source_revision=payload.source_revision)
-        entry, cost_entry_events = self._cost_entry_service.apply_procurement_receipt_source(
-            source,
-            execution=execution,
+        entry, cost_entry_events = (
+            self._receipt_commands.apply_procurement_receipt_source(
+                source,
+                execution=execution,
+            )
         )
-        event = self._commitment_service.apply_procurement_receipt_match(
+        event = self._commitment_commands.apply_procurement_receipt_match(
             purchase_order_id=payload.purchase_order_id,
             purchase_order_line_id=payload.purchase_order_line_id,
             cost_entry_id=entry.id,
@@ -173,7 +177,7 @@ class ProcurementFinancialConsumer:
         return ProcurementFinancialConsumption(
             project_id=project_id,
             commitment_events=(event,) if event is not None else (),
-            # The Cost Entry service returns its typed DomainEvent instances as tuple[object, ...].
+            # The receipt handler returns its typed DomainEvent instances as tuple[object, ...].
             cost_entry_events=cast(tuple[DomainEvent, ...], cost_entry_events),
         )
 

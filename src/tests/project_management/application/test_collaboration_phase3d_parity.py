@@ -18,8 +18,6 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 
 
 def test_purpose_queries_preserve_mentions_recent_activity_and_presence(services) -> None:
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Collaboration projection")
     task = services['task_lifecycle_commands'].create_task(project.id, "Review package")
     mentioned = services["collaboration_comment_commands"].post_comment(
@@ -123,8 +121,6 @@ def test_active_presence_returns_complete_current_scoped_set_beyond_legacy_cap(s
 
 def test_workspace_queries_keep_scoped_project_names(services) -> None:
     access = services["access_service"]
-    services['project_query']
-    services['task_lookup_query']
     alpha = services['project_create'].create_project("Visible collaboration")
     beta = services['project_create'].create_project("Hidden collaboration")
     alpha_task = services['task_lifecycle_commands'].create_task(alpha.id, "Visible task")

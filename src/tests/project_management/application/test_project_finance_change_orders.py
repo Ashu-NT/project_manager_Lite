@@ -49,37 +49,37 @@ def _seed_approved_finance(services):
     project = services['project_create'].create_project(
         "Controlled Change Project", financial_currency_code="USD"
     )
-    code = services["financial_configuration_service"].create_cost_code(
+    code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="CHG-001", name="Change control"
-    )
+    ))
 
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project.id, "Approved control budget")
-    budget_line = budgets.add_line(
+    budgets = services['budget_query']
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Approved control budget"))
+    budget_line = services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
         cost_code_id=code.id,
         description="Approved scope",
         amount=Decimal(100),
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         budget.id, "admin", expected_version=budget.row_version
-    )
-    result = budgets.approve_budget(
+    ))
+    result = services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
         budget.id, approved_by="admin", expected_version=budget.row_version
-    )
-    budget = budgets.get_budget(result.budget_id)
+    ))
+    budget = services['budget_query'].get_budget(result.budget_id)
 
-    forecasts = services["forecast_version_service"]
-    forecast = forecasts.create_forecast(
+    forecasts = services['forecast_version_query']
+    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="Approved forecast",
         as_of_date=date(2026, 8, 11),
         generation_mode=ForecastGenerationMode.MANUAL,
         created_by="admin",
-    )
-    forecast_line = forecasts.add_line(
+    ))
+    forecast_line = services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
         forecast.id,
         cost_code_id=code.id,
         description="Approved ETC",
@@ -88,26 +88,26 @@ def _seed_approved_finance(services):
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
         expected_forecast_version=forecast.row_version,
-    )
-    forecast = forecasts.get_forecast(forecast.id)
-    forecast = forecasts.submit_forecast(
+    ))
+    forecast = services['forecast_version_query'].get_forecast(forecast.id)
+    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
         forecast.id, submitted_by="admin", expected_version=forecast.row_version
-    )
-    forecast = forecasts.approve_forecast(
+    ))
+    forecast = services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
         forecast.id, approved_by="admin", expected_version=forecast.row_version
-    )
+    ))
     return project, code, budget, budget_line, forecast, forecast_line
 
 
 def _draft_change(services, project):
     principal = services["user_session"].principal
-    return services["financial_change_service"].create_change(
+    return services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
         project.id,
         title="Approved scope adjustment",
         reason="Customer-approved engineering change",
         effective_date=date(2026, 8, 11),
         created_by=principal.user_id,
-    )
+    ))
 
 
 def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
@@ -118,9 +118,9 @@ def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
     project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
         services
     )
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    changes.add_impact(
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved scope",
@@ -128,8 +128,8 @@ def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
+    ))
+    change = services['financial_change_query'].get_change(change.id)
 
     seen_uows = []
     commands = services["finance_governance_commands"]
@@ -141,11 +141,11 @@ def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
         return uow
 
     monkeypatch.setattr(type(commands._uow_factory), "create", _spy_create)
-    submitted = changes.submit_change(
+    submitted = services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         change.id,
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
-    )
+    ))
 
     assert len(seen_uows) == 1
     uow = seen_uows[0]
@@ -170,9 +170,9 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
     project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
         services
     )
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    changes.add_impact(
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved scope",
@@ -180,8 +180,8 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
+    ))
+    change = services['financial_change_query'].get_change(change.id)
     pending_count_before = len(services["approval_queries"].list_pending(project_id=project.id))
 
     def _fail_commit(self):
@@ -190,14 +190,14 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
     monkeypatch.setattr(SqlAlchemyFinanceGovernanceUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated financial change submission commit failure"):
-        changes.submit_change(
+        services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
             change.id,
             submitted_by=services["user_session"].principal.user_id,
             expected_version=change.row_version,
-        )
+        ))
 
     monkeypatch.undo()
-    reloaded = changes.get_change(change.id)
+    reloaded = services['financial_change_query'].get_change(change.id)
     assert reloaded.status is FinancialChangeStatus.DRAFT
     pending_after = services["approval_queries"].list_pending(project_id=project.id)
     assert len(pending_after) == pending_count_before
@@ -215,9 +215,9 @@ def test_submit_change_audit_failure_rolls_back_change_and_approval_request_toge
     project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
         services
     )
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    changes.add_impact(
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved scope",
@@ -225,8 +225,8 @@ def test_submit_change_audit_failure_rolls_back_change_and_approval_request_toge
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
+    ))
+    change = services['financial_change_query'].get_change(change.id)
     pending_count_before = len(services["approval_queries"].list_pending(project_id=project.id))
 
     call_count = {"n": 0}
@@ -241,15 +241,15 @@ def test_submit_change_audit_failure_rolls_back_change_and_approval_request_toge
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_on_second_call)
 
     with pytest.raises(RuntimeError, match="simulated host audit failure after mutation and staging"):
-        changes.submit_change(
+        services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
             change.id,
             submitted_by=services["user_session"].principal.user_id,
             expected_version=change.row_version,
-        )
+        ))
 
     assert call_count["n"] >= 2
     monkeypatch.undo()
-    reloaded = changes.get_change(change.id)
+    reloaded = services['financial_change_query'].get_change(change.id)
     assert reloaded.status is FinancialChangeStatus.DRAFT
     pending_after = services["approval_queries"].list_pending(project_id=project.id)
     assert len(pending_after) == pending_count_before
@@ -273,21 +273,21 @@ def test_negative_financial_delta_requires_an_exact_target() -> None:
 def test_draft_change_and_impact_support_versioned_edit_and_remove(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
 
-    change = changes.update_change(
+    change = services['finance_governance_commands'].financial_change(lambda handler: handler.update_change(
         change.id,
         title="Revised approved scope adjustment",
         reason="Updated governed rationale",
         description="Revised before submission",
         effective_date=date(2026, 8, 12),
         expected_version=change.row_version,
-    )
+    ))
     assert change.row_version == 2
     assert change.title == "Revised approved scope adjustment"
 
-    impact = changes.add_impact(
+    impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Initial increase",
@@ -295,9 +295,9 @@ def test_draft_change_and_impact_support_versioned_edit_and_remove(services) -> 
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
-    impact = changes.update_impact(
+    ))
+    change = services['financial_change_query'].get_change(change.id)
+    impact = services['finance_governance_commands'].financial_change(lambda handler: handler.update_impact(
         impact.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Revised increase",
@@ -306,26 +306,26 @@ def test_draft_change_and_impact_support_versioned_edit_and_remove(services) -> 
         target_line_id=budget_line.id,
         expected_impact_version=impact.row_version,
         expected_change_version=change.row_version,
-    )
+    ))
     assert impact.row_version == 2
     assert impact.amount == Decimal(15)
 
-    change = changes.get_change(change.id)
-    removed = changes.remove_impact(
+    change = services['financial_change_query'].get_change(change.id)
+    removed = services['finance_governance_commands'].financial_change(lambda handler: handler.remove_impact(
         impact.id,
         expected_impact_version=impact.row_version,
         expected_change_version=change.row_version,
-    )
+    ))
     assert removed.row_version == change.row_version + 1
-    assert changes.list_impacts(change.id) == []
+    assert services['financial_change_query'].list_impacts(change.id) == []
 
 
 def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    impact = changes.add_impact(
+    impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Initial increase",
@@ -333,11 +333,11 @@ def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
+    ))
+    change = services['financial_change_query'].get_change(change.id)
 
     with pytest.raises(BusinessRuleError) as immutable:
-        changes.update_impact(
+        services['finance_governance_commands'].financial_change(lambda handler: handler.update_impact(
             impact.id,
             impact_type=FinancialChangeImpactType.FORECAST,
             description="Wrong type",
@@ -346,10 +346,10 @@ def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
             target_line_id=budget_line.id,
             expected_impact_version=impact.row_version,
             expected_change_version=change.row_version,
-        )
+        ))
     assert immutable.value.code == "FINANCIAL_CHANGE_IMPACT_TYPE_IMMUTABLE"
 
-    updated = changes.update_impact(
+    updated = services['finance_governance_commands'].financial_change(lambda handler: handler.update_impact(
         impact.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Updated once",
@@ -358,10 +358,10 @@ def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
         target_line_id=budget_line.id,
         expected_impact_version=impact.row_version,
         expected_change_version=change.row_version,
-    )
-    current_change = changes.get_change(change.id)
+    ))
+    current_change = services['financial_change_query'].get_change(change.id)
     with pytest.raises(ConcurrencyError):
-        changes.update_impact(
+        services['finance_governance_commands'].financial_change(lambda handler: handler.update_impact(
             updated.id,
             impact_type=FinancialChangeImpactType.BUDGET,
             description="Stale retry",
@@ -370,7 +370,7 @@ def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
             target_line_id=budget_line.id,
             expected_impact_version=1,
             expected_change_version=current_change.row_version,
-        )
+        ))
 
 
 def test_change_read_capabilities_are_deny_safe_and_target_lookup_is_bounded(
@@ -382,9 +382,9 @@ def test_change_read_capabilities_are_deny_safe_and_target_lookup_is_bounded(
         "change-owner", "StrongPass123", role_names=["planner"]
     )
     _login(services, "change-owner", "StrongPass123")
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    changes.add_impact(
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Governed increase",
@@ -392,8 +392,8 @@ def test_change_read_capabilities_are_deny_safe_and_target_lookup_is_bounded(
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
+    ))
+    change = services['financial_change_query'].get_change(change.id)
     query = services["finance_workspace_query"]
     draft = query.get_change_workspace(project.id, selected_change_id=change.id)
     assert draft.can_create is True
@@ -413,11 +413,11 @@ def test_change_read_capabilities_are_deny_safe_and_target_lookup_is_bounded(
     assert [item.id for item in targets.items] == [budget_line.id]
     assert "Approved scope" in targets.items[0].label
 
-    changes.submit_change(
+    services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         change.id,
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
-    )
+    ))
     owner_view = query.get_change_workspace(project.id, selected_change_id=change.id)
     assert owner_view.selected_change is not None
     assert owner_view.selected_change.can_approve is False
@@ -442,9 +442,9 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
     )
     _login(services, "change-requester", "StrongPass123")
 
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    budget_impact = changes.add_impact(
+    budget_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved scope",
@@ -452,9 +452,9 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
-    forecast_impact = changes.add_impact(
+    ))
+    change = services['financial_change_query'].get_change(change.id)
+    forecast_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.FORECAST,
         description="Reduce remaining ETC",
@@ -462,13 +462,13 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
         cost_code_id=code.id,
         target_line_id=forecast_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
-    change = changes.submit_change(
+    ))
+    change = services['financial_change_query'].get_change(change.id)
+    change = services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         change.id,
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
-    )
+    ))
     assert change.status is FinancialChangeStatus.PENDING_APPROVAL
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
     assert request.request_type == "financial_change.apply"
@@ -479,28 +479,28 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
         request.id, note="Authorized change"
     )
 
-    applied = changes.get_change(change.id)
+    applied = services['financial_change_query'].get_change(change.id)
     assert applied.status is FinancialChangeStatus.APPLIED
     assert applied.applied_by == reviewer_id
     assert applied.applied_budget_id and applied.applied_budget_id != budget.id
     assert applied.applied_forecast_id and applied.applied_forecast_id != forecast.id
 
-    budgets = services["budget_service"]
-    assert budgets.get_budget(budget.id).status is BudgetStatus.SUPERSEDED
-    successor_budget = budgets.get_budget(applied.applied_budget_id)
+    budgets = services['budget_query']
+    assert services['budget_query'].get_budget(budget.id).status is BudgetStatus.SUPERSEDED
+    successor_budget = services['budget_query'].get_budget(applied.applied_budget_id)
     assert successor_budget.status is BudgetStatus.APPROVED
-    assert budgets.list_lines(successor_budget.id)[0].amount == Decimal(125)
+    assert services['budget_query'].list_lines(successor_budget.id)[0].amount == Decimal(125)
 
-    forecasts = services["forecast_version_service"]
-    assert forecasts.get_forecast(forecast.id).status is ForecastStatus.SUPERSEDED
-    successor_forecast = forecasts.get_forecast(applied.applied_forecast_id)
+    forecasts = services['forecast_version_query']
+    assert services['forecast_version_query'].get_forecast(forecast.id).status is ForecastStatus.SUPERSEDED
+    successor_forecast = services['forecast_version_query'].get_forecast(applied.applied_forecast_id)
     assert successor_forecast.status is ForecastStatus.APPROVED
-    assert forecasts.list_lines(successor_forecast.id)[0].amount == Decimal(65)
+    assert services['forecast_version_query'].list_lines(successor_forecast.id)[0].amount == Decimal(65)
     assert {
-        row.source_type for row in forecasts.list_source_decisions(successor_forecast.id)
+        row.source_type for row in services['forecast_version_query'].list_source_decisions(successor_forecast.id)
     } == {ForecastLineSourceType.FINANCIAL_CHANGE}
 
-    impacts = {row.id: row for row in changes.list_impacts(applied.id)}
+    impacts = {row.id: row for row in services['financial_change_query'].list_impacts(applied.id)}
     assert impacts[budget_impact.id].applied_reference_type == "budget_line"
     assert impacts[budget_impact.id].applied_reference_id
     assert impacts[forecast_impact.id].applied_reference_type == "forecast_line"
@@ -512,9 +512,9 @@ def test_financial_change_requester_cannot_decide_own_request(
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
     project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    changes.add_impact(
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Dual-permission requester proof",
@@ -522,13 +522,13 @@ def test_financial_change_requester_cannot_decide_own_request(
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
-    change = changes.submit_change(
+    ))
+    change = services['financial_change_query'].get_change(change.id)
+    change = services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         change.id,
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
-    )
+    ))
     approval = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     with pytest.raises(BusinessRuleError) as approve_error:
@@ -537,7 +537,7 @@ def test_financial_change_requester_cannot_decide_own_request(
     with pytest.raises(BusinessRuleError) as reject_error:
         services["approval_commands"].reject(approval.id)
     assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
-    assert changes.get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
+    assert services['financial_change_query'].get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
 
 
 @pytest.mark.parametrize(
@@ -557,9 +557,9 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
     )
     _login(services, "stale-base-requester", "StrongPass123")
 
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    changes.add_impact(
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Budget base race",
@@ -567,9 +567,9 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
-    changes.add_impact(
+    ))
+    change = services['financial_change_query'].get_change(change.id)
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.FORECAST,
         description="Forecast base race",
@@ -577,39 +577,39 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
         cost_code_id=code.id,
         target_line_id=forecast_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
-    change = changes.submit_change(
+    ))
+    change = services['financial_change_query'].get_change(change.id)
+    change = services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         change.id,
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
-    )
+    ))
     approval = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     _login(services, "admin", "ChangeMe123!")
     if "budget" in moved_authorities:
-        budgets = services["budget_service"]
-        successor = budgets.create_successor(budget.id, name="New approved budget base")
-        successor = budgets.submit_budget(
+        budgets = services['budget_query']
+        successor = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_successor(budget.id, name="New approved budget base"))
+        successor = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
             successor.id,
             submitted_by="admin",
             expected_version=successor.row_version,
-        )
-        budgets.approve_budget(
+        ))
+        services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
             successor.id,
             approved_by="admin",
             expected_version=successor.row_version,
-        )
+        ))
     if "forecast" in moved_authorities:
-        forecasts = services["forecast_version_service"]
-        successor = forecasts.create_forecast(
+        forecasts = services['forecast_version_query']
+        successor = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
             project.id,
             name="New approved forecast base",
             as_of_date=date(2026, 8, 12),
             generation_mode=ForecastGenerationMode.MANUAL,
             created_by="admin",
-        )
-        forecasts.add_line(
+        ))
+        services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
             successor.id,
             cost_code_id=code.id,
             description="Replacement approved ETC",
@@ -618,24 +618,24 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
             source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
             created_by="admin",
             expected_forecast_version=successor.row_version,
-        )
-        successor = forecasts.get_forecast(successor.id)
-        successor = forecasts.submit_forecast(
+        ))
+        successor = services['forecast_version_query'].get_forecast(successor.id)
+        successor = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
             successor.id,
             submitted_by="admin",
             expected_version=successor.row_version,
-        )
-        forecasts.approve_forecast(
+        ))
+        services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
             successor.id,
             approved_by="admin",
             expected_version=successor.row_version,
-        )
+        ))
 
     budget_count = len(
-        services["budget_service"].list_budgets_for_project(project.id)
+        services['budget_query'].list_budgets_for_project(project.id)
     )
     forecast_count = len(
-        services["forecast_version_service"].list_forecasts(project.id)
+        services['forecast_version_query'].list_forecasts(project.id)
     )
 
     _login_eligible_reviewer(services)
@@ -648,10 +648,10 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
         else "FINANCIAL_CHANGE_FORECAST_BASE_STALE"
     )
     assert exc_info.value.code == expected_code
-    assert changes.get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
-    assert len(services["budget_service"].list_budgets_for_project(project.id)) == budget_count
+    assert services['financial_change_query'].get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
+    assert len(services['budget_query'].list_budgets_for_project(project.id)) == budget_count
     assert len(
-        services["forecast_version_service"].list_forecasts(project.id)
+        services['forecast_version_query'].list_forecasts(project.id)
     ) == forecast_count
     assert any(
         request.id == approval.id
@@ -682,9 +682,9 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
         "schedule-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "schedule-requester", "StrongPass123")
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    impact = changes.add_impact(
+    impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.SCHEDULE,
         description="Move delivery window",
@@ -692,22 +692,22 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
         schedule_start=date(2026, 8, 17),
         schedule_finish=date(2026, 8, 21),
         expected_change_version=change.row_version,
-    )
+    ))
     assert impact.target_task_version == task.version
-    change = changes.get_change(change.id)
-    changes.submit_change(
+    change = services['financial_change_query'].get_change(change.id)
+    services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         change.id,
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
-    )
+    ))
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     _login_eligible_reviewer(services)
     services["approval_commands"].approve_and_apply(request.id)
 
-    applied = changes.get_change(change.id)
+    applied = services['financial_change_query'].get_change(change.id)
     scheduled = services['task_detail_query'].get_task(task.id)
-    applied_impact = changes.list_impacts(change.id)[0]
+    applied_impact = services['financial_change_query'].list_impacts(change.id)[0]
     assert applied.status is FinancialChangeStatus.APPLIED
     assert applied.applied_schedule_count == 1
     assert scheduled.start_date == date(2026, 8, 17)
@@ -730,9 +730,9 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
         start_date=date(2026, 8, 10),
         duration_days=4,
     )
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    changes.add_impact(
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.SCHEDULE,
         description="Move stale target",
@@ -740,8 +740,8 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
         schedule_start=date(2026, 8, 17),
         schedule_finish=date(2026, 8, 21),
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
+    ))
+    change = services['financial_change_query'].get_change(change.id)
     services['task_lifecycle_commands'].update_task(
         task.id,
         description="Changed after impact capture",
@@ -749,10 +749,10 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
     )
 
     with pytest.raises(ConcurrencyError):
-        changes.submit_change(
+        services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
             change.id, submitted_by="admin", expected_version=change.row_version
-        )
-    assert changes.get_change(change.id).status is FinancialChangeStatus.DRAFT
+        ))
+    assert services['financial_change_query'].get_change(change.id).status is FinancialChangeStatus.DRAFT
 
 
 def test_schedule_impact_rejects_summary_task_at_draft_entry(services) -> None:
@@ -773,7 +773,7 @@ def test_schedule_impact_rejects_summary_task_at_draft_entry(services) -> None:
     change = _draft_change(services, project)
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        services["financial_change_service"].add_impact(
+        services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
             change.id,
             impact_type=FinancialChangeImpactType.SCHEDULE,
             description="Invalid summary move",
@@ -781,9 +781,9 @@ def test_schedule_impact_rejects_summary_task_at_draft_entry(services) -> None:
             schedule_start=date(2026, 8, 17),
             schedule_finish=date(2026, 8, 21),
             expected_change_version=change.row_version,
-        )
+        ))
     assert exc_info.value.code == "TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN"
-    assert services["financial_change_service"].list_impacts(change.id) == []
+    assert services['financial_change_query'].list_impacts(change.id) == []
 
 
 def test_impact_write_rolls_back_when_financial_audit_fails(
@@ -795,7 +795,7 @@ def test_impact_write_rolls_back_when_financial_audit_fails(
 
     _login(services, "admin", "ChangeMe123!")
     project, code, _, budget_line, *_ = _seed_approved_finance(services)
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
     monkeypatch.setattr(
         FinancialChangeService,
@@ -806,7 +806,7 @@ def test_impact_write_rolls_back_when_financial_audit_fails(
     )
 
     with pytest.raises(RuntimeError, match="audit unavailable"):
-        changes.add_impact(
+        services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
             change.id,
             impact_type=FinancialChangeImpactType.BUDGET,
             description="Must be atomic",
@@ -814,10 +814,10 @@ def test_impact_write_rolls_back_when_financial_audit_fails(
             cost_code_id=code.id,
             target_line_id=budget_line.id,
             expected_change_version=change.row_version,
-        )
+        ))
 
-    assert changes.list_impacts(change.id) == []
-    assert changes.get_change(change.id).row_version == change.row_version
+    assert services['financial_change_query'].list_impacts(change.id) == []
+    assert services['financial_change_query'].get_change(change.id).row_version == change.row_version
 
 
 def test_approval_rolls_back_all_successors_when_financial_audit_fails(
@@ -839,9 +839,9 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         "rollback-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "rollback-requester", "StrongPass123")
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     change = _draft_change(services, project)
-    changes.add_impact(
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Audited increase",
@@ -849,9 +849,9 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         cost_code_id=code.id,
         target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
-    changes.add_impact(
+    ))
+    change = services['financial_change_query'].get_change(change.id)
+    services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
         impact_type=FinancialChangeImpactType.SCHEDULE,
         description="Atomic schedule move",
@@ -859,13 +859,13 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         schedule_start=date(2026, 8, 17),
         schedule_finish=date(2026, 8, 21),
         expected_change_version=change.row_version,
-    )
-    change = changes.get_change(change.id)
-    changes.submit_change(
+    ))
+    change = services['financial_change_query'].get_change(change.id)
+    services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         change.id,
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
-    )
+    ))
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     _login_eligible_reviewer(services)
@@ -879,9 +879,9 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
     with pytest.raises(RuntimeError, match="audit unavailable"):
         services["approval_commands"].approve_and_apply(request.id)
 
-    assert changes.get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
-    assert services["budget_service"].get_budget(budget.id).status is BudgetStatus.APPROVED
-    assert len(services["budget_service"].list_budgets_for_project(project.id)) == 1
+    assert services['financial_change_query'].get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
+    assert services['budget_query'].get_budget(budget.id).status is BudgetStatus.APPROVED
+    assert len(services['budget_query'].list_budgets_for_project(project.id)) == 1
     rolled_back_task = services['task_detail_query'].get_task(task.id)
     assert rolled_back_task.start_date == date(2026, 8, 10)
     assert rolled_back_task.end_date == date(2026, 8, 13)

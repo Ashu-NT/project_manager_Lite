@@ -314,6 +314,9 @@ class _FakeTaskService:
     def get_task(self, task_id: str) -> Task | None:
         return self._tasks.get(task_id)
 
+    def list_tasks_by_ids(self, task_ids: list[str]) -> list[Task]:
+        return [self._tasks[task_id] for task_id in task_ids if task_id in self._tasks]
+
 
 def _derive_end_date(start_date: date | None, duration_days: int | None) -> date | None:
     if start_date is None or duration_days is None:

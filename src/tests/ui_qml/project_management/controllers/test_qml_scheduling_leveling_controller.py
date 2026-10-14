@@ -37,8 +37,6 @@ def _controller(qapp, services):
 
 
 def _make_overload(services, name: str):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project(name, "")
     task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
@@ -69,7 +67,6 @@ def test_preview_resource_leveling_populates_the_proposal_and_move_rows(qapp, se
 
 
 def test_apply_resource_leveling_persists_and_resets_the_pending_proposal(qapp, services):
-    services['task_lookup_query']
     ctrl = _controller(qapp, services)
     project, task_b, task_c = _make_overload(services, "Controller Leveling Apply")
     ctrl.selectProject(project.id)
@@ -88,7 +85,6 @@ def test_apply_resource_leveling_persists_and_resets_the_pending_proposal(qapp, 
 
 def test_apply_without_a_prior_preview_reports_an_error_not_a_crash(qapp, services):
     ctrl = _controller(qapp, services)
-    services['project_query']
     project = services['project_create'].create_project("Controller Leveling No Preview", "")
     ctrl.selectProject(project.id)
 

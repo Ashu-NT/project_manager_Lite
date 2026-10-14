@@ -9,7 +9,6 @@ from src.tests.project_management._sql_measurement_helpers import count_calls
 
 
 def test_list_project_dependencies_is_one_query_not_per_task_loop(services):
-    services['project_query']
     ts = services['task_lookup_query']
 
     project = services['project_create'].create_project("Query Perf", "")
@@ -37,8 +36,6 @@ def test_list_project_dependencies_is_one_query_not_per_task_loop(services):
 def test_application_layer_method_is_permission_checked(services):
     """list_dependencies_for_project must not bypass the same
     read-permission checks list_dependencies_for_task already has."""
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Query Perf Permissions", "")
     result = services['task_dependency_query'].list_dependencies_for_project(project.id)
     assert result == []
@@ -47,8 +44,6 @@ def test_application_layer_method_is_permission_checked(services):
 def test_recalculation_only_persists_tasks_whose_dates_actually_changed(services):
     """A re-run of recalculate_project_schedule() that reproduces the same CPM dates for every
     task must not re-issue a repository update for any of them."""
-    services['project_query']
-    services['task_lookup_query']
     sched = services["scheduling_engine"]
 
     project = services['project_create'].create_project("Persist Only Changed", "")
@@ -80,8 +75,6 @@ def test_recalculation_persists_only_the_tasks_whose_dates_shift(services):
     """A change that shifts a dependency chain's root must persist the
     tasks whose dates actually move, and the mechanism must be driven by
     real date deltas rather than being an unconditional no-op."""
-    services['project_query']
-    services['task_lookup_query']
     sched = services["scheduling_engine"]
 
     project = services['project_create'].create_project("Persist Partial Shift", "")

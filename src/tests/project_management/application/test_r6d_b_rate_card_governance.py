@@ -48,7 +48,7 @@ def _measure_statements(session, operation):
 
 
 def _project_resource(services):
-    project = services['project_create'].create_project(
+    project = services["project_create"].create_project(
         "R6D-B governed rates", financial_currency_code="XAF"
     )
     resource = services["resource_master_commands"].create_resource(
@@ -59,40 +59,56 @@ def _project_resource(services):
 
 def test_rate_card_and_line_edits_require_current_versions(services):
     project, resource = _project_resource(services)
-    service = services["rate_card_service"]
-    card = service.create_rate_card(name="Initial rates", project_id=project.id)
+    boundary = services["finance_governance_commands"]
+    card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(
+            name="Initial rates", project_id=project.id
+        )
+    )
 
-    updated_card = service.update_rate_card(
-        card.id, expected_version=card.version, name="Current rates"
+    updated_card = boundary.rate_card(
+        lambda handler: handler.update_rate_card(
+            card.id, expected_version=card.version, name="Current rates"
+        )
     )
     assert updated_card.name == "Current rates"
     assert updated_card.version == 2
     with pytest.raises(ConcurrencyError):
-        service.update_rate_card(card.id, expected_version=1, name="Stale rates")
+        boundary.rate_card(
+            lambda handler: handler.update_rate_card(
+                card.id, expected_version=1, name="Stale rates"
+            )
+        )
 
-    line = service.create_line(
-        card.id,
-        expected_card_version=updated_card.version,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal("125.50"),
-        rate_currency="XAF",
-        resource_id=resource.id,
+    line = boundary.rate_line(
+        lambda handler: handler.create_line(
+            card.id,
+            expected_card_version=updated_card.version,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal("125.50"),
+            rate_currency="XAF",
+            resource_id=resource.id,
+        )
     )
-    updated_line = service.update_line(
-        line.id,
-        expected_version=line.version,
-        expected_card_version=updated_card.version,
-        rate_amount=Decimal("130.75"),
+    updated_line = boundary.rate_line(
+        lambda handler: handler.update_line(
+            line.id,
+            expected_version=line.version,
+            expected_card_version=updated_card.version,
+            rate_amount=Decimal("130.75"),
+        )
     )
     assert updated_line.rate_amount == Decimal("130.75")
     assert updated_line.version == 2
     with pytest.raises(ConcurrencyError):
-        service.update_line(
-            line.id,
-            expected_version=1,
-            expected_card_version=updated_card.version,
-            rate_amount=Decimal(140),
+        boundary.rate_line(
+            lambda handler: handler.update_line(
+                line.id,
+                expected_version=1,
+                expected_card_version=updated_card.version,
+                rate_amount=Decimal(140),
+            )
         )
 
 
@@ -100,48 +116,64 @@ def test_consumed_rate_line_blocks_rewrite_but_allows_future_end_date(
     services, monkeypatch
 ):
     project, resource = _project_resource(services)
-    service = services["rate_card_service"]
-    card = service.create_rate_card(name="Historical rates", project_id=project.id)
-    line = service.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(80),
-        rate_currency="XAF",
-        resource_id=resource.id,
+    boundary = services["finance_governance_commands"]
+    card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(
+            name="Historical rates", project_id=project.id
+        )
+    )
+    line = boundary.rate_line(
+        lambda handler: handler.create_line(
+            card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(80),
+            rate_currency="XAF",
+            resource_id=resource.id,
+        )
     )
     monkeypatch.setattr(
-        type(service._rate_card_repo),
+        type(services["rate_card_query"]._rate_card_repo),
         "is_line_consumed",
         lambda _repo, _id: True,
     )
 
     with pytest.raises(BusinessRuleError) as exc:
-        service.update_line(
-            line.id, expected_version=line.version, rate_amount=Decimal(81)
+        boundary.rate_line(
+            lambda handler: handler.update_line(
+                line.id, expected_version=line.version, rate_amount=Decimal(81)
+            )
         )
     assert exc.value.code == "RATE_CARD_LINE_HISTORICAL_IMMUTABLE"
 
-    ended = service.update_line(
-        line.id,
-        expected_version=line.version,
-        effective_to=date.today() + timedelta(days=30),
+    ended = boundary.rate_line(
+        lambda handler: handler.update_line(
+            line.id,
+            expected_version=line.version,
+            effective_to=date.today() + timedelta(days=30),
+        )
     )
     assert ended.effective_to == date.today() + timedelta(days=30)
 
 
 def test_resolution_snapshot_captures_line_version_and_modifier(services):
     project, resource = _project_resource(services)
-    service = services["rate_card_service"]
-    card = service.create_rate_card(name="Snapshot rates", project_id=project.id)
-    line = service.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(100),
-        rate_currency="XAF",
-        resource_id=resource.id,
-        overtime_multiplier=Decimal("1.5"),
+    boundary = services["finance_governance_commands"]
+    card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(
+            name="Snapshot rates", project_id=project.id
+        )
+    )
+    line = boundary.rate_line(
+        lambda handler: handler.create_line(
+            card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(100),
+            rate_currency="XAF",
+            resource_id=resource.id,
+            overtime_multiplier=Decimal("1.5"),
+        )
     )
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="test R6D-B snapshot"
@@ -163,15 +195,21 @@ def test_resolution_snapshot_captures_line_version_and_modifier(services):
 
 def test_rate_workspace_capabilities_and_consumed_state_are_server_owned(services):
     project, resource = _project_resource(services)
-    service = services["rate_card_service"]
-    card = service.create_rate_card(name="Capability rates", project_id=project.id)
-    line = service.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(50),
-        rate_currency="XAF",
-        resource_id=resource.id,
+    boundary = services["finance_governance_commands"]
+    card = boundary.rate_card(
+        lambda handler: handler.create_rate_card(
+            name="Capability rates", project_id=project.id
+        )
+    )
+    line = boundary.rate_line(
+        lambda handler: handler.create_line(
+            card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(50),
+            rate_currency="XAF",
+            resource_id=resource.id,
+        )
     )
     workspace = services["finance_workspace_query"].get_rate_workspace(
         project.id, selected_rate_card_id=card.id
@@ -221,52 +259,66 @@ def test_rate_governance_records_representative_write_statement_counts(
     services, session, capsys
 ):
     project, resource = _project_resource(services)
-    service = services["rate_card_service"]
+    boundary = services["finance_governance_commands"]
     counts: dict[str, int] = {}
 
     card, counts["card.create"] = _measure_statements(
         session,
-        lambda: service.create_rate_card(name="Measured rates", project_id=project.id),
+        lambda: boundary.rate_card(
+            lambda handler: handler.create_rate_card(
+                name="Measured rates", project_id=project.id
+            )
+        ),
     )
     card, counts["card.edit"] = _measure_statements(
         session,
-        lambda: service.update_rate_card(
-            card.id, expected_version=card.version, name="Measured rates v2"
+        lambda: boundary.rate_card(
+            lambda handler: handler.update_rate_card(
+                card.id, expected_version=card.version, name="Measured rates v2"
+            )
         ),
     )
     line, counts["line.add"] = _measure_statements(
         session,
-        lambda: service.create_line(
-            card.id,
-            expected_card_version=card.version,
-            rate_type=RateType.COST,
-            unit="HOUR",
-            rate_amount=Decimal("75.25"),
-            rate_currency="XAF",
-            resource_id=resource.id,
+        lambda: boundary.rate_line(
+            lambda handler: handler.create_line(
+                card.id,
+                expected_card_version=card.version,
+                rate_type=RateType.COST,
+                unit="HOUR",
+                rate_amount=Decimal("75.25"),
+                rate_currency="XAF",
+                resource_id=resource.id,
+            )
         ),
     )
     line, counts["line.edit"] = _measure_statements(
         session,
-        lambda: service.update_line(
-            line.id,
-            expected_version=line.version,
-            expected_card_version=card.version,
-            rate_amount=Decimal("80.50"),
+        lambda: boundary.rate_line(
+            lambda handler: handler.update_line(
+                line.id,
+                expected_version=line.version,
+                expected_card_version=card.version,
+                rate_amount=Decimal("80.50"),
+            )
         ),
     )
     line, counts["line.deactivate"] = _measure_statements(
         session,
-        lambda: service.deactivate_line(
-            line.id,
-            expected_version=line.version,
-            expected_card_version=card.version,
+        lambda: boundary.rate_line(
+            lambda handler: handler.deactivate_line(
+                line.id,
+                expected_version=line.version,
+                expected_card_version=card.version,
+            )
         ),
     )
     _, counts["card.deactivate"] = _measure_statements(
         session,
-        lambda: service.deactivate_rate_card(
-            card.id, expected_version=card.version
+        lambda: boundary.rate_card(
+            lambda handler: handler.deactivate_rate_card(
+                card.id, expected_version=card.version
+            )
         ),
     )
 
@@ -291,7 +343,7 @@ def test_rate_governance_dialogs_fit_supported_viewports(
                 readonly property var rateDialog: loader.item
                 Loader {{
                     id: loader
-                    source: "{(RATE_DIALOG_ROOT / f'{dialog_type}.qml').as_uri()}"
+                    source: "{(RATE_DIALOG_ROOT / f"{dialog_type}.qml").as_uri()}"
                     onLoaded: {{
                         if (typeof item.projectId !== "undefined")
                             item.projectId = "project-1"
@@ -304,7 +356,9 @@ def test_rate_governance_dialogs_fit_supported_viewports(
         "r6db-rate-dialog.qml",
     )
     window = component.create()
-    assert window is not None, "\n".join(error.toString() for error in component.errors())
+    assert window is not None, "\n".join(
+        error.toString() for error in component.errors()
+    )
     qapp.processEvents()
     dialog = window.property("rateDialog")
     assert dialog is not None
@@ -331,7 +385,7 @@ def test_rate_governance_dialogs_restore_focus_after_escape(qapp, dialog_type: s
                 Button {{ id: opener; objectName: "rateDialogOpener"; text: "Open" }}
                 Loader {{
                     id: loader
-                    source: "{(RATE_DIALOG_ROOT / f'{dialog_type}.qml').as_uri()}"
+                    source: "{(RATE_DIALOG_ROOT / f"{dialog_type}.qml").as_uri()}"
                     onLoaded: {{
                         opener.forceActiveFocus()
                         if (typeof item.projectId !== "undefined")
@@ -346,7 +400,9 @@ def test_rate_governance_dialogs_restore_focus_after_escape(qapp, dialog_type: s
         "r6db-rate-dialog-keyboard.qml",
     )
     window = component.create()
-    assert window is not None, "\n".join(error.toString() for error in component.errors())
+    assert window is not None, "\n".join(
+        error.toString() for error in component.errors()
+    )
     qapp.processEvents()
     dialog = window.property("rateDialog")
     opener = window.findChild(QObject, "rateDialogOpener")
@@ -363,13 +419,29 @@ def test_rate_governance_dialogs_restore_focus_after_escape(qapp, dialog_type: s
 
 
 def test_rate_architecture_guards_are_forward_only():
-    service = (ROOT / "core/modules/project_management/application/financials/rate_cards/rate_card_service.py").read_text(encoding="utf-8")
-    repository = (ROOT / "core/modules/project_management/infrastructure/persistence/repositories/finance/rate_cards/rate_cards.py").read_text(encoding="utf-8")
-    resolver = (ROOT / "core/modules/project_management/application/financials/rate_cards/rate_card_resolver.py").read_text(encoding="utf-8")
-    controller = (ROOT / "ui_qml/modules/project_management/controllers/financials/financials_workspace_controller.py").read_text(encoding="utf-8")
-    assert ".commit(" not in service
-    assert ".rollback(" not in service
-    assert "lock_line_overlap_scope" in service
+    commands = "\n".join(
+        (
+            ROOT
+            / "core/modules/project_management/application/financials/rate_cards/commands"
+            / f"{responsibility}.py"
+        ).read_text(encoding="utf-8")
+        for responsibility in ("cards", "lines")
+    )
+    repository = (
+        ROOT
+        / "core/modules/project_management/infrastructure/persistence/repositories/finance/rate_cards/rate_cards.py"
+    ).read_text(encoding="utf-8")
+    resolver = (
+        ROOT
+        / "core/modules/project_management/application/financials/rate_cards/rate_card_resolver.py"
+    ).read_text(encoding="utf-8")
+    controller = (
+        ROOT
+        / "ui_qml/modules/project_management/controllers/financials/financials_workspace_controller.py"
+    ).read_text(encoding="utf-8")
+    assert ".commit(" not in commands
+    assert ".rollback(" not in commands
+    assert "lock_line_overlap_scope" in commands
     assert ".commit(" not in repository
     assert "hourly_rate" not in resolver
     assert "cost_entries_changed" not in controller
@@ -378,11 +450,14 @@ def test_rate_architecture_guards_are_forward_only():
 
 
 def test_rate_provenance_migration_is_truthful_and_reversible():
-    migration = (ROOT / "infra/persistence/migrations/versions/e9f2a5b8c4d1_add_rate_selection_provenance.py").read_text(encoding="utf-8")
+    migration = (
+        ROOT
+        / "infra/persistence/migrations/versions/e9f2a5b8c4d1_add_rate_selection_provenance.py"
+    ).read_text(encoding="utf-8")
     assert migration.count('add_column(sa.Column("rate_line_version"') == 1
     assert "for table, constraint_prefix in _TABLES.items()" in migration
     assert "nullable=True" in migration
-    assert "drop_column(\"rate_line_version\")" in migration
+    assert 'drop_column("rate_line_version")' in migration
     assert "UPDATE project_" not in migration
 
 
@@ -400,7 +475,11 @@ def test_rate_provenance_migration_upgrades_and_downgrades_fresh_schema(tmp_path
         "project_billing_preparation_lines",
     ):
         columns = {column["name"] for column in inspector.get_columns(table)}
-        assert {"rate_line_version", "rate_modifier", "rate_modifier_multiplier"} <= columns
+        assert {
+            "rate_line_version",
+            "rate_modifier",
+            "rate_modifier_multiplier",
+        } <= columns
     engine.dispose()
 
     command.downgrade(config, "d8e1f4a7b2c3")

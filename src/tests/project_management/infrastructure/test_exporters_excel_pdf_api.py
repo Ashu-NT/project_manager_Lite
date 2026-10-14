@@ -46,8 +46,6 @@ def _report_sources(services) -> reporting_api.ProjectReportSources:
 
 
 def _setup_report_project(services):
-    services['project_query']
-    services['task_lookup_query']
     bs = services['baseline_query']
 
     project = services['project_create'].create_project(
@@ -69,18 +67,18 @@ def _setup_report_project(services):
         hourly_rate=100.0,
         currency_code="USD",
     )
-    rate_card = services["rate_card_service"].create_rate_card(
+    rate_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="Export Project Rates",
         project_id=pid,
-    )
-    services["rate_card_service"].create_line(
+    ))
+    services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
         rate_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
         rate_amount=100,
         rate_currency="USD",
         resource_id=res.id,
-    )
+    ))
     assignment = services['task_assignment_commands'].assign_resource(t1.id, res.id, allocation_percent=50.0)
     services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
 
@@ -114,8 +112,6 @@ def test_excel_export_contains_expected_sections_when_baseline_is_approved(servi
 
 
 def test_excel_export_without_baseline_skips_evm_sheet(services, tmp_path):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("No Baseline Export", "")
     pid = project.id

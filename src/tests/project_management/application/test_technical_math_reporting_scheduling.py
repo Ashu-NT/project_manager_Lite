@@ -18,8 +18,6 @@ def _row_sum(rows, key_text: str, field: str) -> float:
 
 
 def test_cpm_dependency_type_math(services):
-    services['project_query']
-    services['task_lookup_query']
     wc = services["work_calendar_engine"]
     sched = services["scheduling_engine"]
 
@@ -73,8 +71,6 @@ def test_cpm_dependency_type_math(services):
 def test_ss_lag_zero_and_lag_one_are_now_distinguishable(services):
     """SS/FF/SF lag=0 and lag=1 must produce distinguishable dates, even when the
     predecessor's anchor date falls on a working day."""
-    services['project_query']
-    services['task_lookup_query']
     sched = services["scheduling_engine"]
 
     project = services['project_create'].create_project("SS Lag Zero Vs One", "")
@@ -95,8 +91,6 @@ def test_ss_lag_zero_and_lag_one_are_now_distinguishable(services):
 
 def test_fs_negative_lead_is_monotonic(services):
     """FS lag=-1 and lag=-2 must not collapse to the same date."""
-    services['project_query']
-    services['task_lookup_query']
     sched = services["scheduling_engine"]
 
     project = services['project_create'].create_project("FS Negative Lead", "")
@@ -128,8 +122,6 @@ def test_mixed_successor_types_both_constrain_predecessor_late_dates(services):
     longer duration (so its own latest-start is pulled far earlier). The predecessor's latest
     start must reflect the tighter SS-derived bound, not the looser FS-derived one.
     """
-    services['project_query']
-    services['task_lookup_query']
     sched = services["scheduling_engine"]
 
     project = services['project_create'].create_project("Mixed Successor Types", "")
@@ -154,8 +146,6 @@ def test_mixed_successor_types_both_constrain_predecessor_late_dates(services):
 
 
 def test_schedule_actual_date_constraints_override_computed_dates(services):
-    services['project_query']
-    services['task_lookup_query']
     wc = services["work_calendar_engine"]
     sched = services["scheduling_engine"]
 
@@ -175,8 +165,6 @@ def test_schedule_actual_date_constraints_override_computed_dates(services):
 
 
 def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
-    services['project_query']
-    services['task_lookup_query']
     sched = services["scheduling_engine"]
 
     project = services['project_create'].create_project("Gantt Math", "")
@@ -204,8 +192,6 @@ def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
 
 
 def test_gantt_reacts_to_new_dependency_constraints(services):
-    services['project_query']
-    services['task_lookup_query']
     wc = services["work_calendar_engine"]
 
     project = services['project_create'].create_project("Gantt Dependency Shift", "")

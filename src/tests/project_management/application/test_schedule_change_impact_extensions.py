@@ -26,8 +26,6 @@ def _impact_service(services):
 
 
 def _make_chain_with_milestone(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Schedule Impact Extensions", "")
     a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
@@ -77,7 +75,6 @@ class TestGetTaskScheduleOverview:
         assert overview.downstream.downstream_milestone_count == 1
 
     def test_reports_unavailable_for_unknown_task(self, services):
-        services['project_query']
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Unknown Task", "")
 
@@ -86,8 +83,6 @@ class TestGetTaskScheduleOverview:
         assert overview.is_available is False
 
     def test_reports_actual_variance_when_actual_start_violates_dependency(self, services):
-        services['project_query']
-        services['task_lookup_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Actual Variance", "")
@@ -156,8 +151,6 @@ class TestGetTaskScheduleOverview:
 
 class TestBaselineComparison:
     def test_get_task_schedule_overview_reports_baseline_finish_and_variance(self, services):
-        services['project_query']
-        services['task_lookup_query']
         bs = services['baseline_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
@@ -180,8 +173,6 @@ class TestBaselineComparison:
         assert overview.schedule_variance_days > 0
 
     def test_get_task_schedule_overview_omits_baseline_facts_when_no_approved_baseline_exists(self, services):
-        services['project_query']
-        services['task_lookup_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact No Baseline", "")
@@ -194,8 +185,6 @@ class TestBaselineComparison:
         assert overview.schedule_variance_days is None
 
     def test_baseline_service_get_baseline_task_returns_the_snapshot(self, services):
-        services['project_query']
-        services['task_lookup_query']
         bs = services['baseline_query']
         project = services['project_create'].create_project("Baseline Task Snapshot", "")
         task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
@@ -208,8 +197,6 @@ class TestBaselineComparison:
         assert baseline_task.baseline_finish is not None
 
     def test_baseline_service_get_baseline_task_returns_none_for_unknown_task(self, services):
-        services['project_query']
-        services['task_lookup_query']
         bs = services['baseline_query']
         project = services['project_create'].create_project("Baseline Task Snapshot Missing", "")
         services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
@@ -220,8 +207,6 @@ class TestBaselineComparison:
 
 class TestAnalyseWorkingDayDelay:
     def test_delay_by_working_days_skips_weekends(self, services):
-        services['project_query']
-        services['task_lookup_query']
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Working Day Delay", "")
         # Friday 2024-01-05
@@ -240,8 +225,6 @@ class TestAnalyseWorkingDayDelay:
 
 class TestAnalyseExtendedFields:
     def test_critical_path_changed_flag_reflects_newly_critical_tasks(self, services):
-        services['project_query']
-        services['task_lookup_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Critical Change", "")

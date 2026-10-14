@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
-    ProjectCostEntryService,
+from src.core.modules.project_management.application.financials.cost.entries.commands.approved_time import (
+    ApprovedTimeCostEntryCommandHandler,
 )
 from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
@@ -36,11 +36,11 @@ class ApprovedTimeExecutionContext:
 class ApprovedTimeLaborCostConsumer:
     def __init__(
         self,
-        cost_entry_service: ProjectCostEntryService,
+        cost_entry_commands: ApprovedTimeCostEntryCommandHandler,
         *,
         service_principal: ServicePrincipal,
     ) -> None:
-        self._cost_entry_service = cost_entry_service
+        self._cost_entry_commands = cost_entry_commands
         self._service_principal = service_principal
 
     def consume(self, envelope: IntegrationEventEnvelope) -> tuple[object, ...]:
@@ -72,7 +72,7 @@ class ApprovedTimeLaborCostConsumer:
             hours=payload.hours,
             correction_of_revision=(str(payload.correction_of_revision) if payload.correction_of_revision else None),
         )
-        return self._cost_entry_service.apply_approved_time_source(
+        return self._cost_entry_commands.apply_approved_time_source(
             source,
             execution=ApprovedTimeExecutionContext(
                 service_principal=self._service_principal,

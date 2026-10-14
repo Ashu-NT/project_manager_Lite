@@ -42,11 +42,11 @@ def _become_independent_decider(services) -> None:
 def _submitted_entry(services, session):
     organization = services["tenant_context_service"].get_active_organization()
     project = _make_project(services)
-    cost_entry_service = services["cost_entry_service"]
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_entry_service = services['cost_entry_query']
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="APPROVAL-TEST", name="Approval test cost code"
-    )
-    entry = cost_entry_service.create_manual_entry(
+    ))
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id=f"{project.id}-command",
         description="Travel",
@@ -54,8 +54,8 @@ def _submitted_entry(services, session):
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 10),
         cost_code_id=cost_code.id,
-    )
-    entry = cost_entry_service.submit(entry.id, expected_version=entry.row_version)
+    ))
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(entry.id, expected_version=entry.row_version))
     session.expire_all()
     return project, entry
 

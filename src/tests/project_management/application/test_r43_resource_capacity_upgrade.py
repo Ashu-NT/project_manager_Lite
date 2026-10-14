@@ -267,7 +267,6 @@ def _overlapping_overallocation_setup(services):
 
 
 def test_overallocation_warn_policy_allows_mutation_and_sets_warning(services):
-    services['task_lookup_query']
     _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
     assert services['task_assignment_commands']._overallocation_policy == "warn"  # default
 
@@ -280,7 +279,6 @@ def test_overallocation_warn_policy_allows_mutation_and_sets_warning(services):
 
 
 def test_overallocation_strict_policy_rejects_mutation(services):
-    services['task_lookup_query']
     _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
     services['task_assignment_commands']._overallocation_policy = "strict"
 
@@ -296,7 +294,6 @@ def test_overallocation_strict_policy_rejects_mutation(services):
 def test_overallocation_strict_policy_still_allows_non_conflicting_allocation(services):
     """Strict mode blocks only genuine over-capacity days -- it must not
     become a blanket rejection of every assignment."""
-    services['task_lookup_query']
     _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
     services['task_assignment_commands']._overallocation_policy = "strict"
 
@@ -358,7 +355,6 @@ def test_delete_project_resource_without_actuals_still_succeeds(services):
 def test_assign_resource_requires_project_resource_repository(services, monkeypatch):
     """A missing envelope repository cannot create an orphaned assignment."""
     project = services['project_create'].create_project("Assignment Repository Guard", "")
-    services['task_lookup_query']
     task = services['task_lifecycle_commands'].create_task(project.id, "Work")
     monkeypatch.setattr(services['task_assignment_commands'], "_project_resource_repo", None)
 
@@ -374,8 +370,6 @@ def test_assign_resource_requires_project_resource_repository(services, monkeypa
 
 def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
     access = services["access_service"]
-    services['project_query']
-    services['task_lookup_query']
 
     project_alpha = services['project_create'].create_project("Time Scope Alpha")
     project_beta = services['project_create'].create_project("Time Scope Beta")
@@ -423,7 +417,6 @@ def test_enterprise_resource_availability_service_is_wired_into_task_service_for
     and uses for `preview_assignment_capacity` -- one shared authority, so
     Task Assignment preview and save-time enforcement cannot disagree by
     construction."""
-    services['task_lookup_query']
     availability_service = services["resource_availability_service"]
     assert isinstance(availability_service, ResourceAvailabilityQueryHandler)
     assert services['task_assignment_commands']._enterprise_resource_availability_service is availability_service
@@ -440,7 +433,6 @@ def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_au
     window_start = date.today() + timedelta(days=1)
 
     ps = services['project_query']
-    services['task_lookup_query']
     rs = services["resource_query"]
     prs = services["project_resource_query"]
 
@@ -490,8 +482,6 @@ def test_resource_availability_display_returns_real_data_not_none(services):
     to None (and therefore the all-zero "Allocation Summary" fallback in
     QML), because the calendar-based service it was wired to didn't
     implement the method being called on it."""
-    services['project_query']
-    services['task_lookup_query']
     rs = services["resource_query"]
 
     project = services['project_create'].create_project("Availability Display Project")
@@ -558,8 +548,6 @@ def test_resource_workload_uses_bounded_reader_not_repository_wide_task_lookup(s
         SqlAlchemyTaskRepository,
     )
 
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Availability Query Count Project")
     resource = services["resource_master_commands"].create_resource("Availability Query Count Resource", hourly_rate=55.0)

@@ -5,11 +5,20 @@ from collections.abc import Callable
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.financials import (
+from src.core.modules.project_management.application.financials.commitments.commands import (
+    ProjectCommitmentCommandHandler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     ApprovedTimeLaborCostConsumer,
+)
+from src.core.modules.project_management.application.financials.cost.entries.commands import (
+    ApprovedTimeCostEntryCommandHandler,
+    ProcurementReceiptCostEntryCommandHandler,
+)
+from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     ProcurementFinancialConsumer,
-    ProjectCommitmentService,
-    ProjectCostEntryService,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
     RateCardResolver,
 )
 from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (
@@ -49,10 +58,17 @@ def build_finance_worker_consumers(
     *,
     clock: SystemClock,
 ) -> tuple[
-    Callable[[FinanceGovernanceUnitOfWork, ServicePrincipal], ApprovedTimeLaborCostConsumer],
-    Callable[[FinanceGovernanceUnitOfWork, ServicePrincipal], ProcurementFinancialConsumer],
+    Callable[
+        [FinanceGovernanceUnitOfWork, ServicePrincipal], ApprovedTimeLaborCostConsumer
+    ],
+    Callable[
+        [FinanceGovernanceUnitOfWork, ServicePrincipal], ProcurementFinancialConsumer
+    ],
 ]:
-    def build_cost_service(uow: FinanceGovernanceUnitOfWork) -> ProjectCostEntryService:
+    def build_approved_time_consumer(
+        uow: FinanceGovernanceUnitOfWork,
+        principal: ServicePrincipal,
+    ) -> ApprovedTimeLaborCostConsumer:
         if not isinstance(uow, SqlAlchemyFinanceGovernanceUnitOfWork):
             raise TypeError("Finance worker requires the SQLAlchemy unit of work")
         worker_rate_resolver = RateCardResolver(
@@ -60,7 +76,7 @@ def build_finance_worker_consumers(
             tenant_context_service=platform_services.tenant_context_service,
             clock=clock,
         )
-        return ProjectCostEntryService(
+        approved_time_commands = ApprovedTimeCostEntryCommandHandler(
             session=uow._session,
             entry_repo=uow.cost_entries,
             project_repo=uow.projects,
@@ -75,19 +91,16 @@ def build_finance_worker_consumers(
             clock=clock,
             user_session=platform_services.user_session,
             enterprise_audit_service=uow._enterprise_audit_service,
+            activity_service=None,
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
-            approval_commands=platform_services.approval_commands,
             rate_resolver=worker_rate_resolver,
             labor_posting_repo=uow.labor_postings,
+            # The inbox worker collects the returned facts into this UoW.
+            record_event=None,
         )
-
-    def build_approved_time_consumer(
-        uow: FinanceGovernanceUnitOfWork,
-        principal: ServicePrincipal,
-    ) -> ApprovedTimeLaborCostConsumer:
         return ApprovedTimeLaborCostConsumer(
-            build_cost_service(uow),
+            cost_entry_commands=approved_time_commands,
             service_principal=principal,
         )
 
@@ -97,7 +110,7 @@ def build_finance_worker_consumers(
     ) -> ProcurementFinancialConsumer:
         if not isinstance(uow, SqlAlchemyFinanceGovernanceUnitOfWork):
             raise TypeError("Finance worker requires the SQLAlchemy unit of work")
-        worker_commitment_service = ProjectCommitmentService(
+        commitment_commands = ProjectCommitmentCommandHandler(
             session=uow._session,
             commitment_repo=uow.commitments,
             cost_entry_repo=uow.cost_entries,
@@ -110,12 +123,34 @@ def build_finance_worker_consumers(
             clock=clock,
             user_session=platform_services.user_session,
             enterprise_audit_service=uow._enterprise_audit_service,
+            activity_service=None,
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
+            record_event=None,
+        )
+        receipt_commands = ProcurementReceiptCostEntryCommandHandler(
+            session=uow._session,
+            entry_repo=uow.cost_entries,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            resource_repo=uow.resources,
+            financial_period_queries=FinancialPeriodQueryHandler(
+                period_repo=uow.financial_periods,
+                user_session=platform_services.user_session,
+            ),
+            clock=clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            activity_service=None,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            record_event=None,
         )
         return ProcurementFinancialConsumer(
-            commitment_service=worker_commitment_service,
-            cost_entry_service=build_cost_service(uow),
+            commitment_commands=commitment_commands,
+            receipt_commands=receipt_commands,
             task_repo=uow.tasks,
             service_principal=principal,
         )

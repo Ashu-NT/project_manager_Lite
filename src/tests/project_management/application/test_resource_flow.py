@@ -8,8 +8,6 @@ from src.core.modules.project_management.application.tasks.commands import (
 
 
 def test_resource_assignment_and_overload(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Res Test", "")
     pid = project.id
 
@@ -47,7 +45,6 @@ def test_resource_assignment_and_overload(services):
 def test_auto_provisioned_project_resource_rolls_back_with_assignment_failure(
     services, monkeypatch
 ):
-    services['project_query']
     tasks = services['task_lookup_query']
     project = services['project_create'].create_project("Assignment rollback", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Work")
@@ -67,7 +64,6 @@ def test_auto_provisioned_project_resource_rolls_back_with_assignment_failure(
 def test_auto_provisioned_envelope_and_assignment_roll_back_after_staging(
     services, monkeypatch
 ):
-    services['project_query']
     tasks = services['task_lookup_query']
     project = services['project_create'].create_project("Assignment staged rollback", "")
     task = services['task_lifecycle_commands'].create_task(project.id, "Work")

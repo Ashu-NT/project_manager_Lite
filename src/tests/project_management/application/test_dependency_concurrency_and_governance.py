@@ -29,8 +29,6 @@ def _login_eligible_reviewer(services):
 
 
 def _make_two_tasks(services):
-    services['project_query']
-    services['task_lookup_query']
     project = services['project_create'].create_project("Dependency Concurrency", "")
     a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
@@ -57,7 +55,6 @@ class TestOptimisticConcurrency:
             )
 
     def test_concurrent_double_delete_does_not_report_false_success(self, services):
-        services['task_lookup_query']
         _project, a, b = _make_two_tasks(services)
         dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
@@ -74,7 +71,6 @@ class TestUpdateOptimisticConcurrency:
     read and write -- a stale client payload must never silently overwrite a newer version."""
 
     def test_update_with_stale_expected_version_raises_instead_of_overwriting(self, services):
-        services['task_lookup_query']
         _project, a, b = _make_two_tasks(services)
         dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
         stale_version = services['task_dependency_query'].get_dependency(dep.id).version
@@ -91,7 +87,6 @@ class TestUpdateOptimisticConcurrency:
         assert services['task_dependency_query'].get_dependency(dep.id).lag_days == 1
 
     def test_update_with_matching_expected_version_succeeds(self, services):
-        services['task_lookup_query']
         _project, a, b = _make_two_tasks(services)
         dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
         current_version = services['task_dependency_query'].get_dependency(dep.id).version
@@ -104,7 +99,6 @@ class TestUpdateOptimisticConcurrency:
         """Callers that don't supply a version (e.g. internal callers)
         keep the pre-existing unchecked behavior -- only the QML edit
         dialog opts into the check by supplying its loaded version."""
-        services['task_lookup_query']
         _project, a, b = _make_two_tasks(services)
         dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
@@ -123,7 +117,6 @@ class TestUpdateOptimisticConcurrency:
         _login(services, "admin", "ChangeMe123!")
 
         approvals = services["approval_commands"]
-        services['task_lookup_query']
         project, a, b = _make_two_tasks(services)
         dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
@@ -158,7 +151,6 @@ class TestUpdateGovernanceParity:
         _login(services, "admin", "ChangeMe123!")
 
         approvals = services["approval_commands"]
-        services['task_lookup_query']
         project, a, b = _make_two_tasks(services)
         dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
@@ -181,7 +173,6 @@ class TestUpdateGovernanceParity:
 
     def test_update_applies_immediately_when_not_governed(self, services):
         """Default (ungoverned) behavior is unchanged."""
-        services['task_lookup_query']
         _project, a, b = _make_two_tasks(services)
         dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
         services['task_dependency_commands'].update_dependency(dep.id, lag_days=2)
@@ -194,7 +185,6 @@ class TestUpdateValidation:
         as a duplicate of itself (the old code worked around this by
         blindly whitelisting DEPENDENCY_DUPLICATE, which also made the
         cycle check unreachable on this path)."""
-        services['task_lookup_query']
         _project, a, b = _make_two_tasks(services)
         dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
         updated = services['task_dependency_commands'].update_dependency(dep.id, dependency_type=DependencyType.START_TO_START, lag_days=1)
@@ -210,7 +200,6 @@ class TestUpdateValidation:
         exercises the diagnostics primitive directly at its actual
         boundary: a real duplicate pair, with exclude_dependency_id pointed
         at an unrelated third edge, must still be rejected."""
-        services['task_lookup_query']
         project, a, b = _make_two_tasks(services)
         c = services['task_lifecycle_commands'].create_task(project.id, "Task C", "", duration_days=1)
         existing = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
@@ -251,7 +240,6 @@ class TestApprovalApplyToctou:
         _login(services, "admin", "ChangeMe123!")
 
         approvals = services["approval_commands"]
-        services['task_lookup_query']
         project, a, b = _make_two_tasks(services)
 
         services["user_registration"].register_user("planner-dep-toctou", "StrongPass123", role_names=["planner"])

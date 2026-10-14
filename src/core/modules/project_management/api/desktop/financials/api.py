@@ -109,10 +109,10 @@ from src.core.modules.project_management.api.desktop.financials.serializers.snap
 )
 from src.core.modules.project_management.application.financials import (
     FinanceSnapshotQueryHandler,
-    ProjectBillingPreparationService,
-    ProjectBillingProfileService,
-    ProjectCommitmentService,
-    ProjectCostEntryService,
+    ProjectBillingPreparationQueryHandler,
+    ProjectBillingProfileQueryHandler,
+    ProjectCommitmentQueryHandler,
+    ProjectCostEntryQueryHandler,
     ProjectFinancePerformanceQuery,
     ProjectFinanceWorkspaceQuery,
 )
@@ -159,7 +159,6 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
-    FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.financials.invoicing.dto import (
     FinancialActivateBillingProfileCommand,
@@ -248,10 +247,10 @@ class ProjectManagementFinancialsDesktopApi:
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         finance_performance_query: ProjectFinancePerformanceQuery | None = None,
         finance_governance_commands: FinanceGovernanceCommandBoundary | None = None,
-        cost_entry_service: ProjectCostEntryService | FinanceGovernedServicePort | None = None,
-        commitment_service: ProjectCommitmentService | None = None,
-        billing_profile_service: ProjectBillingProfileService | None = None,
-        billing_preparation_service: ProjectBillingPreparationService | None = None,
+        cost_entry_query: ProjectCostEntryQueryHandler | None = None,
+        commitment_query: ProjectCommitmentQueryHandler | None = None,
+        billing_profile_query: ProjectBillingProfileQueryHandler | None = None,
+        billing_preparation_query: ProjectBillingPreparationQueryHandler | None = None,
         report_sources: ProjectReportSources | None = None,
         profitability_report: ProfitabilityReportBuilder | None = None,
     ) -> None:
@@ -259,10 +258,10 @@ class ProjectManagementFinancialsDesktopApi:
         self._finance_workspace_query = finance_workspace_query
         self._finance_performance_query = finance_performance_query
         self._finance_governance_commands = finance_governance_commands
-        self._cost_entry_service = cost_entry_service
-        self._commitment_service = commitment_service
-        self._billing_profile_service = billing_profile_service
-        self._billing_preparation_service = billing_preparation_service
+        self._cost_entry_query = cost_entry_query
+        self._commitment_query = commitment_query
+        self._billing_profile_query = billing_profile_query
+        self._billing_preparation_query = billing_preparation_query
         self._report_sources = report_sources
         self._profitability_report = profitability_report
 
@@ -552,7 +551,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialCreateCostCodeCommand
     ) -> FinancialCostCodeOptionDescriptor:
         commands = self._require_finance_governance_commands()
-        cost_code = commands.financial_setup(
+        cost_code = commands.cost_code(
             lambda service: service.create_cost_code(
                 code=command.code,
                 name=command.name,
@@ -571,7 +570,7 @@ class ProjectManagementFinancialsDesktopApi:
         )
 
     def update_financial_profile(self, command: FinancialUpdateProfileCommand) -> None:
-        self._require_finance_governance_commands().financial_setup(
+        self._require_finance_governance_commands().financial_profile(
             lambda service: service.configure_profile(
                 command.project_id,
                 expected_version=command.expected_version,
@@ -590,7 +589,7 @@ class ProjectManagementFinancialsDesktopApi:
     def transition_financial_profile(
         self, command: FinancialTransitionProfileCommand
     ) -> None:
-        self._require_finance_governance_commands().financial_setup(
+        self._require_finance_governance_commands().financial_profile(
             lambda service: service.transition_profile(
                 command.project_id,
                 target=command.target_status,
@@ -599,7 +598,7 @@ class ProjectManagementFinancialsDesktopApi:
         )
 
     def update_cost_code(self, command: FinancialUpdateCostCodeCommand) -> None:
-        self._require_finance_governance_commands().financial_setup(
+        self._require_finance_governance_commands().cost_code(
             lambda service: service.update_cost_code(
                 command.cost_code_id,
                 expected_version=command.expected_version,
@@ -621,12 +620,12 @@ class ProjectManagementFinancialsDesktopApi:
             operation = service.activate_cost_code if command.activate else service.deactivate_cost_code
             return operation(command.cost_code_id, expected_version=command.expected_version)
 
-        self._require_finance_governance_commands().financial_setup(mutate)
+        self._require_finance_governance_commands().cost_code(mutate)
 
     def add_cost_code_restriction(
         self, command: FinancialCostCodeRestrictionCommand
     ) -> None:
-        self._require_finance_governance_commands().financial_setup(
+        self._require_finance_governance_commands().cost_code(
             lambda service: service.add_project_cost_code(
                 project_id=command.project_id,
                 cost_code_id=command.cost_code_id,
@@ -636,7 +635,7 @@ class ProjectManagementFinancialsDesktopApi:
     def remove_cost_code_restriction(
         self, command: FinancialCostCodeRestrictionCommand
     ) -> None:
-        self._require_finance_governance_commands().financial_setup(
+        self._require_finance_governance_commands().cost_code(
             lambda service: service.remove_project_cost_code(
                 project_id=command.project_id,
                 cost_code_id=command.cost_code_id,
@@ -655,14 +654,14 @@ class ProjectManagementFinancialsDesktopApi:
         sort_direction: str = "desc",
     ) -> FinancialCostEntryPageDto:
         sort = normalize_cost_entry_sort(key=sort_key, direction=sort_direction)
-        if not project_id or self._cost_entry_service is None:
+        if not project_id or self._cost_entry_query is None:
             return FinancialCostEntryPageDto(
                 offset=offset,
                 limit=limit,
                 sort_key=sort.key,
                 sort_direction=sort.direction.value,
             )
-        entries, total = self._cost_entry_service.list_for_project(
+        entries, total = self._cost_entry_query.list_for_project(
             project_id,
             status=status,
             source_module=source_module,
@@ -677,7 +676,7 @@ class ProjectManagementFinancialsDesktopApi:
             total=total,
         )
         if normalized_offset != offset:
-            entries, total = self._cost_entry_service.list_for_project(
+            entries, total = self._cost_entry_query.list_for_project(
                 project_id,
                 status=status,
                 source_module=source_module,
@@ -693,7 +692,7 @@ class ProjectManagementFinancialsDesktopApi:
             limit=limit,
             sort_key=sort.key,
             sort_direction=sort.direction.value,
-            can_create_manual_actual=self._cost_entry_service.can_create_manual_entry(
+            can_create_manual_actual=self._cost_entry_query.can_create_manual_entry(
                 project_id
             ),
         )
@@ -749,7 +748,7 @@ class ProjectManagementFinancialsDesktopApi:
     def create_manual_actual(
         self, command: FinancialCreateManualActualCommand
     ) -> FinancialCostEntryDto:
-        entry = self._require_cost_entry_service().create_manual_entry(
+        entry = self._require_finance_governance_commands().cost_entry(lambda commands: commands.create_manual_entry(
             project_id=command.project_id,
             command_id=command.command_id,
             description=command.description,
@@ -760,13 +759,13 @@ class ProjectManagementFinancialsDesktopApi:
             entry_kind=command.entry_kind,
             task_id=command.task_id,
             resource_id=command.resource_id,
-        )
+        ))
         return self._serialize_cost_entry(entry)
 
     def update_actual_draft(
         self, command: FinancialUpdateActualDraftCommand
     ) -> FinancialCostEntryDto:
-        entry = self._require_cost_entry_service().update_draft(
+        entry = self._require_finance_governance_commands().cost_entry(lambda commands: commands.update_draft(
             command.entry_id,
             expected_version=command.expected_version,
             description=command.description,
@@ -776,31 +775,31 @@ class ProjectManagementFinancialsDesktopApi:
             cost_code_id=command.cost_code_id,
             task_id=command.task_id,
             resource_id=command.resource_id,
-        )
+        ))
         return self._serialize_cost_entry(entry)
 
     def delete_actual_draft(self, command: FinancialVersionedActualCommand) -> None:
-        self._require_cost_entry_service().delete_draft(
+        self._require_finance_governance_commands().cost_entry(lambda commands: commands.delete_draft(
             command.entry_id, expected_version=command.expected_version
-        )
+        ))
 
     def submit_actual(
         self, command: FinancialVersionedActualCommand
     ) -> FinancialCostEntryDto:
         return self._serialize_cost_entry(
-            self._require_cost_entry_service().submit(
+            self._require_finance_governance_commands().cost_entry(lambda commands: commands.submit(
                 command.entry_id, expected_version=command.expected_version
-            )
+            ))
         )
 
     def approve_actual(
         self, command: FinancialDecideActualCommand
     ) -> FinancialCostEntryApprovalDto:
-        result = self._require_cost_entry_service().approve(
+        result = self._require_finance_governance_commands().cost_entry_review(lambda commands: commands.approve(
             command.entry_id,
             expected_version=command.expected_version,
             notes=command.notes,
-        )
+        ))
         return FinancialCostEntryApprovalDto(
             outcome=result.outcome.value,
             entry_id=result.entry_id,
@@ -814,16 +813,16 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialDecideActualCommand
     ) -> FinancialCostEntryDto:
         return self._serialize_cost_entry(
-            self._require_cost_entry_service().reject(
+            self._require_finance_governance_commands().cost_entry_review(lambda commands: commands.reject(
                 command.entry_id,
                 expected_version=command.expected_version,
                 notes=command.notes,
-            )
+            ))
         )
 
     def post_actual(self, command: FinancialPostActualCommand) -> FinancialCostEntryDto:
         return self._serialize_cost_entry(
-            self._require_cost_entry_service().post(
+            self._require_finance_governance_commands().cost_entry_posting(lambda commands: commands.post(
                 command.entry_id,
                 expected_version=command.expected_version,
                 posting_date=command.posting_date,
@@ -831,24 +830,24 @@ class ProjectManagementFinancialsDesktopApi:
                 exchange_rate_date=command.exchange_rate_date,
                 exchange_rate_source=command.exchange_rate_source,
                 exchange_rate_captured_at=command.exchange_rate_captured_at,
-            )
+            ))
         )
 
     def reverse_actual(
         self, command: FinancialReverseActualCommand
     ) -> FinancialCostEntryDto:
         return self._serialize_cost_entry(
-            self._require_cost_entry_service().reverse(
+            self._require_finance_governance_commands().cost_entry_posting(lambda commands: commands.reverse(
                 command.entry_id,
                 expected_version=command.expected_version,
                 command_id=command.command_id,
                 posting_date=command.posting_date,
                 reason=command.reason,
-            )
+            ))
         )
 
     def _serialize_cost_entry(self, entry) -> FinancialCostEntryDto:
-        service = self._require_cost_entry_service()
+        service = self._require_cost_entry_query()
         return serialize_cost_entry(entry, service.capabilities_for(entry))
 
     def get_finance_overview(self, project_id: str) -> FinancialOverviewDto:
@@ -877,14 +876,14 @@ class ProjectManagementFinancialsDesktopApi:
         exposure: str = "",
     ) -> FinancialCommitmentLinePageDto:
         sort = normalize_commitment_sort(key=sort_key, direction=sort_direction)
-        if not project_id or self._commitment_service is None:
+        if not project_id or self._commitment_query is None:
             return FinancialCommitmentLinePageDto(
                 offset=offset,
                 limit=limit,
                 sort_key=sort.key,
                 sort_direction=sort.direction.value,
             )
-        lines, total = self._commitment_service.list_for_project(
+        lines, total = self._commitment_query.list_for_project(
             project_id,
             offset=offset,
             limit=limit,
@@ -898,7 +897,7 @@ class ProjectManagementFinancialsDesktopApi:
             total=total,
         )
         if normalized_offset != offset:
-            lines, total = self._commitment_service.list_for_project(
+            lines, total = self._commitment_query.list_for_project(
                 project_id,
                 offset=normalized_offset,
                 limit=limit,
@@ -1000,7 +999,7 @@ class ProjectManagementFinancialsDesktopApi:
     def submit_forecast(
         self, command: FinancialVersionedForecastCommand
     ) -> FinancialForecastMutationDto:
-        forecast = self._require_finance_governance_commands().forecast_version(
+        forecast = self._require_finance_governance_commands().forecast_lifecycle(
             lambda service: service.submit_forecast(
                 command.forecast_id,
                 submitted_by=self._forecast_actor_id(service),
@@ -1013,7 +1012,7 @@ class ProjectManagementFinancialsDesktopApi:
     def request_forecast_approval(
         self, command: FinancialVersionedForecastCommand
     ) -> FinancialForecastMutationDto:
-        result = self._require_finance_governance_commands().forecast_version(
+        result = self._require_finance_governance_commands().forecast_approval(
             lambda service: service.request_forecast_approval(
                 command.forecast_id,
                 expected_version=command.expected_version,
@@ -1122,7 +1121,7 @@ class ProjectManagementFinancialsDesktopApi:
     def add_rate_line(
         self, command: FinancialAddRateLineCommand
     ) -> FinancialRateMutationDto:
-        line = self._require_finance_governance_commands().rate_card(
+        line = self._require_finance_governance_commands().rate_line(
             lambda service: service.create_line(
                 command.rate_card_id,
                 expected_card_version=command.expected_card_version,
@@ -1150,7 +1149,7 @@ class ProjectManagementFinancialsDesktopApi:
     def update_rate_line(
         self, command: FinancialUpdateRateLineCommand
     ) -> FinancialRateMutationDto:
-        line = self._require_finance_governance_commands().rate_card(
+        line = self._require_finance_governance_commands().rate_line(
             lambda service: service.update_line(
                 command.rate_line_id,
                 expected_version=command.expected_version,
@@ -1170,7 +1169,7 @@ class ProjectManagementFinancialsDesktopApi:
     def deactivate_rate_line(
         self, command: FinancialVersionedRateLineCommand
     ) -> FinancialRateMutationDto:
-        line = self._require_finance_governance_commands().rate_card(
+        line = self._require_finance_governance_commands().rate_line(
             lambda service: service.deactivate_line(
                 command.rate_line_id,
                 expected_version=command.expected_version,
@@ -1469,7 +1468,7 @@ class ProjectManagementFinancialsDesktopApi:
     def submit_financial_change(
         self, command: FinancialSubmitChangeCommand
     ) -> FinancialChangeMutationDto:
-        change = self._require_finance_governance_commands().financial_change(
+        change = self._require_finance_governance_commands().financial_change_submission(
             lambda service: service.submit_change(
                 command.change_id,
                 submitted_by=self._change_actor_id(service),
@@ -1725,7 +1724,7 @@ class ProjectManagementFinancialsDesktopApi:
     def create_budget_version(
         self, command: FinancialCreateBudgetVersionCommand
     ) -> FinancialBudgetMutationDto:
-        budget = self._require_finance_governance_commands().budget(
+        budget = self._require_finance_governance_commands().budget_lifecycle(
             lambda service: service.create_budget(
                 command.project_id,
                 command.name,
@@ -1737,7 +1736,7 @@ class ProjectManagementFinancialsDesktopApi:
     def create_budget_successor(
         self, command: FinancialCreateBudgetSuccessorCommand
     ) -> FinancialBudgetMutationDto:
-        budget = self._require_finance_governance_commands().budget(
+        budget = self._require_finance_governance_commands().budget_lifecycle(
             lambda service: service.create_successor(
                 command.predecessor_budget_id,
                 name=command.name,
@@ -1748,7 +1747,7 @@ class ProjectManagementFinancialsDesktopApi:
     def update_budget(
         self, command: FinancialUpdateBudgetCommand
     ) -> FinancialBudgetMutationDto:
-        budget = self._require_finance_governance_commands().budget(
+        budget = self._require_finance_governance_commands().budget_lifecycle(
             lambda service: service.update_budget_header(
                 command.budget_id,
                 name=command.name,
@@ -1759,7 +1758,7 @@ class ProjectManagementFinancialsDesktopApi:
         return self._budget_mutation_dto(budget)
 
     def delete_budget(self, command: FinancialVersionedBudgetCommand) -> None:
-        self._require_finance_governance_commands().budget(
+        self._require_finance_governance_commands().budget_lifecycle(
             lambda service: service.delete_budget(
                 command.budget_id, expected_version=command.expected_version
             )
@@ -1768,7 +1767,7 @@ class ProjectManagementFinancialsDesktopApi:
     def add_budget_line(
         self, command: FinancialAddBudgetLineCommand
     ) -> FinancialBudgetLineMutationDto:
-        line = self._require_finance_governance_commands().budget(
+        line = self._require_finance_governance_commands().budget_lines(
             lambda service: service.add_line(
                 command.budget_id,
                 cost_code_id=command.cost_code_id,
@@ -1784,7 +1783,7 @@ class ProjectManagementFinancialsDesktopApi:
     def update_budget_line(
         self, command: FinancialUpdateBudgetLineCommand
     ) -> FinancialBudgetLineMutationDto:
-        line = self._require_finance_governance_commands().budget(
+        line = self._require_finance_governance_commands().budget_lines(
             lambda service: service.update_line(
                 command.budget_line_id,
                 expected_line_version=command.expected_version,
@@ -1799,7 +1798,7 @@ class ProjectManagementFinancialsDesktopApi:
         return self._budget_line_mutation_dto(line)
 
     def delete_budget_line(self, command: FinancialDeleteBudgetLineCommand) -> None:
-        self._require_finance_governance_commands().budget(
+        self._require_finance_governance_commands().budget_lines(
             lambda service: service.delete_line(
                 command.budget_line_id,
                 expected_line_version=command.expected_version,
@@ -1810,7 +1809,7 @@ class ProjectManagementFinancialsDesktopApi:
     def submit_budget(
         self, command: FinancialVersionedBudgetCommand
     ) -> FinancialBudgetMutationDto:
-        budget = self._require_finance_governance_commands().budget(
+        budget = self._require_finance_governance_commands().budget_lifecycle(
             lambda service: service.submit_budget(
                 command.budget_id,
                 self._actor_id(service),
@@ -1823,7 +1822,7 @@ class ProjectManagementFinancialsDesktopApi:
     def request_budget_approval(
         self, command: FinancialVersionedBudgetCommand
     ) -> FinancialBudgetMutationDto:
-        result = self._require_finance_governance_commands().budget(
+        result = self._require_finance_governance_commands().budget_approval(
             lambda service: service.request_budget_approval(
                 command.budget_id,
                 notes=command.notes,
@@ -1841,7 +1840,7 @@ class ProjectManagementFinancialsDesktopApi:
     def close_budget(
         self, command: FinancialVersionedBudgetCommand
     ) -> FinancialBudgetMutationDto:
-        budget = self._require_finance_governance_commands().budget(
+        budget = self._require_finance_governance_commands().budget_lifecycle(
             lambda service: service.close_budget(
                 command.budget_id,
                 self._actor_id(service),
@@ -1985,7 +1984,7 @@ class ProjectManagementFinancialsDesktopApi:
     def create_billing_profile(
         self, command: FinancialCreateBillingProfileCommand
     ) -> FinancialBillingProfileDto:
-        profile = self._require_billing_profile_service().create_profile(
+        profile = self._require_finance_governance_commands().billing_profile(lambda commands: commands.create_profile(
             command.project_id,
             contract_reference=command.contract_reference,
             contract_value=command.contract_value,
@@ -1995,105 +1994,105 @@ class ProjectManagementFinancialsDesktopApi:
             cost_plus_markup_percent=command.cost_plus_markup_percent,
             payment_terms_days=command.payment_terms_days,
             retention_years=command.retention_years,
-        )
+        ))
         return serialize_billing_profile(profile)
 
     def activate_billing_profile(
         self, command: FinancialActivateBillingProfileCommand
     ) -> FinancialBillingProfileDto:
-        profile = self._require_billing_profile_service().activate_profile(
+        profile = self._require_finance_governance_commands().billing_profile(lambda commands: commands.activate_profile(
             command.project_id, expected_row_version=command.expected_version
-        )
+        ))
         return serialize_billing_profile(profile)
 
     def add_billing_schedule_line(
         self, command: FinancialAddBillingScheduleLineCommand
     ) -> FinancialBillingScheduleLineDto:
-        line = self._require_billing_profile_service().add_schedule_line(
+        line = self._require_finance_governance_commands().billing_schedule(lambda commands: commands.add_schedule_line(
             command.project_id,
             name=command.name,
             amount=command.amount,
             due_date=command.due_date,
             task_id=command.task_id,
             acceptance_reference=command.acceptance_reference,
-        )
+        ))
         return serialize_billing_schedule_line(line)
 
     def mark_billing_schedule_line_ready(
         self, command: FinancialMarkBillingScheduleLineReadyCommand
     ) -> FinancialBillingScheduleLineDto:
-        line = self._require_billing_profile_service().mark_schedule_line_ready(
+        line = self._require_finance_governance_commands().billing_schedule(lambda commands: commands.mark_schedule_line_ready(
             command.line_id, expected_row_version=command.expected_version
-        )
+        ))
         return serialize_billing_schedule_line(line)
 
     def create_billing_preparation(
         self, command: FinancialCreateBillingPreparationCommand
     ) -> FinancialBillingPreparationDto:
-        preparation = self._require_billing_preparation_service().create_preparation(
+        preparation = self._require_finance_governance_commands().billing_preparation(lambda commands: commands.create_preparation(
             command.project_id,
             preparation_number=command.preparation_number,
             period_start=command.period_start,
             period_end=command.period_end,
             idempotency_key=command.idempotency_key,
             correction_of_preparation_id=command.correction_of_preparation_id,
-        )
+        ))
         return serialize_billing_preparation(preparation)
 
     def add_fixed_price_billing_source(
         self, command: FinancialAddFixedPriceBillingSourceCommand
     ) -> FinancialBillingPreparationLineDto:
-        line = self._require_billing_preparation_service().add_fixed_price_source(
+        line = self._require_finance_governance_commands().billing_source(lambda commands: commands.add_fixed_price_source(
             command.preparation_id,
             schedule_line_id=command.schedule_line_id,
             expected_row_version=command.expected_version,
-        )
+        ))
         return serialize_billing_preparation_line(line)
 
     def add_approved_time_billing_source(
         self, command: FinancialAddApprovedTimeBillingSourceCommand
     ) -> FinancialBillingPreparationLineDto:
-        line = self._require_billing_preparation_service().add_approved_time_source(
+        line = self._require_finance_governance_commands().billing_source(lambda commands: commands.add_approved_time_source(
             command.preparation_id,
             time_entry_id=command.time_entry_id,
             expected_row_version=command.expected_version,
-        )
+        ))
         return serialize_billing_preparation_line(line)
 
     def add_cost_plus_billing_source(
         self, command: FinancialAddCostPlusBillingSourceCommand
     ) -> FinancialBillingPreparationLineDto:
-        line = self._require_billing_preparation_service().add_cost_plus_source(
+        line = self._require_finance_governance_commands().billing_source(lambda commands: commands.add_cost_plus_source(
             command.preparation_id,
             cost_entry_id=command.cost_entry_id,
             expected_row_version=command.expected_version,
-        )
+        ))
         return serialize_billing_preparation_line(line)
 
     def remove_draft_billing_line(
         self, command: FinancialRemoveDraftBillingLineCommand
     ) -> FinancialBillingPreparationDto:
-        preparation = self._require_billing_preparation_service().remove_draft_line(
+        preparation = self._require_finance_governance_commands().billing_source(lambda commands: commands.remove_draft_line(
             command.preparation_id,
             line_id=command.line_id,
             expected_row_version=command.expected_version,
-        )
+        ))
         return serialize_billing_preparation(preparation)
 
     def cancel_draft_billing_preparation(
         self, command: FinancialVersionedBillingPreparationCommand
     ) -> FinancialBillingPreparationDto:
-        preparation = self._require_billing_preparation_service().cancel_draft_preparation(
+        preparation = self._require_finance_governance_commands().billing_preparation(lambda commands: commands.cancel_draft_preparation(
             command.preparation_id, expected_row_version=command.expected_version
-        )
+        ))
         return serialize_billing_preparation(preparation)
 
     def submit_billing_preparation(
         self, command: FinancialVersionedBillingPreparationCommand
     ) -> FinancialBillingPreparationDto:
-        preparation = self._require_billing_preparation_service().submit_preparation(
+        preparation = self._require_finance_governance_commands().billing_submission(lambda commands: commands.submit_preparation(
             command.preparation_id, expected_row_version=command.expected_version
-        )
+        ))
         return serialize_billing_preparation(preparation)
 
     def request_billing_delivery(
@@ -2102,11 +2101,10 @@ class ProjectManagementFinancialsDesktopApi:
         # The outbound project_billing_preparation.v1 payload isn't surfaced here -- PM
         # requests delivery of its own evidence, it doesn't deliver or record what
         # Accounting did with it.
-        service = self._require_billing_preparation_service()
-        service.request_delivery(
-            command.preparation_id, expected_row_version=command.expected_version
+        self._require_finance_governance_commands().accounting_handoff(
+            lambda commands: commands.request(command.preparation_id, expected_row_version=command.expected_version)
         )
-        preparation = service.get_preparation(command.preparation_id)
+        preparation = self._require_billing_preparation_query().get_preparation(command.preparation_id)
         return serialize_billing_preparation(preparation)
 
     def get_commercial_projection(
@@ -2127,20 +2125,20 @@ class ProjectManagementFinancialsDesktopApi:
             )
         )
 
-    def _require_cost_entry_service(self) -> ProjectCostEntryService | FinanceGovernedServicePort:
-        if self._cost_entry_service is None:
+    def _require_cost_entry_query(self) -> ProjectCostEntryQueryHandler:
+        if self._cost_entry_query is None:
             raise RuntimeError("Project cost-entry service is not connected.")
-        return self._cost_entry_service
+        return self._cost_entry_query
 
-    def _require_billing_profile_service(self) -> ProjectBillingProfileService:
-        if self._billing_profile_service is None:
+    def _require_billing_profile_query(self) -> ProjectBillingProfileQueryHandler:
+        if self._billing_profile_query is None:
             raise RuntimeError("Project billing profile service is not connected.")
-        return self._billing_profile_service
+        return self._billing_profile_query
 
-    def _require_billing_preparation_service(self) -> ProjectBillingPreparationService:
-        if self._billing_preparation_service is None:
+    def _require_billing_preparation_query(self) -> ProjectBillingPreparationQueryHandler:
+        if self._billing_preparation_query is None:
             raise RuntimeError("Project billing preparation service is not connected.")
-        return self._billing_preparation_service
+        return self._billing_preparation_query
 
     def _require_finance_governance_commands(
         self,

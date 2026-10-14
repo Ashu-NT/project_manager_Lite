@@ -20,8 +20,6 @@ _SIZES = {
 
 
 def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
-    services['project_query']
-    services['task_lookup_query']
     services["project_resource_query"]
     scenario_commands = services["portfolio_scenario_commands"]
 

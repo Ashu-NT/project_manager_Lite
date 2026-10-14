@@ -15,27 +15,27 @@ from src.tests.ui_runtime_helpers import login_as
 
 
 def _approve_project_budget(services, project_id: str, amount: str) -> None:
-    configuration = services["financial_configuration_service"]
-    budgets = services["budget_service"]
-    code = configuration.create_cost_code(
+    configuration = services['financial_configuration_query']
+    budgets = services['budget_query']
+    code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"PORT-{project_id[:8]}",
         name="Portfolio authorization",
-    )
-    budget = budgets.create_budget(project_id, "Approved portfolio budget")
-    budgets.add_line(
+    ))
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project_id, "Approved portfolio budget"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
         cost_code_id=code.id,
         description="Authorized amount",
         amount=Decimal(amount),
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         budget.id, "admin", expected_version=budget.row_version
-    )
-    budgets.approve_budget(
+    ))
+    services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
         budget.id, approved_by="admin", expected_version=budget.row_version
-    )
+    ))
 
 
 def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch):
@@ -94,8 +94,6 @@ def test_security_admin_can_revoke_live_user_sessions(services):
 
 def test_project_memberships_restrict_project_and_task_queries(services):
     access = services["access_service"]
-    services['project_query']
-    services['task_lookup_query']
 
     project_alpha = services['project_create'].create_project("Scoped Alpha")
     project_beta = services['project_create'].create_project("Scoped Beta")
@@ -125,8 +123,6 @@ def test_project_memberships_restrict_project_and_task_queries(services):
 
 def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(services):
     access = services["access_service"]
-    services['project_query']
-    services['task_lookup_query']
 
     project_alpha = services['project_create'].create_project("Collab Alpha")
     project_beta = services['project_create'].create_project("Collab Beta")
@@ -253,8 +249,6 @@ def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(se
 
 def test_collaboration_recent_activity_filters_project_scope(services):
     access = services["access_service"]
-    services['project_query']
-    services['task_lookup_query']
 
     project_alpha = services['project_create'].create_project("Notifications Alpha")
     project_beta = services['project_create'].create_project("Notifications Beta")
@@ -303,7 +297,6 @@ def test_collaboration_service_tracks_active_task_presence(services):
 
 
 def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
-    services['project_query']
     services["resource_master_commands"].create_resource("Portfolio Analyst", hourly_rate=100.0, capacity_percent=50.0)
     project = services['project_create'].create_project("Portfolio Project")
     _approve_project_budget(services, project.id, "500")
@@ -372,7 +365,6 @@ def test_portfolio_scoring_templates_drive_new_intake_scores(services):
 
 
 def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(services):
-    services['project_query']
     services["resource_master_commands"].create_resource("Portfolio Capacity", hourly_rate=95.0, capacity_percent=100.0)
     project_alpha = services['project_create'].create_project("Portfolio Alpha")
     project_beta = services['project_create'].create_project("Portfolio Beta")
@@ -428,8 +420,6 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
 
 
 def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(services):
-    services['project_query']
-    services['task_lookup_query']
 
     project = services['project_create'].create_project("Executive Pressure Project")
     _approve_project_budget(services, project.id, "200")
@@ -466,7 +456,6 @@ def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(service
 
 
 def test_portfolio_project_dependencies_track_cross_project_links(services):
-    services['project_query']
 
     predecessor = services['project_create'].create_project("Dependency Program Alpha")
     successor = services['project_create'].create_project("Dependency Program Beta")

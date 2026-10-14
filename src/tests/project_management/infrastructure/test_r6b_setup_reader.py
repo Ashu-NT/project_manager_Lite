@@ -28,21 +28,26 @@ def _statement_count(session):
 
 
 def test_setup_reader_returns_one_scoped_immutable_projection(services) -> None:
-    project = services['project_create'].create_project(
+    project = services["project_create"].create_project(
         "R6B Finance Setup",
         financial_currency_code="XAF",
     )
-    configuration = services["financial_configuration_service"]
-    cost_code = configuration.create_cost_code(
-        code="R6B-SETUP",
-        name="Setup default",
-        available_to_project_id=project.id,
+    configuration = services["financial_configuration_query"]
+    boundary = services["finance_governance_commands"]
+    cost_code = boundary.cost_code(
+        lambda handler: handler.create_cost_code(
+            code="R6B-SETUP",
+            name="Setup default",
+            available_to_project_id=project.id,
+        )
     )
     profile = configuration.get_profile(project.id)
-    configuration.configure_profile(
-        project.id,
-        expected_version=profile.version,
-        default_cost_code_id=cost_code.id,
+    boundary.financial_profile(
+        lambda handler: handler.configure_profile(
+            project.id,
+            expected_version=profile.version,
+            default_cost_code_id=cost_code.id,
+        )
     )
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="test Finance Setup Reader"
@@ -64,8 +69,10 @@ def test_setup_reader_returns_one_scoped_immutable_projection(services) -> None:
     assert not hasattr(facts, "__dict__")
 
 
-def test_setup_reader_denies_explicit_wrong_scope_and_desktop_serializes(services) -> None:
-    project = services['project_create'].create_project(
+def test_setup_reader_denies_explicit_wrong_scope_and_desktop_serializes(
+    services,
+) -> None:
+    project = services["project_create"].create_project(
         "R6B Finance Setup Scope",
         financial_currency_code="USD",
     )
@@ -74,16 +81,22 @@ def test_setup_reader_denies_explicit_wrong_scope_and_desktop_serializes(service
     )
     reader = services["finance_workspace_query"]._setup_reader
 
-    assert reader.get_setup(
-        tenant_id="foreign-tenant",
-        organization_id=scope.organization_id,
-        project_id=project.id,
-    ) is None
-    assert reader.get_setup(
-        tenant_id=scope.tenant_id,
-        organization_id="foreign-organization",
-        project_id=project.id,
-    ) is None
+    assert (
+        reader.get_setup(
+            tenant_id="foreign-tenant",
+            organization_id=scope.organization_id,
+            project_id=project.id,
+        )
+        is None
+    )
+    assert (
+        reader.get_setup(
+            tenant_id=scope.tenant_id,
+            organization_id="foreign-organization",
+            project_id=project.id,
+        )
+        is None
+    )
 
     desktop = ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"]

@@ -8,9 +8,30 @@ from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
+def test_task_detail_batch_lookup_uses_one_scoped_repository_call(services, monkeypatch) -> None:
+    project = services["project_create"].create_project("Batch task lookup")
+    tasks = [services["task_lifecycle_commands"].create_task(project.id, name) for name in ("Task A", "Task B")]
+    detail = services["task_detail_query"]
+    read = Mock(wraps=detail._task_repo.list_by_ids)
+    monkeypatch.setattr(detail._task_repo, "list_by_ids", read)
+    result = detail.list_tasks_by_ids([tasks[0].id, tasks[1].id, tasks[0].id])
+    assert {task.id for task in result} == {task.id for task in tasks}
+    read.assert_called_once_with([tasks[0].id, tasks[1].id])
+
+
+def test_task_detail_batch_lookup_preserves_project_denial(services, monkeypatch) -> None:
+    project = services["project_create"].create_project("Denied batch lookup")
+    task = services["task_lifecycle_commands"].create_task(project.id, "Restricted")
+    detail = services["task_detail_query"]
+    deny = Mock(side_effect=BusinessRuleError("Project access denied.", code="PERMISSION_DENIED"))
+    monkeypatch.setattr(
+        "src.core.modules.project_management.application.tasks.queries.task_detail_page.require_project_permission", deny
+    )
+    with pytest.raises(BusinessRuleError, match="Project access denied"):
+        detail.list_tasks_by_ids([task.id])
+
+
 def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services) -> None:
-    services['project_query']
-    services['task_lookup_query']
     detail = services["task_detail_query"]
     project = services['project_create'].create_project("Task detail query project")
     predecessor = services['task_lifecycle_commands'].create_task(project.id, "Predecessor")
@@ -49,7 +70,6 @@ def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services)
 
 
 def test_task_detail_scope_denial_stops_before_reader(services, monkeypatch) -> None:
-    services['task_lookup_query']
     project = services['project_create'].create_project("Task detail scope project")
     task = services['task_lifecycle_commands'].create_task(project.id, "Scoped task")
     detail = services["task_detail_query"]

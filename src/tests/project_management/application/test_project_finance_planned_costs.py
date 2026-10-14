@@ -21,30 +21,30 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
     project = services['project_create'].create_project(
         "Planned Cost Project", financial_currency_code="USD"
     )
-    cost_code = services["financial_configuration_service"].create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="LABOR-DEFAULT", name="Default Labor"
-    )
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
+    ))
+    profile = services['financial_configuration_query'].get_profile(project.id)
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
-    )
+    ))
     resource = services["resource_master_commands"].create_resource(
         "Engineer One", hourly_rate=hourly_rate, currency_code="USD"
     )
-    rate_card = services["rate_card_service"].create_rate_card(
+    rate_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="Planned Cost Project Rates",
         project_id=project.id,
-    )
-    services["rate_card_service"].create_line(
+    ))
+    services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
         rate_card.id,
         rate_type=RateType.COST,
         unit="HOUR",
         rate_amount=Decimal(str(hourly_rate)),
         rate_currency="USD",
         resource_id=resource.id,
-    )
+    ))
     project_resource = services["project_resource_commands"].add_to_project(
         project.id, resource.id, hourly_rate=hourly_rate, currency_code="USD",
         planned_hours=planned_hours,
@@ -163,9 +163,9 @@ def test_calculate_snapshot_basic_correctness(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0, hourly_rate=50.0)
     _allocate(services, ctx, Decimal(30))
 
-    result = services["planned_cost_service"].calculate_snapshot(
+    result = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    )
+    ))
     version = result.version
     assert version.status == PlannedCostVersionStatus.CURRENT
     assert version.revision == 1
@@ -174,7 +174,7 @@ def test_calculate_snapshot_basic_correctness(services) -> None:
     assert version.partially_allocated_resource_count == 1
     assert version.unresolved_rate_count == 0
 
-    lines = services["planned_cost_service"].list_lines(version.id)
+    lines = services['planned_cost_query'].list_lines(version.id)
     assert len(lines) == 1
     line = lines[0]
     assert line.task_id == ctx["task"].id
@@ -196,9 +196,9 @@ def test_calculate_snapshot_basic_correctness(services) -> None:
 def test_fully_allocated_envelope_marks_allocations_complete(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
     _allocate(services, ctx, Decimal(40))
-    result = services["planned_cost_service"].calculate_snapshot(
+    result = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    )
+    ))
     assert result.version.allocations_complete is True
     assert result.version.partially_allocated_resource_count == 0
     diag = result.diagnostics[0]
@@ -209,11 +209,11 @@ def test_fully_allocated_envelope_marks_allocations_complete(services) -> None:
 def test_empty_project_produces_valid_empty_snapshot(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
     # No allocation performed — assignment.allocated_planned_hours stays 0.
-    result = services["planned_cost_service"].calculate_snapshot(
+    result = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    )
+    ))
     assert result.version.status == PlannedCostVersionStatus.CURRENT
-    assert services["planned_cost_service"].list_lines(result.version.id) == []
+    assert services['planned_cost_query'].list_lines(result.version.id) == []
 
 
 def test_missing_default_cost_code_fails_closed(services) -> None:
@@ -221,40 +221,40 @@ def test_missing_default_cost_code_fails_closed(services) -> None:
         "No Cost Code Project", financial_currency_code="USD"
     )
     with pytest.raises(BusinessRuleError) as exc:
-        services["planned_cost_service"].calculate_snapshot(project.id, calculated_by="admin")
+        services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(project.id, calculated_by="admin"))
     assert exc.value.code == "PLANNED_COST_NO_DEFAULT_COST_CODE"
 
 
 def test_calculation_supersedes_previous_version_and_increments_revision(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
     _allocate(services, ctx, Decimal(10))
-    first = services["planned_cost_service"].calculate_snapshot(
+    first = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    ).version
+    )).version
 
     _allocate(services, ctx, Decimal(20))
-    second = services["planned_cost_service"].calculate_snapshot(
+    second = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    ).version
+    )).version
 
     assert second.revision == first.revision + 1
-    refreshed_first = services["planned_cost_service"].get_version(first.id)
+    refreshed_first = services['planned_cost_query'].get_version(first.id)
     assert refreshed_first.status == PlannedCostVersionStatus.SUPERSEDED
     assert refreshed_first.superseded_by == "admin"
-    current = services["planned_cost_service"].get_current_snapshot(ctx["project"].id)
+    current = services['planned_cost_query'].get_current_snapshot(ctx["project"].id)
     assert current.id == second.id
 
 
 def test_totals_by_task_and_cost_code_match_lines(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
     _allocate(services, ctx, Decimal(30))
-    version = services["planned_cost_service"].calculate_snapshot(
+    version = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    ).version
+    )).version
 
-    by_task = services["planned_cost_service"].get_totals_by_task(version.id)
-    by_cost_code = services["planned_cost_service"].get_totals_by_cost_code(version.id)
-    lines = services["planned_cost_service"].list_lines(version.id)
+    by_task = services['planned_cost_query'].get_totals_by_task(version.id)
+    by_cost_code = services['planned_cost_query'].get_totals_by_cost_code(version.id)
+    lines = services['planned_cost_query'].list_lines(version.id)
     expected_total = sum((line.amount for line in lines), Decimal(0))
     assert sum(by_task.values(), Decimal(0)) == expected_total
     assert sum(by_cost_code.values(), Decimal(0)) == expected_total
@@ -265,14 +265,14 @@ def test_totals_by_task_and_cost_code_match_lines(services) -> None:
 def test_source_assignment_id_survives_assignment_deletion(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
     _allocate(services, ctx, Decimal(30))
-    version = services["planned_cost_service"].calculate_snapshot(
+    version = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         ctx["project"].id, calculated_by="admin"
-    ).version
-    line_before = services["planned_cost_service"].list_lines(version.id)[0]
+    )).version
+    line_before = services['planned_cost_query'].list_lines(version.id)[0]
 
     services['task_assignment_commands'].unassign_resource(ctx["assignment"].id)
 
-    line_after = services["planned_cost_service"].list_lines(version.id)[0]
+    line_after = services['planned_cost_query'].list_lines(version.id)[0]
     assert line_after.source_assignment_id == line_before.source_assignment_id
     assert line_after.amount == line_before.amount
     assert line_after.planned_hours == line_before.planned_hours
@@ -280,4 +280,4 @@ def test_source_assignment_id_survives_assignment_deletion(services) -> None:
 
 def test_version_not_found_raises(services) -> None:
     with pytest.raises(NotFoundError):
-        services["planned_cost_service"].get_version("does-not-exist")
+        services['planned_cost_query'].get_version("does-not-exist")

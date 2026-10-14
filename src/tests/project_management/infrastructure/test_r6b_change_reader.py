@@ -48,9 +48,9 @@ def _seed_changes(services):
     project = services['project_create'].create_project(
         "R6B Change Reader", financial_currency_code="USD"
     )
-    code = services["financial_configuration_service"].create_cost_code(
+    code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6B-CHANGE", name="Governed change"
-    )
+    ))
     _approve_finance_bases(services, project.id, code.id)
     task = services['task_lifecycle_commands'].create_task(
         project.id,
@@ -58,35 +58,35 @@ def _seed_changes(services):
         start_date=date(2026, 9, 1),
         duration_days=5,
     )
-    changes = services["financial_change_service"]
+    changes = services['financial_change_query']
     principal = services["user_session"].principal
-    alpha = changes.create_change(
+    alpha = services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
         project.id,
         title="Alpha approved scope",
         reason="Customer-approved scope increase",
         description="Governed commercial and schedule evidence.",
         effective_date=date(2026, 9, 1),
         created_by=principal.user_id,
-    )
-    budget_impact = changes.add_impact(
+    ))
+    budget_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         alpha.id,
         impact_type=FinancialChangeImpactType.BUDGET,
         description="Increase approved budget",
         amount=Decimal("125.2500"),
         cost_code_id=code.id,
         expected_change_version=alpha.row_version,
-    )
-    alpha = changes.get_change(alpha.id)
-    forecast_impact = changes.add_impact(
+    ))
+    alpha = services['financial_change_query'].get_change(alpha.id)
+    forecast_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         alpha.id,
         impact_type=FinancialChangeImpactType.FORECAST,
         description="Increase forecast exposure",
         amount=Decimal("80.5000"),
         cost_code_id=code.id,
         expected_change_version=alpha.row_version,
-    )
-    alpha = changes.get_change(alpha.id)
-    schedule_impact = changes.add_impact(
+    ))
+    alpha = services['financial_change_query'].get_change(alpha.id)
+    schedule_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         alpha.id,
         impact_type=FinancialChangeImpactType.SCHEDULE,
         description="Move commissioning window",
@@ -94,51 +94,51 @@ def _seed_changes(services):
         schedule_start=date(2026, 9, 8),
         schedule_finish=date(2026, 9, 11),
         expected_change_version=alpha.row_version,
-    )
-    alpha = changes.get_change(alpha.id)
-    alpha = changes.submit_change(
+    ))
+    alpha = services['financial_change_query'].get_change(alpha.id)
+    alpha = services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         alpha.id,
         submitted_by=principal.user_id,
         expected_version=alpha.row_version,
-    )
-    zulu = changes.create_change(
+    ))
+    zulu = services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
         project.id,
         title="Zulu contingency",
         reason="Contingency evidence",
         effective_date=date(2026, 10, 1),
         created_by=principal.user_id,
-    )
+    ))
     services["session"].expire_all()
     return project, code, task, alpha, zulu, budget_impact, forecast_impact, schedule_impact
 
 
 def _approve_finance_bases(services, project_id: str, cost_code_id: str) -> None:
-    budgets = services["budget_service"]
-    budget = budgets.create_budget(project_id, "R6B approved budget")
-    budgets.add_line(
+    budgets = services['budget_query']
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project_id, "R6B approved budget"))
+    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
         cost_code_id=cost_code_id,
         description="Approved scope base",
         amount=Decimal(1000),
         expected_budget_version=budget.row_version,
-    )
-    budget = budgets.get_budget(budget.id)
-    budget = budgets.submit_budget(
+    ))
+    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
         budget.id, "admin", expected_version=budget.row_version
-    )
-    budgets.approve_budget(
+    ))
+    services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
         budget.id, approved_by="admin", expected_version=budget.row_version
-    )
+    ))
 
-    forecasts = services["forecast_version_service"]
-    forecast = forecasts.create_forecast(
+    forecasts = services['forecast_version_query']
+    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project_id,
         name="R6B approved forecast",
         as_of_date=date(2026, 8, 28),
         generation_mode=ForecastGenerationMode.MANUAL,
         created_by="admin",
-    )
-    forecasts.add_line(
+    ))
+    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
         forecast.id,
         cost_code_id=cost_code_id,
         description="Approved forecast base",
@@ -147,14 +147,14 @@ def _approve_finance_bases(services, project_id: str, cost_code_id: str) -> None
         source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
         created_by="admin",
         expected_forecast_version=forecast.row_version,
-    )
-    forecast = forecasts.get_forecast(forecast.id)
-    forecast = forecasts.submit_forecast(
+    ))
+    forecast = services['forecast_version_query'].get_forecast(forecast.id)
+    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
         forecast.id, submitted_by="admin", expected_version=forecast.row_version
-    )
-    forecasts.approve_forecast(
+    ))
+    services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
         forecast.id, approved_by="admin", expected_version=forecast.row_version
-    )
+    ))
 
 
 def test_change_reader_is_bounded_sorted_filtered_and_selection_is_explicit(services):

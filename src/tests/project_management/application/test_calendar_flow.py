@@ -11,8 +11,6 @@ def test_enterprise_calendar_holiday_blocks_scheduling_day(services):
     """
     exc_svc_commands = services["calendar_exception_commands"]
     cal_svc_queries = services["platform_calendar_queries"]
-    services['project_query']
-    services['task_lookup_query']
     sched = services["scheduling_engine"]
 
     # Find the global enterprise calendar (bootstrapped on startup)

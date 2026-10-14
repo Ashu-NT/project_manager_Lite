@@ -80,7 +80,6 @@ class TestPlannerComputesItsOwnFingerprint:
         """R4.4M's future Apply command must be able to recompute this
         exact token from a freshly re-read database snapshot and compare
         it against the one embedded in the proposal it is applying."""
-        services['project_query']
         ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
@@ -109,7 +108,6 @@ class TestPlannerComputesItsOwnFingerprint:
         assert proposal.schedule_fingerprint == independently_recomputed
 
     def test_proposal_fingerprint_changes_after_an_unrelated_task_edit_bumps_its_version(self, services):
-        services['project_query']
         ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
