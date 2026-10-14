@@ -46,10 +46,13 @@ from src.core.modules.project_management.infrastructure.importers import (
     DataImportService,
 )
 from src.core.platform.access import AccessControlService
-from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.data_operations.importing import CsvImportRuntime
+from src.core.platform.application.approval import (
+    ApprovalCommandHandler,
+    ApprovalQueryHandler,
+)
 from src.core.platform.application.data_operations.exporting import ExportRuntime
+from src.core.platform.application.data_operations.importing import CsvImportRuntime
+from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.master_data.department import (
     DepartmentCommandHandler,
     DepartmentQueryHandler,
@@ -107,7 +110,8 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.module_entitlement_commands, ModuleEntitlementCommandHandler)
     assert isinstance(graph.time_entry_commands, TimeEntryCommandHandler)
     assert isinstance(graph.time_entry_queries, TimeEntryQueryHandler)
-    assert isinstance(graph.approval_service, ApprovalService)
+    assert isinstance(graph.approval_commands, ApprovalCommandHandler)
+    assert isinstance(graph.approval_queries, ApprovalQueryHandler)
     assert isinstance(graph.auth.authentication, AuthenticationHandler)
     assert isinstance(graph.role_assignment_commands, RoleAssignmentHandler)
     assert isinstance(graph.organization_commands, OrganizationCommandHandler)
@@ -156,7 +160,8 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.data_import_service, DataImportService)
 
     as_dict = graph.as_dict()
-    assert as_dict["approval_service"] is graph.approval_service
+    assert as_dict["approval_commands"] is graph.approval_commands
+    assert as_dict["approval_queries"] is graph.approval_queries
     assert as_dict["authentication"] is graph.auth.authentication
     assert as_dict["principal_builder"] is graph.auth.principals
     assert as_dict["platform_runtime_query"] is graph.platform_runtime_query

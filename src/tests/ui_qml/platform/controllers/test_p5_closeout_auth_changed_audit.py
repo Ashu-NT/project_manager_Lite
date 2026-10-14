@@ -68,7 +68,7 @@ def test_role_governance_commands_emits_no_auth_changed():
 def test_tenant_membership_service_still_emits_no_auth_changed():
     import inspect
 
-    import src.core.platform.application.tenant.tenancy.tenant_membership_service as module
+    import src.core.platform.application.tenant.tenancy.commands.membership_lifecycle as module
 
     source = inspect.getsource(module)
     assert "auth_changed" not in source
@@ -241,7 +241,7 @@ def test_membership_removal_refreshes_membership_and_role_binding_narrowly_with_
     services,
 ):
     catalog = _catalog(services)
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     admin_principal = services["user_session"].principal
 
     target = services["user_registration"].register_user(_unique_code("p5closeout-removal-target"), _PASSWORD)
@@ -269,7 +269,7 @@ def test_membership_removal_refreshes_membership_and_role_binding_narrowly_with_
     )
     catalog.adminWorkspace.refresh = lambda: coarse_admin_calls.append("admin_console_full_refresh") or None
 
-    membership_service.remove_member(target.id)
+    services["tenant_membership_lifecycle_commands"].remove_member(target.id)
 
     assert membership_refresh_calls == ["membership"]
     assert role_binding_refresh_calls == ["role_binding"]  # the default `viewer` grant revoked

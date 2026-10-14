@@ -480,7 +480,7 @@ def build_project_management_service_bundle(
     )
     logger.debug("Project Management core services built")
     register_project_management_approval_handlers(
-        approval_service=platform_services.approval_service,
+        approval_participants=platform_services.approval_participants,
         user_session=platform_services.user_session,
         session=session,
         tenant_context_service=platform_services.tenant_context_service,

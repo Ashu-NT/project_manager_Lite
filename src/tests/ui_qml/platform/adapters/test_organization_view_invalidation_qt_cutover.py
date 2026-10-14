@@ -137,7 +137,7 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
     )
     assert signal_calls == ["stale"]
 
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     tenant_b = admin_svc.create_tenant(_unique_code("SCOPE-TENANT-B"), "Scope Tenant B")
     services["session"].flush()
 
@@ -199,7 +199,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     )
     assert signal_calls == ["stale"]
 
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     tenant_b = admin_svc.create_tenant(_unique_code("SWITCH-TENANT-B"), "Switch Tenant B")
     services["session"].flush()
 
@@ -285,7 +285,7 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter_end_to_end(s
     tenant_a = services["tenant_context_service"].get_active_tenant_id()
     assert any(f.tenant_id == tenant_a for f in _current_filters())
 
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     tenant_b = admin_svc.create_tenant(_unique_code("REALSWITCH-TENANT-B"), "Real Switch Tenant B")
     services["session"].flush()
 

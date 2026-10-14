@@ -6,7 +6,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class RoleBindingPlatformScope:
     """No tenant, no organization, no resource. (Not reachable through
-    `RoleGovernanceService.assign_role`/`revoke_role_binding` today -- platform-role assignment
+    `RoleGovernanceCommandHandler.assign_role`/`revoke_role_binding` today -- platform-role assignment
     is denied there by an existing business rule -- represented here for completeness, matching
     `PlatformBindingScope`'s own documented non-reachability.)"""
 

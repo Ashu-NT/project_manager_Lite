@@ -567,7 +567,7 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
 
     assert any(f.tenant_id == tenant_a for f in _tenant_wide_filters())
 
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     tenant_b = admin_svc.create_tenant(_unique_code("P5C3-TENANT-B"), "P5C-3 Tenant B")
     services["session"].flush()
 

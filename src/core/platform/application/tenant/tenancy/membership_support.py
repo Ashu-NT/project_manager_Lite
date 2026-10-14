@@ -331,7 +331,7 @@ class TenantMembershipSupport:
         actor,
     ) -> None:
         """Grants the default role on self-service acceptance, skipping the interactive-admin
-        delegation/SoD checks `RoleGovernanceService.assign_role` enforces -- this is a
+        delegation/SoD checks `RoleGovernanceCommandHandler.assign_role` enforces -- this is a
         system-issued grant, not an admin delegating a role to someone else."""
         role = self.require_default_invitation_role(uow.roles, tenant_id)
         create_role_binding_using(
@@ -359,7 +359,7 @@ class TenantMembershipSupport:
         actor,
     ) -> int:
         """Revokes every active RoleBinding the target holds in this tenant, through the
-        same canonical revoke mechanics `RoleGovernanceService.revoke_role_binding` uses,
+        same canonical revoke mechanics `RoleGovernanceCommandHandler.revoke_role_binding` uses,
         emitting one `RoleBindingRevoked` per binding. Skips interactive-admin delegation/SoD
         policy: this is a membership-lifecycle cascade, not an admin revoking someone else's
         role by choice."""

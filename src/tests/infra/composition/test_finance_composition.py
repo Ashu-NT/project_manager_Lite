@@ -76,7 +76,7 @@ from src.infra.integration.procurement_financial_dispatcher import (
 
 
 def test_budget_and_forecast_events_have_one_shared_handler_per_family(services) -> None:
-    bus = services["project_service"]._uow_factory._post_commit_bus
+    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     for event_types, name in (
         (
             (
@@ -109,7 +109,7 @@ def test_budget_and_forecast_events_have_one_shared_handler_per_family(services)
 
 
 def test_remaining_finance_events_have_one_handler_per_family(services) -> None:
-    bus = services["project_service"]._uow_factory._post_commit_bus
+    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     for event_types, name in (
         ((FinancialChangeChanged,), "handle"),
         ((PlannedCostSnapshotCalculated,), "handle_planned_cost_event"),
@@ -186,7 +186,6 @@ def test_finance_setup_rate_and_budget_preserve_raw_service_lifetimes(services, 
     assert rate_cards._read_service._session is session
     assert budget._read_service._session is session
     assert budget._read_service._clock is resolver._clock
-    assert resolver._clock is services["resource_master_commands"]._clock
 
 
 def test_finance_cost_services_preserve_session_clock_and_rate_resolver(services, session) -> None:

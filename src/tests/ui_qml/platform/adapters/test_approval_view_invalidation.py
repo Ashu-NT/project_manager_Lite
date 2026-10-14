@@ -550,7 +550,7 @@ def test_full_switch_sequence_a1_a2_b1_a1_ends_with_exactly_one_live_subscriptio
     """A/A1 -> A/A2 -> B/B1 -> A/A1 -- exactly one live subscription throughout, correct final
     scope, no duplicate callbacks."""
     channel = services["platform_view_invalidation_channel"]
-    tenant_admin = services["tenant_admin_service"]
+    tenant_admin = services["tenant_lifecycle_commands"]
     tenant_a = _active_tenant(services)
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = services["organization_commands"].create_organization(
@@ -625,7 +625,7 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
 
     assert any(f.tenant_id == tenant_a and f.organization_id == org_a1.id for f in _current_filters())
 
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     tenant_b = admin_svc.create_tenant(_unique("VI-TENANT-B"), "View Invalidation Tenant B")
     services["session"].flush()
 
@@ -692,7 +692,9 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
     from sqlalchemy.orm import sessionmaker
 
     from src.core.platform.application.approval.commands import ApprovalCommandHandler
-    from src.core.platform.application.approval.participants import ApprovalParticipantRegistry
+    from src.core.platform.application.approval.participants import (
+        ApprovalParticipantRegistry,
+    )
     from src.core.platform.application.approval.scope import ApprovalScope
     from src.core.platform.domain.security.auth.session import (
         UserSessionContext,

@@ -204,7 +204,7 @@ def test_composed_denial_writer_persists_scope_and_trace(services) -> None:
 
 def test_tenant_switch_success_is_audited_and_idempotent(services) -> None:
     tenant_context = services["tenant_context_service"]
-    tenant_admin = services["tenant_admin_service"]
+    tenant_admin = services["tenant_lifecycle_commands"]
     user_session = services["user_session"]
     current = user_session.principal
     assert current is not None
@@ -278,7 +278,7 @@ def test_context_audit_failure_rolls_back_persisted_session_and_principal(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     tenant_context = services["tenant_context_service"]
-    tenant_admin = services["tenant_admin_service"]
+    tenant_admin = services["tenant_lifecycle_commands"]
     user_session = services["user_session"]
     target = tenant_admin.create_tenant(
         "AUDIT-ROLLBACK",
@@ -327,7 +327,7 @@ def test_context_audit_failure_rolls_back_persisted_session_and_principal(
 
 
 def test_tenant_switch_denial_is_durable_and_preserves_reason(services) -> None:
-    tenant_admin = services["tenant_admin_service"]
+    tenant_admin = services["tenant_lifecycle_commands"]
     tenant_context = services["tenant_context_service"]
     user_session = services["user_session"]
     target = tenant_admin.create_tenant(
@@ -367,7 +367,7 @@ def test_tenant_switch_denial_is_durable_and_preserves_reason(services) -> None:
 
 def test_saas_switch_requires_audited_committer(services) -> None:
     tenant_context = services["tenant_context_service"]
-    tenant_admin = services["tenant_admin_service"]
+    tenant_admin = services["tenant_lifecycle_commands"]
     user_session = services["user_session"]
     target = tenant_admin.create_tenant(
         "AUDIT-REQUIRED",

@@ -408,6 +408,9 @@ def test_desktop_read_drains_committed_work_after_simulated_restart(services, se
     user = services["authentication"].authenticate("durable-notification-user", "StrongPass123!")
     services["user_session"].set_principal(services["principal_builder"].build(user))
     services["user_session"].set_active_tenant_id("durable-notification-tenant")
+    assert services["notification_queries"].list_my_notifications() == []
+    result = services["platform_notification_desktop_api"].list_my_notifications()
+    assert result.ok and result.data is not None and len(result.data) == 1
     rows = services["notification_queries"].list_my_notifications()
     assert len(rows) == 1 and rows[0].source_event_id == "event-1"
     assert session.scalar(select(NotificationWorkORM.status)) == "processed"
@@ -419,7 +422,7 @@ def test_real_invitation_commit_does_not_create_in_app_notification(services, se
     target = services["user_registration"].register_user(
         "durable-invitation-target", "StrongPass123!", display_name="Invitee",
     )
-    issued = services["tenant_membership_service"].issue_invitation(
+    issued = services["tenant_invitation_commands"].issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=2),
     )
     assert issued.token

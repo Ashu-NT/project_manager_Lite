@@ -70,7 +70,8 @@ def test_overview_composes_without_pm_service_bundle(session, services):
 
     platform = SimpleNamespace(**{name: services[name] for name in (
         "tenant_context_service", "platform_runtime_query", "activity_service",
-        "approval_service", "user_session", "notification_service",
+        "approval_queries", "user_session", "notification_commands",
+        "notification_queries", "notification_delivery",
     )})
     bundle = build_global_overview_service_bundle(session, platform, None)
     assert len(bundle.action_center_service._contributors) == 1

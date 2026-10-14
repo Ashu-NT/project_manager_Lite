@@ -143,7 +143,13 @@ from src.core.platform.access import AccessControlService
 from src.core.platform.api.desktop.notifications.notification import (
     PlatformNotificationDesktopApi,
 )
-from src.core.platform.application.approval import ApprovalCommandHandler, ApprovalQueryHandler, ApprovalParticipantRegistry
+from src.core.platform.application.approval import (
+    ApprovalCommandHandler,
+    ApprovalParticipantRegistry,
+    ApprovalQueryHandler,
+)
+from src.core.platform.application.data_operations.exporting import ExportRuntime
+from src.core.platform.application.data_operations.importing import CsvImportRuntime
 from src.core.platform.application.data_operations.runtime_tracking import (
     RuntimeExecutionCommandHandler,
     RuntimeExecutionQueryHandler,
@@ -160,8 +166,6 @@ from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.integration.accounting.commands import (
     AccountingConnectorConfigurationCommandHandler,
 )
-from src.core.platform.application.data_operations.importing import CsvImportRuntime
-from src.core.platform.application.data_operations.exporting import ExportRuntime
 from src.core.platform.application.master_data.department import (
     DepartmentCommandHandler,
     DepartmentQueryHandler,
@@ -181,6 +185,7 @@ from src.core.platform.application.master_data.employee import (
 from src.core.platform.application.master_data.org import (
     OrganizationCommandHandler,
     OrganizationLifecycleCommandHandler,
+    OrganizationProvisioningCommandHandler,
     OrganizationQueryHandler,
 )
 from src.core.platform.application.master_data.party import (
@@ -191,9 +196,13 @@ from src.core.platform.application.master_data.site import (
     SiteCommandHandler,
     SiteQueryHandler,
 )
-from src.core.platform.application.notifications import NotificationCommandHandler, NotificationQueryHandler
+from src.core.platform.application.notifications import (
+    NotificationCommandHandler,
+    NotificationDeliveryHandler,
+    NotificationQueryHandler,
+)
 from src.core.platform.application.platform_runtime import (
-    PlatformRuntimeApplicationService,
+    PlatformRuntimeQueryHandler,
 )
 from src.core.platform.application.security.authorization.roles import (
     RoleGovernanceCommandHandler,
@@ -214,14 +223,17 @@ from src.core.platform.application.tenant.modules import (
 )
 from src.core.platform.application.tenant.tenancy import (
     TenantAdminQueryHandler,
-    TenantLifecycleCommandHandler,
     TenantContextService,
     TenantInvitationCommandHandler,
+    TenantLifecycleCommandHandler,
     TenantMembershipLifecycleCommandHandler,
     TenantMembershipQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -229,20 +241,35 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
-    ShiftPatternService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.commands.shift_pattern_commands import (
+    ShiftPatternCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
+    ShiftPatternQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.application.time_management.time import (
     TimeEntryCommandHandler,
@@ -275,7 +302,8 @@ from src.infra.integration.procurement_financial_dispatcher import (
 class ServiceGraph:
     session: Session
     user_session: UserSessionContext
-    platform_runtime_application_service: PlatformRuntimeApplicationService
+    platform_runtime_query: PlatformRuntimeQueryHandler
+    organization_provisioning_commands: OrganizationProvisioningCommandHandler
     module_catalog_service: ModuleCatalogQueryHandler
     module_entitlement_commands: ModuleEntitlementCommandHandler
     module_registry: ModuleRegistry
@@ -331,6 +359,7 @@ class ServiceGraph:
     accounting_connector_commands: AccountingConnectorConfigurationCommandHandler
     notification_commands: NotificationCommandHandler
     notification_queries: NotificationQueryHandler
+    notification_delivery: NotificationDeliveryHandler
     approval_commands: ApprovalCommandHandler
     approval_queries: ApprovalQueryHandler
     approval_participants: ApprovalParticipantRegistry
@@ -402,12 +431,18 @@ class ServiceGraph:
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
     assignment_skill_validator: AssignmentSkillValidator
-    platform_calendar_service: PlatformCalendarService | None
-    working_rule_service: WorkingRuleService | None
-    calendar_exception_service: CalendarExceptionService | None
-    recurring_event_service: RecurringEventService | None
-    shift_pattern_service: ShiftPatternService | None
-    calendar_assignment_service: CalendarAssignmentService | None
+    platform_calendar_commands: PlatformCalendarCommandHandler | None
+    platform_calendar_queries: PlatformCalendarQueryHandler | None
+    working_rule_commands: WorkingRuleCommandHandler | None
+    working_rule_queries: WorkingRuleQueryHandler | None
+    calendar_exception_commands: CalendarExceptionCommandHandler | None
+    calendar_exception_queries: CalendarExceptionQueryHandler | None
+    recurring_event_commands: RecurringEventCommandHandler | None
+    recurring_event_queries: RecurringEventQueryHandler | None
+    shift_pattern_commands: ShiftPatternCommandHandler | None
+    shift_pattern_queries: ShiftPatternQueryHandler | None
+    calendar_assignment_commands: CalendarAssignmentCommandHandler | None
+    calendar_assignment_queries: CalendarAssignmentQueryHandler | None
     platform_calendar_resolver: PlatformCalendarResolver | None
     working_time_calculator: WorkingTimeCalculator | None
     resource_capacity_calculator: ResourceCapacityCalculator | None
@@ -423,7 +458,8 @@ class ServiceGraph:
         return {
             "session": self.session,
             "user_session": self.user_session,
-            "platform_runtime_application_service": self.platform_runtime_application_service,
+            "platform_runtime_query": self.platform_runtime_query,
+            "organization_provisioning_commands": self.organization_provisioning_commands,
             "module_catalog_service": self.module_catalog_service,
             "module_entitlement_commands": self.module_entitlement_commands,
             "module_registry": self.module_registry,
@@ -494,6 +530,7 @@ class ServiceGraph:
             "accounting_connector_commands": self.accounting_connector_commands,
             "notification_commands": self.notification_commands,
             "notification_queries": self.notification_queries,
+            "notification_delivery": self.notification_delivery,
             "approval_commands": self.approval_commands,
             "approval_queries": self.approval_queries,
             "approval_participants": self.approval_participants,
@@ -565,12 +602,18 @@ class ServiceGraph:
             "project_resource_service": self.project_resource_service,
             "data_import_service": self.data_import_service,
             "assignment_skill_validator": self.assignment_skill_validator,
-            "platform_calendar_service": self.platform_calendar_service,
-            "working_rule_service": self.working_rule_service,
-            "calendar_exception_service": self.calendar_exception_service,
-            "recurring_event_service": self.recurring_event_service,
-            "shift_pattern_service": self.shift_pattern_service,
-            "calendar_assignment_service": self.calendar_assignment_service,
+            "platform_calendar_commands": self.platform_calendar_commands,
+            "platform_calendar_queries": self.platform_calendar_queries,
+            "working_rule_commands": self.working_rule_commands,
+            "working_rule_queries": self.working_rule_queries,
+            "calendar_exception_commands": self.calendar_exception_commands,
+            "calendar_exception_queries": self.calendar_exception_queries,
+            "recurring_event_commands": self.recurring_event_commands,
+            "recurring_event_queries": self.recurring_event_queries,
+            "shift_pattern_commands": self.shift_pattern_commands,
+            "shift_pattern_queries": self.shift_pattern_queries,
+            "calendar_assignment_commands": self.calendar_assignment_commands,
+            "calendar_assignment_queries": self.calendar_assignment_queries,
             "platform_calendar_resolver": self.platform_calendar_resolver,
             "working_time_calculator": self.working_time_calculator,
             "resource_capacity_calculator": self.resource_capacity_calculator,

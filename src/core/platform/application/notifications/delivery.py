@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from src.core.platform.application.notifications.scope import NotificationRecipientScope
-from src.core.platform.contract.port.notifications.notification_delivery import NotificationDelivery
+from src.core.platform.contract.port.notifications.notification_delivery import (
+    NotificationDelivery,
+)
 
 
 class NotificationDeliveryHandler:

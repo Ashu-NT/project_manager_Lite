@@ -14,8 +14,8 @@ from src.core.platform.domain.approval.events import (
 
 
 def test_notification_subscriptions_share_one_dispatcher_without_duplicates(services) -> None:
-    project_dispatcher = services["project_service"]._uow_factory._transactional_dispatcher
-    task_dispatcher = services["task_service"]._task_uow_factory._transactional_dispatcher
+    project_dispatcher = services["project_service"]._create_handler._uow_factory._transactional_dispatcher
+    task_dispatcher = services["task_service"]._lifecycle_handler._uow_scope._factory._transactional_dispatcher
     assert task_dispatcher is project_dispatcher
 
     for event_type, owner in (

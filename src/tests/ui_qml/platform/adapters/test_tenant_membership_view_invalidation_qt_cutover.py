@@ -179,14 +179,14 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
     signal_calls = []
     adapter.membershipDataStale.connect(lambda: signal_calls.append("stale"))
 
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     admin_principal = services["user_session"].principal
     _target, _accepted = _issue_and_accept(
         services, membership_service, admin_principal=admin_principal, username=_unique_code("p5d3-scope-a")
     )
     assert signal_calls == ["stale"]
 
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     tenant_b = admin_svc.create_tenant(_unique_code("P5D3-TENANT-B"), "P5D-3 Tenant B")
     services["session"].flush()
     services["user_session"].set_principal(admin_principal)
@@ -210,7 +210,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     channel = services["platform_view_invalidation_channel"]
     tenant_a = _active_tenant(services)
     admin_principal = services["user_session"].principal
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
 
     adapter = TenantMembershipViewInvalidationAdapter(channel=channel, tenant_id=tenant_a)
     signal_calls = []
@@ -222,7 +222,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     )
     assert signal_calls == ["stale"]
 
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     tenant_b = admin_svc.create_tenant(_unique_code("P5D3-SWITCH-TENANT-B"), "P5D-3 Switch Tenant B")
     services["session"].flush()
     services["user_session"].set_principal(admin_principal)
@@ -267,7 +267,7 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter(services):
     tenant_a = _active_tenant(services)
     assert any(f.tenant_id == tenant_a for f in _current_filters())
 
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     tenant_b = admin_svc.create_tenant(_unique_code("P5D3-REALSWITCH-TENANT-B"), "P5D-3 Real Switch Tenant B")
     services["session"].flush()
 
@@ -306,7 +306,7 @@ def test_organization_switch_does_not_re_scope_the_membership_subscription(servi
     tenant_a = _active_tenant(services)
     signal_calls = []
     adapter.membershipDataStale.connect(lambda: signal_calls.append("stale"))
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     admin_principal = services["user_session"].principal
     _issue_and_accept(
         services, membership_service, admin_principal=admin_principal, username=_unique_code("p5d3-org-switch-target")
@@ -331,7 +331,7 @@ def test_activation_refreshes_both_real_ui_consumers_end_to_end(services):
     catalog.adminWorkspace.users  # establish baseline read
     catalog.adminAccessWorkspace.refresh()
 
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     target, accepted = _issue_and_accept(
         services, membership_service, admin_principal=tenant_admin_principal, username=_unique_code("p5d3-e2e-activate")
     )
@@ -363,7 +363,7 @@ def test_removal_makes_the_target_disappear_from_both_real_ui_consumers(services
         tenant_admin, tenant_id=tenant_id, organization_id=None
     )
 
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     target, _accepted = _issue_and_accept(
         services, membership_service, admin_principal=tenant_admin_principal, username=_unique_code("p5d3-e2e-remove")
     )
@@ -372,7 +372,7 @@ def test_removal_makes_the_target_disappear_from_both_real_ui_consumers(services
     catalog.adminAccessWorkspace.refresh_security_users()
     assert target.id in [row.get("id") for row in catalog.adminWorkspace.users.get("items", [])]
 
-    membership_service.remove_member(target.id)
+    services["tenant_membership_lifecycle_commands"].remove_member(target.id)
 
     admin_ids = [row.get("id") for row in catalog.adminWorkspace.users.get("items", [])]
     security_ids = [row.get("id") for row in catalog.adminAccessWorkspace.securityUsers.get("items", [])]
@@ -392,14 +392,14 @@ def test_invalid_transition_triggers_no_refresh(services):
     catalog.adminWorkspace.refresh_users = lambda: refresh_calls.append("admin") or None
     catalog.adminAccessWorkspace.refresh_security_users = lambda: refresh_calls.append("access") or None
 
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     target = services["user_registration"].register_user(_unique_code("p5d3-invalid"), _PASSWORD)
     membership_service.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
 
     with pytest.raises(BusinessRuleError):
-        membership_service.suspend_member(target.id)  # still "invited", never accepted
+        services["tenant_membership_lifecycle_commands"].suspend_member(target.id)  # still "invited", never accepted
 
     assert refresh_calls == []
 
@@ -410,7 +410,7 @@ def test_audit_failure_triggers_no_refresh(services, monkeypatch):
     catalog.adminWorkspace.refresh_users = lambda: refresh_calls.append("admin") or None
     catalog.adminAccessWorkspace.refresh_security_users = lambda: refresh_calls.append("access") or None
 
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     target = services["user_registration"].register_user(_unique_code("p5d3-audit-fail"), _PASSWORD)
     issued = membership_service.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
@@ -437,7 +437,7 @@ def test_commit_failure_triggers_no_refresh(services, monkeypatch):
     catalog.adminWorkspace.refresh_users = lambda: refresh_calls.append("admin") or None
     catalog.adminAccessWorkspace.refresh_security_users = lambda: refresh_calls.append("access") or None
 
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     target = services["user_registration"].register_user(_unique_code("p5d3-commit-fail"), _PASSWORD)
     issued = membership_service.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
@@ -463,13 +463,13 @@ def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(
     refresh_calls = []
     catalog.adminWorkspace.refresh_users = lambda: refresh_calls.append("admin") or None
 
-    bus = services["tenant_membership_service"]._uow_factory._post_commit_bus
+    bus = services["tenant_invitation_commands"]._uow_factory._post_commit_bus
 
     def _failing_handler(event, context):
         raise RuntimeError("simulated post-commit handler failure")
 
     subscription = bus.subscribe(TenantMembershipActivated, _failing_handler)
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     admin_principal = services["user_session"].principal
     try:
         target, accepted = _issue_and_accept(
@@ -489,7 +489,7 @@ def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(
 
 def test_removal_fires_both_membership_and_role_binding_invalidation_separately(services):
     catalog = _catalog(services)
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     admin_principal = services["user_session"].principal
     target, _accepted = _issue_and_accept(
         services, membership_service, admin_principal=admin_principal, username=_unique_code("p5d3-double-refresh")
@@ -504,7 +504,7 @@ def test_removal_fires_both_membership_and_role_binding_invalidation_separately(
         lambda: role_binding_refresh_calls.append("role_binding") or None
     )
 
-    membership_service.remove_member(target.id)
+    services["tenant_membership_lifecycle_commands"].remove_member(target.id)
 
     # Removal commits TenantMembershipRemoved + one RoleBindingRevoked (the default binding) --
     # each narrow consumer must refresh exactly once, for its own reason, never merged into one
@@ -518,7 +518,7 @@ def test_membership_transition_does_not_trigger_unrelated_sub_controller_refresh
     documents. Uses a pure `suspend_member` (setup completed before installing spies) so the
     measured window contains only the membership transition itself."""
     catalog = _catalog(services)
-    membership_service = services["tenant_membership_service"]
+    membership_service = services["tenant_invitation_commands"]
     admin_principal = services["user_session"].principal
     target, _accepted = _issue_and_accept(
         services, membership_service, admin_principal=admin_principal, username=_unique_code("p5d3-narrow")
@@ -537,6 +537,6 @@ def test_membership_transition_does_not_trigger_unrelated_sub_controller_refresh
         controller = getattr(catalog.adminWorkspace, attr)
         controller.refresh = lambda name=attr: unrelated_refresh_calls.append(name) or None
 
-    membership_service.suspend_member(target.id)
+    services["tenant_membership_lifecycle_commands"].suspend_member(target.id)
 
     assert unrelated_refresh_calls == []

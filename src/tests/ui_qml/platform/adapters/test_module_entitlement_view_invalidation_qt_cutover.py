@@ -380,7 +380,7 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
 
     assert any(f.tenant_id == tenant_a and f.organization_id == org_a1.id for f in _current_filters())
 
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     tenant_b = admin_svc.create_tenant(_unique_code("QTCUT-TENANT-B"), "Qt Cutover Tenant B")
     services["session"].flush()
 

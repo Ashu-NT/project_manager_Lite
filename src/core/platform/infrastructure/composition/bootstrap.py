@@ -273,7 +273,7 @@ def build_platform_service_bundle(
     )
     module_catalog_service = modules.module_catalog_service
     module_entitlement_commands = modules.module_entitlement_commands
-    platform_runtime_application_service = modules.platform_runtime_application_service
+    platform_runtime_query = modules.platform_runtime_query
     runtime_execution_commands = modules.runtime_execution_commands
     logger.debug(
         "Platform module catalog defaults bootstrapped duration_ms=%.1f",
@@ -352,7 +352,8 @@ def build_platform_service_bundle(
         platform_view_invalidation_channel=platform_view_invalidation_channel,
         platform_transactional_dispatcher=platform_transactional_dispatcher,
         platform_post_commit_bus=platform_post_commit_bus,
-        platform_runtime_application_service=platform_runtime_application_service,
+        platform_runtime_query=platform_runtime_query,
+        organization_provisioning_commands=modules.organization_provisioning_commands,
         module_catalog_service=module_catalog_service,
         module_entitlement_commands=module_entitlement_commands,
         auth=auth,
@@ -395,15 +396,22 @@ def build_platform_service_bundle(
         financial_period_queries=financial_period_queries,
         notification_commands=notifications.commands,
         notification_queries=notifications.queries,
+        notification_delivery=notifications.delivery,
         approval_commands=approval.commands,
         approval_queries=approval.queries,
         approval_participants=approval.participants,
-        platform_calendar_service=calendar.platform_calendar_service,
-        working_rule_service=calendar.working_rule_service,
-        calendar_exception_service=calendar.calendar_exception_service,
-        recurring_event_service=calendar.recurring_event_service,
-        shift_pattern_service=calendar.shift_pattern_service,
-        calendar_assignment_service=calendar.calendar_assignment_service,
+        platform_calendar_commands=calendar.platform_calendar_commands,
+        platform_calendar_queries=calendar.platform_calendar_queries,
+        working_rule_commands=calendar.working_rule_commands,
+        working_rule_queries=calendar.working_rule_queries,
+        calendar_exception_commands=calendar.calendar_exception_commands,
+        calendar_exception_queries=calendar.calendar_exception_queries,
+        recurring_event_commands=calendar.recurring_event_commands,
+        recurring_event_queries=calendar.recurring_event_queries,
+        shift_pattern_commands=calendar.shift_pattern_commands,
+        shift_pattern_queries=calendar.shift_pattern_queries,
+        calendar_assignment_commands=calendar.calendar_assignment_commands,
+        calendar_assignment_queries=calendar.calendar_assignment_queries,
         platform_calendar_resolver=calendar.platform_calendar_resolver,
         working_time_calculator=calendar.working_time_calculator,
         tenant_admin_queries=tenant_admin.tenant_admin_queries,

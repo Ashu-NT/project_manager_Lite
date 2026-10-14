@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Generic, TypeVar
 
-
 from src.core.platform.contract.port.time_management.calendar.external_assignment_port import (
     ExternalCalendarAssignment,
     ProjectCalendarAssignmentPort,

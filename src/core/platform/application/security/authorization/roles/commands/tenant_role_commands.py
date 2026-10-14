@@ -295,7 +295,7 @@ class TenantRoleCommandHandler:
             # Replaces the prior direct bulk-SQL `revoke_active_for_role` bypass (which updated
             # rows with only a bulk count in the audit metadata, no per-binding audit/event
             # evidence at all) with the same canonical, transaction-neutral per-binding function
-            # `RoleGovernanceCommandHandler.revoke_role_binding` and `TenantMembershipService`'s own
+            # `RoleGovernanceCommandHandler.revoke_role_binding` and `TenantMembershipLifecycleCommandHandler`'s own
             # cascade already use -- one real `RoleBindingRevoked` fact per binding actually
             # revoked, not a fabricated bulk event.
             active_bindings = self._role_binding_repo.list_active_for_role(

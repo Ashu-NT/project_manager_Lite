@@ -1,13 +1,5 @@
 from __future__ import annotations
 
-from src.core.platform.application.tenant.tenancy.membership_support import (
-    TenantMembershipSupport,
-)
-from src.core.platform.contract.uow.tenancy.tenant_membership_unit_of_work import (
-    TenantMembershipUnitOfWorkFactory,
-)
-from src.core.shared.time.clock import Clock
-
 import hmac
 import secrets
 from datetime import datetime
@@ -19,9 +11,13 @@ from src.core.platform.application.tenant.tenancy.invitation_tokens import (
     IssuedTenantInvitation,
     hash_invitation_token,
 )
+from src.core.platform.application.tenant.tenancy.membership_support import (
+    TenantMembershipSupport,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.uow.tenancy.tenant_membership_unit_of_work import (
     TenantMembershipUnitOfWork,
+    TenantMembershipUnitOfWorkFactory,
 )
 from src.core.platform.domain.security.auth import UserSessionContext
 from src.core.platform.domain.tenant.tenancy import (
@@ -33,6 +29,7 @@ from src.core.platform.domain.tenant.tenancy import (
     TenantMembershipActivated,
     UserTenantMembership,
 )
+from src.core.shared.time.clock import Clock
 
 
 class TenantInvitationCommandHandler:

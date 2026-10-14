@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.queries.admin import (
+    TenantAdminQueryHandler,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.repositories.history.platform_events.contracts import (
     PlatformEventRepository,
@@ -23,11 +26,6 @@ from src.core.platform.domain.tenant.tenancy.tenant import (
     TENANT_STATUS_ARCHIVED,
     TENANT_STATUS_SUSPENDED,
     Tenant,
-)
-
-
-from src.core.platform.application.tenant.tenancy.queries.admin import (
-    TenantAdminQueryHandler,
 )
 
 

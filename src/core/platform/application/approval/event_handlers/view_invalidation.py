@@ -8,6 +8,7 @@ from src.core.platform.domain.approval.events import (
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
     OrganizationScope,
+    TenantScope,
     ViewInvalidationChannel,
     ViewInvalidationHint,
 )
@@ -27,7 +28,11 @@ def build_approval_view_invalidation_handler(channel: ViewInvalidationChannel):
     def handle_approval_event(event: _ApprovalEvent, context: DomainEventContext) -> None:
         channel.notify(
             ViewInvalidationHint(
-                scope=OrganizationScope(event.tenant_id, event.organization_id),
+                scope=(
+                    OrganizationScope(event.tenant_id, event.organization_id)
+                    if event.organization_id is not None
+                    else TenantScope(event.tenant_id)
+                ),
                 category=APPROVAL_CATEGORY,
                 scope_code=APPROVAL_REQUESTS_SCOPE_CODE,
                 entity_type="approval_request",

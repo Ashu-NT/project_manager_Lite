@@ -1024,6 +1024,93 @@ Portfolio/desktop/composition/architecture regression: 105 passed. Scoped
 Mypy on the new handler, desktop API, composition, and graph: clean. This is
 one completed read-capability cut, not Portfolio or A4 closure.
 
+## A4 Platform Capability Cutover (2026-10-14)
+
+This continuation applies the approved direction to the remaining named
+Platform boundaries: composition constructs cohesive handlers and injects
+them directly into desktop adapters, workers, CLI operations, and module
+consumers. No replacement forwarding service or compatibility alias is kept.
+The supplied backlog labels this group as 22, but names 20 service types plus
+the Platform runtime facade (21 named types). The map below covers every
+named item; it does not invent an additional migration target.
+
+| Former boundary | Active application capabilities | Composition and consumers |
+| --- | --- | --- |
+| ApprovalService | ApprovalCommandHandler, ApprovalQueryHandler, ApprovalParticipantRegistry | Platform approvals composition shares the registry with PM registrations; desktop receives commands/queries; PM participants keep the deciding UoW session. |
+| FinancialPeriodService | FinancialPeriodCommandHandler, FinancialPeriodQueryHandler | Platform finance composition creates both; desktop receives both; PM costing/Billing receives only period queries. |
+| NotificationService | NotificationCommandHandler, NotificationQueryHandler, NotificationDeliveryHandler | Notification composition supplies scoped commands, pure reads, and explicit durable delivery; desktop drains committed work before reading. |
+| ServicePrincipalService | ServicePrincipalCommandHandler, ServicePrincipalQueryHandler, ApiKeyAuthenticationHandler | Security composition supplies management to desktop, scoped worker lookup to integration runtimes, and credential authentication separately. |
+| RuntimeExecutionService | RuntimeExecutionCommandHandler, RuntimeExecutionQueryHandler | Composition reuses one scoped execution repository; import/export/report runtimes receive lifecycle commands, history consumers receive reads. |
+| MasterDataExchangeService | SiteImportHandler, SiteExportHandler, PartyImportHandler, PartyExportHandler | Master-data composition registers entity-owned handlers and constructs the existing import/export runtimes; the aggregate service and callback wrappers are removed. |
+| AccountingConnectorConfigurationService | AccountingConnectorConfigurationCommandHandler | Application command retains caller-owned participant semantics or operation UoW ownership; no nested handler is constructed in a command. |
+| AccountingIntegrationCapabilityService | AccountingIntegrationCapabilityQueryHandler | External integration composition injects the adapter-installation/configuration capability query without introducing Accounting operations. |
+| RoleGovernanceService | RoleGovernanceCommandHandler | Security composition injects scoped role governance into assignment, access, and module registration consumers. |
+| RolePolicyReconciliationService | RolePolicyReconciliationCommandHandler, RolePolicyReconciliationQueryHandler | Reconciliation preview and mutation are separate capabilities with explicit authorization/transaction dependencies. |
+| ScopeDelegationProvisioningService | ScopeDelegationProvisioningCommandHandler, ScopeDelegationProvisioningQueryHandler | Delegation planning and application retain their existing scope and privilege checks. |
+| TenantRoleAdministrationService | TenantRoleCommandHandler, TenantRoleQueryHandler | Tenant-role reads and commands share composition-owned authorization policy and repository lifetimes. |
+| TenantAdminService | TenantLifecycleCommandHandler, TenantAdminQueryHandler | Tenancy composition exposes catalog reads and tenant lifecycle writes separately. |
+| TenantMembershipService | TenantInvitationCommandHandler, TenantMembershipLifecycleCommandHandler, TenantMembershipQueryHandler | Tenancy composition shares membership support/UoW dependencies; invitation acceptance, membership state, and personal invitation reads are separate. |
+| PlatformCalendarService | PlatformCalendarCommandHandler, PlatformCalendarQueryHandler | Calendar composition supplies catalog writes/reads separately. |
+| WorkingRuleService | WorkingRuleCommandHandler, WorkingRuleQueryHandler | Existing rule transactions and resolver invalidation are preserved. |
+| CalendarExceptionService | CalendarExceptionCommandHandler, CalendarExceptionQueryHandler | Exception mutations and reads are directly injected. |
+| RecurringEventService | RecurringEventCommandHandler, RecurringEventQueryHandler | Recurrence mutations and reads are directly injected. |
+| ShiftPatternService | ShiftPatternCommandHandler, ShiftPatternQueryHandler | Pattern/day writes and scoped pattern reads are directly injected. |
+| CalendarAssignmentService | CalendarAssignmentCommandHandler, CalendarAssignmentQueryHandler | External module assignment ports remain neutral and generic; both handlers share the composed repositories. |
+| PlatformRuntimeApplicationService | PlatformRuntimeQueryHandler plus existing Organization handlers and OrganizationProvisioningCommandHandler | Runtime orchestration retains permissions/accessibility/snapshot policy; organization forwarding methods and the resolver that built a hidden runtime graph are removed. |
+
+Handler implementations remain in their feature application packages.
+Reusable immutable application DTOs remain beside the relevant feature
+handlers. Cross-module Approval and Notification capabilities live under
+`src/core/platform/contract/port/approval` and `.../notifications`; the retired
+`application/notifications/public.py` is not a public cross-module dependency.
+Platform and PM composition remain separate, with the existing application
+composition root assembling their typed results.
+
+Transaction distinctions remain explicit: Approval participants run in the
+deciding UoW; connector configuration uses the supplied transaction repository
+and audit owner; API-key authentication atomically writes use/audit evidence;
+runtime tracking remains transaction-neutral. Notification reads do not drain
+the outbox; the desktop adapter invokes the delivery capability explicitly.
+Calendar writes keep the existing resolver cache/invalidation relationships.
+
+Retired service production paths and runtime forwarding/resolver paths are
+removed. Tests address the handler/repository/UoW that owns the behavior.
+The scoped baseline application lookup is classified as a Scheduling port,
+not a SQL Reader fact contract. Architecture size checks exclude third-party
+temporary caches rather than treating cached dependencies as repository code.
+
+Validation status: the named Platform capability cutover is COMPLETE.
+
+| Final verification slice | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Affected Platform application/API/auth/infrastructure feature matrix | 524 | 0 | 5 |
+| PM Approval participants, approved-Time/Commitment integration, Scheduling, and affected desktop/QML adapters/presenters | 159 | 0 | 0 |
+| Architecture guards, including schema/migration and read/port boundaries | 188 | 0 | 0 |
+| Composition lifetime/event registration guards | 34 | 0 | 0 |
+| Live PostgreSQL runtime-role RLS/notifications/Accounting handoff | 31 | 0 | 0 |
+| Live PostgreSQL governance/Finance commands/approved-Time integration | 60 | 0 | 0 |
+
+The five Platform skips are existing storeroom ownership-resolver tests for
+the absent Inventory module. They are not substituted for the live RLS runs.
+Supplemental Accounting command/transaction and application boundary tests
+passed 25 cases; supplemental notification/overview/desktop tests passed 24.
+These reruns overlap the matrix above and are not added to a unique-test total.
+All 5,972 repository tests collected successfully; the full repository test
+suite was not executed for this focused migration.
+
+Scoped Ruff F/I, Python compilation, retired production-symbol searches, and
+`git diff --check` pass. Mypy reports no issues in 144 scoped source files
+with `--follow-imports=silent --ignore-missing-imports`. Standalone
+Pyright/Pylance is unavailable in this environment and is not claimed as run.
+The only corrected production guard issue found during validation was a
+nested connector-command handler construction; it now uses the operation's
+repository/audit owner directly. Tests also prove notification queries do not
+deliver work and the desktop adapter retains explicit restart recovery.
+
+This closes the named Platform backlog, not unrelated PM/A4/A5/A6 work.
+No future Accounting/Procurement/Inventory operations or transport framework
+were introduced, and no commit was made by the agent.
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |

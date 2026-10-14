@@ -470,7 +470,7 @@ def test_account_security_and_authorization_context_targets_never_cross_fire(ser
 
 
 def test_account_security_invalidation_is_tenant_scoped_not_cross_tenant(services):
-    other_tenant = services["tenant_admin_service"].create_tenant(
+    other_tenant = services["tenant_lifecycle_commands"].create_tenant(
         _unique("p46b-other-tenant"), "Other Tenant"
     )
 

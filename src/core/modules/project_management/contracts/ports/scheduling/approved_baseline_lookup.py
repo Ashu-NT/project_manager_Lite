@@ -1,3 +1,5 @@
+"""Scoped application capability for schedule-impact orchestration."""
+
 from __future__ import annotations
 
 from typing import Protocol

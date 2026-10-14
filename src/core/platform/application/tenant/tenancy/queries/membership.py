@@ -6,7 +6,6 @@ from src.core.platform.application.tenant.tenancy.membership_support import (
 from src.core.platform.contract.uow.tenancy.tenant_membership_unit_of_work import (
     TenantMembershipUnitOfWorkFactory,
 )
-
 from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_INVITED,
     UserTenantMembership,

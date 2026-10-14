@@ -9,7 +9,13 @@ from sqlalchemy.orm import Session
 from src.core.platform.access import (
     AccessControlService,
 )
-from src.core.platform.application.approval import ApprovalCommandHandler, ApprovalQueryHandler, ApprovalParticipantRegistry
+from src.core.platform.application.approval import (
+    ApprovalCommandHandler,
+    ApprovalParticipantRegistry,
+    ApprovalQueryHandler,
+)
+from src.core.platform.application.data_operations.exporting import ExportRuntime
+from src.core.platform.application.data_operations.importing import CsvImportRuntime
 from src.core.platform.application.data_operations.runtime_tracking import (
     RuntimeExecutionCommandHandler,
     RuntimeExecutionQueryHandler,
@@ -20,8 +26,6 @@ from src.core.platform.application.finance import (
 )
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.data_operations.importing import CsvImportRuntime
-from src.core.platform.application.data_operations.exporting import ExportRuntime
 from src.core.platform.application.master_data.department import (
     DepartmentCommandHandler,
     DepartmentQueryHandler,
@@ -42,6 +46,7 @@ from src.core.platform.application.master_data.employee import (
 from src.core.platform.application.master_data.org import (
     OrganizationCommandHandler,
     OrganizationLifecycleCommandHandler,
+    OrganizationProvisioningCommandHandler,
     OrganizationQueryHandler,
 )
 from src.core.platform.application.master_data.party import (
@@ -52,9 +57,13 @@ from src.core.platform.application.master_data.site import (
     SiteCommandHandler,
     SiteQueryHandler,
 )
-from src.core.platform.application.notifications import NotificationCommandHandler, NotificationQueryHandler
+from src.core.platform.application.notifications import (
+    NotificationCommandHandler,
+    NotificationDeliveryHandler,
+    NotificationQueryHandler,
+)
 from src.core.platform.application.platform_runtime import (
-    PlatformRuntimeApplicationService,
+    PlatformRuntimeQueryHandler,
 )
 from src.core.platform.application.security.authorization.roles import (
     RoleGovernanceCommandHandler,
@@ -75,14 +84,17 @@ from src.core.platform.application.tenant.modules import (
 )
 from src.core.platform.application.tenant.tenancy import (
     TenantAdminQueryHandler,
-    TenantLifecycleCommandHandler,
     TenantContextService,
     TenantInvitationCommandHandler,
+    TenantLifecycleCommandHandler,
     TenantMembershipLifecycleCommandHandler,
     TenantMembershipQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import (
     GlobalCalendarShim,
@@ -93,20 +105,35 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
-    ShiftPatternService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.commands.shift_pattern_commands import (
+    ShiftPatternCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
+    ShiftPatternQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import (
     OrganizationRepository,
@@ -147,7 +174,8 @@ class PlatformServiceBundle:
    
     platform_transactional_dispatcher: InProcessTransactionalEventDispatcher
     platform_post_commit_bus: InProcessPostCommitEventBus
-    platform_runtime_application_service: PlatformRuntimeApplicationService
+    platform_runtime_query: PlatformRuntimeQueryHandler
+    organization_provisioning_commands: OrganizationProvisioningCommandHandler
     module_catalog_service: ModuleCatalogQueryHandler
     module_entitlement_commands: ModuleEntitlementCommandHandler
     auth: AuthComposition
@@ -184,15 +212,22 @@ class PlatformServiceBundle:
     financial_period_queries: FinancialPeriodQueryHandler
     notification_commands: NotificationCommandHandler
     notification_queries: NotificationQueryHandler
+    notification_delivery: NotificationDeliveryHandler
     approval_commands: ApprovalCommandHandler
     approval_queries: ApprovalQueryHandler
     approval_participants: ApprovalParticipantRegistry
-    platform_calendar_service: PlatformCalendarService
-    working_rule_service: WorkingRuleService
-    calendar_exception_service: CalendarExceptionService
-    recurring_event_service: RecurringEventService
-    shift_pattern_service: ShiftPatternService
-    calendar_assignment_service: CalendarAssignmentService
+    platform_calendar_commands: PlatformCalendarCommandHandler
+    platform_calendar_queries: PlatformCalendarQueryHandler
+    working_rule_commands: WorkingRuleCommandHandler
+    working_rule_queries: WorkingRuleQueryHandler
+    calendar_exception_commands: CalendarExceptionCommandHandler
+    calendar_exception_queries: CalendarExceptionQueryHandler
+    recurring_event_commands: RecurringEventCommandHandler
+    recurring_event_queries: RecurringEventQueryHandler
+    shift_pattern_commands: ShiftPatternCommandHandler
+    shift_pattern_queries: ShiftPatternQueryHandler
+    calendar_assignment_commands: CalendarAssignmentCommandHandler
+    calendar_assignment_queries: CalendarAssignmentQueryHandler
     platform_calendar_resolver: PlatformCalendarResolver
     working_time_calculator: WorkingTimeCalculator
     tenant_admin_queries: TenantAdminQueryHandler

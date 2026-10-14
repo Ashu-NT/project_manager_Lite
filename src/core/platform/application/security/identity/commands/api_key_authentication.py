@@ -47,10 +47,16 @@ class ApiKeyAuthenticationHandler:
     """Authenticate API keys and atomically persist use and audit evidence."""
 
     def __init__(
-        self, *, session: Session, principal_repo: ServicePrincipalRepository,
-        api_key_repo: ApiKeyCredentialRepository, user_repo: UserRepository,
-        tenant_repo: TenantRepository, organization_repo: OrganizationRepository,
-        membership_repo: UserTenantMembershipRepository, audit_repo: AuditRepository,
+        self,
+        *,
+        session: Session,
+        principal_repo: ServicePrincipalRepository,
+        api_key_repo: ApiKeyCredentialRepository,
+        user_repo: UserRepository,
+        tenant_repo: TenantRepository,
+        organization_repo: OrganizationRepository,
+        membership_repo: UserTenantMembershipRepository,
+        audit_repo: AuditRepository,
         principals: PrincipalBuilder,
     ) -> None:
         self._session = session
@@ -74,7 +80,7 @@ class ApiKeyAuthenticationHandler:
         now = datetime.now(UTC)
         if credential.revoked_at is not None:
             raise ValidationError("API key is revoked.", code="API_KEY_REVOKED")
-        if credential.expires_at <= now:
+        if credential.expires_at is None or credential.expires_at <= now:
             raise ValidationError("API key has expired.", code="API_KEY_EXPIRED")
         principal_record = self._principal_repo.get_for_authentication(
             credential.service_principal_id,
@@ -85,7 +91,9 @@ class ApiKeyAuthenticationHandler:
             or principal_record.tenant_id != credential.tenant_id
             or principal_record.status != SERVICE_PRINCIPAL_STATUS_ACTIVE
         ):
-            raise ValidationError("Service principal is inactive.", code="SERVICE_PRINCIPAL_INACTIVE")
+            raise ValidationError(
+                "Service principal is inactive.", code="SERVICE_PRINCIPAL_INACTIVE"
+            )
         tenant = self._tenant_repo.get(principal_record.tenant_id)
         if tenant is None or not tenant.is_active:
             raise ValidationError("Tenant is inactive.", code="TENANT_INACTIVE")
@@ -93,20 +101,26 @@ class ApiKeyAuthenticationHandler:
             principal_record.user_id,
             principal_record.tenant_id,
         ):
-            raise ValidationError("Service membership is inactive.", code="TENANT_ACCESS_DENIED")
+            raise ValidationError(
+                "Service membership is inactive.", code="TENANT_ACCESS_DENIED"
+            )
         organization = self._organization_repo.get_for_tenant(
             principal_record.organization_id,
             principal_record.tenant_id,
         )
         if organization is None or organization.status != ORGANIZATION_STATUS_ACTIVE:
-            raise ValidationError("Organization is inactive.", code="ORGANIZATION_INACTIVE")
+            raise ValidationError(
+                "Organization is inactive.", code="ORGANIZATION_INACTIVE"
+            )
         user = self._user_repo.get(principal_record.user_id)
         if (
             user is None
             or not user.is_active
             or user.account_type != ACCOUNT_TYPE_SERVICE
         ):
-            raise ValidationError("Service account is inactive.", code="SERVICE_ACCOUNT_INACTIVE")
+            raise ValidationError(
+                "Service account is inactive.", code="SERVICE_ACCOUNT_INACTIVE"
+            )
         principal = self._principals.build_for_context(
             user,
             tenant_id=principal_record.tenant_id,
@@ -124,12 +138,16 @@ class ApiKeyAuthenticationHandler:
         credential.last_used_at = now
         try:
             self._api_key_repo.update_for_authentication(credential)
-            record_service_principal_audit(self._audit_repo,
+            record_service_principal_audit(
+                self._audit_repo,
                 principal=principal_record,
                 operation="authenticate",
                 action="identity.api_key.authenticated",
                 actor_user_id=principal_record.user_id,
-                metadata={"api_key_id": credential.id, "key_prefix": credential.key_prefix},
+                metadata={
+                    "api_key_id": credential.id,
+                    "key_prefix": credential.key_prefix,
+                },
             )
             self._session.commit()
         except Exception:  # noqa: BLE001
@@ -152,4 +170,3 @@ class ApiKeyAuthenticationHandler:
                 if value is not None
             ),
         )
-

@@ -90,7 +90,7 @@ def _cross_tenant_user(services, *, username: str):
         tenant_code=f"X-{username}",
         display_name=f"Cross {username}",
     )
-    services["tenant_admin_service"]._tenant_repo.add(tenant)
+    services["tenant_lifecycle_commands"]._tenant_repo.add(tenant)
     services["session"].flush()
     user = services["user_registration"].register_user(
         username,
@@ -395,7 +395,7 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
     current_organization_id = tenant_context.get_active_organization_id()
     assert current_tenant_id is not None
 
-    target_tenant = services["tenant_admin_service"].create_tenant(
+    target_tenant = services["tenant_lifecycle_commands"].create_tenant(
         "CONTAIN-SWITCH",
         "Containment Switch",
     )
@@ -476,7 +476,7 @@ def test_tenant_switch_does_not_leak_canonical_tenant_admin_authority(
         tenant_code="CONTAIN-AMBIG",
         display_name="Containment Ambiguous",
     )
-    services["tenant_admin_service"]._tenant_repo.add(target_tenant)
+    services["tenant_lifecycle_commands"]._tenant_repo.add(target_tenant)
     services["role_assignment_commands"]._user_tenant_repo.add(
         UserTenantMembership.create(
             user_id=actor.id,

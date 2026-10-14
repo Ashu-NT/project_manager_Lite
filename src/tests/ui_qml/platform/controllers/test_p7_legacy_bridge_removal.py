@@ -98,13 +98,13 @@ def test_tenant_membership_mutation_produces_exactly_the_typed_view_invalidation
         _unique("p7-membership-target"), "P7Membership123!", display_name="P7 Membership Target"
     )
     admin_principal = services["user_session"].principal
-    issued = services["tenant_membership_service"].issue_invitation(
+    issued = services["tenant_invitation_commands"].issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     target_auth = services["authentication"].authenticate(target.username, "P7Membership123!")
     services["user_session"].set_principal(services["principal_builder"].build(target_auth))
 
-    services["tenant_membership_service"].accept_invitation(issued.token)
+    services["tenant_invitation_commands"].accept_invitation(issued.token)
     services["user_session"].set_principal(admin_principal)
 
     assert typed_calls == ["typed"]

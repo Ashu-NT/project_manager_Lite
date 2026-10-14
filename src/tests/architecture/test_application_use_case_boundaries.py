@@ -62,6 +62,7 @@ def _handler_modules() -> tuple[Path, ...]:
         for root in roots
         for path in root.rglob("*.py")
         if {"commands", "queries"} & set(path.relative_to(root).parts[:-1])
+        or path.name in {"commands.py", "queries.py"}
     }
     modules.update(SRC_ROOT / relative for relative in _HANDLER_FACADES)
     return tuple(sorted(modules))
@@ -85,7 +86,17 @@ def test_migrated_platform_services_do_not_import_concrete_infrastructure() -> N
     migrated = (
         *(SRC_ROOT / "platform/application/master_data/org").rglob("*.py"),
         SRC_ROOT / "platform/application/security/authorization/roles/commands/tenant_role_commands.py",
-        SRC_ROOT / "platform/application/security/authorization/roles/role_policy_reconciliation_service.py",
+        *(SRC_ROOT / "platform/application/security/authorization/roles/queries").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/approval").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/notifications").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/finance").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/security/identity").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/tenant/tenancy/commands").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/tenant/tenancy/queries").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/time_management/calendar").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/master_data/data_exchange").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/platform_runtime").rglob("*.py"),
+        *(SRC_ROOT / "platform/application/data_operations/runtime_tracking").rglob("*.py"),
         *(SRC_ROOT / "platform/application/security/auth").rglob("*.py"),
         *(SRC_ROOT / "platform/application/security/authorization/roles/commands").rglob("*.py"),
         *(SRC_ROOT / "platform/application/time_management/time").rglob("*.py"),
@@ -101,6 +112,25 @@ def test_migrated_platform_services_do_not_import_concrete_infrastructure() -> N
             ".infrastructure." in imported or imported.startswith("src.infra.")
             for imported in imports
         ), str(path.relative_to(SRC_ROOT))
+
+
+def test_cross_module_approval_and_notification_ports_are_neutral() -> None:
+    for feature in ("approval", "notifications"):
+        root = SRC_ROOT / "platform/contract/port" / feature
+        for path in root.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    imports = (node.module or "",)
+                elif isinstance(node, ast.Import):
+                    imports = tuple(alias.name for alias in node.names)
+                else:
+                    continue
+                assert not any(
+                    ".application." in name or ".infrastructure." in name
+                    or name.startswith(("src.infra.", "src.ui_qml."))
+                    for name in imports
+                ), str(path.relative_to(SRC_ROOT))
 
 
 def test_pm_command_dtos_live_in_feature_application_packages() -> None:

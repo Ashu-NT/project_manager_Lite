@@ -84,6 +84,12 @@ class ServicePrincipalCommandHandler:
         ctx = self._tenant_context_service.require_organization_context(
             operation_label="create a service principal"
         )
+        organization_id = ctx.organization_id
+        if organization_id is None:
+            raise BusinessRuleError(
+                "Active organization context is required for create a service principal.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
         actor = self._require_actor()
         username = self._service_username(ctx.tenant_id, name)
         try:
@@ -99,14 +105,15 @@ class ServicePrincipalCommandHandler:
             )
             principal = ServicePrincipal.create(
                 tenant_id=ctx.tenant_id,
-                organization_id=ctx.organization_id,
+                organization_id=organization_id,
                 user_id=user.id,
                 name=name,
                 description=description,
                 created_by_user_id=actor.user_id,
             )
             self._principal_repo.add(principal)
-            record_service_principal_audit(self._audit_repo,
+            record_service_principal_audit(
+                self._audit_repo,
                 principal=principal,
                 operation="create",
                 action="identity.service_principal.created",
@@ -130,7 +137,9 @@ class ServicePrincipalCommandHandler:
         principal.updated_at = now
         user = self._user_repo.get(principal.user_id)
         if user is None:
-            raise NotFoundError("Service account not found.", code="SERVICE_ACCOUNT_NOT_FOUND")
+            raise NotFoundError(
+                "Service account not found.", code="SERVICE_ACCOUNT_NOT_FOUND"
+            )
         user.is_active = False
         user.session_revision += 1
         user.updated_at = now
@@ -141,7 +150,8 @@ class ServicePrincipalCommandHandler:
                 principal.id,
                 revoked_at=now,
             )
-            record_service_principal_audit(self._audit_repo,
+            record_service_principal_audit(
+                self._audit_repo,
                 principal=principal,
                 operation="disable",
                 action="identity.service_principal.disabled",
@@ -172,9 +182,15 @@ class ServicePrincipalCommandHandler:
             expires_in_days=expires_in_days,
             created_by_user_id=actor.user_id,
         )
+        expires_at = issued.credential.expires_at
+        if expires_at is None:
+            raise ValidationError(
+                "API-key lifetime is invalid.", code="API_KEY_EXPIRY_INVALID"
+            )
         try:
             self._api_key_repo.add(issued.credential)
-            record_service_principal_audit(self._audit_repo,
+            record_service_principal_audit(
+                self._audit_repo,
                 principal=principal,
                 operation="create",
                 action="identity.api_key.issued",
@@ -183,7 +199,7 @@ class ServicePrincipalCommandHandler:
                     "api_key_id": issued.credential.id,
                     "key_prefix": issued.credential.key_prefix,
                     "permission_scopes": list(issued.credential.permission_scopes),
-                    "expires_at": issued.credential.expires_at.isoformat(),
+                    "expires_at": expires_at.isoformat(),
                 },
             )
             self._session.commit()
@@ -202,7 +218,9 @@ class ServicePrincipalCommandHandler:
         current = self._require_credential(credential_id)
         principal = self._require_active_principal(current.service_principal_id)
         if current.revoked_at is not None:
-            raise BusinessRuleError("Revoked API keys cannot be rotated.", code="API_KEY_REVOKED")
+            raise BusinessRuleError(
+                "Revoked API keys cannot be rotated.", code="API_KEY_REVOKED"
+            )
         actor = self._require_actor()
         issued = self._build_api_key(
             principal,
@@ -215,7 +233,8 @@ class ServicePrincipalCommandHandler:
         try:
             self._api_key_repo.update(current)
             self._api_key_repo.add(issued.credential)
-            record_service_principal_audit(self._audit_repo,
+            record_service_principal_audit(
+                self._audit_repo,
                 principal=principal,
                 operation="rotate",
                 action="identity.api_key.rotated",
@@ -242,7 +261,8 @@ class ServicePrincipalCommandHandler:
         credential.revoked_at = datetime.now(UTC)
         try:
             self._api_key_repo.update(credential)
-            record_service_principal_audit(self._audit_repo,
+            record_service_principal_audit(
+                self._audit_repo,
                 principal=principal,
                 operation="revoke",
                 action="identity.api_key.revoked",
@@ -267,7 +287,9 @@ class ServicePrincipalCommandHandler:
         try:
             lifetime_days = int(expires_in_days)
         except (TypeError, ValueError) as exc:
-            raise ValidationError("API-key lifetime is invalid.", code="API_KEY_EXPIRY_INVALID") from exc
+            raise ValidationError(
+                "API-key lifetime is invalid.", code="API_KEY_EXPIRY_INVALID"
+            ) from exc
         if lifetime_days < 1 or lifetime_days > 365:
             raise ValidationError(
                 "API-key lifetime must be between 1 and 365 days.",
@@ -275,7 +297,9 @@ class ServicePrincipalCommandHandler:
             )
         user = self._user_repo.get(principal.user_id)
         if user is None:
-            raise NotFoundError("Service account not found.", code="SERVICE_ACCOUNT_NOT_FOUND")
+            raise NotFoundError(
+                "Service account not found.", code="SERVICE_ACCOUNT_NOT_FOUND"
+            )
         effective = self._principals.build_for_context(
             user,
             tenant_id=principal.tenant_id,
@@ -286,7 +310,13 @@ class ServicePrincipalCommandHandler:
             for permissions in scope_rows.values():
                 assignable_permissions.update(permissions)
         requested = tuple(
-            sorted({str(code or "").strip().lower() for code in permission_scopes if str(code or "").strip()})
+            sorted(
+                {
+                    str(code or "").strip().lower()
+                    for code in permission_scopes
+                    if str(code or "").strip()
+                }
+            )
         )
         if not requested:
             raise ValidationError(
@@ -313,8 +343,12 @@ class ServicePrincipalCommandHandler:
         )
         return IssuedApiKey(credential=credential, token=token)
 
-    def _require_admin(self, operation_label: str, *, include_role_assignment: bool = False) -> None:
-        require_permission(self._user_session, "auth.manage", operation_label=operation_label)
+    def _require_admin(
+        self, operation_label: str, *, include_role_assignment: bool = False
+    ) -> None:
+        require_permission(
+            self._user_session, "auth.manage", operation_label=operation_label
+        )
         if include_role_assignment:
             require_permission(
                 self._user_session,
@@ -325,19 +359,25 @@ class ServicePrincipalCommandHandler:
     def _require_actor(self) -> UserSessionPrincipal:
         principal = self._user_session.principal
         if principal is None:
-            raise BusinessRuleError("Authentication is required.", code="AUTHENTICATION_REQUIRED")
+            raise BusinessRuleError(
+                "Authentication is required.", code="AUTHENTICATION_REQUIRED"
+            )
         return principal
 
     def _require_principal(self, principal_id: str) -> ServicePrincipal:
         principal = self._principal_repo.get(principal_id)
         if principal is None:
-            raise NotFoundError("Service principal not found.", code="SERVICE_PRINCIPAL_NOT_FOUND")
+            raise NotFoundError(
+                "Service principal not found.", code="SERVICE_PRINCIPAL_NOT_FOUND"
+            )
         return principal
 
     def _require_active_principal(self, principal_id: str) -> ServicePrincipal:
         principal = self._require_principal(principal_id)
         if principal.status != SERVICE_PRINCIPAL_STATUS_ACTIVE:
-            raise BusinessRuleError("Service principal is disabled.", code="SERVICE_PRINCIPAL_DISABLED")
+            raise BusinessRuleError(
+                "Service principal is disabled.", code="SERVICE_PRINCIPAL_DISABLED"
+            )
         return principal
 
     def _require_credential(self, credential_id: str) -> ApiKeyCredential:
@@ -349,9 +389,10 @@ class ServicePrincipalCommandHandler:
     @staticmethod
     def _service_username(tenant_id: str, name: str) -> str:
         slug = re.sub(r"[^a-z0-9]+", "-", str(name or "").strip().lower()).strip("-")
-        return f"svc-{tenant_id[:8]}-{slug[:48] or 'service'}-{secrets.token_hex(4)}"[:128]
+        return f"svc-{tenant_id[:8]}-{slug[:48] or 'service'}-{secrets.token_hex(4)}"[
+            :128
+        ]
 
     @staticmethod
     def _unusable_random_password() -> str:
         return f"Aa1!{secrets.token_urlsafe(48)}"
-

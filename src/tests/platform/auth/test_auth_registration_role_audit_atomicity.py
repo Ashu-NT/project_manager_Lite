@@ -195,7 +195,7 @@ def test_explicit_tenant_registration_audits_target_scope_without_secrets(
         tenant_code="AUDIT-TARGET",
         display_name="Audit Target Tenant",
     )
-    services["tenant_admin_service"]._tenant_repo.add(other_tenant)
+    services["tenant_lifecycle_commands"]._tenant_repo.add(other_tenant)
     services["session"].commit()
 
     target = services["user_registration"].register_user(

@@ -56,14 +56,9 @@ class AccountingConnectorConfigurationCommandHandler:
             with self._uow_factory.create(
                 context=DomainEventContext(correlation_id=str(uuid4()))
             ) as uow:
-                participant = AccountingConnectorConfigurationCommandHandler(
+                result = self._configure_using(
                     repository=uow.accounting_connectors,
-                    tenant_context_service=self._tenant_context_service,
-                    user_session=self._user_session,
-                    enterprise_audit_service=uow._enterprise_audit_service,
-                    installed_adapters=self._installed,
-                )
-                result = participant.configure(
+                    audit_owner=uow,
                     adapter_id=adapter_id,
                     connection_id=connection_id,
                     secret_reference=secret_reference,
@@ -73,6 +68,27 @@ class AccountingConnectorConfigurationCommandHandler:
                 uow.commit()
             return result
 
+        return self._configure_using(
+            repository=self._repository,
+            audit_owner=self,
+            adapter_id=adapter_id,
+            connection_id=connection_id,
+            secret_reference=secret_reference,
+            enabled=enabled,
+            expected_version=expected_version,
+        )
+
+    def _configure_using(
+        self,
+        *,
+        repository,
+        audit_owner,
+        adapter_id: str,
+        connection_id: str,
+        secret_reference: str,
+        enabled: bool,
+        expected_version: int | None,
+    ) -> AccountingConnectorConfiguration:
         require_permission(
             self._user_session,
             "integration.accounting.configure",
@@ -94,9 +110,9 @@ class AccountingConnectorConfigurationCommandHandler:
             enabled=enabled,
             version=1 if expected_version is None else expected_version + 1,
         )
-        self._repository.save(configuration, expected_version=expected_version)
+        repository.save(configuration, expected_version=expected_version)
         record_audit_entry(
-            self,
+            audit_owner,
             operation="accounting_connector.configure",
             entity_type="AccountingConnector",
             entity_id=scope.organization_id,
@@ -110,4 +126,3 @@ class AccountingConnectorConfigurationCommandHandler:
             fail_closed=True,
         )
         return configuration
-

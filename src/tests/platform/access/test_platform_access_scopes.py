@@ -216,7 +216,7 @@ def test_access_service_rejects_target_from_another_tenant(services):
     project = services["project_service"].create_project(
         "Cross Tenant Access Target"
     )
-    other_tenant = services["tenant_admin_service"].create_tenant(
+    other_tenant = services["tenant_lifecycle_commands"].create_tenant(
         "ACCESS-TARGET",
         "Access Target Tenant",
     )

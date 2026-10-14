@@ -25,7 +25,7 @@ def _line_count(path: Path) -> int:
     return len(path.read_text(encoding="utf-8", errors="ignore").splitlines())
 
 
-_EXCLUDED_DIR_PARTS = frozenset({"dist", "pmenv", ".venv", "venv", "__pycache__"})
+_EXCLUDED_DIR_PARTS = frozenset({"dist", "pmenv", ".venv", "venv", "__pycache__", ".tmp"})
 
 
 def _python_files(root: Path):

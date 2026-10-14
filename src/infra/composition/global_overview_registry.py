@@ -124,7 +124,7 @@ def build_global_overview_service_bundle(
         action_center_service=action_center_service,
         module_summary_contributors=(
             PlatformModuleOverviewContributor(
-                approval_service=platform_services.approval_service,
+                approval_queries=platform_services.approval_queries,
             ),
             ProjectManagementModuleOverviewContributor(
                 platform_runtime_query=(
@@ -134,7 +134,7 @@ def build_global_overview_service_bundle(
                 project_service=project_management_services.project_service,
             ),
         ) if project_management_services is not None else (
-            PlatformModuleOverviewContributor(approval_service=platform_services.approval_service),
+            PlatformModuleOverviewContributor(approval_queries=platform_services.approval_queries),
         ),
         user_session=platform_services.user_session,
     )
@@ -145,7 +145,9 @@ def build_global_overview_service_bundle(
             global_overview_service=global_overview_service,
         ),
         platform_notification_desktop_api=PlatformNotificationDesktopApi(
-            notification_service=platform_services.notification_service,
+            notification_commands=platform_services.notification_commands,
+            notification_queries=platform_services.notification_queries,
+            notification_delivery=platform_services.notification_delivery,
         ),
     )
 

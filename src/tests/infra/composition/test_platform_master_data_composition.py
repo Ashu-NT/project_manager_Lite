@@ -30,7 +30,7 @@ from src.core.platform.domain.master_data.site.events import (
 
 
 def test_platform_master_data_events_have_one_shared_handler_per_family(services):
-    bus = services["project_service"]._uow_factory._post_commit_bus
+    bus = services["project_service"]._create_handler._uow_factory._post_commit_bus
     families = (
         (EmployeeCreated, EmployeeProfileUpdated),
         (DepartmentCreated, DepartmentProfileUpdated, DepartmentActivated, DepartmentDeactivated),

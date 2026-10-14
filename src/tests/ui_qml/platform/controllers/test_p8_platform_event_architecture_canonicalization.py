@@ -282,7 +282,7 @@ def test_organization_create_path_has_zero_legacy_signal_involvement():
 
 
 def test_tenant_membership_service_never_imports_domain_events():
-    import src.core.platform.application.tenant.tenancy.tenant_membership_service as module
+    import src.core.platform.application.tenant.tenancy.commands.membership_lifecycle as module
 
     source = _strip_strings_and_comments(inspect.getsource(module))
     assert "domain_events" not in source

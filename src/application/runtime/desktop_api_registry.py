@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import cast
 
 from src.core.global_overview.api.desktop.global_overview import (
     GlobalOverviewDesktopApi,
@@ -21,6 +22,9 @@ from src.core.modules.project_management.api.desktop import (
 from src.core.modules.project_management.api.desktop_runtime import (
     ProjectManagementDesktopRuntimePlatformDependencies,
     build_project_management_desktop_runtime_apis,
+)
+from src.core.modules.project_management.gateway.task.reservation import (
+    TaskReservationGateway,
 )
 from src.core.platform.access import AccessControlService
 from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
@@ -64,7 +68,10 @@ from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDe
 from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
     PlatformCalendarDesktopApi,
 )
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.approval import (
+    ApprovalCommandHandler,
+    ApprovalQueryHandler,
+)
 from src.core.platform.application.finance import (
     FinancialPeriodCommandHandler,
     FinancialPeriodQueryHandler,
@@ -87,7 +94,12 @@ from src.core.platform.application.master_data.employee import (
     EmployeeDocumentCommandHandler,
     EmployeeQueryHandler,
 )
-from src.core.platform.application.master_data.org import OrganizationQueryHandler
+from src.core.platform.application.master_data.org import (
+    OrganizationCommandHandler,
+    OrganizationLifecycleCommandHandler,
+    OrganizationProvisioningCommandHandler,
+    OrganizationQueryHandler,
+)
 from src.core.platform.application.master_data.party import (
     PartyCommandHandler,
     PartyQueryHandler,
@@ -97,8 +109,7 @@ from src.core.platform.application.master_data.site import (
     SiteQueryHandler,
 )
 from src.core.platform.application.platform_runtime import (
-    PlatformRuntimeApplicationService,
-    resolve_platform_runtime_application_service,
+    PlatformRuntimeQueryHandler,
 )
 from src.core.platform.application.security.auth import (
     AuthQueryHandler,
@@ -112,7 +123,6 @@ from src.core.platform.application.security.authorization.roles.commands import 
     RoleAssignmentHandler,
 )
 from src.core.platform.application.security.identity import (
-    ApiKeyAuthenticationHandler,
     ServicePrincipalCommandHandler,
     ServicePrincipalQueryHandler,
 )
@@ -120,26 +130,51 @@ from src.core.platform.application.tenant.modules import (
     ModuleCatalogQueryHandler,
     ModuleEntitlementCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.tenant.tenancy import (
+    TenantAdminQueryHandler,
+    TenantContextService,
+    TenantInvitationCommandHandler,
+    TenantLifecycleCommandHandler,
+    TenantMembershipQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
-    ShiftPatternService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.commands.shift_pattern_commands import (
+    ShiftPatternCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
+    ShiftPatternQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.core.platform.integration.module_registry import ModuleRegistry
@@ -182,57 +217,63 @@ class DesktopApiRegistry:
     project_management_timesheets: ProjectManagementTimesheetsDesktopApi
 
 
-def _require_service[T](services: Mapping[str, object], key: str, expected: type[T]) -> T:
+def _require_service[T](
+    services: Mapping[str, object], key: str, expected: type[T]
+) -> T:
     value = services.get(key)
     if not isinstance(value, expected):
         raise RuntimeError(f"Platform capability {key!r} is not configured.")
     return value
 
 
-def _optional_service[T](services: Mapping[str, object], key: str, expected: type[T]) -> T | None:
+def _optional_service[T](
+    services: Mapping[str, object], key: str, expected: type[T]
+) -> T | None:
     value = services.get(key)
     return value if isinstance(value, expected) else None
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
-    platform_runtime_application_service = resolve_platform_runtime_application_service(
-        platform_runtime_application_service=services.get(
-            "platform_runtime_application_service"
-        ),
-        module_catalog_service=services.get("module_catalog_service"),
-        organization_query=_optional_service(services, "organization_query", OrganizationQueryHandler),
-        tenant_context_service=services.get("tenant_context_service"),
-        user_session=services.get("user_session"),
+    platform_runtime_query = _require_service(
+        services, "platform_runtime_query", PlatformRuntimeQueryHandler
     )
-    if not isinstance(
-        platform_runtime_application_service,
-        PlatformRuntimeApplicationService,
-    ):
-        raise RuntimeError("Platform runtime application service is not configured.")
     module_entitlement_commands = services.get("module_entitlement_commands")
     if not isinstance(module_entitlement_commands, ModuleEntitlementCommandHandler):
         raise RuntimeError("Module entitlement commands are not configured.")
 
     site_query = _require_service(services, "site_query", SiteQueryHandler)
-    department_query = _require_service(services, "department_query", DepartmentQueryHandler)
+    department_query = _require_service(
+        services, "department_query", DepartmentQueryHandler
+    )
     employee_query = _require_service(services, "employee_query", EmployeeQueryHandler)
     access_service = services.get("access_service")
     if not isinstance(access_service, AccessControlService):
         raise RuntimeError("Platform access service is not configured.")
-    approval_service = services.get("approval_service")
-    if not isinstance(approval_service, ApprovalService):
-        raise RuntimeError("Platform approval service is not configured.")
+    approval_commands = _require_service(
+        services, "approval_commands", ApprovalCommandHandler
+    )
+    approval_queries = _require_service(
+        services, "approval_queries", ApprovalQueryHandler
+    )
     enterprise_audit_service = services.get("enterprise_audit_service")
-    financial_period_commands = _require_service(services, "financial_period_commands", FinancialPeriodCommandHandler)
-    financial_period_queries = _require_service(services, "financial_period_queries", FinancialPeriodQueryHandler)
+    financial_period_commands = _require_service(
+        services, "financial_period_commands", FinancialPeriodCommandHandler
+    )
+    financial_period_queries = _require_service(
+        services, "financial_period_queries", FinancialPeriodQueryHandler
+    )
     activity_service = services.get("activity_service")
     service_principal_commands = services.get("service_principal_commands")
     if not isinstance(service_principal_commands, ServicePrincipalCommandHandler):
         raise RuntimeError("Platform service-principal commands are not configured.")
-    service_principal_query = _require_service(services, "service_principal_query", ServicePrincipalQueryHandler)
+    service_principal_query = _require_service(
+        services, "service_principal_query", ServicePrincipalQueryHandler
+    )
 
     project_service = services.get("project_service")
-    inventory_reservation_service = services.get("inventory_reservation_service")
+    inventory_reservation_service = cast(
+        TaskReservationGateway | None, services.get("inventory_reservation_service")
+    )
 
     platform_site_api = PlatformSiteDesktopApi(
         site_commands=_require_service(services, "site_commands", SiteCommandHandler),
@@ -240,7 +281,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     )
 
     access_scope_type_choices: list[tuple[str, str]] = []
-    access_scope_option_loaders: dict[str, object] = {}
+    access_scope_option_loaders: dict[str, Callable[[], list[tuple[str, str]]]] = {}
     access_scope_disabled_hints: dict[str, str] = {}
     organization_query = services.get("organization_query")
     if isinstance(organization_query, OrganizationQueryHandler):
@@ -257,8 +298,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     if project_service is not None and hasattr(project_service, "list_projects"):
         access_scope_type_choices.append(("Project", "project"))
         access_scope_option_loaders["project"] = lambda: [
-            (project.name, project.id)
-            for project in project_service.list_projects()
+            (project.name, project.id) for project in project_service.list_projects()
         ]
     access_scope_type_choices.append(("Site", "site"))
     access_scope_option_loaders["site"] = lambda: _load_site_scope_options(
@@ -298,30 +338,75 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         integration_capability = build_integration_capability_api(fallback_registry)
 
     platform_calendar_api: PlatformCalendarDesktopApi | None = None
-    platform_calendar_service = services.get("platform_calendar_service")
-    working_rule_service = services.get("working_rule_service")
-    calendar_exception_service = services.get("calendar_exception_service")
-    recurring_event_service = services.get("recurring_event_service")
-    shift_pattern_service = services.get("shift_pattern_service")
-    calendar_assignment_service = services.get("calendar_assignment_service")
-    platform_calendar_resolver = services.get("platform_calendar_resolver")
+    platform_calendar_commands = _optional_service(
+        services, "platform_calendar_commands", PlatformCalendarCommandHandler
+    )
+    platform_calendar_queries = _optional_service(
+        services, "platform_calendar_queries", PlatformCalendarQueryHandler
+    )
+    working_rule_commands = _optional_service(
+        services, "working_rule_commands", WorkingRuleCommandHandler
+    )
+    working_rule_queries = _optional_service(
+        services, "working_rule_queries", WorkingRuleQueryHandler
+    )
+    calendar_exception_commands = _optional_service(
+        services, "calendar_exception_commands", CalendarExceptionCommandHandler
+    )
+    calendar_exception_queries = _optional_service(
+        services, "calendar_exception_queries", CalendarExceptionQueryHandler
+    )
+    recurring_event_commands = _optional_service(
+        services, "recurring_event_commands", RecurringEventCommandHandler
+    )
+    recurring_event_queries = _optional_service(
+        services, "recurring_event_queries", RecurringEventQueryHandler
+    )
+    shift_pattern_commands = _optional_service(
+        services, "shift_pattern_commands", ShiftPatternCommandHandler
+    )
+    shift_pattern_queries = _optional_service(
+        services, "shift_pattern_queries", ShiftPatternQueryHandler
+    )
+    calendar_assignment_commands = _optional_service(
+        services, "calendar_assignment_commands", CalendarAssignmentCommandHandler
+    )
+    calendar_assignment_queries = _optional_service(
+        services, "calendar_assignment_queries", CalendarAssignmentQueryHandler
+    )
+    platform_calendar_resolver = _optional_service(
+        services, "platform_calendar_resolver", PlatformCalendarResolver
+    )
     resource_capacity_calculator = services.get("resource_capacity_calculator")
+    platform_calendar_api = None
     if (
-        isinstance(platform_calendar_service, PlatformCalendarService)
-        and isinstance(working_rule_service, WorkingRuleService)
-        and isinstance(calendar_exception_service, CalendarExceptionService)
-        and isinstance(recurring_event_service, RecurringEventService)
-        and isinstance(shift_pattern_service, ShiftPatternService)
-        and isinstance(calendar_assignment_service, CalendarAssignmentService)
-        and isinstance(platform_calendar_resolver, PlatformCalendarResolver)
+        platform_calendar_commands is not None
+        and platform_calendar_queries is not None
+        and working_rule_commands is not None
+        and working_rule_queries is not None
+        and calendar_exception_commands is not None
+        and calendar_exception_queries is not None
+        and recurring_event_commands is not None
+        and recurring_event_queries is not None
+        and shift_pattern_commands is not None
+        and shift_pattern_queries is not None
+        and calendar_assignment_commands is not None
+        and calendar_assignment_queries is not None
+        and platform_calendar_resolver is not None
     ):
         platform_calendar_api = PlatformCalendarDesktopApi(
-            calendar_service=platform_calendar_service,
-            rule_service=working_rule_service,
-            exception_service=calendar_exception_service,
-            recurring_event_service=recurring_event_service,
-            shift_pattern_service=shift_pattern_service,
-            assignment_service=calendar_assignment_service,
+            platform_calendar_commands=platform_calendar_commands,
+            platform_calendar_queries=platform_calendar_queries,
+            working_rule_commands=working_rule_commands,
+            working_rule_queries=working_rule_queries,
+            calendar_exception_commands=calendar_exception_commands,
+            calendar_exception_queries=calendar_exception_queries,
+            recurring_event_commands=recurring_event_commands,
+            recurring_event_queries=recurring_event_queries,
+            shift_pattern_commands=shift_pattern_commands,
+            shift_pattern_queries=shift_pattern_queries,
+            calendar_assignment_commands=calendar_assignment_commands,
+            calendar_assignment_queries=calendar_assignment_queries,
             resolver=platform_calendar_resolver,
             capacity_calculator=resource_capacity_calculator,
         )
@@ -333,7 +418,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             employee_query=employee_query,
             site_query=site_query,
             department_query=department_query,
-            approval_service=approval_service,
+            approval_queries=approval_queries,
             module_catalog_service=(
                 pm_module_catalog
                 if isinstance(pm_module_catalog, ModuleCatalogQueryHandler)
@@ -348,13 +433,38 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
 
     return DesktopApiRegistry(
         integration_capability=integration_capability,
-        platform_view_invalidation_channel=services.get("platform_view_invalidation_channel"),
+        platform_view_invalidation_channel=cast(
+            ViewInvalidationChannel | None,
+            services.get("platform_view_invalidation_channel"),
+        ),
         platform_runtime=PlatformRuntimeDesktopApi(
-            platform_runtime_application_service=platform_runtime_application_service,
+            platform_runtime_query=platform_runtime_query,
+            module_catalog_service=_require_service(
+                services, "module_catalog_service", ModuleCatalogQueryHandler
+            ),
+            organization_query=_require_service(
+                services, "organization_query", OrganizationQueryHandler
+            ),
+            organization_commands=_require_service(
+                services, "organization_commands", OrganizationCommandHandler
+            ),
+            organization_lifecycle=_require_service(
+                services, "organization_lifecycle", OrganizationLifecycleCommandHandler
+            ),
+            organization_provisioning_commands=_require_service(
+                services,
+                "organization_provisioning_commands",
+                OrganizationProvisioningCommandHandler,
+            ),
+            tenant_context_service=_require_service(
+                services, "tenant_context_service", TenantContextService
+            ),
             module_entitlement_commands=module_entitlement_commands,
         ),
         global_overview=(
-            global_overview_api if isinstance(global_overview_api, GlobalOverviewDesktopApi) else None
+            global_overview_api
+            if isinstance(global_overview_api, GlobalOverviewDesktopApi)
+            else None
         ),
         platform_notification=(
             platform_notification_api
@@ -364,11 +474,15 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_calendar=platform_calendar_api,
         platform_site=platform_site_api,
         platform_department=PlatformDepartmentDesktopApi(
-            department_commands=_require_service(services, "department_commands", DepartmentCommandHandler),
+            department_commands=_require_service(
+                services, "department_commands", DepartmentCommandHandler
+            ),
             department_query=department_query,
         ),
         platform_employee=PlatformEmployeeDesktopApi(
-            employee_commands=_require_service(services, "employee_commands", EmployeeCommandHandler),
+            employee_commands=_require_service(
+                services, "employee_commands", EmployeeCommandHandler
+            ),
             employee_query=employee_query,
             employee_documents=_require_service(
                 services, "employee_document_commands", EmployeeDocumentCommandHandler
@@ -381,37 +495,62 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             scope_disabled_hints=access_scope_disabled_hints,
         ),
         platform_approval=PlatformApprovalDesktopApi(
-            approval_service=approval_service,
+            approval_commands=approval_commands,
+            approval_queries=approval_queries,
         ),
-        platform_activity=PlatformActivityDesktopApi(activity_service=activity_service) if isinstance(activity_service, ActivityService) else None,
-        platform_enterprise_audit=PlatformEnterpriseAuditDesktopApi(enterprise_audit_service=enterprise_audit_service) if isinstance(enterprise_audit_service, EnterpriseAuditService) else None,
+        platform_activity=PlatformActivityDesktopApi(activity_service=activity_service)
+        if isinstance(activity_service, ActivityService)
+        else None,
+        platform_enterprise_audit=PlatformEnterpriseAuditDesktopApi(
+            enterprise_audit_service=enterprise_audit_service
+        )
+        if isinstance(enterprise_audit_service, EnterpriseAuditService)
+        else None,
         platform_financial_periods=FinancialPeriodDesktopApi(
             financial_period_commands=financial_period_commands,
             financial_period_queries=financial_period_queries,
         ),
         platform_document=PlatformDocumentDesktopApi(
-            document_commands=_require_service(services, "document_commands", DocumentCommandHandler),
+            document_commands=_require_service(
+                services, "document_commands", DocumentCommandHandler
+            ),
             document_structure_commands=_require_service(
                 services, "document_structure_commands", DocumentStructureCommandHandler
             ),
-            document_query=_require_service(services, "document_query", DocumentQueryHandler),
+            document_query=_require_service(
+                services, "document_query", DocumentQueryHandler
+            ),
         ),
         platform_party=PlatformPartyDesktopApi(
-            party_commands=_require_service(services, "party_commands", PartyCommandHandler),
+            party_commands=_require_service(
+                services, "party_commands", PartyCommandHandler
+            ),
             party_query=_require_service(services, "party_query", PartyQueryHandler),
         ),
         platform_support=PlatformSupportDesktopApi(),
         platform_tenant=_build_platform_tenant_api(services),
         platform_user=PlatformUserDesktopApi(
             auth_queries=_require_service(services, "auth_queries", AuthQueryHandler),
-            user_directory=_require_service(services, "user_directory_query", UserDirectoryQueryHandler),
-            registration=_require_service(services, "user_registration", UserRegistrationHandler),
-            user_administration=_require_service(
-                services, "user_administration_commands", UserAdministrationCommandHandler
+            user_directory=_require_service(
+                services, "user_directory_query", UserDirectoryQueryHandler
             ),
-            passwords=_require_service(services, "password_commands", PasswordCommandHandler),
-            session_commands=_require_service(services, "auth_session_commands", AuthSessionCommandHandler),
-            role_assignment=_require_service(services, "role_assignment_commands", RoleAssignmentHandler),
+            registration=_require_service(
+                services, "user_registration", UserRegistrationHandler
+            ),
+            user_administration=_require_service(
+                services,
+                "user_administration_commands",
+                UserAdministrationCommandHandler,
+            ),
+            passwords=_require_service(
+                services, "password_commands", PasswordCommandHandler
+            ),
+            session_commands=_require_service(
+                services, "auth_session_commands", AuthSessionCommandHandler
+            ),
+            role_assignment=_require_service(
+                services, "role_assignment_commands", RoleAssignmentHandler
+            ),
         ),
         platform_identity=PlatformIdentityDesktopApi(
             service_principal_commands=service_principal_commands,
@@ -424,28 +563,34 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
 def _build_platform_tenant_api(
     services: Mapping[str, object],
 ) -> PlatformTenantDesktopApi | None:
-    from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
-        TenantAdminService as _TAS,
+    tenant_admin_queries = _optional_service(
+        services, "tenant_admin_queries", TenantAdminQueryHandler
     )
-    from src.core.platform.application.tenant.tenancy.tenant_context import (
-        TenantContextService as _TCS,
+    tenant_lifecycle_commands = _optional_service(
+        services, "tenant_lifecycle_commands", TenantLifecycleCommandHandler
     )
-    from src.core.platform.application.tenant.tenancy.tenant_membership_service import (
-        TenantMembershipService as _TMS,
+    tenant_context_service = _optional_service(
+        services, "tenant_context_service", TenantContextService
     )
-
-    tenant_admin_service = services.get("tenant_admin_service")
-    tenant_context_service = services.get("tenant_context_service")
-    tenant_membership_service = services.get("tenant_membership_service")
+    tenant_invitation_commands = _optional_service(
+        services, "tenant_invitation_commands", TenantInvitationCommandHandler
+    )
+    tenant_membership_queries = _optional_service(
+        services, "tenant_membership_queries", TenantMembershipQueryHandler
+    )
     if (
-        isinstance(tenant_admin_service, _TAS)
-        and isinstance(tenant_context_service, _TCS)
-        and isinstance(tenant_membership_service, _TMS)
+        tenant_admin_queries is not None
+        and tenant_lifecycle_commands is not None
+        and tenant_context_service is not None
+        and tenant_invitation_commands is not None
+        and tenant_membership_queries is not None
     ):
         return PlatformTenantDesktopApi(
-            tenant_admin_service=tenant_admin_service,
+            tenant_admin_queries=tenant_admin_queries,
+            tenant_lifecycle_commands=tenant_lifecycle_commands,
             tenant_context_service=tenant_context_service,
-            tenant_membership_service=tenant_membership_service,
+            tenant_invitation_commands=tenant_invitation_commands,
+            tenant_membership_queries=tenant_membership_queries,
         )
     return None
 
@@ -456,10 +601,7 @@ def _load_site_scope_options(
     result = platform_site_desktop_api.list_sites(active_only=None)
     if not result.ok or result.data is None:
         return []
-    return [
-        (f"{site.site_code} - {site.name}", site.id)
-        for site in result.data
-    ]
+    return [(f"{site.site_code} - {site.name}", site.id) for site in result.data]
 
 
 __all__ = ["DesktopApiRegistry", "build_desktop_api_registry"]

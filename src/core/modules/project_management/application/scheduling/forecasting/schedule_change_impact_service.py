@@ -25,7 +25,7 @@ from src.core.modules.project_management.application.scheduling.forecasting.task
     compute_downstream_exposure,
     compute_free_float_days,
 )
-from src.core.modules.project_management.contracts.reads.scheduling.approved_baseline_lookup import (
+from src.core.modules.project_management.contracts.ports.scheduling.approved_baseline_lookup import (
     ApprovedBaselineLookup,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
