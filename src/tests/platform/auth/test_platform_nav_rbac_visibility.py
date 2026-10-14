@@ -1,4 +1,4 @@
-"""Frontend RBAC visibility: PlatformRuntimeApplicationService.get_current_permissions() reads
+"""Frontend RBAC visibility: PlatformRuntimeQueryHandler.get_current_permissions() reads
 the session principal's already-resolved permission set (no extra query -- computed once at
 login), exposed through PlatformRuntimeDesktopApi and PlatformWorkspaceCatalog.hasPermission()/
 hasAnyPermission()/contextNavigation, which filter Platform's Context Navigation Tree to the

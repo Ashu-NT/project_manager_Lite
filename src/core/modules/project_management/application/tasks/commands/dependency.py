@@ -30,7 +30,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
@@ -78,7 +78,7 @@ class TaskDependencyCommandHandler:
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
         user_session: UserSessionContext | None,
-        approval_service: ApprovalService | None,
+        approval_commands: ApprovalCommands | None,
         tenant_context_service: TenantContextService,
         hierarchy_policy: TaskHierarchyPolicy,
         diagnostics_handler: TaskDependencyDiagnosticsQueryHandler,
@@ -88,7 +88,7 @@ class TaskDependencyCommandHandler:
         self._task_repo = task_repo
         self._dependency_repo = dependency_repo
         self._user_session = user_session
-        self._approval_service = approval_service
+        self._approval_commands = approval_commands
         self._tenant_context_service = tenant_context_service
         self._hierarchy_policy = hierarchy_policy
         self._diagnostics_handler = diagnostics_handler
@@ -111,7 +111,7 @@ class TaskDependencyCommandHandler:
         self._hierarchy_policy._require_leaf_task(predecessor, operation_label="participate in dependencies")
         self._hierarchy_policy._require_leaf_task(successor, operation_label="participate in dependencies")
         governed = (
-            self._approval_service is not None
+            self._approval_commands is not None
             and is_governance_required("dependency.add")
             and not is_admin_session(self._user_session)
         )
@@ -152,8 +152,8 @@ class TaskDependencyCommandHandler:
         )
         if not diagnostic.is_valid:
             _raise_for_invalid_diagnostic(diagnostic)
-        if governed and self._approval_service is not None:
-            request = self._approval_service.request_change(
+        if governed and self._approval_commands is not None:
+            request = self._approval_commands.request_change(
                 request_type="dependency.add",
                 entity_type="task_dependency",
                 entity_id=successor_id,
@@ -272,7 +272,7 @@ class TaskDependencyCommandHandler:
 
     def remove_dependency(self, dep_id: str) -> None:
         governed = (
-            self._approval_service is not None
+            self._approval_commands is not None
             and is_governance_required("dependency.remove")
             and not is_admin_session(self._user_session)
         )
@@ -293,8 +293,8 @@ class TaskDependencyCommandHandler:
                 "approval.request" if governed else "task.manage",
                 operation_label="request dependency removal" if governed else "remove dependency",
             )
-        if governed and self._approval_service is not None:
-            request = self._approval_service.request_change(
+        if governed and self._approval_commands is not None:
+            request = self._approval_commands.request_change(
                 request_type="dependency.remove",
                 entity_type="task_dependency",
                 entity_id=dependency.id,
@@ -405,7 +405,7 @@ class TaskDependencyCommandHandler:
         project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
 
         governed = (
-            self._approval_service is not None
+            self._approval_commands is not None
             and is_governance_required("dependency.update")
             and not is_admin_session(self._user_session)
         )
@@ -439,8 +439,8 @@ class TaskDependencyCommandHandler:
         if not diagnostic.is_valid:
             _raise_for_invalid_diagnostic(diagnostic)
 
-        if governed and self._approval_service is not None:
-            request = self._approval_service.request_change(
+        if governed and self._approval_commands is not None:
+            request = self._approval_commands.request_change(
                 request_type="dependency.update",
                 entity_type="task_dependency",
                 entity_id=dependency.id,

@@ -58,8 +58,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
-from src.core.platform.application.finance.financial_period_service import (
-    FinancialPeriodService,
+from src.core.platform.application.finance.queries.financial_period_query import (
+    FinancialPeriodQueryHandler,
 )
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
@@ -370,12 +370,9 @@ def _build_dispatcher(postgres_test_environment):
             cost_code_repo=uow.cost_codes,
             task_repo=uow.tasks,
             resource_repo=uow.resources,
-            financial_period_service=FinancialPeriodService(
-                session=uow._session,
+            financial_period_queries=FinancialPeriodQueryHandler(
                 period_repo=uow.financial_periods,
-                tenant_context_service=tenant_context,
                 user_session=user_session,
-                enterprise_audit_service=uow._enterprise_audit_service,
             ),
             clock=SystemClock(),
             user_session=user_session,
@@ -466,10 +463,9 @@ def _governed_rate_boundary(environment):
     )
 
     def operations(uow):
-        period_service = FinancialPeriodService(
-            session=uow._session, period_repo=uow.financial_periods,
-            tenant_context_service=scope, user_session=user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
+        period_queries = FinancialPeriodQueryHandler(
+            period_repo=uow.financial_periods,
+            user_session=user_session,
         )
         return SimpleNamespace(
             post_commit_actions=(),
@@ -484,7 +480,7 @@ def _governed_rate_boundary(environment):
                 project_repo=uow.projects, financial_profile_repo=uow.profiles,
                 cost_code_repo=uow.cost_codes, task_repo=uow.tasks,
                 resource_repo=uow.resources,
-                financial_period_service=period_service,
+                financial_period_queries=period_queries,
                 clock=SystemClock(), user_session=user_session,
                 enterprise_audit_service=uow._enterprise_audit_service,
                 tenant_context_service=scope, record_event=uow.record_event,

@@ -108,7 +108,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         enterprise_audit_service=None,
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
-        approval_service=None,
+        approval_commands=None,
         record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
@@ -122,7 +122,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
-        self._approval_service = approval_service
+        self._approval_commands = approval_commands
         self._record_event = record_event
 
     # -- Reads ------------------------------------------------------------
@@ -385,7 +385,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         if budget.row_version != expected_version:
             raise ConcurrencyError("Budget changed since you opened it.", code="STALE_WRITE")
         if governed:
-            req = self._approval_service.request_change(
+            req = self._approval_commands.request_change(
                 request_type="budget.approve",
                 entity_type="project_budget",
                 entity_id=budget_id,
@@ -427,7 +427,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         policy toggle. The desktop workflow always means "request approval";
         only a Platform Approval participant may apply its decision.
         """
-        if self._approval_service is None:
+        if self._approval_commands is None:
             raise BusinessRuleError(
                 "Platform Approval is not configured for Budget decisions.",
                 code="PROJECT_BUDGET_APPROVAL_UNAVAILABLE",
@@ -451,7 +451,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
                 "Only a submitted Budget can be sent for approval.",
                 code="PROJECT_BUDGET_APPROVAL_STATUS_INVALID",
             )
-        request = self._approval_service.request_change(
+        request = self._approval_commands.request_change(
             request_type="budget.approve",
             entity_type="project_budget",
             entity_id=budget.id,
@@ -757,7 +757,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
     # -- Internal, unchecked decision application ----------------------------
     # Reachable only through approve_budget/reject_budget (already permission-
     # checked) or through the composition-registered approval apply/reject
-    # handlers (already authorized by ApprovalService's own "approval.decide"
+    # handlers (already authorized by ApprovalCommands's own "approval.decide"
     # check). Neither ever checks "budget.approve" itself — that is
     # deliberate, not an oversight: a governance-only approver holding
     # "approval.decide" but not "budget.approve" must still be able to have
@@ -964,7 +964,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         return budget, event
 
     def _is_approval_governed(self) -> bool:
-        return self._approval_service is not None and is_governance_required("budget.approve")
+        return self._approval_commands is not None and is_governance_required("budget.approve")
 
     # -- Conflict translation (concurrent writes surface named errors, not
     #    raw IntegrityError) -------------------------------------------------

@@ -1,6 +1,6 @@
 """Same-tenant, cross-organization Approval authorization.
 
-`ApprovalService.approve_and_apply`/`reject` require only the GLOBAL permission
+`ApprovalCommandHandler.approve_and_apply`/`reject` require only the GLOBAL permission
 `approval.decide` -- there is no per-organization "decide" grant. The organization boundary is
 enforced entirely by the repository's ambient tenant-scoping filter, which requires the SESSION's
 active organization (`TenantContextService`, not `the Organization handlers.get_active_organization()`'s
@@ -71,7 +71,7 @@ def _request_pending_approval_in_org_a1(services, *, org_a1_id: str):
         # module already does.
         services["user_session"].set_active_organization_id(org_a1_id)
     assert _session_active_organization_id(services) == org_a1_id
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     request = approvals.request_change(
         request_type="baseline.create",
         entity_type="project_baseline",
@@ -110,7 +110,7 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
     # With multiple organizations enabled, a fresh login's active-org auto-select is ambiguous --
     # pin it to A2 explicitly.
     services["user_session"].set_active_organization_id(org_a2.id)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     with pytest.raises(NotFoundError, match="Approval request not found"):
         approvals.approve_and_apply(request.id, note="Should not be reachable from Org A2")
@@ -121,7 +121,7 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
     # this test already exercised) to read the request's true, unaffected state.
     _login(services, "admin", "ChangeMe123!")
     services["tenant_context_service"].set_active_organization(org_a1.id)
-    still_pending = approvals.list_pending()
+    still_pending = services["approval_queries"].list_pending()
     matching = [row for row in still_pending if row.id == request.id]
     assert len(matching) == 1
     assert matching[0].status == ApprovalStatus.PENDING
@@ -150,9 +150,9 @@ def _submitted_budget_in_org_a1(services, *, org_a1_id: str):
     budget = budgets.get_budget(budget.id)
     budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
     # `submit_budget` only transitions the budget itself -- the governed `ApprovalRequest` is a
-    # separate `request_change(...)` call (mirrors `test_approval_service_unit_of_work_cutover.py
+    # separate `request_change(...)` call (mirrors `test_approval_commands_unit_of_work_cutover.py
     # ::_request_budget_approval_as_a_different_user`'s exact shape).
-    request = services["approval_service"].request_change(
+    request = services["approval_commands"].request_change(
         request_type="budget.approve",
         entity_type="project_budget",
         entity_id=budget.id,
@@ -181,7 +181,7 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
     _login(services, approver_username, "StrongPass123")
     # Pin the fresh login's ambiguous auto-select the same way as the sibling test above.
     services["user_session"].set_active_organization_id(org_a2.id)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     with pytest.raises(NotFoundError, match="Approval request not found"):
         approvals.approve_and_apply(request.id)
 

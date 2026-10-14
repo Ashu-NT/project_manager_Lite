@@ -189,7 +189,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     _login(services, "r6cf-budget-reviewer", "StrongPass123")
     _, counts["budget.approval_decision"] = _measure(
         engine,
-        lambda: services["approval_service"].approve_and_apply(
+        lambda: services["approval_commands"].approve_and_apply(
             approval_result.approval_request_id
         ),
     )
@@ -256,7 +256,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     _login(services, "r6cf-forecast-reviewer", "StrongPass123")
     _, counts["forecast.approval_decision"] = _measure(
         engine,
-        lambda: services["approval_service"].approve_and_apply(
+        lambda: services["approval_commands"].approve_and_apply(
             forecast_approval.approval_request_id
         ),
     )
@@ -332,7 +332,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             expected_version=change.row_version,
         ),
     )
-    approval = services["approval_service"].list_pending(
+    approval = services["approval_queries"].list_pending(
         project_id=change_project.id
     )[0]
     _login(services, "admin", "ChangeMe123!")
@@ -342,7 +342,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     _login(services, "sql-change-reviewer", "StrongPass123")
     _, counts["change.decision_apply"] = _measure(
         engine,
-        lambda: services["approval_service"].approve_and_apply(approval.id),
+        lambda: services["approval_commands"].approve_and_apply(approval.id),
     )
 
     print("R6C-F SQL statement counts:", dict(sorted(counts.items())))

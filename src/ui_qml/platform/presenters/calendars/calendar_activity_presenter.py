@@ -5,7 +5,7 @@ tabs already use (see site_activity_presenter.py). Every entry here is
 entity_type="calendar", entity_id=this calendar's id -- both Calendar-owned
 mutations (create/update/delete, working rule/exception/recurring-event
 changes) and assignment mutations on Site/Department/Employee (dual-recorded
-onto the Calendar's own feed by CalendarAssignmentService) appear here."""
+onto the Calendar's own feed by CalendarAssignmentCommandHandler) appear here."""
 
 from __future__ import annotations
 

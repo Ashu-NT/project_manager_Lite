@@ -12,8 +12,8 @@ from src.core.modules.project_management.application.dashboard.reporting.portfol
 from src.core.modules.project_management.application.projects.service import (
     ProjectService,
 )
-from src.core.platform.application.platform_runtime.platform_runtime_service import (
-    PlatformRuntimeApplicationService,
+from src.core.platform.application.platform_runtime import (
+    PlatformRuntimeQueryHandler,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -34,11 +34,11 @@ class ProjectManagementModuleOverviewContributor:
     def __init__(
         self,
         *,
-        platform_runtime_application_service: PlatformRuntimeApplicationService,
+        platform_runtime_query: PlatformRuntimeQueryHandler,
         portfolio_dashboard: PortfolioDashboardQueryHandler,
         project_service: ProjectService,
     ) -> None:
-        self._platform_runtime_application_service = platform_runtime_application_service
+        self._platform_runtime_query = platform_runtime_query
         self._portfolio_dashboard = portfolio_dashboard
         self._project_service = project_service
 
@@ -59,7 +59,7 @@ class ProjectManagementModuleOverviewContributor:
     def _is_accessible(self) -> bool:
         accessible_codes = {
             module.code
-            for module in self._platform_runtime_application_service.list_accessible_modules()
+            for module in self._platform_runtime_query.list_accessible_modules()
         }
         return _MODULE_CODE in accessible_codes
 

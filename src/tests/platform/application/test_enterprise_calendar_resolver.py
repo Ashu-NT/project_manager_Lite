@@ -7,8 +7,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -16,17 +19,29 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarType,
@@ -65,6 +80,7 @@ def org_id():
 @pytest.fixture
 def mock_user_session():
     from unittest.mock import MagicMock
+
     session = MagicMock()
     session.has_permission.return_value = True
     session.username = "test-admin"
@@ -108,7 +124,9 @@ def tenant_context(org_id):
     context.require_active_scope_ids.return_value = ActiveScopeIds(
         tenant_id="tenant-platform-foundation", organization_id=org_id
     )
-    context.require_organization_context.return_value = FakeContext(organization=FakeOrg())
+    context.require_organization_context.return_value = FakeContext(
+        organization=FakeOrg()
+    )
     return context
 
 
@@ -129,8 +147,8 @@ def repos(db_session, tenant_context):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return PlatformCalendarService(
+def cal_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -141,8 +159,17 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 
 @pytest.fixture
-def rule_service(db_session, repos, mock_user_session):
-    return WorkingRuleService(
+def cal_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def rule_commands(db_session, repos, mock_user_session):
+    return WorkingRuleCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -151,8 +178,17 @@ def rule_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def exc_service(db_session, repos, mock_user_session):
-    return CalendarExceptionService(
+def rule_queries(db_session, repos, mock_user_session):
+    return WorkingRuleQueryHandler(
+        calendar_repo=repos["calendar"],
+        rule_repo=repos["rule"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def exc_commands(db_session, repos, mock_user_session):
+    return CalendarExceptionCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         exception_repo=repos["exception"],
@@ -161,9 +197,27 @@ def exc_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def recurring_service(db_session, repos, mock_user_session):
-    return RecurringEventService(
+def exc_queries(db_session, repos, mock_user_session):
+    return CalendarExceptionQueryHandler(
+        calendar_repo=repos["calendar"],
+        exception_repo=repos["exception"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def recurring_commands(db_session, repos, mock_user_session):
+    return RecurringEventCommandHandler(
         session=db_session,
+        calendar_repo=repos["calendar"],
+        event_repo=repos["recurring"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def recurring_queries(db_session, repos, mock_user_session):
+    return RecurringEventQueryHandler(
         calendar_repo=repos["calendar"],
         event_repo=repos["recurring"],
         user_session=mock_user_session,
@@ -197,8 +251,11 @@ def seeded_assignment_entities(db_session, org_id):
 
 
 @pytest.fixture
-def assignment_service(db_session, repos, mock_user_session, seeded_assignment_entities):
+def assignment_commands(
+    db_session, repos, mock_user_session, seeded_assignment_entities
+):
     from unittest.mock import MagicMock
+
     pm_proj_repo = MagicMock()
     pm_proj_repo.save.return_value = None
     pm_proj_repo.get.return_value = None
@@ -207,13 +264,34 @@ def assignment_service(db_session, repos, mock_user_session, seeded_assignment_e
     pm_res_repo.save.return_value = None
     pm_res_repo.get.return_value = None
     pm_res_repo.list_for_calendar.return_value = []
-    return CalendarAssignmentService(
+    return CalendarAssignmentCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         project_assignment_repo=pm_proj_repo,
         resource_assignment_repo=pm_res_repo,
         user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def assignment_queries(
+    db_session, repos, mock_user_session, seeded_assignment_entities
+):
+    from unittest.mock import MagicMock
+
+    pm_proj_repo = MagicMock()
+    pm_proj_repo.save.return_value = None
+    pm_proj_repo.get.return_value = None
+    pm_proj_repo.list_for_calendar.return_value = []
+    pm_res_repo = MagicMock()
+    pm_res_repo.save.return_value = None
+    pm_res_repo.get.return_value = None
+    pm_res_repo.list_for_calendar.return_value = []
+    return CalendarAssignmentQueryHandler(
+        assignment_repo=repos["assignment"],
+        project_assignment_repo=pm_proj_repo,
+        resource_assignment_repo=pm_res_repo,
     )
 
 
@@ -225,6 +303,7 @@ def calculator():
 @pytest.fixture
 def resolver(repos, org_id, calculator):
     from unittest.mock import MagicMock
+
     pm_proj_repo = MagicMock()
     pm_proj_repo.get.return_value = None
     pm_res_repo = MagicMock()
@@ -243,8 +322,8 @@ def resolver(repos, org_id, calculator):
 
 
 @pytest.fixture
-def global_cal(cal_service, org_id):
-    return cal_service.ensure_global_calendar(org_id)
+def global_cal(cal_commands, org_id):
+    return cal_commands.ensure_global_calendar(org_id)
 
 
 # ---------------------------------------------------------------------------
@@ -276,8 +355,7 @@ def test_resolver_warns_once_per_scope_not_once_per_date(resolver, caplog):
             )
 
     no_chain_records = [
-        r for r in caplog.records
-        if "resolved without source chain" in r.message
+        r for r in caplog.records if "resolved without source chain" in r.message
     ]
     assert len(no_chain_records) == 1, (
         f"expected exactly one dedup'd warning for 14 calls on the same "
@@ -292,14 +370,15 @@ def test_resolver_warns_once_per_scope_not_once_per_date(resolver, caplog):
             target_date=date(2026, 1, 1),
         )
     no_chain_records = [
-        r for r in caplog.records
-        if "resolved without source chain" in r.message
+        r for r in caplog.records if "resolved without source chain" in r.message
     ]
     assert len(no_chain_records) == 2
 
 
-def test_resolver_source_chain_global(resolver, repos, global_cal, rule_service, org_id):
-    rule_service.seed_standard_week(
+def test_resolver_source_chain_global(
+    resolver, repos, global_cal, rule_commands, org_id
+):
+    rule_commands.seed_standard_week(
         global_cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
@@ -312,21 +391,27 @@ def test_resolver_source_chain_global(resolver, repos, global_cal, rule_service,
 
 
 def test_resolver_site_overrides_global(
-    resolver, repos, global_cal, rule_service, assignment_service, cal_service, org_id
+    resolver,
+    repos,
+    global_cal,
+    rule_commands,
+    assignment_commands,
+    cal_commands,
+    org_id,
 ):
-    rule_service.seed_standard_week(
+    rule_commands.seed_standard_week(
         global_cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
         break_minutes=60,
     )
-    site_cal = cal_service.create_calendar(
+    site_cal = cal_commands.create_calendar(
         code="SITE-HH",
         name="Hamburg",
         calendar_type=CalendarType.SITE.value,
         timezone="Europe/Berlin",
     )
-    rule_service.save_rule(
+    rule_commands.save_rule(
         site_cal.id,
         weekday=0,  # Monday
         is_working_day=True,
@@ -335,7 +420,7 @@ def test_resolver_site_overrides_global(
         break_minutes=30,
         hours_override=7.5,
     )
-    assignment_service.assign_site_calendar("site-hamburg", site_cal.id)
+    assignment_commands.assign_site_calendar("site-hamburg", site_cal.id)
 
     ctx = resolver.resolve_calendar_context(
         site_id="site-hamburg",
@@ -347,15 +432,15 @@ def test_resolver_site_overrides_global(
 
 
 def test_resolver_holiday_exception_from_global(
-    resolver, global_cal, rule_service, exc_service
+    resolver, global_cal, rule_commands, exc_commands
 ):
-    rule_service.seed_standard_week(
+    rule_commands.seed_standard_week(
         global_cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
         break_minutes=60,
     )
-    exc_service.add_exception(
+    exc_commands.add_exception(
         global_cal.id,
         exception_date=date(2026, 6, 1),
         exception_type=ExceptionType.HOLIDAY.value,
@@ -368,19 +453,19 @@ def test_resolver_holiday_exception_from_global(
 
 
 def test_resolver_surfaces_recurring_event_on_a_matching_day(
-    resolver, global_cal, rule_service, recurring_service
+    resolver, global_cal, rule_commands, recurring_commands
 ):
     """Regression guard: a recurring event with no CalendarException row
     must still be visible on the resolved day context (name/type/impact),
     not just reflected as an unexplained hours delta -- this is what the
     Month view reads to show *why* a day's hours changed."""
-    rule_service.seed_standard_week(
+    rule_commands.seed_standard_week(
         global_cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
         break_minutes=60,
     )
-    recurring_service.add_recurring_event(
+    recurring_commands.add_recurring_event(
         global_cal.id,
         title="Weekly Standup",
         event_type=RecurringEventType.MEETING.value,
@@ -391,28 +476,32 @@ def test_resolver_surfaces_recurring_event_on_a_matching_day(
         effective_from=date(2026, 6, 1),
     )
 
-    monday_ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 1))  # Monday
+    monday_ctx = resolver.resolve_calendar_context(
+        target_date=date(2026, 6, 1)
+    )  # Monday
     assert monday_ctx.available_hours == 7.5  # 8h - 0.5h meeting
     assert len(monday_ctx.recurring_events) == 1
     assert monday_ctx.recurring_events[0]["name"] == "Weekly Standup"
     assert monday_ctx.recurring_events[0]["type"] == RecurringEventType.MEETING.value
     assert monday_ctx.recurring_events[0]["impact"] == ImpactType.REDUCED_CAPACITY.value
 
-    tuesday_ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 2))  # Tuesday
+    tuesday_ctx = resolver.resolve_calendar_context(
+        target_date=date(2026, 6, 2)
+    )  # Tuesday
     assert tuesday_ctx.available_hours == 8.0
     assert tuesday_ctx.recurring_events == []
 
 
 def test_resolve_range_surfaces_recurring_events_per_day(
-    resolver, global_cal, rule_service, recurring_service
+    resolver, global_cal, rule_commands, recurring_commands
 ):
-    rule_service.seed_standard_week(
+    rule_commands.seed_standard_week(
         global_cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
         break_minutes=60,
     )
-    recurring_service.add_recurring_event(
+    recurring_commands.add_recurring_event(
         global_cal.id,
         title="Weekly Standup",
         event_type=RecurringEventType.MEETING.value,
@@ -432,9 +521,10 @@ def test_resolve_range_surfaces_recurring_events_per_day(
 
 
 def test_granularity_validation_rejected():
-    from src.core.platform.application.time_management.calendar.platform_calendar_service import (
+    from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
         _VALID_GRANULARITIES,
     )
+
     assert 5 in _VALID_GRANULARITIES
     assert 15 in _VALID_GRANULARITIES
     assert 7 not in _VALID_GRANULARITIES
@@ -458,7 +548,9 @@ def test_resolver_business_today_matches_shared_helper_for_the_default_utc_calen
     assert resolver.business_today() == shared_business_today(global_cal.timezone)
 
 
-def test_resolver_business_today_falls_back_to_utc_when_no_global_calendar_exists(resolver):
+def test_resolver_business_today_falls_back_to_utc_when_no_global_calendar_exists(
+    resolver,
+):
     from src.core.shared.time.business_date import (
         business_today as shared_business_today,
     )

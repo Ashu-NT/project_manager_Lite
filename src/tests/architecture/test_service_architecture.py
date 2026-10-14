@@ -48,9 +48,8 @@ from src.core.modules.project_management.infrastructure.importers import (
 from src.core.platform.access import AccessControlService
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.master_data.data_exchange import (
-    MasterDataExchangeService,
-)
+from src.core.platform.application.data_operations.importing import CsvImportRuntime
+from src.core.platform.application.data_operations.exporting import ExportRuntime
 from src.core.platform.application.master_data.department import (
     DepartmentCommandHandler,
     DepartmentQueryHandler,
@@ -80,7 +79,7 @@ from src.core.platform.application.master_data.site import (
     SiteQueryHandler,
 )
 from src.core.platform.application.platform_runtime import (
-    PlatformRuntimeApplicationService,
+    PlatformRuntimeQueryHandler,
 )
 from src.core.platform.application.security.auth import AuthenticationHandler
 from src.core.platform.application.security.authorization.roles.commands import (
@@ -103,7 +102,7 @@ def test_service_graph_builder_wires_all_services(session):
     graph = build_service_graph(session)
 
     assert isinstance(graph, ServiceGraph)
-    assert isinstance(graph.platform_runtime_application_service, PlatformRuntimeApplicationService)
+    assert isinstance(graph.platform_runtime_query, PlatformRuntimeQueryHandler)
     assert isinstance(graph.module_catalog_service, ModuleCatalogQueryHandler)
     assert isinstance(graph.module_entitlement_commands, ModuleEntitlementCommandHandler)
     assert isinstance(graph.time_entry_commands, TimeEntryCommandHandler)
@@ -127,7 +126,8 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.site_query, SiteQueryHandler)
     assert isinstance(graph.employee_commands, EmployeeCommandHandler)
     assert isinstance(graph.employee_query, EmployeeQueryHandler)
-    assert isinstance(graph.master_data_exchange_service, MasterDataExchangeService)
+    assert isinstance(graph.master_data_import_runtime, CsvImportRuntime)
+    assert isinstance(graph.master_data_export_runtime, ExportRuntime)
     assert isinstance(graph.access_service, AccessControlService)
     assert isinstance(graph.enterprise_audit_service, EnterpriseAuditService)
     assert isinstance(graph.collaboration_comment_commands, CollaborationCommentCommandHandler)
@@ -159,14 +159,15 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["approval_service"] is graph.approval_service
     assert as_dict["authentication"] is graph.auth.authentication
     assert as_dict["principal_builder"] is graph.auth.principals
-    assert as_dict["platform_runtime_application_service"] is graph.platform_runtime_application_service
+    assert as_dict["platform_runtime_query"] is graph.platform_runtime_query
     assert as_dict["organization_query"] is graph.organization_query
     assert as_dict["document_query"] is graph.document_query
     assert as_dict["party_query"] is graph.party_query
     assert as_dict["department_query"] is graph.department_query
     assert as_dict["site_query"] is graph.site_query
     assert as_dict["employee_query"] is graph.employee_query
-    assert as_dict["master_data_exchange_service"] is graph.master_data_exchange_service
+    assert as_dict["master_data_import_runtime"] is graph.master_data_import_runtime
+    assert as_dict["master_data_export_runtime"] is graph.master_data_export_runtime
     assert as_dict["module_catalog_service"] is graph.module_catalog_service
     assert as_dict["time_entry_commands"] is graph.time_entry_commands
     assert as_dict["time_entry_queries"] is graph.time_entry_queries

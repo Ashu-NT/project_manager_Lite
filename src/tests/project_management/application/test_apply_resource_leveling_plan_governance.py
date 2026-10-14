@@ -69,7 +69,7 @@ class TestGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "scheduling.leveling.apply")
         _login(services, "admin", "ChangeMe123!")
 
-        approvals = services["approval_service"]
+        approvals = services["approval_commands"]
         ts = services["task_service"]
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance Apply")
         assert len(proposal.moves) >= 1
@@ -85,7 +85,7 @@ class TestGovernanceParity:
         # Not applied yet.
         assert ts.get_task(moved_task_id).resource_leveling_not_before is None
 
-        req = approvals.list_pending(project_id=project.id)[0]
+        req = services["approval_queries"].list_pending(project_id=project.id)[0]
         assert req.request_type == "scheduling.leveling.apply"
         assert req.payload["schedule_fingerprint"] == proposal.schedule_fingerprint
         assert {m["task_id"] for m in req.payload["moves"]} == {m.task_id for m in proposal.moves}
@@ -119,7 +119,7 @@ class TestGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "scheduling.leveling.apply")
         _login(services, "admin", "ChangeMe123!")
 
-        approvals = services["approval_service"]
+        approvals = services["approval_commands"]
         ts = services["task_service"]
         project, task_b, task_c, proposal = _build_overload_proposal(services, "Leveling Governance TOCTOU")
         assert len(proposal.moves) >= 1
@@ -130,7 +130,7 @@ class TestGovernanceParity:
 
         with pytest.raises(BusinessRuleError, match="Approval required"):
             ts.apply_resource_leveling_plan(project.id, proposal)
-        req = approvals.list_pending(project_id=project.id)[0]
+        req = services["approval_queries"].list_pending(project_id=project.id)[0]
 
         # The schedule drifts while the request is pending: an admin
         # edits an involved task directly, bumping its version and

@@ -9,16 +9,19 @@ from sqlalchemy.orm import Session
 from src.core.platform.access import (
     AccessControlService,
 )
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.approval import ApprovalCommandHandler, ApprovalQueryHandler, ApprovalParticipantRegistry
 from src.core.platform.application.data_operations.runtime_tracking import (
-    RuntimeExecutionService,
+    RuntimeExecutionCommandHandler,
+    RuntimeExecutionQueryHandler,
 )
-from src.core.platform.application.finance import FinancialPeriodService
+from src.core.platform.application.finance import (
+    FinancialPeriodCommandHandler,
+    FinancialPeriodQueryHandler,
+)
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.application.master_data.data_exchange import (
-    MasterDataExchangeService,
-)
+from src.core.platform.application.data_operations.importing import CsvImportRuntime
+from src.core.platform.application.data_operations.exporting import ExportRuntime
 from src.core.platform.application.master_data.department import (
     DepartmentCommandHandler,
     DepartmentQueryHandler,
@@ -49,28 +52,34 @@ from src.core.platform.application.master_data.site import (
     SiteCommandHandler,
     SiteQueryHandler,
 )
-from src.core.platform.application.notifications.notification_service import (
-    NotificationService,
-)
+from src.core.platform.application.notifications import NotificationCommandHandler, NotificationQueryHandler
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
 )
 from src.core.platform.application.security.authorization.roles import (
-    RoleGovernanceService,
-    TenantRoleAdministrationService,
+    RoleGovernanceCommandHandler,
+    TenantRoleCommandHandler,
+    TenantRoleQueryHandler,
 )
 from src.core.platform.application.security.authorization.roles.commands import (
     RoleAssignmentHandler,
 )
-from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.security.identity import (
+    ApiKeyAuthenticationHandler,
+    ServicePrincipalCommandHandler,
+    ServicePrincipalQueryHandler,
+)
 from src.core.platform.application.tenant.modules import (
     ModuleCatalogQueryHandler,
     ModuleEntitlementCommandHandler,
 )
 from src.core.platform.application.tenant.tenancy import (
-    TenantAdminService,
+    TenantAdminQueryHandler,
+    TenantLifecycleCommandHandler,
     TenantContextService,
-    TenantMembershipService,
+    TenantInvitationCommandHandler,
+    TenantMembershipLifecycleCommandHandler,
+    TenantMembershipQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
@@ -143,8 +152,9 @@ class PlatformServiceBundle:
     module_entitlement_commands: ModuleEntitlementCommandHandler
     auth: AuthComposition
     role_assignment_commands: RoleAssignmentHandler
-    role_governance_service: RoleGovernanceService
-    tenant_role_administration_service: TenantRoleAdministrationService
+    role_governance_commands: RoleGovernanceCommandHandler
+    tenant_role_commands: TenantRoleCommandHandler
+    tenant_role_queries: TenantRoleQueryHandler
     organization_commands: OrganizationCommandHandler
     organization_lifecycle: OrganizationLifecycleCommandHandler
     organization_query: OrganizationQueryHandler
@@ -163,14 +173,20 @@ class PlatformServiceBundle:
     employee_commands: EmployeeCommandHandler
     employee_query: EmployeeQueryHandler
     employee_document_commands: EmployeeDocumentCommandHandler
-    master_data_exchange_service: MasterDataExchangeService
-    runtime_execution_service: RuntimeExecutionService
+    master_data_import_runtime: CsvImportRuntime
+    master_data_export_runtime: ExportRuntime
+    runtime_execution_commands: RuntimeExecutionCommandHandler
+    runtime_execution_query: RuntimeExecutionQueryHandler
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
-    financial_period_service: FinancialPeriodService
-    notification_service: NotificationService
-    approval_service: ApprovalService
+    financial_period_commands: FinancialPeriodCommandHandler
+    financial_period_queries: FinancialPeriodQueryHandler
+    notification_commands: NotificationCommandHandler
+    notification_queries: NotificationQueryHandler
+    approval_commands: ApprovalCommandHandler
+    approval_queries: ApprovalQueryHandler
+    approval_participants: ApprovalParticipantRegistry
     platform_calendar_service: PlatformCalendarService
     working_rule_service: WorkingRuleService
     calendar_exception_service: CalendarExceptionService
@@ -179,9 +195,14 @@ class PlatformServiceBundle:
     calendar_assignment_service: CalendarAssignmentService
     platform_calendar_resolver: PlatformCalendarResolver
     working_time_calculator: WorkingTimeCalculator
-    tenant_admin_service: TenantAdminService
-    tenant_membership_service: TenantMembershipService
-    service_principal_service: ServicePrincipalService
+    tenant_admin_queries: TenantAdminQueryHandler
+    tenant_lifecycle_commands: TenantLifecycleCommandHandler
+    tenant_invitation_commands: TenantInvitationCommandHandler
+    tenant_membership_lifecycle_commands: TenantMembershipLifecycleCommandHandler
+    tenant_membership_queries: TenantMembershipQueryHandler
+    service_principal_commands: ServicePrincipalCommandHandler
+    service_principal_query: ServicePrincipalQueryHandler
+    api_key_authentication: ApiKeyAuthenticationHandler
     global_calendar_shim: GlobalCalendarShim
     runtime_security_configuration: RuntimeSecurityConfiguration
 

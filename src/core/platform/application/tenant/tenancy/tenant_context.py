@@ -302,7 +302,7 @@ class TenantContextService:
         into -- the exact same predicate `set_active_organization` itself enforces (`status
         == ACTIVE` + `_can_access`), computed without mutating context. Backs the
         Organization Switcher; not a permission-gated administrative listing (mirrors
-        `TenantAdminService.list_accessible_tenants`, which any authenticated user may
+        `TenantAdminQueryHandler.list_accessible_tenants`, which any authenticated user may
         call for their own memberships)."""
         tenant_id = self.get_active_tenant_id()
         if not tenant_id:

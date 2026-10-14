@@ -67,7 +67,7 @@ def _create_project_finance_setup(services):
         code="ACTUAL-LABOR",
         name="Actual labor",
     )
-    period = services["financial_period_service"].create_period(
+    period = services["financial_period_commands"].create_period(
         code="FY26-P01",
         name="January 2026",
         fiscal_year=2026,
@@ -356,7 +356,7 @@ def test_posting_rejects_closed_period(services) -> None:
     _become_independent_decider(services)
     service.approve(submitted.id, expected_version=submitted.row_version)
     approved = service.get_entry(draft.id)
-    services["financial_period_service"].close_period(
+    services["financial_period_commands"].close_period(
         period.id,
         expected_version=period.version,
     )
@@ -385,13 +385,13 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     _login(services, "cost-requester", "StrongPass123")
     result = service.approve(submitted.id, expected_version=submitted.row_version)
     assert result.outcome == CostEntryApprovalOutcome.PENDING_APPROVAL
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
     requester_id = request.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
     _become_independent_decider(services, role="approver")
     approver_id = services["user_session"].principal.user_id
-    services["approval_service"].approve_and_apply(request.id, note="Approved actual")
+    services["approval_commands"].approve_and_apply(request.id, note="Approved actual")
     approved = service.get_entry(submitted.id)
     assert approved.status == ProjectCostEntryStatus.APPROVED
     assert approved.approved_by == approver_id

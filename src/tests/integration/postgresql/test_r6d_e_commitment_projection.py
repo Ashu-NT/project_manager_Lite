@@ -26,8 +26,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
-from src.core.platform.application.finance.financial_period_service import (
-    FinancialPeriodService,
+from src.core.platform.application.finance.queries.financial_period_query import (
+    FinancialPeriodQueryHandler,
 )
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
@@ -189,10 +189,9 @@ def _dispatcher(environment):
             session=uow._session, entry_repo=uow.cost_entries, project_repo=uow.projects,
             financial_profile_repo=uow.profiles, cost_code_repo=uow.cost_codes,
             task_repo=uow.tasks, resource_repo=uow.resources,
-            financial_period_service=FinancialPeriodService(
-                session=uow._session, period_repo=uow.financial_periods,
-                tenant_context_service=tenant_context, user_session=user_session,
-                enterprise_audit_service=uow._enterprise_audit_service,
+            financial_period_queries=FinancialPeriodQueryHandler(
+                period_repo=uow.financial_periods,
+                user_session=user_session,
             ),
             clock=SystemClock(), user_session=user_session,
             enterprise_audit_service=uow._enterprise_audit_service,

@@ -10,13 +10,18 @@ Covers:
   7. switching to tenant without membership is denied
   8. platform admin/admin list_accessible_tenants returns all tenants
 """
+
 from __future__ import annotations
 
 import pytest
 
-from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
-    TenantAdminService,
+from types import SimpleNamespace
+
+from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
+    TenantAdminDependencies,
+    build_tenant_admin_dependencies,
 )
+from src.tests.platform.tenancy_support import tenant_admin_operations
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -40,16 +45,19 @@ from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.us
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_regular_user_svc(
     services,
     *,
     username: str,
     tenant_id: str | None = None,
-) -> tuple[TenantAdminService, TenantContextService, UserSessionContext]:
-    """Build TenantAdminService + TenantContextService scoped to a fresh regular user."""
+) -> tuple[TenantAdminDependencies, TenantContextService, UserSessionContext]:
+    """Build TenantAdminDependencies + TenantContextService scoped to a fresh regular user."""
     session = services["session"]
     try:
-        user = services["user_registration"].register_user(username, "StrongPass123!", role_names=["viewer"])
+        user = services["user_registration"].register_user(
+            username, "StrongPass123!", role_names=["viewer"]
+        )
     except Exception:
         user = services["authentication"].authenticate(username, "StrongPass123!")
 
@@ -57,7 +65,9 @@ def _make_regular_user_svc(
     ctx = UserSessionContext()
     ctx.set_principal(principal)
 
-    active_tenant_id = tenant_id or services["tenant_context_service"].get_active_tenant_id()
+    active_tenant_id = (
+        tenant_id or services["tenant_context_service"].get_active_tenant_id()
+    )
     if active_tenant_id:
         ctx.set_active_tenant_id(active_tenant_id)
 
@@ -65,10 +75,13 @@ def _make_regular_user_svc(
     user_tenant_repo = SqlAlchemyUserTenantMembershipRepository(session)
     org_repo = SqlAlchemyOrganizationRepository(session)
 
-    svc = TenantAdminService(
+    svc = build_tenant_admin_dependencies(
         session=session,
-        tenant_repo=tenant_repo,
-        user_tenant_repo=user_tenant_repo,
+        repositories=SimpleNamespace(
+            tenant_repo=tenant_repo,
+            user_tenant_repo=user_tenant_repo,
+            platform_event_repo=None,
+        ),
         user_session=ctx,
     )
     context_svc = TenantContextService(
@@ -94,10 +107,15 @@ def _add_org(services, *, tenant_id: str, code: str, name: str) -> Organization:
 # 1. list_accessible_tenants — membership-based, no permission gate
 # ---------------------------------------------------------------------------
 
+
 def test_list_accessible_tenants_returns_user_memberships(services):
-    admin_svc = services["tenant_admin_service"]
-    t1 = admin_svc.create_tenant("P2D-USR1A", "User1 Tenant A")
-    t2 = admin_svc.create_tenant("P2D-USR1B", "User1 Tenant B")
+    admin_svc = tenant_admin_operations(services)
+    t1 = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-USR1A", "User1 Tenant A"
+    )
+    t2 = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-USR1B", "User1 Tenant B"
+    )
     services["session"].flush()
 
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-accessible-user1")
@@ -107,7 +125,7 @@ def test_list_accessible_tenants_returns_user_memberships(services):
     ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t2.id))
     services["session"].flush()
 
-    accessible = svc.list_accessible_tenants()
+    accessible = svc.tenant_admin_queries.list_accessible_tenants()
     accessible_ids = {t.id for t in accessible}
     assert t1.id in accessible_ids
     assert t2.id in accessible_ids
@@ -117,10 +135,15 @@ def test_list_accessible_tenants_returns_user_memberships(services):
 # 2. inactive membership excluded
 # ---------------------------------------------------------------------------
 
+
 def test_list_accessible_tenants_inactive_membership_excluded(services):
-    admin_svc = services["tenant_admin_service"]
-    t_active = admin_svc.create_tenant("P2D-MEMB-ACT", "Member Active")
-    t_inactive = admin_svc.create_tenant("P2D-MEMB-INACT", "Member Inactive")
+    admin_svc = tenant_admin_operations(services)
+    t_active = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-MEMB-ACT", "Member Active"
+    )
+    t_inactive = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-MEMB-INACT", "Member Inactive"
+    )
     services["session"].flush()
 
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-membership-excl")
@@ -133,7 +156,7 @@ def test_list_accessible_tenants_inactive_membership_excluded(services):
     ut_repo.update(ut_repo.get(user_id, t_inactive.id).suspend())
     services["session"].flush()
 
-    accessible = svc.list_accessible_tenants()
+    accessible = svc.tenant_admin_queries.list_accessible_tenants()
     accessible_ids = {t.id for t in accessible}
     assert t_active.id in accessible_ids
     assert t_inactive.id not in accessible_ids
@@ -143,9 +166,12 @@ def test_list_accessible_tenants_inactive_membership_excluded(services):
 # 3. suspended/archived tenant excluded for regular users
 # ---------------------------------------------------------------------------
 
+
 def test_list_accessible_tenants_suspended_tenant_excluded(services):
-    admin_svc = services["tenant_admin_service"]
-    t_susp = admin_svc.create_tenant("P2D-SUSP-EXCL", "Suspend Excl")
+    admin_svc = tenant_admin_operations(services)
+    t_susp = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-SUSP-EXCL", "Suspend Excl"
+    )
     services["session"].flush()
 
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-susp-excl-user")
@@ -154,16 +180,18 @@ def test_list_accessible_tenants_suspended_tenant_excluded(services):
     ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_susp.id))
     services["session"].flush()
 
-    admin_svc.suspend_tenant(t_susp.id)
+    admin_svc.tenant_lifecycle_commands.suspend_tenant(t_susp.id)
     services["session"].flush()
 
-    accessible = svc.list_accessible_tenants()
+    accessible = svc.tenant_admin_queries.list_accessible_tenants()
     assert t_susp.id not in {t.id for t in accessible}
 
 
 def test_list_accessible_tenants_archived_tenant_excluded(services):
-    admin_svc = services["tenant_admin_service"]
-    t_arch = admin_svc.create_tenant("P2D-ARCH-EXCL", "Archive Excl")
+    admin_svc = tenant_admin_operations(services)
+    t_arch = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-ARCH-EXCL", "Archive Excl"
+    )
     services["session"].flush()
 
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-arch-excl-user")
@@ -172,10 +200,10 @@ def test_list_accessible_tenants_archived_tenant_excluded(services):
     ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_arch.id))
     services["session"].flush()
 
-    admin_svc.archive_tenant(t_arch.id)
+    admin_svc.tenant_lifecycle_commands.archive_tenant(t_arch.id)
     services["session"].flush()
 
-    accessible = svc.list_accessible_tenants()
+    accessible = svc.tenant_admin_queries.list_accessible_tenants()
     assert t_arch.id not in {t.id for t in accessible}
 
 
@@ -183,15 +211,20 @@ def test_list_accessible_tenants_archived_tenant_excluded(services):
 # 4. tenant switch clears previous tenant's organization_id
 # ---------------------------------------------------------------------------
 
+
 def test_switch_to_tenant_clears_previous_organization(services):
     tenant_context = services["tenant_context_service"]
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = tenant_admin_operations(services)
     user_session = services["user_session"]
 
     current_org = tenant_context.get_active_organization()
-    assert current_org is not None, "Test requires a pre-set active org from default tenant"
+    assert current_org is not None, (
+        "Test requires a pre-set active org from default tenant"
+    )
 
-    new_tenant = admin_svc.create_tenant("P2D-SWITCH-CLR", "Switch Clear Test")
+    new_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-SWITCH-CLR", "Switch Clear Test"
+    )
     services["session"].flush()
 
     tenant_context.switch_to_tenant(new_tenant.id)
@@ -204,13 +237,21 @@ def test_switch_to_tenant_clears_previous_organization(services):
 # 5. tenant switch auto-selects single accessible org
 # ---------------------------------------------------------------------------
 
+
 def test_switch_to_tenant_auto_selects_single_org(services):
     tenant_context = services["tenant_context_service"]
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = tenant_admin_operations(services)
 
-    new_tenant = admin_svc.create_tenant("P2D-AUTOSEL", "Auto Select Tenant")
+    new_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-AUTOSEL", "Auto Select Tenant"
+    )
     services["session"].flush()
-    the_org = _add_org(services, tenant_id=new_tenant.id, code="P2D-AUTOSEL-ORG", name="Auto Select Org")
+    the_org = _add_org(
+        services,
+        tenant_id=new_tenant.id,
+        code="P2D-AUTOSEL-ORG",
+        name="Auto Select Org",
+    )
 
     tenant_context.switch_to_tenant(new_tenant.id)
 
@@ -221,11 +262,14 @@ def test_switch_to_tenant_auto_selects_single_org(services):
 # 6. tenant switch leaves organization None if multiple/no orgs
 # ---------------------------------------------------------------------------
 
+
 def test_switch_to_tenant_leaves_org_none_if_no_orgs(services):
     tenant_context = services["tenant_context_service"]
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = tenant_admin_operations(services)
 
-    new_tenant = admin_svc.create_tenant("P2D-NOORG", "No Org Tenant")
+    new_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-NOORG", "No Org Tenant"
+    )
     services["session"].flush()
 
     tenant_context.switch_to_tenant(new_tenant.id)
@@ -235,12 +279,18 @@ def test_switch_to_tenant_leaves_org_none_if_no_orgs(services):
 
 def test_switch_to_tenant_leaves_org_none_if_multiple_orgs(services):
     tenant_context = services["tenant_context_service"]
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = tenant_admin_operations(services)
 
-    new_tenant = admin_svc.create_tenant("P2D-MULTORG", "Multi Org Tenant")
+    new_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-MULTORG", "Multi Org Tenant"
+    )
     services["session"].flush()
-    _add_org(services, tenant_id=new_tenant.id, code="P2D-MULT-ORG1", name="Multi Org 1")
-    _add_org(services, tenant_id=new_tenant.id, code="P2D-MULT-ORG2", name="Multi Org 2")
+    _add_org(
+        services, tenant_id=new_tenant.id, code="P2D-MULT-ORG1", name="Multi Org 1"
+    )
+    _add_org(
+        services, tenant_id=new_tenant.id, code="P2D-MULT-ORG2", name="Multi Org 2"
+    )
 
     tenant_context.switch_to_tenant(new_tenant.id)
 
@@ -251,9 +301,12 @@ def test_switch_to_tenant_leaves_org_none_if_multiple_orgs(services):
 # 7. switching to tenant without membership is denied for regular user
 # ---------------------------------------------------------------------------
 
+
 def test_switch_to_tenant_without_membership_denied(services):
-    admin_svc = services["tenant_admin_service"]
-    locked_tenant = admin_svc.create_tenant("P2D-LOCKED", "Locked Tenant")
+    admin_svc = tenant_admin_operations(services)
+    locked_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-LOCKED", "Locked Tenant"
+    )
     services["session"].flush()
 
     _, context_svc, _ = _make_regular_user_svc(services, username="p2d-no-access-user")
@@ -267,14 +320,19 @@ def test_switch_to_tenant_without_membership_denied(services):
 # 8. platform.admin list_accessible_tenants returns all tenants
 # ---------------------------------------------------------------------------
 
+
 def test_platform_admin_list_accessible_tenants_returns_all(services):
-    admin_svc = services["tenant_admin_service"]
-    t1 = admin_svc.create_tenant("P2D-ADMIN-ALL1", "Admin All 1")
-    t2 = admin_svc.create_tenant("P2D-ADMIN-ALL2", "Admin All 2")
-    admin_svc.suspend_tenant(t2.id)
+    admin_svc = tenant_admin_operations(services)
+    t1 = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-ADMIN-ALL1", "Admin All 1"
+    )
+    t2 = admin_svc.tenant_lifecycle_commands.create_tenant(
+        "P2D-ADMIN-ALL2", "Admin All 2"
+    )
+    admin_svc.tenant_lifecycle_commands.suspend_tenant(t2.id)
     services["session"].flush()
 
-    accessible = admin_svc.list_accessible_tenants()
+    accessible = admin_svc.tenant_admin_queries.list_accessible_tenants()
     accessible_ids = {t.id for t in accessible}
 
     assert t1.id in accessible_ids

@@ -6,8 +6,8 @@ from pathlib import Path
 from src.core.platform.application.data_operations.importing.import_definition_registry import (
     ImportDefinitionRegistry,
 )
-from src.core.platform.application.data_operations.runtime_tracking.runtime_execution_service import (
-    RuntimeExecutionService,
+from src.core.platform.application.data_operations.runtime_tracking.commands.execution import (
+    RuntimeExecutionCommandHandler,
 )
 from src.core.platform.common.runtime_access import enforce_runtime_access
 from src.core.platform.contract.port.tenant.modules import SupportsModuleEntitlements
@@ -28,12 +28,12 @@ class CsvImportRuntime:
         *,
         user_session: UserSessionContext | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
-        runtime_execution_service: RuntimeExecutionService | None = None,
+        runtime_execution_commands: RuntimeExecutionCommandHandler | None = None,
     ) -> None:
         self._registry = registry
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
-        self._runtime_execution_service = runtime_execution_service
+        self._runtime_execution_commands = runtime_execution_commands
 
     def get_import_schema(
         self,
@@ -101,7 +101,7 @@ class CsvImportRuntime:
             user_session=user_session,
             module_catalog_service=module_catalog_service,
         )
-        tracker = self._runtime_execution_service
+        tracker = self._runtime_execution_commands
         execution = (
             tracker.start_execution(
                 operation_type="import",

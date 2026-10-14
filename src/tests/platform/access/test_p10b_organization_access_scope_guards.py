@@ -47,12 +47,12 @@ def test_no_new_user_organization_persistence_model_was_introduced():
 def test_organization_scope_grants_route_through_role_governance_not_a_parallel_path():
     """`AccessControlService._assign_canonical_scope_grant`/`_remove_canonical_scope_grant` are
     the ONLY methods that mutate a canonical (project/site/storeroom/organization) scope grant,
-    and both are structurally required to go through `RoleGovernanceService.assign_role`/
+    and both are structurally required to go through `RoleGovernanceCommandHandler.assign_role`/
     `revoke_role_binding` -- there is no alternate organization-specific write path."""
     assign_source = inspect.getsource(AccessControlService._assign_canonical_scope_grant)
     remove_source = inspect.getsource(AccessControlService._remove_canonical_scope_grant)
-    assert "role_governance_service.assign_role(" in assign_source
-    assert "role_governance_service.revoke_role_binding(" in remove_source
+    assert "role_governance_commands.assign_role(" in assign_source
+    assert "role_governance_commands.revoke_role_binding(" in remove_source
     # "organization" must not bypass this shared method with its own branch.
     module_source = inspect.getsource(access_control_service_module)
     assert "if scope_type == \"organization\"" not in module_source

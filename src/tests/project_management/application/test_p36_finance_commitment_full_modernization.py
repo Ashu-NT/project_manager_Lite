@@ -81,9 +81,9 @@ def _commitment_hints(hints):
 def _setup(services):
     if not any(
         principal.name == PROCUREMENT_FINANCE_PRINCIPAL_NAME
-        for principal in services["service_principal_service"].list_service_principals()
+        for principal in services["service_principal_query"].list_service_principals()
     ):
-        services["service_principal_service"].create_service_principal(
+        services["service_principal_commands"].create_service_principal(
             name=PROCUREMENT_FINANCE_PRINCIPAL_NAME,
             description="Projects Procurement facts into PM Finance.",
             initial_role_name="viewer",
@@ -97,7 +97,7 @@ def _setup(services):
     )
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="P36-COMMIT", name="P36 Commitment Site", currency_code=organization.base_currency))
     supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="P36-COMMIT-SUP", party_name="P36 Commitment Supplier", roles=["SUPPLIER"]))
-    period = services["financial_period_service"].create_period(
+    period = services["financial_period_commands"].create_period(
         code="P36-COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
     )
@@ -111,7 +111,7 @@ def _setup(services):
 
 
 def _apply_source(services, source):
-    principal = services["service_principal_service"].resolve_execution_principal(
+    principal = services["service_principal_query"].resolve_execution_principal(
         name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
     )
     reference = source.reference

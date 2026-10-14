@@ -20,8 +20,8 @@ from src.core.modules.project_management.infrastructure.composition.registration
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
 )
-from src.core.platform.application.finance.financial_period_service import (
-    FinancialPeriodService,
+from src.core.platform.application.finance.queries.financial_period_query import (
+    FinancialPeriodQueryHandler,
 )
 
 
@@ -59,12 +59,9 @@ def build_billing_preparation_approval_deps(
         tenant_context_service=tenant_context_service,
         clock=clock,
     )
-    financial_period_service = FinancialPeriodService(
-        session=session,
+    financial_period_queries = FinancialPeriodQueryHandler(
         period_repo=financial_period_repo,
-        tenant_context_service=tenant_context_service,
         user_session=user_session,
-        enterprise_audit_service=enterprise_audit_service,
     )
     billing_preparation_service = ProjectBillingPreparationService(
         session=session,
@@ -73,7 +70,7 @@ def build_billing_preparation_approval_deps(
         cost_entry_repo=cost_entry_repo,
         labor_posting_repo=labor_posting_repo,
         rate_resolver=rate_resolver,
-        financial_period_service=financial_period_service,
+        financial_period_queries=financial_period_queries,
         tenant_context_service=tenant_context_service,
         clock=clock,
         user_session=user_session,

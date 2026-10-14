@@ -19,7 +19,10 @@ def _access_api(services) -> PlatformAccessDesktopApi:
 
 
 def _approval_api(services) -> PlatformApprovalDesktopApi:
-    return PlatformApprovalDesktopApi(approval_service=services["approval_service"])
+    return PlatformApprovalDesktopApi(
+        approval_commands=services["approval_commands"],
+        approval_queries=services["approval_queries"],
+    )
 
 
 def test_platform_access_desktop_api_manages_project_scope_grants(services):
@@ -75,7 +78,7 @@ def test_platform_approval_desktop_api_lists_and_approves_requests(services):
     project = services["project_service"].create_project("Desktop Approval Project")
     # Overrides the real baseline.create participant with a no-op stub for this
     # desktop-API-surface test.
-    services["approval_service"].register_apply_handler(
+    services["approval_participants"].register_apply_handler(
         "baseline.create",
         lambda _request, _deps: None,
         dependencies_factory=lambda _session: None,
@@ -92,7 +95,7 @@ def test_platform_approval_desktop_api_lists_and_approves_requests(services):
     )
 
     login_as(services, "approval-requester-desktop", "StrongPass123")
-    request = services["approval_service"].request_change(
+    request = services["approval_commands"].request_change(
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id="baseline-1",

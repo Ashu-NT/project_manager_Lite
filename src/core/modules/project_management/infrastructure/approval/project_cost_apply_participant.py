@@ -18,7 +18,7 @@ from src.core.platform.domain.approval import ApprovalRequest
 class ProjectCostApprovalDeps:
     """`cost_entry_service` is a fresh `ProjectCostEntryService`, bound to the Session
     `build_project_cost_approval_deps(session, ...)` was called with, constructed with
-    `approval_service=None` -- the apply path never calls back into `ApprovalService` (same
+    `approval_commands=None` -- the apply path never calls back into `ApprovalCommands` (same
     reasoning as `BudgetApprovalDeps`: the circular reference on the long-lived instance exists
     only for its own, unrelated, outbound `request_change(...)` calls)."""
 

@@ -1,4 +1,5 @@
 """Tests for PlatformTenantDesktopApi."""
+
 from __future__ import annotations
 
 from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantDto
@@ -7,7 +8,10 @@ from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDe
 
 def _build_api(services) -> PlatformTenantDesktopApi:
     return PlatformTenantDesktopApi(
-        tenant_admin_service=services["tenant_admin_service"],
+        tenant_admin_queries=services["tenant_admin_queries"],
+        tenant_lifecycle_commands=services["tenant_lifecycle_commands"],
+        tenant_invitation_commands=services["tenant_invitation_commands"],
+        tenant_membership_queries=services["tenant_membership_queries"],
         tenant_context_service=services["tenant_context_service"],
     )
 
@@ -15,6 +19,7 @@ def _build_api(services) -> PlatformTenantDesktopApi:
 # ---------------------------------------------------------------------------
 # list_accessible_tenants
 # ---------------------------------------------------------------------------
+
 
 def test_list_accessible_tenants_returns_dto_tuple(services):
     api = _build_api(services)
@@ -32,7 +37,7 @@ def test_list_accessible_tenants_returns_dto_tuple(services):
 
 def test_list_accessible_tenants_includes_newly_created(services):
     api = _build_api(services)
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     new_tenant = admin_svc.create_tenant("P2DAPI-NEW", "API New Tenant")
     services["session"].flush()
 
@@ -45,6 +50,7 @@ def test_list_accessible_tenants_includes_newly_created(services):
 # ---------------------------------------------------------------------------
 # get_active_tenant
 # ---------------------------------------------------------------------------
+
 
 def test_get_active_tenant_returns_dto(services):
     api = _build_api(services)
@@ -60,9 +66,10 @@ def test_get_active_tenant_returns_dto(services):
 # switch_to_tenant
 # ---------------------------------------------------------------------------
 
+
 def test_switch_to_tenant_returns_new_tenant_dto(services):
     api = _build_api(services)
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     new_tenant = admin_svc.create_tenant("P2DAPI-SW", "API Switch Tenant")
     services["session"].flush()
 
@@ -76,7 +83,7 @@ def test_switch_to_tenant_returns_new_tenant_dto(services):
 
 def test_switch_to_tenant_updates_active_tenant(services):
     api = _build_api(services)
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     new_tenant = admin_svc.create_tenant("P2DAPI-ACTIVE", "API Active Tenant")
     services["session"].flush()
 
@@ -90,7 +97,7 @@ def test_switch_to_tenant_updates_active_tenant(services):
 
 def test_switch_to_suspended_tenant_fails(services):
     api = _build_api(services)
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     t = admin_svc.create_tenant("P2DAPI-SUSP", "API Susp Tenant")
     services["session"].flush()
     admin_svc.suspend_tenant(t.id)
@@ -104,7 +111,7 @@ def test_switch_to_suspended_tenant_fails(services):
 
 def test_switch_to_archived_tenant_fails(services):
     api = _build_api(services)
-    admin_svc = services["tenant_admin_service"]
+    admin_svc = services["tenant_lifecycle_commands"]
     t = admin_svc.create_tenant("P2DAPI-ARCH", "API Arch Tenant")
     services["session"].flush()
     admin_svc.archive_tenant(t.id)

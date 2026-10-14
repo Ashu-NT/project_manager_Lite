@@ -31,5 +31,5 @@ def build_budget_service(
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
-        approval_service=platform_services.approval_service,
+        approval_commands=platform_services.approval_commands,
     )

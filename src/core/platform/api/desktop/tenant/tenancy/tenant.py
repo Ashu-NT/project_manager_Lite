@@ -13,14 +13,20 @@ from src.core.platform.api.desktop.tenant.tenancy.models.tenant import (
     TenantDto,
     TenantInvitationDto,
 )
-from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
-    TenantAdminService,
+from src.core.platform.application.tenant.tenancy.commands.tenant_lifecycle import (
+    TenantLifecycleCommandHandler,
+)
+from src.core.platform.application.tenant.tenancy.queries.admin import (
+    TenantAdminQueryHandler,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.application.tenant.tenancy.tenant_membership_service import (
-    TenantMembershipService,
+from src.core.platform.application.tenant.tenancy.commands.invitations import (
+    TenantInvitationCommandHandler,
+)
+from src.core.platform.application.tenant.tenancy.queries.membership import (
+    TenantMembershipQueryHandler,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
@@ -35,23 +41,29 @@ class PlatformTenantDesktopApi:
     def __init__(
         self,
         *,
-        tenant_admin_service: TenantAdminService,
+        tenant_admin_queries: TenantAdminQueryHandler,
+        tenant_lifecycle_commands: TenantLifecycleCommandHandler,
         tenant_context_service: TenantContextService,
-        tenant_membership_service: TenantMembershipService | None = None,
+        tenant_invitation_commands: TenantInvitationCommandHandler,
+        tenant_membership_queries: TenantMembershipQueryHandler,
     ) -> None:
-        self._tenant_admin_service = tenant_admin_service
+        self._tenant_admin_queries = tenant_admin_queries
+        self._tenant_lifecycle_commands = tenant_lifecycle_commands
         self._tenant_context_service = tenant_context_service
-        self._tenant_membership_service = tenant_membership_service
+        self._tenant_invitation_commands = tenant_invitation_commands
+        self._tenant_membership_queries = tenant_membership_queries
 
     def list_accessible_tenants(self) -> DesktopApiResult[tuple[TenantDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_tenant(t)
-                for t in self._tenant_admin_service.list_accessible_tenants()
+                for t in self._tenant_admin_queries.list_accessible_tenants()
             )
         )
 
-    def list_accessible_organizations(self) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+    def list_accessible_organizations(
+        self,
+    ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
                 serialize_organization(o)
@@ -61,22 +73,32 @@ class PlatformTenantDesktopApi:
 
     def get_active_organization(self) -> DesktopApiResult[OrganizationDto | None]:
         return execute_desktop_operation(
-            lambda: serialize_organization(organization)
-            if (organization := self._tenant_context_service.get_active_organization()) is not None
-            else None
+            lambda: (
+                serialize_organization(organization)
+                if (
+                    organization
+                    := self._tenant_context_service.get_active_organization()
+                )
+                is not None
+                else None
+            )
         )
 
-    def switch_to_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+    def switch_to_organization(
+        self, organization_id: str
+    ) -> DesktopApiResult[OrganizationDto]:
         return execute_desktop_operation(
             lambda: serialize_organization(
                 self._tenant_context_service.set_active_organization(organization_id)
             )
         )
 
-    def create_tenant(self, command: TenantCreateCommand) -> DesktopApiResult[TenantDto]:
+    def create_tenant(
+        self, command: TenantCreateCommand
+    ) -> DesktopApiResult[TenantDto]:
         return execute_desktop_operation(
             lambda: self._serialize_tenant(
-                self._tenant_admin_service.create_tenant(
+                self._tenant_lifecycle_commands.create_tenant(
                     command.tenant_code,
                     command.display_name,
                 )
@@ -85,9 +107,12 @@ class PlatformTenantDesktopApi:
 
     def get_active_tenant(self) -> DesktopApiResult[TenantDto | None]:
         return execute_desktop_operation(
-            lambda: self._serialize_tenant(tenant)
-            if (tenant := self._tenant_context_service.get_active_tenant()) is not None
-            else None
+            lambda: (
+                self._serialize_tenant(tenant)
+                if (tenant := self._tenant_context_service.get_active_tenant())
+                is not None
+                else None
+            )
         )
 
     def switch_to_tenant(self, tenant_id: str) -> DesktopApiResult[TenantDto]:
@@ -103,7 +128,7 @@ class PlatformTenantDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_invitation(membership)
-                for membership in self._require_membership_service().list_my_pending_invitations()
+                for membership in self._tenant_membership_queries.list_my_pending_invitations()
             )
         )
 
@@ -113,9 +138,7 @@ class PlatformTenantDesktopApi:
     ) -> DesktopApiResult[TenantInvitationDto]:
         return execute_desktop_operation(
             lambda: self._serialize_invitation(
-                self._require_membership_service().accept_invitation_for_tenant(
-                    tenant_id
-                )
+                self._tenant_invitation_commands.accept_invitation_for_tenant(tenant_id)
             )
         )
 
@@ -146,14 +169,6 @@ class PlatformTenantDesktopApi:
             invited_at=membership.invited_at,
             expires_at=membership.invitation_expires_at,
         )
-
-    def _require_membership_service(self) -> TenantMembershipService:
-        if self._tenant_membership_service is None:
-            raise BusinessRuleError(
-                "Tenant invitation service is not configured.",
-                code="TENANT_INVITATION_SERVICE_REQUIRED",
-            )
-        return self._tenant_membership_service
 
 
 __all__ = ["PlatformTenantDesktopApi"]

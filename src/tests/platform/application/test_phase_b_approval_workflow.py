@@ -46,7 +46,7 @@ def test_cost_entry_requester_can_lack_approve_and_admin_can_approve(services, m
     _login(services, "admin", "ChangeMe123!")
 
     cost_entries = services["cost_entry_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     project, item = _submitted_cost_entry(services, "Governed Cost Project")
     services["user_registration"].register_user("planner-req", "StrongPass123", role_names=["planner"])
@@ -55,7 +55,7 @@ def test_cost_entry_requester_can_lack_approve_and_admin_can_approve(services, m
     result = cost_entries.approve(item.id, expected_version=item.row_version)
     assert result.outcome.value == "pending_approval"
 
-    pending = approvals.list_pending(project_id=project.id)
+    pending = services["approval_queries"].list_pending(project_id=project.id)
     assert len(pending) == 1
     req = pending[0]
     assert req.request_type == "project_cost.approve"
@@ -77,7 +77,7 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
 
     ps = services["project_service"]
     ts = services["task_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     project = ps.create_project("Governed Dependency Project")
     a = ts.create_task(project.id, "Task Alpha", start_date=date(2026, 2, 24), duration_days=1)
@@ -88,7 +88,7 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     with pytest.raises(BusinessRuleError, match="Approval required"):
         ts.add_dependency(a.id, b.id)
 
-    req = approvals.list_pending(project_id=project.id)[0]
+    req = services["approval_queries"].list_pending(project_id=project.id)[0]
     assert req.request_type == "dependency.add"
     assert req.requested_by_username == "planner-dep"
     _login(services, "admin", "ChangeMe123!")
@@ -106,7 +106,7 @@ def test_admin_does_not_bypass_governance_requests_for_governed_actions(services
     _login(services, "admin", "ChangeMe123!")
 
     cost_entries = services["cost_entry_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     project, item = _submitted_cost_entry(services, "Admin bypass")
     result = cost_entries.approve(item.id, expected_version=item.row_version)
@@ -114,7 +114,7 @@ def test_admin_does_not_bypass_governance_requests_for_governed_actions(services
 
     unchanged = cost_entries.get_entry(item.id)
     assert unchanged.status.value == "submitted"
-    assert len(approvals.list_pending(project_id=project.id)) == 1
+    assert len(services["approval_queries"].list_pending(project_id=project.id)) == 1
 
 
 def test_approval_apply_rolls_back_handler_when_decision_update_fails(
@@ -132,14 +132,14 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
         item.id, expected_version=item.row_version
     )
     assert result.outcome.value == "pending_approval"
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
-    approvals = services["approval_service"]
-    approval_repo_class = type(approvals._approval_repo)
+    approvals = services["approval_commands"]
+    approval_repo_class = type(services["approval_queries"]._approval_repo)
     original_update = approval_repo_class.update
 
     # approve_and_apply's decision-update runs against a fresh UoW's own `uow.approvals`, a
-    # different instance from `approvals._approval_repo` -- patch the class method so it's
+    # different instance from `services["approval_queries"]._approval_repo` -- patch the class method so it's
     # reached regardless of instance identity.
     def _fail_decision_update(self, candidate):
         if candidate.id == request.id:
@@ -173,14 +173,14 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
         item.id, expected_version=item.row_version
     )
     assert result.outcome.value == "pending_approval"
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
-    approvals = services["approval_service"]
-    audit_service_class = type(approvals._enterprise_audit_service)
+    approvals = services["approval_commands"]
+    audit_service_class = type(services["enterprise_audit_service"])
     original_record = audit_service_class.record
 
     # approve_and_apply's audit write runs against a fresh UoW's own `_enterprise_audit_service`,
-    # a different instance from `approvals._enterprise_audit_service` -- patch the class method
+    # a different instance from `services["enterprise_audit_service"]` -- patch the class method
     # so it's reached regardless of instance identity.
     def _fail_approval_audit(self, **kwargs):
         if kwargs.get("entity_type") == "approval_request" and (
@@ -205,7 +205,7 @@ def test_same_user_cannot_approve_own_request(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
     _login(services, "admin", "ChangeMe123!")
 
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     request = approvals.request_change(
         request_type="project_cost.approve",
         entity_type="project_cost_entry",
@@ -220,7 +220,7 @@ def test_same_user_cannot_approve_own_request(services, monkeypatch):
 def test_list_requests_accepts_string_status_value_from_ui(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
     _login(services, "admin", "ChangeMe123!")
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     req = approvals.request_change(
         request_type="project_cost.approve",
         entity_type="project_cost_entry",
@@ -228,14 +228,14 @@ def test_list_requests_accepts_string_status_value_from_ui(services, monkeypatch
         project_id="p-2",
         payload={"entry_id": "entry-2"},
     )
-    pending = approvals.list_requests(status="PENDING", project_id="p-2")
+    pending = services["approval_queries"].list_requests(status="PENDING", project_id="p-2")
     assert any(item.id == req.id for item in pending)
 
 
 def test_duplicate_approval_requests_are_prevented(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
     _login(services, "admin", "ChangeMe123!")
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     approvals.request_change(
         request_type="baseline.create",
         entity_type="project_baseline",

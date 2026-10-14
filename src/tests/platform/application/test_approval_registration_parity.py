@@ -65,9 +65,9 @@ def _bound_participant_class(entry):
 
 
 def test_exact_registration_count(services):
-    approval_service = services["approval_service"]
-    apply_handlers = approval_service._apply_handlers
-    reject_handlers = approval_service._reject_handlers
+    approval_participants = services["approval_participants"]
+    apply_handlers = approval_participants.apply_handlers
+    reject_handlers = approval_participants.reject_handlers
 
     assert len(apply_handlers) == len(EXPECTED_APPLY_REGISTRATIONS), (
         f"expected {len(EXPECTED_APPLY_REGISTRATIONS)} apply handlers, "
@@ -82,7 +82,7 @@ def test_exact_registration_count(services):
 
 
 def test_every_expected_apply_request_type_is_registered_to_the_right_participant(services):
-    apply_handlers = services["approval_service"]._apply_handlers
+    apply_handlers = services["approval_participants"].apply_handlers
     for request_type, expected_class in EXPECTED_APPLY_REGISTRATIONS.items():
         assert request_type in apply_handlers, f"missing apply handler for {request_type!r}"
         actual_class = _bound_participant_class(apply_handlers[request_type])
@@ -95,7 +95,7 @@ def test_every_expected_apply_request_type_is_registered_to_the_right_participan
 
 
 def test_every_expected_reject_request_type_is_registered_to_the_right_participant(services):
-    reject_handlers = services["approval_service"]._reject_handlers
+    reject_handlers = services["approval_participants"].reject_handlers
     for request_type, expected_class in EXPECTED_REJECT_REGISTRATIONS.items():
         assert request_type in reject_handlers, f"missing reject handler for {request_type!r}"
         actual_class = _bound_participant_class(reject_handlers[request_type])
@@ -114,12 +114,12 @@ def test_every_dependencies_factory_produces_deps_bound_to_the_supplied_session(
 
     from src.infra.persistence.orm.base import Base
 
-    approval_service = services["approval_service"]
+    approval_participants = services["approval_participants"]
     engine = create_engine(f"sqlite:///{tmp_path}/registration_parity_probe.db", future=True)
     Base.metadata.create_all(engine)
     probe_session = sessionmaker(bind=engine, future=True)()
     try:
-        for registrations in (approval_service._apply_handlers, approval_service._reject_handlers):
+        for registrations in (approval_participants.apply_handlers, approval_participants.reject_handlers):
             for request_type, (_handler, dependencies_factory) in registrations.items():
                 deps = dependencies_factory(probe_session)
                 assert deps is not None, f"{request_type!r}'s dependencies_factory returned None"
@@ -128,8 +128,8 @@ def test_every_dependencies_factory_produces_deps_bound_to_the_supplied_session(
 
 
 def test_no_request_type_has_both_a_missing_and_duplicate_registration(services):
-    approval_service = services["approval_service"]
-    apply_keys = list(approval_service._apply_handlers.keys())
-    reject_keys = list(approval_service._reject_handlers.keys())
+    approval_participants = services["approval_participants"]
+    apply_keys = list(approval_participants.apply_handlers.keys())
+    reject_keys = list(approval_participants.reject_handlers.keys())
     assert len(apply_keys) == len(set(apply_keys)), "duplicate apply registration key found"
     assert len(reject_keys) == len(set(reject_keys)), "duplicate reject registration key found"

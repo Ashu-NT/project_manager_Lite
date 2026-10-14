@@ -31,7 +31,7 @@ def build_financial_change_service(
         cost_code_repo=repositories.pm.project_cost_code_repo,
         task_repo=repositories.pm.task_repo,
         task_service=task_service,
-        approval_service=platform_services.approval_service,
+        approval_commands=platform_services.approval_commands,
         clock=clock,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,

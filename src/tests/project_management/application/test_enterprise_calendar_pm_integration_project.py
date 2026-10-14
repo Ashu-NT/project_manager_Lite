@@ -31,8 +31,11 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyProjectCalendarAssignmentRepository,
     SqlAlchemyResourceCalendarAssignmentRepository,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -40,17 +43,29 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
@@ -96,7 +111,9 @@ def repos(db_session, tenant_context):
         "recurring": SqlAlchemyCalendarRecurringEventRepository(db_session),
         "assignment": SqlAlchemyCalendarAssignmentRepository(db_session),
         "project_assignment": SqlAlchemyProjectCalendarAssignmentRepository(db_session),
-        "resource_assignment": SqlAlchemyResourceCalendarAssignmentRepository(db_session),
+        "resource_assignment": SqlAlchemyResourceCalendarAssignmentRepository(
+            db_session
+        ),
     }
     for repo in repos.values():
         if hasattr(repo, "_tenant_context_service"):
@@ -152,8 +169,8 @@ def tenant_context(org_id):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return PlatformCalendarService(
+def cal_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -164,8 +181,17 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 
 @pytest.fixture
-def rule_service(db_session, repos, mock_user_session):
-    return WorkingRuleService(
+def cal_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def rule_commands(db_session, repos, mock_user_session):
+    return WorkingRuleCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -174,8 +200,17 @@ def rule_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def exc_service(db_session, repos, mock_user_session):
-    return CalendarExceptionService(
+def rule_queries(db_session, repos, mock_user_session):
+    return WorkingRuleQueryHandler(
+        calendar_repo=repos["calendar"],
+        rule_repo=repos["rule"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def exc_commands(db_session, repos, mock_user_session):
+    return CalendarExceptionCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         exception_repo=repos["exception"],
@@ -184,8 +219,17 @@ def exc_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def recurring_service(db_session, repos, mock_user_session):
-    return RecurringEventService(
+def exc_queries(db_session, repos, mock_user_session):
+    return CalendarExceptionQueryHandler(
+        calendar_repo=repos["calendar"],
+        exception_repo=repos["exception"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def recurring_commands(db_session, repos, mock_user_session):
+    return RecurringEventCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         event_repo=repos["recurring"],
@@ -194,14 +238,32 @@ def recurring_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def assignment_service(db_session, repos, mock_user_session):
-    return CalendarAssignmentService(
+def recurring_queries(db_session, repos, mock_user_session):
+    return RecurringEventQueryHandler(
+        calendar_repo=repos["calendar"],
+        event_repo=repos["recurring"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def assignment_commands(db_session, repos, mock_user_session):
+    return CalendarAssignmentCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         project_assignment_repo=repos["project_assignment"],
         resource_assignment_repo=repos["resource_assignment"],
         user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def assignment_queries(db_session, repos, mock_user_session):
+    return CalendarAssignmentQueryHandler(
+        assignment_repo=repos["assignment"],
+        project_assignment_repo=repos["project_assignment"],
+        resource_assignment_repo=repos["resource_assignment"],
     )
 
 
@@ -226,9 +288,9 @@ def resolver(repos, org_id, calculator):
 
 
 @pytest.fixture
-def global_cal(cal_service, org_id, rule_service):
-    cal = cal_service.ensure_global_calendar(org_id)
-    rule_service.seed_standard_week(
+def global_cal(cal_commands, org_id, rule_commands):
+    cal = cal_commands.ensure_global_calendar(org_id)
+    rule_commands.seed_standard_week(
         cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
@@ -306,29 +368,41 @@ def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
 
 
 def test_project_calendar_assigned_and_resolved(
-    global_cal, cal_service, assignment_service, resolver, org_id, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    assignment_commands,
+    resolver,
+    org_id,
+    db_session,
+    tenant_context,
 ):
-    project_cal = cal_service.create_calendar(
+    project_cal = cal_commands.create_calendar(
         code="PRJ-REFIT",
         name="Refit Project",
         calendar_type=CalendarType.PROJECT.value,
     )
     _seed_project(db_session, tenant_context, "proj-001")
-    assignment_service.assign_project_calendar("proj-001", project_cal.id)
+    assignment_commands.assign_project_calendar("proj-001", project_cal.id)
 
     chain = resolver.get_source_chain(project_id="proj-001")
     assert any("PRJ" in s for s in chain)
 
 
 def test_project_calendar_enables_weekend_work(
-    global_cal, cal_service, assignment_service, rule_service, resolver, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    assignment_commands,
+    rule_commands,
+    resolver,
+    db_session,
+    tenant_context,
 ):
-    project_cal = cal_service.create_calendar(
+    project_cal = cal_commands.create_calendar(
         code="PRJ-WEEKEND",
         name="Weekend Project",
         calendar_type=CalendarType.PROJECT.value,
     )
-    rule_service.save_rule(
+    rule_commands.save_rule(
         project_cal.id,
         weekday=5,  # Saturday
         is_working_day=True,
@@ -336,7 +410,7 @@ def test_project_calendar_enables_weekend_work(
         end_time=time(14, 0),
     )
     _seed_project(db_session, tenant_context, "proj-weekend")
-    assignment_service.assign_project_calendar("proj-weekend", project_cal.id)
+    assignment_commands.assign_project_calendar("proj-weekend", project_cal.id)
 
     ctx = resolver.resolve_calendar_context(
         project_id="proj-weekend",
@@ -346,16 +420,16 @@ def test_project_calendar_enables_weekend_work(
 
 
 def test_project_calendar_assignment_service_uses_dto_validation_and_normalization(
-    cal_service, assignment_service, db_session, tenant_context
+    cal_commands, assignment_commands, db_session, tenant_context
 ):
-    project_cal = cal_service.create_calendar(
+    project_cal = cal_commands.create_calendar(
         code="PRJ-NORMALIZED",
         name="Normalized Project Calendar",
         calendar_type=CalendarType.PROJECT.value,
     )
     _seed_project(db_session, tenant_context, "proj-normalized")
 
-    assignment = assignment_service.assign_project_calendar(
+    assignment = assignment_commands.assign_project_calendar(
         "  proj-normalized  ",
         f"  {project_cal.id}  ",
         effective_from=date(2026, 1, 1),
@@ -368,7 +442,7 @@ def test_project_calendar_assignment_service_uses_dto_validation_and_normalizati
     assert assignment.priority == 2
 
     with pytest.raises(ValidationError) as exc:
-        assignment_service.assign_project_calendar(
+        assignment_commands.assign_project_calendar(
             "proj-normalized",
             project_cal.id,
             effective_from=date(2026, 12, 31),
@@ -378,11 +452,10 @@ def test_project_calendar_assignment_service_uses_dto_validation_and_normalizati
 
 
 def test_project_calendar_adapter_working_days(
-    global_cal, assignment_service, resolver
+    global_cal, assignment_commands, resolver
 ):
     adapter = ProjectCalendarAdapter(
         resolver=resolver,
-        assignment_service=assignment_service,
     )
     # Monday 2026-06-01 to Friday 2026-06-05 = 5 working days (global Mon-Fri)
     count = adapter.working_days_between("proj-x", date(2026, 6, 1), date(2026, 6, 5))
@@ -390,11 +463,10 @@ def test_project_calendar_adapter_working_days(
 
 
 def test_project_calendar_adapter_add_working_days(
-    global_cal, assignment_service, resolver
+    global_cal, assignment_commands, resolver
 ):
     adapter = ProjectCalendarAdapter(
         resolver=resolver,
-        assignment_service=assignment_service,
     )
     # Starting Monday 2026-06-01, add 5 working days → Friday 2026-06-05
     result = adapter.add_working_days("proj-x", date(2026, 6, 1), 5)
@@ -402,7 +474,7 @@ def test_project_calendar_adapter_add_working_days(
 
 
 def test_project_calendar_adapter_fails_fast_with_no_calendar_chain(
-    assignment_service, resolver, monkeypatch
+    assignment_commands, resolver, monkeypatch
 ):
     """A project with NO calendar assignment anywhere in its hierarchy (no
     project/site/department/global calendar at all -- note: no global_cal
@@ -416,7 +488,6 @@ def test_project_calendar_adapter_fails_fast_with_no_calendar_chain(
     missing chain ONCE and return immediately."""
     adapter = ProjectCalendarAdapter(
         resolver=resolver,
-        assignment_service=assignment_service,
     )
     calls = {"count": 0}
     original = resolver.resolve_calendar_context

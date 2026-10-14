@@ -47,8 +47,8 @@ def _unique_key(prefix: str) -> str:
     return f"{prefix}_{uuid4().hex[:8]}"
 
 
-def test_runtime_execution_service_tracks_cancellation_and_retry_metadata(services):
-    runtime = services["runtime_execution_service"]
+def test_runtime_execution_commands_tracks_cancellation_and_retry_metadata(services):
+    runtime = services["runtime_execution_commands"]
 
     execution = runtime.start_execution(
         operation_type="report",
@@ -58,7 +58,7 @@ def test_runtime_execution_service_tracks_cancellation_and_retry_metadata(servic
         output_path="inventory-report.xlsx",
     )
     runtime.request_cancellation(execution.id)
-    requested = runtime.get_execution(execution.id)
+    requested = services["runtime_execution_query"].get_execution(execution.id)
     assert requested is not None
     assert requested.status == "CANCELLATION_REQUESTED"
     assert requested.cancellation_requested_at is not None
@@ -82,12 +82,12 @@ def test_export_runtime_records_artifact_metadata_in_execution_history(services,
         registry,
         user_session=services["user_session"],
         module_catalog_service=services["module_catalog_service"],
-        runtime_execution_service=services["runtime_execution_service"],
+        runtime_execution_commands=services["runtime_execution_commands"],
     )
 
     artifact_path = tmp_path / "runtime-export.csv"
     artifact = runtime.export(operation_key, artifact_path)
-    executions = services["runtime_execution_service"].list_recent(
+    executions = services["runtime_execution_query"].list_recent(
         limit=10,
         module_code="project_management",
         status="COMPLETED",
@@ -111,18 +111,18 @@ def test_report_runtime_records_artifact_metadata_and_list_filters(services, tmp
         registry,
         user_session=services["user_session"],
         module_catalog_service=services["module_catalog_service"],
-        runtime_execution_service=services["runtime_execution_service"],
+        runtime_execution_commands=services["runtime_execution_commands"],
     )
 
     output_path = tmp_path / "runtime-report.pdf"
     rendered = runtime.render(report_key, output_path)
 
-    completed = services["runtime_execution_service"].list_recent(
+    completed = services["runtime_execution_query"].list_recent(
         limit=10,
         module_code="project_management",
         status="COMPLETED",
     )
-    running = services["runtime_execution_service"].list_recent(
+    running = services["runtime_execution_query"].list_recent(
         limit=10,
         module_code="project_management",
         status="RUNNING",

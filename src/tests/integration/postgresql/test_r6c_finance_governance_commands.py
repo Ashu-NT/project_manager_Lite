@@ -217,7 +217,7 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 financial_profile_repo=uow.profiles,
                 cost_code_repo=uow.cost_codes,
                 task_repo=uow.tasks,
-                approval_service=None,
+                approval_commands=None,
                 **common,
             ),
             forecast_versions=ForecastVersionService(
@@ -249,7 +249,7 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 cost_code_repo=uow.cost_codes,
                 task_repo=uow.tasks,
                 task_service=_SchedulePort(),
-                approval_service=None,
+                approval_commands=None,
                 **common,
             ),
             financial_setup=FinancialConfigurationService(

@@ -31,8 +31,8 @@ if TYPE_CHECKING:
     from src.core.modules.project_management.contracts.reads.financials.finance_billing_reader import (
         FinanceBillingReader,
     )
-    from src.core.platform.application.integration.accounting.capability import (
-        AccountingIntegrationCapabilityService,
+    from src.core.platform.application.integration.accounting.queries import (
+        AccountingIntegrationCapabilityQueryHandler,
     )
     from src.core.platform.application.tenant.tenancy.tenant_context import (
         TenantContextService,
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 class InvoicingWorkspaceQueries:
     # Host attributes supplied by ``ProjectFinanceWorkspaceQuery`` (declared for type checking only).
     _billing_reader: FinanceBillingReader | None
-    _accounting_capability: AccountingIntegrationCapabilityService | None
+    _accounting_capability: AccountingIntegrationCapabilityQueryHandler | None
     _tenant_context_service: TenantContextService | None
     _user_session: UserSessionContext | None
     _has_project_permission: Callable[[str, str], bool]

@@ -218,9 +218,9 @@ def test_no_event_observable_on_commit_failure(services, monkeypatch):
 
 
 def test_provisioning_create_records_exactly_one_event_before_commit(services, monkeypatch):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     recorded = []
-    original_create = type(app_service._provisioning_uow_factory).create
+    original_create = type(provisioning._provisioning_uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
@@ -234,9 +234,9 @@ def test_provisioning_create_records_exactly_one_event_before_commit(services, m
         uow.record_event = _spy_record_event
         return uow
 
-    monkeypatch.setattr(type(app_service._provisioning_uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(provisioning._provisioning_uow_factory), "create", _spy_create)
 
-    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROV-EVT"), display_name="Provisioned Evt Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    organization = provisioning.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROV-EVT"), display_name="Provisioned Evt Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert len(recorded) == 1
     assert isinstance(recorded[0], OrganizationCreated)
@@ -244,14 +244,14 @@ def test_provisioning_create_records_exactly_one_event_before_commit(services, m
 
 
 def test_provisioning_late_failure_produces_no_observable_event(services):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     tenant_id = _active_tenant(services)
     channel = services["platform_view_invalidation_channel"]
     hints = []
     channel.subscribe(TenantWide(tenant_id), lambda hint: hints.append(hint))
 
     with pytest.raises(NotFoundError):
-        app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROV-LATEFAIL-EVT"), display_name="x", timezone_name="UTC", base_currency="EUR", initial_module_codes=["not-a-real-module"]))
+        provisioning.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROV-LATEFAIL-EVT"), display_name="x", timezone_name="UTC", base_currency="EUR", initial_module_codes=["not-a-real-module"]))
 
     assert hints == []
 

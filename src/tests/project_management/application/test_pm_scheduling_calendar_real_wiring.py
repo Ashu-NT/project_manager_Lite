@@ -16,8 +16,11 @@ from src.core.modules.project_management.api.desktop.scheduling.api import (
 from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
     PlatformCalendarDesktopApi,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -25,20 +28,35 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
-    ShiftPatternService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.commands.shift_pattern_commands import (
+    ShiftPatternCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
+    ShiftPatternQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
@@ -89,13 +107,16 @@ def tenant_context(org_id):
     context.get_active_organization.return_value = FakeOrg()
     context.get_active_tenant_id.return_value = "tenant-pm-cal-wiring"
     context.require_active_scope_ids.return_value = FakeContext(organization=FakeOrg())
-    context.require_organization_context.return_value = FakeContext(organization=FakeOrg())
+    context.require_organization_context.return_value = FakeContext(
+        organization=FakeOrg()
+    )
     return context
 
 
 @pytest.fixture
 def mock_user_session():
     from unittest.mock import MagicMock
+
     session = MagicMock()
     session.has_permission.return_value = True
     session.username = "test-admin"
@@ -133,10 +154,12 @@ def repos(db_session, tenant_context):
 
 
 @pytest.fixture
-def desktop_api(db_session, repos, mock_org_repo, mock_user_session, tenant_context, org_id):
+def desktop_api(
+    db_session, repos, mock_org_repo, mock_user_session, tenant_context, org_id
+):
     from unittest.mock import MagicMock
 
-    cal_service = PlatformCalendarService(
+    cal_commands = PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -144,38 +167,67 @@ def desktop_api(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
         user_session=mock_user_session,
         tenant_context_service=tenant_context,
     )
-    rule_service = WorkingRuleService(
+    cal_queries = PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+    rule_commands = WorkingRuleCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
         user_session=mock_user_session,
     )
-    exception_service = CalendarExceptionService(
+    rule_queries = WorkingRuleQueryHandler(
+        calendar_repo=repos["calendar"],
+        rule_repo=repos["rule"],
+        user_session=mock_user_session,
+    )
+    exception_commands = CalendarExceptionCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         exception_repo=repos["exception"],
         user_session=mock_user_session,
     )
-    recurring_service = RecurringEventService(
+    exception_queries = CalendarExceptionQueryHandler(
+        calendar_repo=repos["calendar"],
+        exception_repo=repos["exception"],
+        user_session=mock_user_session,
+    )
+    recurring_commands = RecurringEventCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         event_repo=repos["recurring"],
         user_session=mock_user_session,
     )
-    shift_pattern_service = ShiftPatternService(
+    recurring_queries = RecurringEventQueryHandler(
+        calendar_repo=repos["calendar"],
+        event_repo=repos["recurring"],
+        user_session=mock_user_session,
+    )
+    shift_pattern_commands = ShiftPatternCommandHandler(
         session=db_session,
         pattern_repo=repos["shift"],
-        organization_repo=mock_org_repo,
         user_session=mock_user_session,
         tenant_context_service=tenant_context,
     )
-    assignment_service = CalendarAssignmentService(
+    shift_pattern_queries = ShiftPatternQueryHandler(
+        pattern_repo=repos["shift"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+    assignment_commands = CalendarAssignmentCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         project_assignment_repo=MagicMock(),
         resource_assignment_repo=MagicMock(),
         user_session=mock_user_session,
+    )
+    assignment_queries = CalendarAssignmentQueryHandler(
+        assignment_repo=repos["assignment"],
+        project_assignment_repo=MagicMock(),
+        resource_assignment_repo=MagicMock(),
     )
     resolver = PlatformCalendarResolver(
         organization_id=org_id,
@@ -189,18 +241,24 @@ def desktop_api(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
         calculator=WorkingTimeCalculator(),
     )
 
-    global_cal = cal_service.ensure_global_calendar(org_id)
-    rule_service.seed_standard_week(
+    global_cal = cal_commands.ensure_global_calendar(org_id)
+    rule_commands.seed_standard_week(
         global_cal.id, start_time=time(8, 0), end_time=time(17, 0), break_minutes=60
     )
 
     platform_calendar_api = PlatformCalendarDesktopApi(
-        calendar_service=cal_service,
-        rule_service=rule_service,
-        exception_service=exception_service,
-        recurring_event_service=recurring_service,
-        shift_pattern_service=shift_pattern_service,
-        assignment_service=assignment_service,
+        platform_calendar_commands=cal_commands,
+        platform_calendar_queries=cal_queries,
+        working_rule_commands=rule_commands,
+        working_rule_queries=rule_queries,
+        calendar_exception_commands=exception_commands,
+        calendar_exception_queries=exception_queries,
+        recurring_event_commands=recurring_commands,
+        recurring_event_queries=recurring_queries,
+        shift_pattern_commands=shift_pattern_commands,
+        shift_pattern_queries=shift_pattern_queries,
+        calendar_assignment_commands=assignment_commands,
+        calendar_assignment_queries=assignment_queries,
         resolver=resolver,
     )
 
@@ -241,7 +299,9 @@ def test_calculate_working_days_uses_real_calendar(desktop_api):
 
     api, _ = desktop_api
     result = api.calculate_working_days(
-        SchedulingWorkingDayCalculationCommand(start_date=date(2026, 6, 1), working_days=5)
+        SchedulingWorkingDayCalculationCommand(
+            start_date=date(2026, 6, 1), working_days=5
+        )
     )
     # 2026-06-01 is a Monday; 5 working days lands on Friday 2026-06-05.
     assert result.result_date == date(2026, 6, 5)

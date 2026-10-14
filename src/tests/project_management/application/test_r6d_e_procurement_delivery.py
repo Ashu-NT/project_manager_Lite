@@ -49,7 +49,7 @@ from src.core.platform.integration import (
 
 
 def _setup(services):
-    services["service_principal_service"].create_service_principal(
+    services["service_principal_commands"].create_service_principal(
         name=PROCUREMENT_FINANCE_PRINCIPAL_NAME,
         description="Projects Procurement facts into PM Finance.",
         initial_role_name="viewer",
@@ -69,7 +69,7 @@ def _setup(services):
     )
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="PROC-DELIVERY", name="Procurement delivery site", currency_code=organization.base_currency))
     supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="PROC-DELIVERY", party_name="Procurement supplier", roles=["SUPPLIER"]))
-    services["financial_period_service"].create_period(
+    services["financial_period_commands"].create_period(
         code="PROC-2026-08", name="August 2026", fiscal_year=2026,
         period_number=8, start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
     )
@@ -226,7 +226,7 @@ def test_procurement_delivery_projects_receipt_actual_and_match_once(services):
     assert {row.status for row in session.execute(select(ProcurementFinancialOutboxORM)).scalars()} == {"published"}
     assert {row.status for row in session.execute(select(ProjectFinanceInboxORM)).scalars()} == {"processed"}
 
-    principal = services["service_principal_service"].resolve_execution_principal(
+    principal = services["service_principal_query"].resolve_execution_principal(
         name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
     )
     audits = session.execute(

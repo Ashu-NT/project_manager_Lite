@@ -83,7 +83,7 @@ def _deps(services, session):
         session,
         user_session=services["user_session"],
         tenant_context_service=services["tenant_context_service"],
-        financial_period_service=services["financial_period_service"],
+        financial_period_queries=services["financial_period_queries"],
     )
 
 
@@ -125,7 +125,7 @@ def test_participant_reject_requires_authenticated_actor(services, session):
         session,
         user_session=_BlankUserSession(),
         tenant_context_service=services["tenant_context_service"],
-        financial_period_service=services["financial_period_service"],
+        financial_period_queries=services["financial_period_queries"],
     )
     request = _approval_request(entry, expected_version=entry.row_version)
 
@@ -160,8 +160,8 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         )
         assert deps_a.cost_entry_service._enterprise_audit_service._session is session_a
         assert deps_b.cost_entry_service._enterprise_audit_service._session is session_b
-        assert deps_a.cost_entry_service._approval_service is None, (
-            "the apply path must never reach back into ApprovalService"
+        assert deps_a.cost_entry_service._approval_commands is None, (
+            "the apply path must never reach back into ApprovalCommandHandler"
         )
     finally:
         session_a.close()

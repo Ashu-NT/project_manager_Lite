@@ -394,7 +394,7 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     change = changes.submit_change(
         change.id, submitted_by=principal.user_id, expected_version=change.row_version,
     )
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     _login(services, "admin", "ChangeMe123!")
     reviewer = _unique("p19-change-reviewer")
@@ -403,7 +403,7 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     )
     _login(services, reviewer, "StrongPass123")
     hints = _spy_hints(services)
-    services["approval_service"].approve_and_apply(request.id, note="Authorized")
+    services["approval_commands"].approve_and_apply(request.id, note="Authorized")
 
     applied = changes.get_change(change.id)
     assert applied.status is FinancialChangeStatus.APPLIED

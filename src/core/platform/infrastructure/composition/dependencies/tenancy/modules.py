@@ -8,10 +8,14 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.application.data_operations.runtime_tracking import (
-    RuntimeExecutionService,
+    RuntimeExecutionCommandHandler,
+    RuntimeExecutionQueryHandler,
+)
+from src.core.platform.application.master_data.org.commands import (
+    OrganizationProvisioningCommandHandler,
 )
 from src.core.platform.application.platform_runtime import (
-    PlatformRuntimeApplicationService,
+    PlatformRuntimeQueryHandler,
 )
 from src.core.platform.application.tenant.modules import (
     ModuleCatalogContext,
@@ -60,8 +64,10 @@ from src.infra.time.system_clock import SystemClock
 class ModuleDependencies:
     module_catalog_service: ModuleCatalogQueryHandler
     module_entitlement_commands: ModuleEntitlementCommandHandler
-    platform_runtime_application_service: PlatformRuntimeApplicationService
-    runtime_execution_service: RuntimeExecutionService
+    platform_runtime_query: PlatformRuntimeQueryHandler
+    organization_provisioning_commands: OrganizationProvisioningCommandHandler
+    runtime_execution_commands: RuntimeExecutionCommandHandler
+    runtime_execution_query: RuntimeExecutionQueryHandler
 
 
 def build_module_dependencies(
@@ -119,26 +125,34 @@ def build_module_dependencies(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
-    platform_runtime_application_service = PlatformRuntimeApplicationService(
+    platform_runtime_query = PlatformRuntimeQueryHandler(
+        module_catalog_service=module_catalog_service,
+        user_session=user_session,
+    )
+    organization_provisioning_commands = OrganizationProvisioningCommandHandler(
         module_catalog_service=module_catalog_service,
         module_entitlement_provisioning=module_entitlement_provisioning,
         organization_query=organization.query,
         organization_commands=organization.commands,
-        organization_lifecycle=organization.lifecycle,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
         provisioning_uow_factory=provisioning_uow_factory,
     )
-    runtime_execution_service = RuntimeExecutionService(
-        runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(
-            session, tenant_context_service=tenant_context_service
-        ),
+    runtime_execution_repo = SqlAlchemyRuntimeExecutionRepository(
+        session, tenant_context_service=tenant_context_service
+    )
+    runtime_execution_commands = RuntimeExecutionCommandHandler(
+        runtime_execution_repo=runtime_execution_repo,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
     return ModuleDependencies(
         module_catalog_service=module_catalog_service,
         module_entitlement_commands=module_entitlement_commands,
-        platform_runtime_application_service=platform_runtime_application_service,
-        runtime_execution_service=runtime_execution_service,
+        platform_runtime_query=platform_runtime_query,
+        organization_provisioning_commands=organization_provisioning_commands,
+        runtime_execution_commands=runtime_execution_commands,
+        runtime_execution_query=RuntimeExecutionQueryHandler(
+            runtime_execution_repo=runtime_execution_repo
+        ),
     )

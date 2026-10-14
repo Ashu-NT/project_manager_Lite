@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from src.core.platform.application.data_operations.runtime_tracking.runtime_execution_service import (
-    RuntimeExecutionService,
+from src.core.platform.application.data_operations.runtime_tracking.commands.execution import (
+    RuntimeExecutionCommandHandler,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
@@ -167,9 +167,9 @@ def test_platform_event_dto_normalizes_and_validates_fields():
     assert exc_metadata.value.code == "PLATFORM_EVENT_METADATA_INVALID"
 
 
-def test_runtime_execution_service_uses_entity_validation_for_updates():
+def test_runtime_execution_commands_uses_entity_validation_for_updates():
     repo = _FakeRuntimeExecutionRepo()
-    runtime = RuntimeExecutionService(
+    runtime = RuntimeExecutionCommandHandler(
         runtime_execution_repo=repo,
         tenant_context_service=_FakeTenantContextService(),
         user_session=_FakeUserSession(

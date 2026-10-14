@@ -133,7 +133,7 @@ class SqlAlchemyProjectCalendarAssignmentRepository(
         priority: int = 0,
     ) -> ProjectCalendarAssignment:
         """Constructs (but does not persist) a new assignment -- callers
-        outside this module (Platform's CalendarAssignmentService) use this
+        outside this module (Platform's calendar assignment handlers) use this
         instead of importing ProjectCalendarAssignment directly, so Platform
         never depends on PM's concrete domain type."""
         return ProjectCalendarAssignment.create(
@@ -262,7 +262,7 @@ class SqlAlchemyResourceCalendarAssignmentRepository(
         priority: int = 0,
     ) -> ResourceCalendarAssignment:
         """Constructs (but does not persist) a new assignment -- callers
-        outside this module (Platform's CalendarAssignmentService) use this
+        outside this module (Platform's calendar assignment handlers) use this
         instead of importing ResourceCalendarAssignment directly, so Platform
         never depends on PM's concrete domain type."""
         return ResourceCalendarAssignment.create(

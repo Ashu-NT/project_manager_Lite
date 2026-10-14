@@ -16,7 +16,9 @@ def _login_as(services, username: str, password: str):
 
 
 def test_user_session_enforces_manage_permissions(services):
-    services["user_registration"].register_user("viewer1", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user(
+        "viewer1", "StrongPass123", role_names=["viewer"]
+    )
     _login_as(services, "viewer1", "StrongPass123")
 
     ps = services["project_service"]
@@ -38,12 +40,16 @@ def test_cleared_session_denies_core_read_models(services):
     ps = services["project_service"]
     ts = services["task_service"]
     finance = services["finance_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     audit = services["enterprise_audit_service"]
 
     project = ps.create_project("Read Permission Project")
-    ts.create_task(project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2)
-    services["resource_master_commands"].create_resource("Read Permission Resource", hourly_rate=120.0)
+    ts.create_task(
+        project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2
+    )
+    services["resource_master_commands"].create_resource(
+        "Read Permission Resource", hourly_rate=120.0
+    )
 
     services["user_session"].clear()
 
@@ -60,14 +66,18 @@ def test_cleared_session_denies_core_read_models(services):
     with pytest.raises(BusinessRuleError):
         services["project_dashboard_query"].get_dashboard_data(project.id)
     with pytest.raises(BusinessRuleError, match="approval.request"):
-        approvals.list_requests(project_id=project.id)
+        services["approval_queries"].list_requests(project_id=project.id)
     with pytest.raises(BusinessRuleError, match="audit.read"):
         audit.list_recent()
 
 
 def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
-    services["user_registration"].register_user("viewer2", "StrongPass123", role_names=["viewer"])
-    target = services["user_registration"].register_user("reset-target-viewer", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user(
+        "viewer2", "StrongPass123", role_names=["viewer"]
+    )
+    target = services["user_registration"].register_user(
+        "reset-target-viewer", "StrongPass123", role_names=["viewer"]
+    )
     _login_as(services, "admin", "ChangeMe123!")
 
     ps = services["project_service"]
@@ -76,7 +86,9 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     prs = services["project_resource_service"]
 
     project = ps.create_project("Permission project")
-    resource = services["resource_master_commands"].create_resource("Assigned Resource", hourly_rate=120.0)
+    resource = services["resource_master_commands"].create_resource(
+        "Assigned Resource", hourly_rate=120.0
+    )
     project_resource = prs.add_to_project(
         project_id=project.id,
         resource_id=resource.id,
@@ -108,7 +120,9 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
         ts.create_task(project_id=project.id, name="Forbidden task")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ts.set_assignment_allocation(assignment.id, 40.0, expected_version=assignment.version)
+        ts.set_assignment_allocation(
+            assignment.id, 40.0, expected_version=assignment.version
+        )
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         services["task_assignment_commands"].set_assignment_hours(assignment.id, 2.0)
@@ -118,15 +132,19 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
 
 
 def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services):
-    services["user_registration"].register_user("viewer3", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user(
+        "viewer3", "StrongPass123", role_names=["viewer"]
+    )
     _login_as(services, "admin", "ChangeMe123!")
 
     ps = services["project_service"]
     prs = services["project_resource_service"]
-    ecs = services["platform_calendar_service"]
+    ecs_commands = services["platform_calendar_commands"]
 
     project = ps.create_project("Ops permission project")
-    resource = services["resource_master_commands"].create_resource("Ops resource", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource(
+        "Ops resource", hourly_rate=100.0
+    )
     project_resource = prs.add_to_project(
         project_id=project.id,
         resource_id=resource.id,
@@ -158,24 +176,30 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
         prs.delete(project_resource.id)
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ecs.create_calendar(
+        ecs_commands.create_calendar(
             name="Viewer Calendar",
             code="VIEWER_CAL",
             calendar_type="standard",
         )
 
 
-def test_governance_permissions_are_split_between_request_and_decide(services, monkeypatch):
+def test_governance_permissions_are_split_between_request_and_decide(
+    services, monkeypatch
+):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
-    services["user_registration"].register_user("planner4", "StrongPass123", role_names=["planner"])
-    services["user_registration"].register_user("viewer4", "StrongPass123", role_names=["viewer"])
+    services["user_registration"].register_user(
+        "planner4", "StrongPass123", role_names=["planner"]
+    )
+    services["user_registration"].register_user(
+        "viewer4", "StrongPass123", role_names=["viewer"]
+    )
     _login_as(services, "admin", "ChangeMe123!")
 
     ps = services["project_service"]
     cost_entries = services["cost_entry_service"]
     configuration = services["financial_configuration_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     project = ps.create_project("Governance permission split")
     organization = services["tenant_context_service"].get_active_organization()
@@ -193,7 +217,7 @@ def test_governance_permissions_are_split_between_request_and_decide(services, m
     _login_as(services, "planner4", "StrongPass123")
     result = cost_entries.approve(item.id, expected_version=item.row_version)
     assert result.outcome.value == "pending_approval"
-    request_id = approvals.list_pending(project_id=project.id)[0].id
+    request_id = services["approval_queries"].list_pending(project_id=project.id)[0].id
 
     _login_as(services, "viewer4", "StrongPass123")
     with pytest.raises(BusinessRuleError, match="approval.request"):
@@ -202,17 +226,30 @@ def test_governance_permissions_are_split_between_request_and_decide(services, m
         approvals.approve_and_apply(request_id)
 
 
-def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(services):
-    services["user_registration"].register_user("planner-timesheet", "StrongPass123", role_names=["planner"])
-    services["user_registration"].register_user("viewer-timesheet", "StrongPass123", role_names=["viewer"])
+def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
+    services,
+):
+    services["user_registration"].register_user(
+        "planner-timesheet", "StrongPass123", role_names=["planner"]
+    )
+    services["user_registration"].register_user(
+        "viewer-timesheet", "StrongPass123", role_names=["viewer"]
+    )
     _login_as(services, "admin", "ChangeMe123!")
 
     ps = services["project_service"]
     ts = services["task_service"]
 
     project = ps.create_project("Timesheet Permission Split")
-    task = ts.create_task(project.id, "Timesheet Permission Task", start_date=date(2026, 6, 1), duration_days=2)
-    resource = services["resource_master_commands"].create_resource("Planner Logger", hourly_rate=100.0)
+    task = ts.create_task(
+        project.id,
+        "Timesheet Permission Task",
+        start_date=date(2026, 6, 1),
+        duration_days=2,
+    )
+    resource = services["resource_master_commands"].create_resource(
+        "Planner Logger", hourly_rate=100.0
+    )
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
     services["time_entry_commands"].add_time_entry(
         assignment.id,
@@ -222,7 +259,9 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     )
 
     _login_as(services, "planner-timesheet", "StrongPass123")
-    submitted = services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 6, 9))
+    submitted = services["timesheet_period_transitions"].submit_timesheet_period(
+        resource.id, period_start=date(2026, 6, 9)
+    )
     assert submitted.status.value == "SUBMITTED"
 
     with pytest.raises(BusinessRuleError, match="timesheet.approve"):
@@ -239,7 +278,9 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
 
     _login_as(services, "viewer-timesheet", "StrongPass123")
     with pytest.raises(BusinessRuleError, match="timesheet.submit"):
-        services["timesheet_period_transitions"].submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))
+        services["timesheet_period_transitions"].submit_timesheet_period(
+            resource.id, period_start=date(2026, 6, 1)
+        )
 
 
 def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
@@ -248,8 +289,15 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
     user_session = services["user_session"]
 
     project = ps.create_project("Shared Time Permission Alias")
-    task = ts.create_task(project.id, "Alias Permission Task", start_date=date(2026, 7, 1), duration_days=2)
-    resource = services["resource_master_commands"].create_resource("Alias Logger", hourly_rate=100.0)
+    task = ts.create_task(
+        project.id,
+        "Alias Permission Task",
+        start_date=date(2026, 7, 1),
+        duration_days=2,
+    )
+    resource = services["resource_master_commands"].create_resource(
+        "Alias Logger", hourly_rate=100.0
+    )
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
     first = services["time_entry_commands"].add_time_entry(
         assignment.id,
@@ -272,7 +320,9 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
             active_organization_id=active_organization_id,
         )
     )
-    visible = services["time_entry_queries"].list_time_entries_for_assignment(assignment.id)
+    visible = services["time_entry_queries"].list_time_entries_for_assignment(
+        assignment.id
+    )
     assert [row.id for row in visible] == [first.id]
 
     user_session.set_principal(
@@ -293,5 +343,11 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
         note="Shared manage permission entry",
     )
     assert second.work_allocation_id == assignment.id
-    assert len(services["time_entry_queries"].list_time_entries_for_work_allocation(assignment.id)) == 2
-
+    assert (
+        len(
+            services["time_entry_queries"].list_time_entries_for_work_allocation(
+                assignment.id
+            )
+        )
+        == 2
+    )

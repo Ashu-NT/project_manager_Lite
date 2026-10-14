@@ -205,7 +205,7 @@ class GlobalOverviewPresenter:
         """Derives Quick Actions only from GlobalOverviewDesktopApi
         .get_capabilities() -- generic effective-permission and accessible-
         module inputs, never a role name, never a direct call to
-        PlatformRuntimeApplicationService from this layer. See
+        PlatformRuntimeQueryHandler from this layer. See
         _QUICK_ACTION_CANDIDATES for exactly which actions were verified
         against the real codebase and which were deliberately omitted.
         """

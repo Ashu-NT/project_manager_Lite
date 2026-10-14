@@ -11,6 +11,7 @@ from src.core.platform.api.desktop.finance.models import (
     FinancialPeriodTransitionCommand,
     FinancialPeriodUpdateCommand,
 )
+from src.core.platform.application.finance import FinancialPeriodQueryHandler
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -72,13 +73,14 @@ def test_financial_period_domain_enforces_range_metadata_and_one_way_lifecycle()
     assert invalid_range.value.code == "FINANCIAL_PERIOD_DATE_RANGE_INVALID"
 
 
-def test_financial_period_service_enforces_overlap_concurrency_audit_and_posting(services) -> None:
-    service = services["financial_period_service"]
-    period = _create_period(service)
+def test_financial_period_handlers_enforce_overlap_concurrency_audit_and_posting(services) -> None:
+    commands = services["financial_period_commands"]
+    queries = services["financial_period_queries"]
+    period = _create_period(commands)
 
-    assert service.require_open_period_for_date(date(2026, 1, 10)).id == period.id
+    assert queries.require_open_period_for_date(date(2026, 1, 10)).id == period.id
     with pytest.raises(BusinessRuleError) as overlap:
-        service.create_period(
+        commands.create_period(
             code="FY26-P01B",
             name="Overlapping period",
             fiscal_year=2026,
@@ -88,7 +90,7 @@ def test_financial_period_service_enforces_overlap_concurrency_audit_and_posting
         )
     assert overlap.value.code == "FINANCIAL_PERIOD_OVERLAP"
 
-    updated = service.update_period(
+    updated = commands.update_period(
         period.id,
         expected_version=period.version,
         name="January close cycle",
@@ -96,24 +98,24 @@ def test_financial_period_service_enforces_overlap_concurrency_audit_and_posting
     )
     assert updated.version == 2
     with pytest.raises(ConcurrencyError) as stale:
-        service.update_period(
+        commands.update_period(
             period.id,
             expected_version=1,
             name="Stale change",
         )
     assert stale.value.code == "STALE_WRITE"
 
-    closed = service.close_period(period.id, expected_version=updated.version)
+    closed = commands.close_period(period.id, expected_version=updated.version)
     assert closed.status == FinancialPeriodStatus.CLOSED
     assert closed.version == 3
     with pytest.raises(BusinessRuleError) as blocked:
-        service.require_open_period_for_date(date(2026, 1, 10))
+        queries.require_open_period_for_date(date(2026, 1, 10))
     assert blocked.value.code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
 
-    locked = service.lock_period(period.id, expected_version=closed.version)
+    locked = commands.lock_period(period.id, expected_version=closed.version)
     assert locked.status == FinancialPeriodStatus.LOCKED
     assert locked.version == 4
-    assert not hasattr(service, "reopen_period")
+    assert not hasattr(commands, "reopen_period")
 
     entries = services["enterprise_audit_service"].list_recent(
         entity_type="financial_period"
@@ -128,9 +130,10 @@ def test_financial_period_service_enforces_overlap_concurrency_audit_and_posting
 
 
 def test_financial_period_repository_isolates_active_organization(services) -> None:
-    service = services["financial_period_service"]
+    commands = services["financial_period_commands"]
+    queries = services["financial_period_queries"]
     original = services["tenant_context_service"].get_active_organization()
-    first = _create_period(service)
+    first = _create_period(commands)
     second_organization = services["organization_commands"].create_organization(
         organization_code="FIN2",
         display_name="Second finance organization",
@@ -140,20 +143,26 @@ def test_financial_period_repository_isolates_active_organization(services) -> N
 
     services["tenant_context_service"].set_active_organization(second_organization.id)
     try:
-        assert service.list_periods() == []
+        assert queries.list_periods() == []
         with pytest.raises(NotFoundError):
-            service.get_period(first.id)
-        second = _create_period(service)
+            queries.get_period(first.id)
+        with pytest.raises(NotFoundError):
+            commands.close_period(first.id, expected_version=first.version)
+        with pytest.raises(BusinessRuleError) as missing:
+            queries.require_open_period_for_integration(date(2026, 1, 10))
+        assert missing.value.code == "FINANCIAL_PERIOD_NOT_CONFIGURED"
+        second = _create_period(commands)
         assert second.code == first.code
         assert second.organization_id == second_organization.id
+        assert queries.require_open_period_for_integration(date(2026, 1, 10)).id == second.id
     finally:
         services["tenant_context_service"].set_active_organization(original.id)
 
-    assert [period.id for period in service.list_periods()] == [first.id]
+    assert [period.id for period in queries.list_periods()] == [first.id]
 
 
 def test_financial_period_mutation_requires_finance_manage(services) -> None:
-    service = services["financial_period_service"]
+    commands = services["financial_period_commands"]
     register_and_login(
         services,
         username_prefix="period-project-manager",
@@ -161,7 +170,7 @@ def test_financial_period_mutation_requires_finance_manage(services) -> None:
     )
     try:
         with pytest.raises(BusinessRuleError) as denied:
-            _create_period(service)
+            _create_period(commands)
         assert denied.value.code == "PERMISSION_DENIED"
     finally:
         login_as(services, "admin", "ChangeMe123!")
@@ -219,3 +228,60 @@ def test_financial_period_desktop_api_exposes_typed_lifecycle_and_errors(service
     assert not invalid_status.ok
     assert invalid_status.error is not None
     assert invalid_status.error.code == "FINANCIAL_PERIOD_STATUS_INVALID"
+
+
+def test_financial_period_handler_authorities_are_disjoint(services) -> None:
+    commands = services["financial_period_commands"]
+    queries = services["financial_period_queries"]
+    assert commands._period_repo is queries._period_repo
+    assert commands._session is services["session"]
+    for name in ("create_period", "update_period", "close_period", "lock_period"):
+        assert hasattr(commands, name)
+        assert not hasattr(queries, name)
+    for name in (
+        "list_periods", "get_period", "require_open_period_for_date",
+        "require_open_period_for_integration",
+    ):
+        assert hasattr(queries, name)
+        assert not hasattr(commands, name)
+    assert not hasattr(queries, "_session")
+    assert not hasattr(queries, "_enterprise_audit_service")
+
+
+def test_trusted_period_query_bypasses_read_permission_not_posting_policy(services) -> None:
+    commands = services["financial_period_commands"]
+    period = _create_period(commands)
+    queries = FinancialPeriodQueryHandler(period_repo=commands._period_repo)
+    with pytest.raises(BusinessRuleError) as denied:
+        queries.require_open_period_for_date(date(2026, 1, 10))
+    assert denied.value.code == "PERMISSION_DENIED"
+    assert queries.require_open_period_for_integration(date(2026, 1, 10)).id == period.id
+    with pytest.raises(ValidationError) as invalid:
+        queries.require_open_period_for_integration(datetime(2026, 1, 10, tzinfo=UTC))
+    assert invalid.value.code == "FINANCIAL_PERIOD_DATE_INVALID"
+    with pytest.raises(BusinessRuleError) as missing:
+        queries.require_open_period_for_integration(date(2026, 2, 10))
+    assert missing.value.code == "FINANCIAL_PERIOD_NOT_CONFIGURED"
+    closed = commands.close_period(period.id, expected_version=period.version)
+    with pytest.raises(BusinessRuleError) as blocked:
+        queries.require_open_period_for_integration(date(2026, 1, 10))
+    assert blocked.value.code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
+    commands.lock_period(period.id, expected_version=closed.version)
+    with pytest.raises(BusinessRuleError) as locked:
+        queries.require_open_period_for_integration(date(2026, 1, 10))
+    assert locked.value.code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
+
+
+def test_financial_period_queries_do_not_complete_caller_transaction(services, monkeypatch) -> None:
+    period = _create_period(services["financial_period_commands"])
+    queries = services["financial_period_queries"]
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Queries must not complete the caller's transaction")
+
+    monkeypatch.setattr(services["session"], "commit", forbidden)
+    monkeypatch.setattr(services["session"], "rollback", forbidden)
+    assert queries.get_period(period.id).id == period.id
+    assert queries.list_periods(fiscal_year=2026, status="open")[0].id == period.id
+    assert queries.require_open_period_for_date(date(2026, 1, 10)).id == period.id
+    assert queries.require_open_period_for_integration(date(2026, 1, 10)).id == period.id

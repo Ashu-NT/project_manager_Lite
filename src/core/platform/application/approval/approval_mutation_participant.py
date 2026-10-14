@@ -10,6 +10,7 @@ from src.core.platform.domain.approval import (
     ApprovalStatus,
 )
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event import DomainEvent
 from src.core.shared.time.clock import Clock
 
 
@@ -30,7 +31,7 @@ def build_request_audit_details(
     *,
     decision_note: str | None = None,
 ) -> dict[str, str]:
-    """Shared with `ApprovalService.reject`/`approve_and_apply`'s own audit metadata --
+    """Shared with approval decision handlers' audit metadata --
     the SAME derivation, never duplicated a second time."""
     payload = request.payload or {}
     details: dict[str, str] = {
@@ -65,7 +66,7 @@ def request_approval_using(
     approval_repo,
     enterprise_audit_service: Any,
     clock: Clock,
-    record_event: Callable[[object], None],
+    record_event: Callable[[DomainEvent], None],
     request_type: str,
     entity_type: str,
     entity_id: str,

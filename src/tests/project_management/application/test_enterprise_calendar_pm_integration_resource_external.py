@@ -27,8 +27,11 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyProjectCalendarAssignmentRepository,
     SqlAlchemyResourceCalendarAssignmentRepository,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -36,17 +39,29 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarType,
@@ -93,7 +108,9 @@ def repos(db_session, tenant_context):
         "recurring": SqlAlchemyCalendarRecurringEventRepository(db_session),
         "assignment": SqlAlchemyCalendarAssignmentRepository(db_session),
         "project_assignment": SqlAlchemyProjectCalendarAssignmentRepository(db_session),
-        "resource_assignment": SqlAlchemyResourceCalendarAssignmentRepository(db_session),
+        "resource_assignment": SqlAlchemyResourceCalendarAssignmentRepository(
+            db_session
+        ),
     }
     for repo in repos.values():
         if hasattr(repo, "_tenant_context_service"):
@@ -149,8 +166,8 @@ def tenant_context(org_id):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return PlatformCalendarService(
+def cal_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -161,8 +178,17 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 
 @pytest.fixture
-def rule_service(db_session, repos, mock_user_session):
-    return WorkingRuleService(
+def cal_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def rule_commands(db_session, repos, mock_user_session):
+    return WorkingRuleCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -171,8 +197,17 @@ def rule_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def exc_service(db_session, repos, mock_user_session):
-    return CalendarExceptionService(
+def rule_queries(db_session, repos, mock_user_session):
+    return WorkingRuleQueryHandler(
+        calendar_repo=repos["calendar"],
+        rule_repo=repos["rule"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def exc_commands(db_session, repos, mock_user_session):
+    return CalendarExceptionCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         exception_repo=repos["exception"],
@@ -181,8 +216,17 @@ def exc_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def recurring_service(db_session, repos, mock_user_session):
-    return RecurringEventService(
+def exc_queries(db_session, repos, mock_user_session):
+    return CalendarExceptionQueryHandler(
+        calendar_repo=repos["calendar"],
+        exception_repo=repos["exception"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def recurring_commands(db_session, repos, mock_user_session):
+    return RecurringEventCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         event_repo=repos["recurring"],
@@ -191,14 +235,32 @@ def recurring_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def assignment_service(db_session, repos, mock_user_session):
-    return CalendarAssignmentService(
+def recurring_queries(db_session, repos, mock_user_session):
+    return RecurringEventQueryHandler(
+        calendar_repo=repos["calendar"],
+        event_repo=repos["recurring"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def assignment_commands(db_session, repos, mock_user_session):
+    return CalendarAssignmentCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         project_assignment_repo=repos["project_assignment"],
         resource_assignment_repo=repos["resource_assignment"],
         user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def assignment_queries(db_session, repos, mock_user_session):
+    return CalendarAssignmentQueryHandler(
+        assignment_repo=repos["assignment"],
+        project_assignment_repo=repos["project_assignment"],
+        resource_assignment_repo=repos["resource_assignment"],
     )
 
 
@@ -223,9 +285,9 @@ def resolver(repos, org_id, calculator):
 
 
 @pytest.fixture
-def global_cal(cal_service, org_id, rule_service):
-    cal = cal_service.ensure_global_calendar(org_id)
-    rule_service.seed_standard_week(
+def global_cal(cal_commands, org_id, rule_commands):
+    cal = cal_commands.ensure_global_calendar(org_id)
+    rule_commands.seed_standard_week(
         cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
@@ -286,14 +348,20 @@ def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
 
 
 def test_external_resource_uses_pm_resource_calendar(
-    global_cal, cal_service, assignment_service, resolver, rule_service, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    assignment_commands,
+    resolver,
+    rule_commands,
+    db_session,
+    tenant_context,
 ):
-    resource_cal = cal_service.create_calendar(
+    resource_cal = cal_commands.create_calendar(
         code="RES-JDOE",
         name="John Doe Resource Calendar",
         calendar_type=CalendarType.RESOURCE.value,
     )
-    rule_service.save_rule(
+    rule_commands.save_rule(
         resource_cal.id,
         weekday=0,  # Monday
         is_working_day=True,
@@ -303,7 +371,7 @@ def test_external_resource_uses_pm_resource_calendar(
         hours_override=6.0,
     )
     _seed_resource(db_session, tenant_context, "res-jdoe")
-    assignment_service.assign_resource_calendar("res-jdoe", resource_cal.id)
+    assignment_commands.assign_resource_calendar("res-jdoe", resource_cal.id)
 
     resource_repo = _make_resource_repo("res-jdoe", worker_type="EXTERNAL")
     svc = EnterpriseResourceAvailabilityService(
@@ -315,21 +383,27 @@ def test_external_resource_uses_pm_resource_calendar(
 
 
 def test_resource_calendar_overrides_working_hours(
-    global_cal, cal_service, assignment_service, resolver, rule_service, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    assignment_commands,
+    resolver,
+    rule_commands,
+    db_session,
+    tenant_context,
 ):
-    resource_cal = cal_service.create_calendar(
+    resource_cal = cal_commands.create_calendar(
         code="RES-PARTTIME",
         name="Part-time Resource",
         calendar_type=CalendarType.RESOURCE.value,
     )
-    rule_service.save_rule(
+    rule_commands.save_rule(
         resource_cal.id,
         weekday=0,
         is_working_day=True,
         hours_override=4.0,  # Part-time: 4h instead of 8h
     )
     _seed_resource(db_session, tenant_context, "res-pt")
-    assignment_service.assign_resource_calendar("res-pt", resource_cal.id)
+    assignment_commands.assign_resource_calendar("res-pt", resource_cal.id)
 
     resource_repo = _make_resource_repo("res-pt", worker_type="EXTERNAL")
     svc = EnterpriseResourceAvailabilityService(
@@ -340,19 +414,26 @@ def test_resource_calendar_overrides_working_hours(
 
 
 def test_resource_exception_vacation_unavailable(
-    global_cal, cal_service, assignment_service, exc_service, resolver, rule_service, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    assignment_commands,
+    exc_commands,
+    resolver,
+    rule_commands,
+    db_session,
+    tenant_context,
 ):
-    resource_cal = cal_service.create_calendar(
+    resource_cal = cal_commands.create_calendar(
         code="RES-VACATION",
         name="Vacation Resource",
         calendar_type=CalendarType.RESOURCE.value,
     )
-    rule_service.save_rule(
+    rule_commands.save_rule(
         resource_cal.id, weekday=0, is_working_day=True, hours_override=8.0
     )
     _seed_resource(db_session, tenant_context, "res-vacation")
-    assignment_service.assign_resource_calendar("res-vacation", resource_cal.id)
-    exc_service.add_exception(
+    assignment_commands.assign_resource_calendar("res-vacation", resource_cal.id)
+    exc_commands.add_exception(
         resource_cal.id,
         exception_date=date(2026, 6, 1),
         exception_type=ExceptionType.VACATION.value,

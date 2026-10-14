@@ -45,9 +45,9 @@ def register_project_scope_access(repositories, platform_services) -> None:
         project = SqlAlchemyProjectRepository(scope_session).get_for_tenant(project_id, tenant_id)
         return getattr(project, "organization_id", None)
 
-    platform_services.role_governance_service.register_scope_exists_resolver(
+    platform_services.role_governance_commands.register_scope_exists_resolver(
         "project", _project_exists_for_role_governance
     )
-    platform_services.role_governance_service.register_organization_owner_resolver(
+    platform_services.role_governance_commands.register_organization_owner_resolver(
         "project", _project_organization_owner
     )

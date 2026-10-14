@@ -182,7 +182,7 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)
-    pending_count_before = len(services["approval_service"].list_pending(project_id=project.id))
+    pending_count_before = len(services["approval_queries"].list_pending(project_id=project.id))
 
     def _fail_commit(self):
         raise RuntimeError("simulated financial change submission commit failure")
@@ -199,7 +199,7 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
     monkeypatch.undo()
     reloaded = changes.get_change(change.id)
     assert reloaded.status is FinancialChangeStatus.DRAFT
-    pending_after = services["approval_service"].list_pending(project_id=project.id)
+    pending_after = services["approval_queries"].list_pending(project_id=project.id)
     assert len(pending_after) == pending_count_before
 
 
@@ -227,7 +227,7 @@ def test_submit_change_audit_failure_rolls_back_change_and_approval_request_toge
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)
-    pending_count_before = len(services["approval_service"].list_pending(project_id=project.id))
+    pending_count_before = len(services["approval_queries"].list_pending(project_id=project.id))
 
     call_count = {"n": 0}
     original_record = EnterpriseAuditService.record
@@ -251,7 +251,7 @@ def test_submit_change_audit_failure_rolls_back_change_and_approval_request_toge
     monkeypatch.undo()
     reloaded = changes.get_change(change.id)
     assert reloaded.status is FinancialChangeStatus.DRAFT
-    pending_after = services["approval_service"].list_pending(project_id=project.id)
+    pending_after = services["approval_queries"].list_pending(project_id=project.id)
     assert len(pending_after) == pending_count_before
 
 
@@ -470,12 +470,12 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
         expected_version=change.row_version,
     )
     assert change.status is FinancialChangeStatus.PENDING_APPROVAL
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
     assert request.request_type == "financial_change.apply"
 
     _login_eligible_reviewer(services)
     reviewer_id = services["user_session"].principal.user_id
-    services["approval_service"].approve_and_apply(
+    services["approval_commands"].approve_and_apply(
         request.id, note="Authorized change"
     )
 
@@ -529,13 +529,13 @@ def test_financial_change_requester_cannot_decide_own_request(
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
     )
-    approval = services["approval_service"].list_pending(project_id=project.id)[0]
+    approval = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     with pytest.raises(BusinessRuleError) as approve_error:
-        services["approval_service"].approve_and_apply(approval.id)
+        services["approval_commands"].approve_and_apply(approval.id)
     assert approve_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
     with pytest.raises(BusinessRuleError) as reject_error:
-        services["approval_service"].reject(approval.id)
+        services["approval_commands"].reject(approval.id)
     assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
     assert changes.get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
 
@@ -584,7 +584,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
     )
-    approval = services["approval_service"].list_pending(project_id=project.id)[0]
+    approval = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     _login(services, "admin", "ChangeMe123!")
     if "budget" in moved_authorities:
@@ -640,7 +640,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
 
     _login_eligible_reviewer(services)
     with pytest.raises(ConcurrencyError) as exc_info:
-        services["approval_service"].approve_and_apply(approval.id)
+        services["approval_commands"].approve_and_apply(approval.id)
 
     expected_code = (
         "FINANCIAL_CHANGE_BUDGET_BASE_STALE"
@@ -655,7 +655,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
     ) == forecast_count
     assert any(
         request.id == approval.id
-        for request in services["approval_service"].list_pending(project_id=project.id)
+        for request in services["approval_queries"].list_pending(project_id=project.id)
     )
 
 
@@ -700,10 +700,10 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
     )
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     _login_eligible_reviewer(services)
-    services["approval_service"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(request.id)
 
     applied = changes.get_change(change.id)
     scheduled = services["task_service"].get_task(task.id)
@@ -866,7 +866,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         submitted_by=services["user_session"].principal.user_id,
         expected_version=change.row_version,
     )
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     _login_eligible_reviewer(services)
     monkeypatch.setattr(
@@ -877,7 +877,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         ),
     )
     with pytest.raises(RuntimeError, match="audit unavailable"):
-        services["approval_service"].approve_and_apply(request.id)
+        services["approval_commands"].approve_and_apply(request.id)
 
     assert changes.get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
     assert services["budget_service"].get_budget(budget.id).status is BudgetStatus.APPROVED
@@ -885,7 +885,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
     rolled_back_task = services["task_service"].get_task(task.id)
     assert rolled_back_task.start_date == date(2026, 8, 10)
     assert rolled_back_task.end_date == date(2026, 8, 13)
-    assert services["approval_service"].list_pending(project_id=project.id)[0].id == request.id
+    assert services["approval_queries"].list_pending(project_id=project.id)[0].id == request.id
 
 
 def test_financial_change_migration_is_reversible_and_constrained(tmp_path) -> None:

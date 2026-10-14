@@ -65,7 +65,10 @@ from src.core.platform.api.desktop.time_management.calendar.platform_calendar im
     PlatformCalendarDesktopApi,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.finance import FinancialPeriodService
+from src.core.platform.application.finance import (
+    FinancialPeriodCommandHandler,
+    FinancialPeriodQueryHandler,
+)
 from src.core.platform.application.history.activity.activity_service import (
     ActivityService,
 )
@@ -108,7 +111,11 @@ from src.core.platform.application.security.auth import (
 from src.core.platform.application.security.authorization.roles.commands import (
     RoleAssignmentHandler,
 )
-from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.security.identity import (
+    ApiKeyAuthenticationHandler,
+    ServicePrincipalCommandHandler,
+    ServicePrincipalQueryHandler,
+)
 from src.core.platform.application.tenant.modules import (
     ModuleCatalogQueryHandler,
     ModuleEntitlementCommandHandler,
@@ -216,13 +223,13 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     if not isinstance(approval_service, ApprovalService):
         raise RuntimeError("Platform approval service is not configured.")
     enterprise_audit_service = services.get("enterprise_audit_service")
-    financial_period_service = services.get("financial_period_service")
-    if not isinstance(financial_period_service, FinancialPeriodService):
-        raise RuntimeError("Platform financial-period service is not configured.")
+    financial_period_commands = _require_service(services, "financial_period_commands", FinancialPeriodCommandHandler)
+    financial_period_queries = _require_service(services, "financial_period_queries", FinancialPeriodQueryHandler)
     activity_service = services.get("activity_service")
-    service_principal_service = services.get("service_principal_service")
-    if not isinstance(service_principal_service, ServicePrincipalService):
-        raise RuntimeError("Platform service-principal service is not configured.")
+    service_principal_commands = services.get("service_principal_commands")
+    if not isinstance(service_principal_commands, ServicePrincipalCommandHandler):
+        raise RuntimeError("Platform service-principal commands are not configured.")
+    service_principal_query = _require_service(services, "service_principal_query", ServicePrincipalQueryHandler)
 
     project_service = services.get("project_service")
     inventory_reservation_service = services.get("inventory_reservation_service")
@@ -379,7 +386,8 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_activity=PlatformActivityDesktopApi(activity_service=activity_service) if isinstance(activity_service, ActivityService) else None,
         platform_enterprise_audit=PlatformEnterpriseAuditDesktopApi(enterprise_audit_service=enterprise_audit_service) if isinstance(enterprise_audit_service, EnterpriseAuditService) else None,
         platform_financial_periods=FinancialPeriodDesktopApi(
-            financial_period_service=financial_period_service,
+            financial_period_commands=financial_period_commands,
+            financial_period_queries=financial_period_queries,
         ),
         platform_document=PlatformDocumentDesktopApi(
             document_commands=_require_service(services, "document_commands", DocumentCommandHandler),
@@ -406,7 +414,8 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             role_assignment=_require_service(services, "role_assignment_commands", RoleAssignmentHandler),
         ),
         platform_identity=PlatformIdentityDesktopApi(
-            service_principal_service=service_principal_service,
+            service_principal_commands=service_principal_commands,
+            service_principal_query=service_principal_query,
         ),
         **vars(project_management_apis),
     )

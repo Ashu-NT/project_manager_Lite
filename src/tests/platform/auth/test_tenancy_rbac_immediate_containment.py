@@ -78,7 +78,7 @@ def _customer_role_assignment(services, customer_auth: AuthComposition) -> RoleA
     return build_role_assignment_handler(
         repositories=build_platform_repositories(services["session"]),
         auth=customer_auth,
-        role_governance_service=services["role_governance_service"],
+        role_governance_commands=services["role_governance_commands"],
         user_session=customer_auth.session_commands._user_session,
         tenant_context_service=services["tenant_context_service"],
     )

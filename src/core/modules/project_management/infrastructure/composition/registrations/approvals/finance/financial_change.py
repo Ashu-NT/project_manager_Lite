@@ -164,7 +164,7 @@ def build_financial_change_approval_deps(
     scheduling_constraint_handler = TaskSchedulingConstraintHandler(
         task_repo=task_repo,
         user_session=user_session,
-        approval_service=None,
+        approval_commands=None,
         tenant_context_service=tenant_context_service,
         scheduling_engine=scheduling_engine,
         work_calendar_engine=work_calendar_engine,
@@ -229,7 +229,7 @@ def build_financial_change_approval_deps(
             task_repo=task_repo,
             dependency_repo=dependency_repo,
             user_session=user_session,
-            approval_service=None,
+            approval_commands=None,
             tenant_context_service=tenant_context_service,
             hierarchy_policy=hierarchy_policy,
             diagnostics_handler=dependency_diagnostics_handler,
@@ -264,7 +264,7 @@ def build_financial_change_approval_deps(
             resource_repo=resource_repo,
             work_calendar_engine=work_calendar_engine,
             user_session=user_session,
-            approval_service=None,
+            approval_commands=None,
             tenant_context_service=tenant_context_service,
             schedule_synchronizer=schedule_synchronizer,
             uow_scope=task_uow_scope,
@@ -299,7 +299,7 @@ def build_financial_change_approval_deps(
         enterprise_audit_service=enterprise_audit_service,
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
-        approval_service=None,
+        approval_commands=None,
     )
     forecast_authority = ForecastVersionService(
         session=session,
@@ -314,7 +314,7 @@ def build_financial_change_approval_deps(
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
         record_event=record_event,
-        approval_service=None,
+        approval_commands=None,
     )
     financial_change_service = FinancialChangeService(
         session=session,
@@ -328,7 +328,7 @@ def build_financial_change_approval_deps(
         task_service=task_service,
         budget_authority=budget_authority,
         forecast_authority=forecast_authority,
-        approval_service=None,
+        approval_commands=None,
         clock=clock,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,

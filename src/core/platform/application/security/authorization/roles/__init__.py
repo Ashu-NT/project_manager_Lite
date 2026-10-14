@@ -2,27 +2,40 @@ from src.core.platform.application.security.authorization.roles.canonical_role_r
     CanonicalRoleResolver,
     EffectiveRoleAuthority,
 )
-from src.core.platform.application.security.authorization.roles.role_governance_service import (
+from src.core.platform.application.security.authorization.roles.commands.role_governance import (
     ROLE_ASSIGN_PERMISSION,
-    RoleGovernanceService,
+    RoleGovernanceCommandHandler,
 )
-from src.core.platform.application.security.authorization.roles.role_policy_reconciliation_service import (
+from src.core.platform.application.security.authorization.roles.commands.role_policy_reconciliation import (
+    RolePolicyReconciliationCommandHandler,
+)
+from src.core.platform.application.security.authorization.roles.commands.scope_delegation_provisioning import (
+    ScopeDelegationProvisioningCommandHandler,
+)
+from src.core.platform.application.security.authorization.roles.commands.tenant_role_commands import (
+    TenantRoleCommandHandler,
+)
+from src.core.platform.application.security.authorization.roles.dto import (
+    DEFAULT_SCOPE_DELEGATIONS,
     RolePermissionChange,
     RolePolicyReconciliationPlan,
     RolePolicyReconciliationResult,
-    RolePolicyReconciliationService,
-)
-from src.core.platform.application.security.authorization.roles.scope_delegation_provisioning_service import (
-    DEFAULT_SCOPE_DELEGATIONS,
     ScopeDelegationApplyResult,
     ScopeDelegationPlan,
     ScopeDelegationPlanEntry,
-    ScopeDelegationProvisioningService,
 )
-from src.core.platform.application.security.authorization.roles.tenant_role_administration_service import (
+from src.core.platform.application.security.authorization.roles.queries.role_policy_reconciliation import (
+    RolePolicyReconciliationQueryHandler,
+)
+from src.core.platform.application.security.authorization.roles.queries.scope_delegation_provisioning import (
+    ScopeDelegationProvisioningQueryHandler,
+)
+from src.core.platform.application.security.authorization.roles.queries.tenant_role_queries import (
+    TenantRoleQueryHandler,
+)
+from src.core.platform.application.security.authorization.roles.tenant_role_authorization import (
     CUSTOMER_CUSTOM_ROLE_PERMISSION_CODES,
     RESERVED_CUSTOM_ROLE_NAMES,
-    TenantRoleAdministrationService,
 )
 
 __all__ = [
@@ -32,14 +45,17 @@ __all__ = [
     "ROLE_ASSIGN_PERMISSION",
     "CanonicalRoleResolver",
     "EffectiveRoleAuthority",
-    "RoleGovernanceService",
+    "RoleGovernanceCommandHandler",
     "RolePermissionChange",
     "RolePolicyReconciliationPlan",
     "RolePolicyReconciliationResult",
-    "RolePolicyReconciliationService",
+    "RolePolicyReconciliationCommandHandler",
+    "RolePolicyReconciliationQueryHandler",
     "ScopeDelegationApplyResult",
     "ScopeDelegationPlan",
     "ScopeDelegationPlanEntry",
-    "ScopeDelegationProvisioningService",
-    "TenantRoleAdministrationService",
+    "ScopeDelegationProvisioningCommandHandler",
+    "ScopeDelegationProvisioningQueryHandler",
+    "TenantRoleCommandHandler",
+    "TenantRoleQueryHandler",
 ]

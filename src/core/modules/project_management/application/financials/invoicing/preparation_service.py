@@ -67,8 +67,8 @@ from src.core.modules.project_management.gateway.billing.accounting_billing impo
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
 )
-from src.core.platform.application.finance.financial_period_service import (
-    FinancialPeriodService,
+from src.core.platform.application.finance.queries.financial_period_query import (
+    FinancialPeriodQueryHandler,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -99,7 +99,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         cost_entry_repo: ProjectCostEntryRepository,
         labor_posting_repo: ApprovedTimeLaborPostingRepository,
         rate_resolver: RateCardResolver,
-        financial_period_service: FinancialPeriodService,
+        financial_period_queries: FinancialPeriodQueryHandler,
         tenant_context_service: TenantContextService,
         clock: CalendarClock,
         user_session=None,
@@ -114,7 +114,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._cost_entry_repo = cost_entry_repo
         self._labor_posting_repo = labor_posting_repo
         self._rate_resolver = rate_resolver
-        self._financial_period_service = financial_period_service
+        self._financial_period_queries = financial_period_queries
         self._tenant_context_service = tenant_context_service
         self._clock = clock
         self._user_session = user_session
@@ -177,8 +177,8 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         profile = self._require_active_profile(project_id)
         financial_profile = self._require_financial_profile(project_id)
         self._require_supported_method(financial_profile.billing_method)
-        self._financial_period_service.require_open_period_for_integration(period_start)
-        self._financial_period_service.require_open_period_for_integration(period_end)
+        self._financial_period_queries.require_open_period_for_integration(period_start)
+        self._financial_period_queries.require_open_period_for_integration(period_end)
         correction = None
         if correction_of_preparation_id:
             correction = self._require_preparation(correction_of_preparation_id)

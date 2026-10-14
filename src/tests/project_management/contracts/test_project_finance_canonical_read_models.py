@@ -110,7 +110,7 @@ def _approved_controls(services):
         expected_version=forecast.row_version,
     )
 
-    services["financial_period_service"].create_period(
+    services["financial_period_commands"].create_period(
         code="D4-2026-08",
         name="August 2026",
         fiscal_year=2026,
@@ -285,7 +285,7 @@ def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services)
 
 def test_posted_reversal_nets_actual_without_rewriting_forecast(services) -> None:
     project, _budget, forecast, entry, _code = _approved_controls(services)
-    services["financial_period_service"].create_period(
+    services["financial_period_commands"].create_period(
         code="D4-2026-09",
         name="September 2026",
         fiscal_year=2026,

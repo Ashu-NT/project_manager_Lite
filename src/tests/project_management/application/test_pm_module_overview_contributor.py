@@ -11,7 +11,7 @@ from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 def _contributor(services) -> ProjectManagementModuleOverviewContributor:
     return ProjectManagementModuleOverviewContributor(
-        platform_runtime_application_service=services["platform_runtime_application_service"],
+        platform_runtime_query=services["platform_runtime_query"],
         portfolio_dashboard=services["portfolio_dashboard_query"],
         project_service=services["project_service"],
     )
@@ -27,7 +27,7 @@ def _context(services) -> ActionCenterContext:
 
 
 def _plant_principal(services, *, permissions: frozenset[str]):
-    default_organization = services["platform_runtime_application_service"].get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     real_user = services["user_registration"].register_user(
         f"pm-module-card-{'-'.join(sorted(permissions)) or 'none'}",
         "StrongPass123",
@@ -50,7 +50,7 @@ def _plant_principal(services, *, permissions: frozenset[str]):
 
 
 def test_hidden_when_user_lacks_a_project_management_relevant_permission(services):
-    assert services["platform_runtime_application_service"].is_enabled("project_management") is True
+    assert services["module_catalog_service"].is_enabled("project_management") is True
 
     _plant_principal(services, permissions=frozenset({"audit.read"}))
 
@@ -60,7 +60,7 @@ def test_hidden_when_user_lacks_a_project_management_relevant_permission(service
 
 
 def test_visible_when_enabled_and_accessible(services):
-    assert services["platform_runtime_application_service"].is_enabled("project_management") is True
+    assert services["module_catalog_service"].is_enabled("project_management") is True
 
     summary = _contributor(services).get_summary(_context(services))
 

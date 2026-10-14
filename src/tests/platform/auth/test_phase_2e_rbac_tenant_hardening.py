@@ -11,13 +11,17 @@ Covers:
   H-2  active_organization_id() fallback validates tenant context
   H-6  OrganizationORM.tenant_id is NOT NULL
 """
+
 from __future__ import annotations
 
 import pytest
 
-from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
-    TenantAdminService,
+from types import SimpleNamespace
+
+from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
+    build_tenant_admin_dependencies,
 )
+from src.tests.platform.tenancy_support import tenant_admin_operations
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -45,6 +49,7 @@ from src.tests.auth_test_support import standalone_auth
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_auth_svc(services, *, role_names):
     """Return (AuthService, user) with a non-admin session for the given roles."""
@@ -81,20 +86,23 @@ def _make_auth_svc(services, *, role_names):
             pass
 
     if "org_admin" in role_names:
-        active_organization_id = (
-            services["tenant_context_service"].get_active_organization_id()
-        )
+        active_organization_id = services[
+            "tenant_context_service"
+        ].get_active_organization_id()
         org_admin_role = services["auth_queries"]._role_repo.get_by_name("org_admin")
         if (
             active_organization_id is not None
             and org_admin_role is not None
-            and services["role_assignment_commands"]._role_binding_repo.get_active_for_assignment(
+            and services[
+                "role_assignment_commands"
+            ]._role_binding_repo.get_active_for_assignment(
                 principal_id=user.id,
                 role_id=org_admin_role.id,
                 tenant_id=active_tenant_id,
                 actual_scope_type="organization",
                 actual_scope_id=active_organization_id,
-            ) is None
+            )
+            is None
         ):
             services["role_assignment_commands"]._role_binding_repo.add(
                 RoleBinding.create(
@@ -122,9 +130,9 @@ def _make_auth_svc(services, *, role_names):
 
 
 def _make_tenant_admin_svc(services, *, role_names=None):
-    """Return a TenantAdminService with a session for the given roles, or admin if None."""
+    """Return a TenantAdminDependencies with a session for the given roles, or admin if None."""
     if role_names is None:
-        return services["tenant_admin_service"]
+        return tenant_admin_operations(services)
 
     session = services["session"]
     services["auth"]
@@ -132,7 +140,9 @@ def _make_tenant_admin_svc(services, *, role_names=None):
 
     username = f"p2e-tas-{''.join(sorted(role_names))}"
     try:
-        user = services["user_registration"].register_user(username, "StrongPass123!", role_names=list(role_names))
+        user = services["user_registration"].register_user(
+            username, "StrongPass123!", role_names=list(role_names)
+        )
     except Exception:
         user = services["authentication"].authenticate(username, "StrongPass123!")
 
@@ -142,10 +152,13 @@ def _make_tenant_admin_svc(services, *, role_names=None):
     if active_tenant_id:
         ctx.set_active_tenant_id(active_tenant_id)
 
-    return TenantAdminService(
+    return build_tenant_admin_dependencies(
         session=session,
-        tenant_repo=SqlAlchemyTenantRepository(session),
-        user_tenant_repo=SqlAlchemyUserTenantMembershipRepository(session),
+        repositories=SimpleNamespace(
+            tenant_repo=SqlAlchemyTenantRepository(session),
+            user_tenant_repo=SqlAlchemyUserTenantMembershipRepository(session),
+            platform_event_repo=None,
+        ),
         user_session=ctx,
     )
 
@@ -163,6 +176,7 @@ def _register_in_tenant(session, user_id, tenant_id):
 # C-1/C-2: Canonical governance replaces rank and forbids cross-tenant targets
 # ---------------------------------------------------------------------------
 
+
 class TestTenantScopedRoleAssignment:
     def _cross_tenant_user(self, services):
         session = services["session"]
@@ -172,7 +186,9 @@ class TestTenantScopedRoleAssignment:
         tenant_repo.add(tenant_b)
         session.flush()
 
-        user_b = services["user_registration"].register_user("p2e-c2-ub", "StrongPass123!")
+        user_b = services["user_registration"].register_user(
+            "p2e-c2-ub", "StrongPass123!"
+        )
         _register_in_tenant(session, user_b.id, tenant_b.id)
         return user_b
 
@@ -199,6 +215,7 @@ class TestTenantScopedRoleAssignment:
 # H-7: suspend / archive requires platform.admin only
 # ---------------------------------------------------------------------------
 
+
 class TestTenantLifecycleScope:
     def _create_tenant(self, services, code, name):
         session = services["session"]
@@ -212,22 +229,26 @@ class TestTenantLifecycleScope:
         target = self._create_tenant(services, "P2E-H7S", "H7 Suspend")
         svc = _make_tenant_admin_svc(services, role_names=["tenant_admin"])
         with pytest.raises(Exception):
-            svc.suspend_tenant(target.id)
+            svc.tenant_lifecycle_commands.suspend_tenant(target.id)
 
     def test_tenant_admin_cannot_archive_tenant(self, services):
         target = self._create_tenant(services, "P2E-H7A", "H7 Archive")
         svc = _make_tenant_admin_svc(services, role_names=["tenant_admin"])
         with pytest.raises(Exception):
-            svc.archive_tenant(target.id)
+            svc.tenant_lifecycle_commands.archive_tenant(target.id)
 
     def test_platform_admin_can_suspend_tenant(self, services):
         target = self._create_tenant(services, "P2E-H7S2", "H7 Suspend 2")
-        result = services["tenant_admin_service"].suspend_tenant(target.id)
+        result = tenant_admin_operations(
+            services
+        ).tenant_lifecycle_commands.suspend_tenant(target.id)
         assert result.tenant_status == "suspended"
 
     def test_platform_admin_can_archive_tenant(self, services):
         target = self._create_tenant(services, "P2E-H7A2", "H7 Archive 2")
-        result = services["tenant_admin_service"].archive_tenant(target.id)
+        result = tenant_admin_operations(
+            services
+        ).tenant_lifecycle_commands.archive_tenant(target.id)
         assert result.tenant_status == "archived"
 
 
@@ -235,16 +256,21 @@ class TestTenantLifecycleScope:
 # H-8: User admin operations respect tenant boundaries
 # ---------------------------------------------------------------------------
 
+
 class TestUserAdminTenantBoundary:
     def _cross_tenant_user(self, services, suffix=""):
         session = services["session"]
         tenant_repo = SqlAlchemyTenantRepository(session)
 
-        t = Tenant.create(tenant_code=f"P2EH8{suffix}", display_name=f"H8 Tenant {suffix}")
+        t = Tenant.create(
+            tenant_code=f"P2EH8{suffix}", display_name=f"H8 Tenant {suffix}"
+        )
         tenant_repo.add(t)
         session.flush()
 
-        user = services["user_registration"].register_user(f"p2e-h8-cu{suffix}", "StrongPass123!")
+        user = services["user_registration"].register_user(
+            f"p2e-h8-cu{suffix}", "StrongPass123!"
+        )
         _register_in_tenant(session, user.id, t.id)
         return user
 
@@ -271,7 +297,9 @@ class TestUserAdminTenantBoundary:
 
     def test_admin_can_set_user_active_cross_tenant(self, services):
         cross = self._cross_tenant_user(services, "D")
-        result = services["user_administration_commands"].set_user_active(cross.id, False)
+        result = services["user_administration_commands"].set_user_active(
+            cross.id, False
+        )
         assert result.is_active is False
 
     def test_org_admin_can_manage_same_tenant_user(self, services):
@@ -279,10 +307,14 @@ class TestUserAdminTenantBoundary:
         svc, _ = _make_auth_svc(services, role_names=["org_admin"])
         active_tid = services["tenant_context_service"].get_active_tenant_id()
 
-        same_user = services["user_registration"].register_user("p2e-h8-same", "StrongPass123!")
+        same_user = services["user_registration"].register_user(
+            "p2e-h8-same", "StrongPass123!"
+        )
         _register_in_tenant(session, same_user.id, active_tid)
 
-        result = svc.user_administration.update_user_profile(same_user.id, display_name="Updated")
+        result = svc.user_administration.update_user_profile(
+            same_user.id, display_name="Updated"
+        )
         assert result.display_name == "Updated"
 
 
@@ -290,11 +322,13 @@ class TestUserAdminTenantBoundary:
 # H-5: _can_access() null bypass removal
 # ---------------------------------------------------------------------------
 
+
 class TestCanAccessNullBypass:
     def _make_ctx_svc(self, session, active_tenant_id):
         from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
             SqlAlchemyOrganizationRepository,
         )
+
         ctx = UserSessionContext()
         ctx.set_active_tenant_id(active_tenant_id)
         return TenantContextService(
@@ -349,6 +383,7 @@ class TestCanAccessNullBypass:
 # H-3: Stale org NOT restored when principal has no tenant
 # ---------------------------------------------------------------------------
 
+
 class TestStaleOrgRestore:
     def test_org_not_restored_when_principal_has_no_tenant(self):
         """A principal with org but no tenant_id must NOT write org into session state when the
@@ -363,7 +398,7 @@ class TestStaleOrgRestore:
             display_name=None,
             role_names=frozenset(["viewer"]),
             permissions=frozenset(),
-            active_tenant_id=None,        # no tenant recorded
+            active_tenant_id=None,  # no tenant recorded
             active_organization_id="stale-org",
         )
 
@@ -395,16 +430,23 @@ class TestStaleOrgRestore:
 # H-4: Principal builder clears org when no tenant is recorded in AuthSession
 # ---------------------------------------------------------------------------
 
+
 class TestPrincipalBuilderOrgClearing:
-    def test_local_principal_establishes_default_context_when_session_has_none(self, services):
+    def test_local_principal_establishes_default_context_when_session_has_none(
+        self, services
+    ):
         """Local mode establishes its explicit default context during rebuild."""
         from unittest.mock import MagicMock, patch
 
         services["auth"]
         if services["auth_session_commands"]._auth_session_repo is None:
-            pytest.skip("auth_session_repo not wired -- only applies when sessions are persisted")
+            pytest.skip(
+                "auth_session_repo not wired -- only applies when sessions are persisted"
+            )
 
-        user = services["user_registration"].register_user("p2e-h4-u1", "StrongPass123!")
+        user = services["user_registration"].register_user(
+            "p2e-h4-u1", "StrongPass123!"
+        )
 
         mock_session = MagicMock()
         mock_session.revoked_at = None
@@ -413,8 +455,14 @@ class TestPrincipalBuilderOrgClearing:
         mock_session.last_active_tenant_id = None
         mock_session.last_active_organization_id = "stale-org"
 
-        with patch.object(services["auth_session_commands"]._auth_session_repo, "get", return_value=mock_session):
-            principal = services["principal_builder"].build(user, session_id="fake-sid-1")
+        with patch.object(
+            services["auth_session_commands"]._auth_session_repo,
+            "get",
+            return_value=mock_session,
+        ):
+            principal = services["principal_builder"].build(
+                user, session_id="fake-sid-1"
+            )
 
         assert principal.active_tenant_id is not None
         assert principal.active_organization_id is not None
@@ -425,9 +473,13 @@ class TestPrincipalBuilderOrgClearing:
 
         services["auth"]
         if services["auth_session_commands"]._auth_session_repo is None:
-            pytest.skip("auth_session_repo not wired -- only applies when sessions are persisted")
+            pytest.skip(
+                "auth_session_repo not wired -- only applies when sessions are persisted"
+            )
 
-        user = services["user_registration"].register_user("p2e-h4-u2", "StrongPass123!")
+        user = services["user_registration"].register_user(
+            "p2e-h4-u2", "StrongPass123!"
+        )
 
         mock_session = MagicMock()
         mock_session.revoked_at = None
@@ -437,7 +489,11 @@ class TestPrincipalBuilderOrgClearing:
         mock_session.last_active_organization_id = "org-A"
 
         with (
-            patch.object(services["auth_session_commands"]._auth_session_repo, "get", return_value=mock_session),
+            patch.object(
+                services["auth_session_commands"]._auth_session_repo,
+                "get",
+                return_value=mock_session,
+            ),
             pytest.raises(NotFoundError, match="Tenant not found"),
         ):
             services["principal_builder"].build(user, session_id="fake-sid-2")
@@ -446,6 +502,7 @@ class TestPrincipalBuilderOrgClearing:
 # ---------------------------------------------------------------------------
 # H-2: active_organization_id() fallback validates tenant context
 # ---------------------------------------------------------------------------
+
 
 class TestActiveOrganizationIdTenantGuard:
     def test_principal_org_not_returned_when_tenant_mismatch(self):
@@ -503,6 +560,7 @@ class TestActiveOrganizationIdTenantGuard:
 # ---------------------------------------------------------------------------
 # H-6: OrganizationORM.tenant_id is NOT NULL
 # ---------------------------------------------------------------------------
+
 
 def test_organization_orm_tenant_id_is_not_nullable():
     from src.core.platform.infrastructure.persistence.orm.master_data.org.org import (

@@ -30,7 +30,7 @@ from src.core.platform.domain.approval import ApprovalRequest
 class BaselineApprovalDeps:
     """`baseline_service` is a fresh `BaselineService`, bound to the Session
     `build_baseline_approval_deps(session, ...)` was called with, constructed with
-    `approval_service=None` -- the apply path never calls back into `ApprovalService` (it only
+    `approval_commands=None` -- the apply path never calls back into `ApprovalCommands` (it only
     ever needs to *apply* an already-decided request, never to *request* a new one)."""
 
     baseline_service: BaselineService

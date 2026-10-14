@@ -52,7 +52,7 @@ def _setup_billable_project(services, *, suffix: str):
     cost_code = services["financial_configuration_service"].create_cost_code(
         code=f"BILL-APPROVAL-{suffix}", name="Billing approval cost code"
     )
-    services["financial_period_service"].create_period(
+    services["financial_period_commands"].create_period(
         code=f"FY26-BILLAPR-{suffix}",
         name=f"August 2026 Approval {suffix}",
         fiscal_year=2026,
@@ -106,7 +106,7 @@ def _submitted_preparation(services, session, *, suffix: str):
     preparation = billing_preparation_service.submit_preparation(
         preparation.id, expected_row_version=preparation.row_version
     )
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
     session.expire_all()
     return project, preparation, request
 
@@ -216,7 +216,7 @@ def test_submit_preparation_audit_failure_rolls_back_preparation_and_approval_re
         preparation.id, schedule_line_id=line.id, expected_row_version=preparation.row_version
     )
     preparation = billing_preparation_service.get_preparation(preparation.id)
-    pending_count_before = len(services["approval_service"].list_pending(project_id=project.id))
+    pending_count_before = len(services["approval_queries"].list_pending(project_id=project.id))
 
     call_count = {"n": 0}
     original_record = EnterpriseAuditService.record
@@ -239,7 +239,7 @@ def test_submit_preparation_audit_failure_rolls_back_preparation_and_approval_re
     reloaded = billing_preparation_service.get_preparation(preparation.id)
     assert reloaded.status == BillingPreparationStatus.DRAFT
     assert reloaded.approval_request_id is None
-    pending_after = services["approval_service"].list_pending(project_id=project.id)
+    pending_after = services["approval_queries"].list_pending(project_id=project.id)
     assert len(pending_after) == pending_count_before
 
 
@@ -350,28 +350,25 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         assert service_b._labor_posting_repo.session is session_b
 
         # Nested fresh collaborators: RateCardResolver wraps a Session-bound reader, and
-        # FinancialPeriodService is itself Session-bound -- both must follow the same Session
+        # FinancialPeriodQueryHandler wraps a Session-bound repository -- both must follow the same Session
         # as the rest of this deps bundle, never the other engine's.
         assert service_a._rate_resolver is not service_b._rate_resolver
         assert service_a._rate_resolver._reader._session is session_a
         assert service_b._rate_resolver._reader._session is session_b
-        assert service_a._financial_period_service is not service_b._financial_period_service
-        assert service_a._financial_period_service._session is session_a
-        assert service_b._financial_period_service._session is session_b
-        assert service_a._financial_period_service._period_repo.session is session_a
-        assert service_b._financial_period_service._period_repo.session is session_b
+        assert service_a._financial_period_queries is not service_b._financial_period_queries
+        assert service_a._financial_period_queries._period_repo.session is session_a
+        assert service_b._financial_period_queries._period_repo.session is session_b
 
         assert service_a._enterprise_audit_service is not service_b._enterprise_audit_service
         assert service_a._enterprise_audit_service._session is session_a
         assert service_b._enterprise_audit_service._session is session_b
-        assert service_a._financial_period_service._enterprise_audit_service is (
-            service_a._enterprise_audit_service
-        ), "the fresh FinancialPeriodService should share this factory's fresh audit service"
+        assert not hasattr(service_a._financial_period_queries, "_enterprise_audit_service")
+        assert not hasattr(service_a._financial_period_queries, "create_period")
 
-        assert not hasattr(service_a, "_approval_service"), (
-            "the apply path must never reach back into ApprovalService"
+        assert not hasattr(service_a, "_approval_commands"), (
+            "the apply path must never reach back into ApprovalCommandHandler"
         )
-        assert not hasattr(service_b, "_approval_service")
+        assert not hasattr(service_b, "_approval_commands")
     finally:
         session_a.close()
         session_b.close()

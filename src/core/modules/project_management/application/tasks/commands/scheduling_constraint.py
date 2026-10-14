@@ -23,7 +23,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 )
 from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
@@ -62,7 +62,7 @@ class TaskSchedulingConstraintHandler:
         *,
         task_repo: TaskRepository,
         user_session: UserSessionContext | None,
-        approval_service: ApprovalService | None,
+        approval_commands: ApprovalCommands | None,
         tenant_context_service: TenantContextService,
         scheduling_engine: SchedulingEngine | None,
         work_calendar_engine: CalendarProtocol,
@@ -71,7 +71,7 @@ class TaskSchedulingConstraintHandler:
     ) -> None:
         self._task_repo = task_repo
         self._user_session = user_session
-        self._approval_service = approval_service
+        self._approval_commands = approval_commands
         self._tenant_context_service = tenant_context_service
         self._scheduling_engine = scheduling_engine
         self._work_calendar_engine = work_calendar_engine
@@ -97,7 +97,7 @@ class TaskSchedulingConstraintHandler:
         self._validate_constraint_date_is_working_day(candidate)
 
         governed = (
-            self._approval_service is not None
+            self._approval_commands is not None
             and is_governance_required("task.constraint.update")
             and not is_admin_session(self._user_session)
         )
@@ -120,8 +120,8 @@ class TaskSchedulingConstraintHandler:
                 operation_label="update scheduling constraint",
             )
 
-        if governed and self._approval_service is not None:
-            request = self._approval_service.request_change(
+        if governed and self._approval_commands is not None:
+            request = self._approval_commands.request_change(
                 request_type="task.constraint.update",
                 entity_type="task",
                 entity_id=task.id,

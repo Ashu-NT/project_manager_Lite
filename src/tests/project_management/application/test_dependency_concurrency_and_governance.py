@@ -122,7 +122,7 @@ class TestUpdateOptimisticConcurrency:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.update")
         _login(services, "admin", "ChangeMe123!")
 
-        approvals = services["approval_service"]
+        approvals = services["approval_commands"]
         ts = services["task_service"]
         project, a, b = _make_two_tasks(services)
         dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
@@ -133,7 +133,7 @@ class TestUpdateOptimisticConcurrency:
         with pytest.raises(BusinessRuleError, match="Approval required"):
             ts.update_dependency(dep.id, lag_days=3)
 
-        req = approvals.list_pending(project_id=project.id)[0]
+        req = services["approval_queries"].list_pending(project_id=project.id)[0]
         assert req.payload["expected_version"] == 1
 
         # The graph changes while the request is pending: an admin edits
@@ -157,7 +157,7 @@ class TestUpdateGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.update")
         _login(services, "admin", "ChangeMe123!")
 
-        approvals = services["approval_service"]
+        approvals = services["approval_commands"]
         ts = services["task_service"]
         project, a, b = _make_two_tasks(services)
         dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
@@ -171,7 +171,7 @@ class TestUpdateGovernanceParity:
         # Not applied yet.
         assert ts.get_dependency(dep.id).lag_days == 0
 
-        req = approvals.list_pending(project_id=project.id)[0]
+        req = services["approval_queries"].list_pending(project_id=project.id)[0]
         assert req.request_type == "dependency.update"
 
         _login_eligible_reviewer(services)
@@ -250,7 +250,7 @@ class TestApprovalApplyToctou:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.add")
         _login(services, "admin", "ChangeMe123!")
 
-        approvals = services["approval_service"]
+        approvals = services["approval_commands"]
         ts = services["task_service"]
         project, a, b = _make_two_tasks(services)
 
@@ -262,7 +262,7 @@ class TestApprovalApplyToctou:
         with pytest.raises(BusinessRuleError, match="Approval required"):
             ts.add_dependency(a.id, b.id)
 
-        req = approvals.list_pending(project_id=project.id)[0]
+        req = services["approval_queries"].list_pending(project_id=project.id)[0]
 
         # The graph changes while the request is pending: b gains a child,
         # becoming a summary task. A request that was valid when submitted

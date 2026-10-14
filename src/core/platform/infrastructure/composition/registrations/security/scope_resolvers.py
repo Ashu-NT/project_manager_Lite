@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from src.core.platform.access.application.access_control_service import (
     ScopeExistsResolver as AccessScopeExistsResolver,
 )
-from src.core.platform.application.security.authorization.roles.role_governance_service import (
+from src.core.platform.application.security.authorization.roles.commands.role_governance import (
     OrganizationOwnerResolver,
 )
-from src.core.platform.application.security.authorization.roles.role_governance_service import (
+from src.core.platform.application.security.authorization.roles.commands.role_governance import (
     ScopeExistsResolver as GovernanceScopeExistsResolver,
 )
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (

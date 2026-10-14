@@ -26,8 +26,8 @@ from src.core.global_overview.contract.overview import (
 from src.core.platform.application.history.activity.activity_service import (
     ActivityService,
 )
-from src.core.platform.application.platform_runtime.platform_runtime_service import (
-    PlatformRuntimeApplicationService,
+from src.core.platform.application.platform_runtime import (
+    PlatformRuntimeQueryHandler,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
@@ -58,14 +58,14 @@ class GlobalOverviewService:
         self,
         *,
         tenant_context_service: TenantContextService,
-        platform_runtime_application_service: PlatformRuntimeApplicationService,
+        platform_runtime_query: PlatformRuntimeQueryHandler,
         activity_service: ActivityService,
         action_center_service: ActionCenterService,
         module_summary_contributors: tuple[ModuleSummaryContributor, ...],
         user_session: UserSessionContext,
     ) -> None:
         self._tenant_context_service = tenant_context_service
-        self._platform_runtime_application_service = platform_runtime_application_service
+        self._platform_runtime_query = platform_runtime_query
         self._activity_service = activity_service
         self._action_center_service = action_center_service
         self._module_summary_contributors = module_summary_contributors
@@ -126,11 +126,11 @@ class GlobalOverviewService:
         concern (GlobalOverviewPresenter), not an application-layer one.
         """
         self._build_action_center_context()
-        permissions = frozenset(self._platform_runtime_application_service.get_current_permissions())
+        permissions = frozenset(self._platform_runtime_query.get_current_permissions())
         accessible_module_codes = tuple(
             sorted(
                 module.code
-                for module in self._platform_runtime_application_service.list_accessible_modules()
+                for module in self._platform_runtime_query.list_accessible_modules()
             )
         )
         return GlobalOverviewCapabilitiesDto(
@@ -142,7 +142,7 @@ class GlobalOverviewService:
         entries = self._activity_service.list_recent(limit=limit)
         accessible_module_codes = frozenset(
             module.code
-            for module in self._platform_runtime_application_service.list_accessible_modules()
+            for module in self._platform_runtime_query.list_accessible_modules()
         )
         return tuple(
             entry

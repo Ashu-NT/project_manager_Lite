@@ -46,7 +46,7 @@ def _setup_project(services):
         code="ACTUAL-MANUAL",
         name="Manual actuals",
     )
-    services["financial_period_service"].create_period(
+    services["financial_period_commands"].create_period(
         code="FY26-P01",
         name="January 2026",
         fiscal_year=2026,

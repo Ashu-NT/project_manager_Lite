@@ -9,11 +9,10 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
-def test_platform_runtime_application_service_tracks_active_organization_context(services):
-    app_service = services["platform_runtime_application_service"]
+def test_platform_runtime_query_tracks_active_organization_context(services):
+    app_service = services["platform_runtime_query"]
     tenant_context_service = services["tenant_context_service"]
 
-    assert app_service.current_context_label() == "Default Organization"
     assert app_service.snapshot().context_label == "Default Organization"
 
     second = services["organization_commands"].create_organization(
@@ -24,15 +23,15 @@ def test_platform_runtime_application_service_tracks_active_organization_context
     )
     tenant_context_service.set_active_organization(second.id)
 
-    assert app_service.current_context_label() == "North Division"
-    assert app_service.get_active_organization() is not None
-    assert app_service.get_active_organization().organization_code == "NORTH"
+    assert app_service.snapshot().context_label == "North Division"
+    assert services["tenant_context_service"].get_active_organization() is not None
+    assert services["tenant_context_service"].get_active_organization().organization_code == "NORTH"
 
 
-def test_platform_runtime_application_service_switches_module_mix_by_organization(services):
-    app_service = services["platform_runtime_application_service"]
+def test_platform_runtime_query_switches_module_mix_by_organization(services):
+    app_service = services["platform_runtime_query"]
     tenant_context_service = services["tenant_context_service"]
-    default_organization = app_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     assert default_organization is not None
 
     second = services["organization_commands"].create_organization(
@@ -42,21 +41,20 @@ def test_platform_runtime_application_service_switches_module_mix_by_organizatio
         base_currency="USD",
     )
 
-    assert app_service.is_enabled("project_management") is True
+    assert services["module_catalog_service"].is_enabled("project_management") is True
 
     tenant_context_service.set_active_organization(second.id)
     services["module_entitlement_commands"].disable_module(second.id, "project_management")
-    assert app_service.is_enabled("project_management") is False
+    assert services["module_catalog_service"].is_enabled("project_management") is False
 
     tenant_context_service.set_active_organization(default_organization.id)
-    assert app_service.current_context_label() == "Default Organization"
-    assert app_service.is_enabled("project_management") is True
+    assert app_service.snapshot().context_label == "Default Organization"
+    assert services["module_catalog_service"].is_enabled("project_management") is True
 
 
-def test_platform_runtime_application_service_exposes_lifecycle_status_changes(services):
-    app_service = services["platform_runtime_application_service"]
+def test_platform_runtime_query_exposes_lifecycle_status_changes(services):
     commands = services["module_entitlement_commands"]
-    active_organization_id = app_service.get_active_organization().id
+    active_organization_id = services["tenant_context_service"].get_active_organization().id
 
     trial = commands.transition_module_lifecycle(active_organization_id, "project_management", "trial")
     assert trial.lifecycle_status == "trial"
@@ -66,36 +64,36 @@ def test_platform_runtime_application_service_exposes_lifecycle_status_changes(s
     assert expired.lifecycle_status == "expired"
     assert expired.enabled is False
     assert expired.runtime_enabled is False
-    assert app_service.is_enabled("project_management") is False
+    assert services["module_catalog_service"].is_enabled("project_management") is False
 
 
-def test_platform_runtime_application_service_provisions_organization_with_initial_module_mix(services):
+def test_platform_runtime_query_provisions_organization_with_initial_module_mix(services):
     """New organizations are always created ACTIVE, and provisioning always switches the caller's
     session into the just-created organization -- there is no longer a "provision quietly, stay
     on the current organization" path."""
-    app_service = services["platform_runtime_application_service"]
+    app_service = services["platform_runtime_query"]
 
-    default_organization = app_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     assert default_organization is not None
-    assert app_service.is_enabled("project_management") is True
+    assert services["module_catalog_service"].is_enabled("project_management") is True
 
-    provisioned = app_service.provision_organization(OrganizationProvisionCommand(organization_code="OPS", display_name="Operations Hub", timezone_name="Africa/Lagos", base_currency="USD", initial_module_codes=[]))
+    provisioned = services["organization_provisioning_commands"].provision_organization(OrganizationProvisionCommand(organization_code="OPS", display_name="Operations Hub", timezone_name="Africa/Lagos", base_currency="USD", initial_module_codes=[]))
 
     assert provisioned.organization_code == "OPS"
-    assert app_service.get_active_organization() is not None
-    assert app_service.get_active_organization().organization_code == "OPS"
-    assert app_service.current_context_label() == "Operations Hub"
-    assert app_service.is_enabled("project_management") is False
+    assert services["tenant_context_service"].get_active_organization() is not None
+    assert services["tenant_context_service"].get_active_organization().organization_code == "OPS"
+    assert app_service.snapshot().context_label == "Operations Hub"
+    assert services["module_catalog_service"].is_enabled("project_management") is False
 
 
 def test_provision_organization_activates_in_one_transaction(services):
-    app_service = services["platform_runtime_application_service"]
+    app_service = services["platform_runtime_query"]
     tenant_context_service = services["tenant_context_service"]
 
-    default_organization = app_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     assert default_organization is not None
 
-    provisioned = app_service.provision_organization(OrganizationProvisionCommand(organization_code="EAST", display_name="East Division", timezone_name="Asia/Dubai", base_currency="AED", initial_module_codes=["project_management"]))
+    provisioned = services["organization_provisioning_commands"].provision_organization(OrganizationProvisionCommand(organization_code="EAST", display_name="East Division", timezone_name="Asia/Dubai", base_currency="AED", initial_module_codes=["project_management"]))
 
     # Organization persisted ACTIVE -- re-read the full list from the
     # repository, not the in-memory return value, so this actually confirms
@@ -107,13 +105,13 @@ def test_provision_organization_activates_in_one_transaction(services):
 
     # Entitlements provisioned for the new organization.
     entitlements_by_code = {
-        e.code: e for e in app_service.module_catalog_service.list_entitlements()
+        e.code: e for e in services["module_catalog_service"].list_entitlements()
     }
     assert entitlements_by_code["project_management"].licensed is True
     assert entitlements_by_code["project_management"].enabled is True
     assert tenant_context_service.get_active_organization_id() == provisioned.id
-    assert app_service.get_active_organization().id == provisioned.id
-    assert app_service.current_context_label() == "East Division"
+    assert services["tenant_context_service"].get_active_organization().id == provisioned.id
+    assert app_service.snapshot().context_label == "East Division"
 
     all_orgs_by_id = {o.id: o for o in services["organization_query"].list_organizations(status=None)}
     still_there = all_orgs_by_id[default_organization.id]

@@ -97,7 +97,7 @@ def _submitted_change(services, session):
         expected_version=change.row_version,
     )
     session.expire_all()
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
     return project, change, request
 
 
@@ -219,8 +219,8 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         )
         assert change_service_a._enterprise_audit_service._session is session_a
         assert change_service_b._enterprise_audit_service._session is session_b
-        assert change_service_a._approval_service is None, (
-            "the apply path must never reach back into ApprovalService"
+        assert change_service_a._approval_commands is None, (
+            "the apply path must never reach back into ApprovalCommandHandler"
         )
 
         task_service_a = change_service_a._task_service
@@ -230,8 +230,8 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         assert task_service_b._task_uow_scope._tasks.session is session_b
         assert task_service_a._task_uow_scope._enterprise_audit_service._session is session_a
         assert task_service_b._task_uow_scope._enterprise_audit_service._session is session_b
-        assert task_service_a._dependency_command_handler._approval_service is None, (
-            "the fresh TaskService must never reach back into ApprovalService either"
+        assert task_service_a._dependency_command_handler._approval_commands is None, (
+            "the fresh TaskService must never reach back into ApprovalCommandHandler either"
         )
         scheduler_a = task_service_a._scheduling_constraint_handler._scheduling_engine
         scheduler_b = task_service_b._scheduling_constraint_handler._scheduling_engine

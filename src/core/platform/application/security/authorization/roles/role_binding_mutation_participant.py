@@ -31,7 +31,7 @@ OrganizationOwnerResolver = Callable[[Session, str, str], "str | None"]
 
 
 def resolved_scope_to_domain_scope(resolved: ResolvedRoleBindingScope) -> RoleBindingScope:
-    """Converts `RoleGovernanceService`'s own application-layer `ResolvedRoleBindingScope`
+    """Converts `RoleGovernanceCommandHandler`'s own application-layer `ResolvedRoleBindingScope`
     (resolved mid-transaction via `_validate_target_scope`, which ALSO does existence checking)
     into the domain-facing, event-safe `RoleBindingScope`."""
     if isinstance(resolved, ResourceBindingScope):
@@ -57,7 +57,7 @@ def resolve_domain_scope_for_binding(
     """For a binding that already exists (revocation, or a membership-removal cascade) --
     resolves the authoritative domain scope from the binding's own recorded
     `actual_scope_type`/`actual_scope_id`, without re-running existence validation (the binding
-    already exists and was validated at assignment time). Shared by `RoleGovernanceService
+    already exists and was validated at assignment time). Shared by `RoleGovernanceCommandHandler
     .revoke_role_binding` and `TenantMembershipService`'s own cascade revocation, so both use the
     SAME session-bound `organization_owner_resolvers` -- never the ambient active organization."""
     if scope_type == ROLE_SCOPE_TENANT:
@@ -228,7 +228,7 @@ def revoke_role_binding_using(
     audit_metadata_extra: dict[str, object] | None = None,
 ) -> RoleBinding:
     """Mirrors `create_role_binding_using`'s own shape for revocation. The caller is responsible
-    for the no-op check (already-revoked) BEFORE calling this -- `RoleGovernanceService
+    for the no-op check (already-revoked) BEFORE calling this -- `RoleGovernanceCommandHandler
     .revoke_role_binding` and `TenantMembershipService`'s cascade both only ever call this for a
     binding already confirmed active, so it is not re-checked here."""
     now = clock.now()

@@ -159,7 +159,7 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
                 )
             ]
         ),
-        approval_service=SimpleNamespace(
+        approval_queries=SimpleNamespace(
             list_pending=lambda project_id=None, limit=120: [
                 SimpleNamespace(
                     id="req-1",

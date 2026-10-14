@@ -6,7 +6,8 @@ from datetime import UTC, datetime
 import pytest
 
 from src.core.platform.application.security.authorization.roles import (
-    RolePolicyReconciliationService,
+    RolePolicyReconciliationCommandHandler,
+    RolePolicyReconciliationQueryHandler,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.common.ids import generate_id
@@ -34,24 +35,32 @@ _REMOVED_TENANT_ADMIN_PERMISSIONS = {
 }
 
 
-def _reconciliation_service(services) -> RolePolicyReconciliationService:
+def _reconciliation_handlers(services):
     auth = services["auth"]
-    return RolePolicyReconciliationService(
+    queries = RolePolicyReconciliationQueryHandler(
+        role_repo=services["auth_queries"]._role_repo,
+        permission_repo=services["platform_owner_provisioning"]._permission_repo,
+        role_permission_repo=services["platform_owner_provisioning"]._role_permission_repo,
+        auth_session_repo=services["auth_session_commands"]._auth_session_repo,
+        reconciliation_repo=SqlAlchemyAuthPolicyReconciliationRepository(services["session"]),
+        user_session=services["user_session"],
+        role_binding_repo=SqlAlchemyRoleBindingRepository(services["session"]),
+    )
+    commands = RolePolicyReconciliationCommandHandler(
         session=services["session"],
+        queries=queries,
         role_repo=services["auth_queries"]._role_repo,
         permission_repo=services["platform_owner_provisioning"]._permission_repo,
         role_permission_repo=services["platform_owner_provisioning"]._role_permission_repo,
         user_repo=services["auth_queries"]._user_repo,
         auth_session_repo=services["auth_session_commands"]._auth_session_repo,
-        reconciliation_repo=SqlAlchemyAuthPolicyReconciliationRepository(
-            services["session"]
-        ),
+        reconciliation_repo=SqlAlchemyAuthPolicyReconciliationRepository(services["session"]),
         user_session=services["user_session"],
-        role_binding_repo=SqlAlchemyRoleBindingRepository(services["session"]),
         transactional_dispatcher=auth.bootstrap._tx._transactional_dispatcher,
         post_commit_bus=auth.bootstrap._tx._post_commit_bus,
         uow_factory=auth.bootstrap._tx._uow_factory,
     )
+    return commands, queries
 
 
 def _seed_stale_tenant_admin_policy(services, *, username: str):
@@ -100,9 +109,9 @@ def test_reconciliation_preview_is_deterministic_and_startup_is_non_destructive(
             permission_by_code[code].id,
         )
 
-    service = _reconciliation_service(services)
-    first = service.preview()
-    second = service.preview()
+    commands, queries = _reconciliation_handlers(services)
+    first = queries.preview()
+    second = queries.preview()
 
     assert first.current_version == 0
     assert first.target_version == SYSTEM_ROLE_POLICY_VERSION
@@ -143,11 +152,11 @@ def test_reconciliation_apply_rejects_unreviewed_drift(
         services,
         username=f"policy-guard-{expected_code.lower()}",
     )
-    service = _reconciliation_service(services)
-    plan = service.preview()
+    commands, queries = _reconciliation_handlers(services)
+    plan = queries.preview()
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        service.apply(
+        commands.apply(
             expected_version=plan.current_version + version_delta,
             expected_change_set_hash=hash_override or plan.change_set_hash,
         )
@@ -174,10 +183,10 @@ def test_reconciliation_apply_removes_drift_records_rollback_and_revokes_session
     services["auth_queries"]._role_repo.add(unmanaged_role)
     services["session"].commit()
     before_revision = services["auth_queries"]._user_repo.get(user.id).session_revision
-    service = _reconciliation_service(services)
-    plan = service.preview()
+    commands, queries = _reconciliation_handlers(services)
+    plan = queries.preview()
 
-    result = service.apply(
+    result = commands.apply(
         expected_version=plan.current_version,
         expected_change_set_hash=plan.change_set_hash,
     )
@@ -216,8 +225,8 @@ def test_reconciliation_apply_removes_drift_records_rollback_and_revokes_session
         plan.change_set_hash
     )
 
-    no_op_plan = service.preview()
-    no_op_result = service.apply(
+    no_op_plan = queries.preview()
+    no_op_result = commands.apply(
         expected_version=no_op_plan.current_version,
         expected_change_set_hash=no_op_plan.change_set_hash,
     )
@@ -248,7 +257,7 @@ def test_tenant_admin_cannot_preview_platform_policy_reconciliation(
     )
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        _reconciliation_service(services).preview()
+        _reconciliation_handlers(services)[1].preview()
 
     assert exc_info.value.code == "PERMISSION_DENIED"
 
@@ -284,7 +293,7 @@ def test_policy_v1_preview_requires_reviewed_role_assignment_additions(
     )
     services["session"].commit()
 
-    plan = _reconciliation_service(services).preview()
+    plan = _reconciliation_handlers(services)[1].preview()
 
     assert plan.current_version == 1
     assert plan.target_version == SYSTEM_ROLE_POLICY_VERSION

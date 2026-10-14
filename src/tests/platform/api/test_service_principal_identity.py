@@ -11,7 +11,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, ValidationErr
 
 
 def test_service_principal_api_key_lifecycle_uses_canonical_authority(services):
-    identity = services["service_principal_service"]
+    identity = services["service_principal_commands"]
 
     principal = identity.create_service_principal(
         name="Planning Integration",
@@ -33,7 +33,7 @@ def test_service_principal_api_key_lifecycle_uses_canonical_authority(services):
         expires_in_days=30,
     )
     assert issued.token.startswith(f"pmk_{principal.tenant_id}_")
-    authenticated = identity.authenticate_api_key(issued.token)
+    authenticated = services["api_key_authentication"].authenticate_api_key(issued.token)
 
     assert authenticated.user_id == principal.user_id
     assert authenticated.identity_provider == "api_key"
@@ -42,14 +42,14 @@ def test_service_principal_api_key_lifecycle_uses_canonical_authority(services):
 
     rotated = identity.rotate_api_key(issued.credential.id, expires_in_days=45)
     with pytest.raises(ValidationError) as old_key_error:
-        identity.authenticate_api_key(issued.token)
+        services["api_key_authentication"].authenticate_api_key(issued.token)
     assert old_key_error.value.code == "API_KEY_REVOKED"
-    assert identity.authenticate_api_key(rotated.token).user_id == principal.user_id
+    assert services["api_key_authentication"].authenticate_api_key(rotated.token).user_id == principal.user_id
 
     disabled = identity.disable_service_principal(principal.id)
     assert disabled.status == "disabled"
     with pytest.raises(ValidationError) as disabled_error:
-        identity.authenticate_api_key(rotated.token)
+        services["api_key_authentication"].authenticate_api_key(rotated.token)
     assert disabled_error.value.code == "API_KEY_REVOKED"
 
 
@@ -70,25 +70,25 @@ def test_service_account_cannot_use_human_password_login(services):
 
 
 def test_worker_resolution_returns_only_active_scoped_service_identity(services):
-    identity = services["service_principal_service"]
+    identity = services["service_principal_commands"]
     principal = identity.create_service_principal(
         name="Approved Time Worker",
         initial_role_name="viewer",
     )
 
-    resolved = identity.resolve_execution_principal(name="Approved Time Worker")
+    resolved = services["service_principal_query"].resolve_execution_principal(name="Approved Time Worker")
 
     assert resolved.id == principal.id
     assert services["auth_queries"]._user_repo.get(resolved.user_id).account_type == "service"
 
     identity.disable_service_principal(principal.id)
     with pytest.raises(BusinessRuleError) as exc_info:
-        identity.resolve_execution_principal(name="Approved Time Worker")
+        services["service_principal_query"].resolve_execution_principal(name="Approved Time Worker")
     assert exc_info.value.code == "INTEGRATION_SERVICE_PRINCIPAL_DISABLED"
 
 
 def test_api_key_permissions_cannot_exceed_service_principal(services):
-    identity = services["service_principal_service"]
+    identity = services["service_principal_commands"]
     principal = identity.create_service_principal(
         name="Read Only Integration",
         initial_role_name="viewer",

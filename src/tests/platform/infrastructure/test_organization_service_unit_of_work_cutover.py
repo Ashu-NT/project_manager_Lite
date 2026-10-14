@@ -305,9 +305,9 @@ def test_provision_organization_still_commits_organization_and_entitlements_atom
     """`provision_organization` composes Organization creation, module entitlement provisioning,
     and activation (new organizations are always created ACTIVE) into one
     `PlatformProvisioningUnitOfWork` transaction."""
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
 
-    created = app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROVISION"), display_name="Provisioned Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    created = provisioning.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROVISION"), display_name="Provisioned Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert created.organization_code.startswith("PROVISION")
     reloaded = services["organization_query"]._organization_repo.get(created.id)

@@ -2,11 +2,11 @@
 
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.application.integration.accounting.capability import (
-    AccountingIntegrationCapabilityService,
-)
 from src.core.platform.application.integration.accounting.commands import (
-    AccountingConnectorConfigurationCommands,
+    AccountingConnectorConfigurationCommandHandler,
+)
+from src.core.platform.application.integration.accounting.queries import (
+    AccountingIntegrationCapabilityQueryHandler,
 )
 from src.core.platform.application.tenant.modules import (
     ModuleCatalogContext,
@@ -46,7 +46,7 @@ def build_accounting_capability(
             user_session=user_session,
         )
     )
-    return AccountingIntegrationCapabilityService(
+    return AccountingIntegrationCapabilityQueryHandler(
         module_registry=ModuleRegistry(catalog),
         connector_repository=repository,
         installed_adapters=installed_adapters,
@@ -64,7 +64,7 @@ def build_accounting_configuration_commands(
         if session.in_transaction():
             session.rollback()
 
-    return AccountingConnectorConfigurationCommands(
+    return AccountingConnectorConfigurationCommandHandler(
         uow_factory=SqlAlchemyAccountingConnectorUnitOfWorkFactory(
             session_factory=sessionmaker(bind=session.bind, expire_on_commit=False),
             transactional_dispatcher=platform_services.platform_transactional_dispatcher,

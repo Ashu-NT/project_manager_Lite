@@ -10,7 +10,10 @@ from src.core.platform.api.desktop.finance.models import (
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.application.finance import FinancialPeriodService
+from src.core.platform.application.finance import (
+    FinancialPeriodCommandHandler,
+    FinancialPeriodQueryHandler,
+)
 from src.core.platform.common.exceptions import ValidationError
 
 
@@ -31,10 +34,16 @@ def _parse_optional_date(value: str | None, *, field_name: str) -> date | None:
 
 
 class FinancialPeriodDesktopApi:
-    """Desktop transport adapter; policy remains in ``FinancialPeriodService``."""
+    """Desktop transport adapter over injected command and query authority."""
 
-    def __init__(self, *, financial_period_service: FinancialPeriodService) -> None:
-        self._financial_period_service = financial_period_service
+    def __init__(
+        self,
+        *,
+        financial_period_commands: FinancialPeriodCommandHandler,
+        financial_period_queries: FinancialPeriodQueryHandler,
+    ) -> None:
+        self._financial_period_commands = financial_period_commands
+        self._financial_period_queries = financial_period_queries
 
     def list_periods(
         self,
@@ -45,7 +54,7 @@ class FinancialPeriodDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize(period)
-                for period in self._financial_period_service.list_periods(
+                for period in self._financial_period_queries.list_periods(
                     fiscal_year=fiscal_year,
                     status=status,
                 )
@@ -55,7 +64,7 @@ class FinancialPeriodDesktopApi:
     def get_period(self, period_id: str) -> DesktopApiResult[FinancialPeriodDto]:
         return execute_desktop_operation(
             lambda: self._serialize(
-                self._financial_period_service.get_period(period_id)
+                self._financial_period_queries.get_period(period_id)
             )
         )
 
@@ -65,7 +74,7 @@ class FinancialPeriodDesktopApi:
     ) -> DesktopApiResult[FinancialPeriodDto]:
         return execute_desktop_operation(
             lambda: self._serialize(
-                self._financial_period_service.create_period(
+                self._financial_period_commands.create_period(
                     code=command.code,
                     name=command.name,
                     fiscal_year=command.fiscal_year,
@@ -88,7 +97,7 @@ class FinancialPeriodDesktopApi:
     ) -> DesktopApiResult[FinancialPeriodDto]:
         return execute_desktop_operation(
             lambda: self._serialize(
-                self._financial_period_service.update_period(
+                self._financial_period_commands.update_period(
                     command.period_id,
                     expected_version=command.expected_version,
                     code=command.code,
@@ -113,7 +122,7 @@ class FinancialPeriodDesktopApi:
     ) -> DesktopApiResult[FinancialPeriodDto]:
         return execute_desktop_operation(
             lambda: self._serialize(
-                self._financial_period_service.close_period(
+                self._financial_period_commands.close_period(
                     command.period_id,
                     expected_version=command.expected_version,
                 )
@@ -126,7 +135,7 @@ class FinancialPeriodDesktopApi:
     ) -> DesktopApiResult[FinancialPeriodDto]:
         return execute_desktop_operation(
             lambda: self._serialize(
-                self._financial_period_service.lock_period(
+                self._financial_period_commands.lock_period(
                     command.period_id,
                     expected_version=command.expected_version,
                 )

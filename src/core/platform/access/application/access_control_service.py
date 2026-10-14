@@ -34,8 +34,8 @@ if TYPE_CHECKING:
     from src.core.platform.application.security.auth.session.session_lifecycle import (
         AuthSessionLifecycle,
     )
-    from src.core.platform.application.security.authorization.roles.role_governance_service import (
-        RoleGovernanceService,
+    from src.core.platform.application.security.authorization.roles.commands.role_governance import (
+        RoleGovernanceCommandHandler,
     )
     from src.core.platform.application.tenant.tenancy.tenant_context import (
         TenantContextService,
@@ -70,7 +70,7 @@ class AccessControlService:
         enterprise_audit_service: EnterpriseAuditService | None = None,
         user_tenant_repo: UserTenantMembershipRepository | None = None,
         tenant_context_service: TenantContextService | None = None,
-        role_governance_service: RoleGovernanceService | None = None,
+        role_governance_commands: RoleGovernanceCommandHandler | None = None,
         role_repo: RoleRepository | None = None,
         role_binding_repo: RoleBindingRepository | None = None,
     ) -> None:
@@ -85,7 +85,7 @@ class AccessControlService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._user_tenant_repo = user_tenant_repo
-        self._role_governance_service = role_governance_service
+        self._role_governance_commands = role_governance_commands
         self._role_repo = role_repo
         self._role_binding_repo = role_binding_repo
         self._tenant_context_service = tenant_context_service
@@ -247,7 +247,7 @@ class AccessControlService:
 
     def _require_canonical_services(self):
         if (
-            self._role_governance_service is None
+            self._role_governance_commands is None
             or self._role_repo is None
             or self._role_binding_repo is None
         ):
@@ -258,7 +258,7 @@ class AccessControlService:
                 operation_label="govern a canonical scope-role grant",
                 operation="authorization.infrastructure.denied",
             )
-        return self._role_governance_service, self._role_repo, self._role_binding_repo
+        return self._role_governance_commands, self._role_repo, self._role_binding_repo
 
     _CANONICAL_ROLE_NAME_OVERRIDES: ClassVar[dict[tuple[str, str], str]] = {
         ("organization", choice): canonical_name
@@ -324,9 +324,9 @@ class AccessControlService:
         role_name: str,
         permissions: list[str],
     ) -> ScopedAccessGrant:
-        role_governance_service, role_repo, _ = self._require_canonical_services()
+        role_governance_commands, role_repo, _ = self._require_canonical_services()
         role = self._require_canonical_role(role_repo, scope_type, role_name)
-        binding = role_governance_service.assign_role(
+        binding = role_governance_commands.assign_role(
             target_user_id=user_id,
             role_id=role.id,
             actual_scope_id=scope_id,
@@ -349,7 +349,7 @@ class AccessControlService:
         user_id: str,
         tenant_id: str,
     ) -> None:
-        role_governance_service, _, role_binding_repo = self._require_canonical_services()
+        role_governance_commands, _, role_binding_repo = self._require_canonical_services()
         bindings = [
             binding
             for binding in role_binding_repo.list_active_for_principal(user_id, tenant_id=tenant_id)
@@ -361,7 +361,7 @@ class AccessControlService:
                 code=f"{scope_type.upper()}_MEMBERSHIP_NOT_FOUND",
             )
         for binding in bindings:
-            role_governance_service.revoke_role_binding(binding.id)
+            role_governance_commands.revoke_role_binding(binding.id)
 
     def _list_canonical_scope_grants_for_scope(
         self,

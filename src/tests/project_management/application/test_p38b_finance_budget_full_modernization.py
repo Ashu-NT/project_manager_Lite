@@ -342,7 +342,7 @@ def test_governed_approval_participant_emits_the_same_typed_status_fact(services
     _login(services, "admin", "ChangeMe123!")
     project, cost_code = _setup(services)
     budgets = services["budget_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     budget = budgets.create_budget(project.id, "P38B Governed")
     budgets.add_line(
@@ -354,7 +354,7 @@ def test_governed_approval_participant_emits_the_same_typed_status_fact(services
 
     result = budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
     assert result.outcome.value == "pending_approval"
-    request_id = approvals.list_pending(project_id=project.id)[0].id
+    request_id = services["approval_queries"].list_pending(project_id=project.id)[0].id
 
     services["user_registration"].register_user(
         "p38b-budget-reviewer", "StrongPass123", role_names=["approver"]
@@ -376,7 +376,7 @@ def test_governed_approval_participant_emits_the_same_typed_status_fact(services
 
 
 def test_financial_change_application_produces_budget_and_financial_change_facts_together(services):
-    """One ApprovalService transaction produces both a typed `FinancialChangeChanged` fact and
+    """One ApprovalCommandHandler transaction produces both a typed `FinancialChangeChanged` fact and
     typed Budget facts (`BudgetVersionCreated` for the new successor,
     `BudgetStatusChanged(SUPERSEDED)` for the base) in the same commit."""
     from src.core.modules.project_management.domain.financials.financial_change import (
@@ -410,7 +410,7 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
     )
     change = changes.get_change(change.id)
     change = changes.submit_change(change.id, submitted_by=principal.user_id, expected_version=change.row_version)
-    request_id = services["approval_service"].list_pending(project_id=project.id)[0].id
+    request_id = services["approval_queries"].list_pending(project_id=project.id)[0].id
 
     services["user_registration"].register_user(
         "p38b-fc-reviewer", "StrongPass123", role_names=["approver"]
@@ -418,7 +418,7 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
     _login(services, "p38b-fc-reviewer", "StrongPass123")
 
     hints = _spy_hints(services)
-    services["approval_service"].approve_and_apply(request_id)
+    services["approval_commands"].approve_and_apply(request_id)
 
     budget_hints = _budget_hints(hints)
     assert len(budget_hints) == 2

@@ -21,14 +21,24 @@ from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     PlatformRuntimeContextDto,
     TimezoneDto,
 )
+from src.core.platform.application.master_data.org import (
+    OrganizationCommandHandler,
+    OrganizationLifecycleCommandHandler,
+    OrganizationProvisioningCommandHandler,
+    OrganizationQueryHandler,
+)
 from src.core.platform.application.master_data.org.dto import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )
 from src.core.platform.application.platform_runtime import (
-    PlatformRuntimeApplicationService,
+    PlatformRuntimeQueryHandler,
 )
-from src.core.platform.application.tenant.modules import ModuleEntitlementCommandHandler
+from src.core.platform.application.tenant.modules import (
+    ModuleCatalogQueryHandler,
+    ModuleEntitlementCommandHandler,
+)
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -47,10 +57,22 @@ class PlatformRuntimeDesktopApi:
     def __init__(
         self,
         *,
-        platform_runtime_application_service: PlatformRuntimeApplicationService,
+        platform_runtime_query: PlatformRuntimeQueryHandler,
+        module_catalog_service: ModuleCatalogQueryHandler,
+        organization_query: OrganizationQueryHandler,
+        organization_commands: OrganizationCommandHandler,
+        organization_lifecycle: OrganizationLifecycleCommandHandler,
+        organization_provisioning_commands: OrganizationProvisioningCommandHandler,
+        tenant_context_service: TenantContextService,
         module_entitlement_commands: ModuleEntitlementCommandHandler,
     ) -> None:
-        self._platform_runtime_application_service = platform_runtime_application_service
+        self._platform_runtime_query = platform_runtime_query
+        self._module_catalog_service = module_catalog_service
+        self._organization_query = organization_query
+        self._organization_commands = organization_commands
+        self._organization_lifecycle = organization_lifecycle
+        self._organization_provisioning_commands = organization_provisioning_commands
+        self._tenant_context_service = tenant_context_service
         self._module_entitlement_commands = module_entitlement_commands
 
     def get_runtime_context(self) -> DesktopApiResult[PlatformRuntimeContextDto]:
@@ -66,7 +88,7 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: tuple(
                 self._serialize_organization(row)
-                for row in self._platform_runtime_application_service.list_organizations(
+                for row in self._organization_query.list_organizations(
                     status=status
                 )
             )
@@ -89,7 +111,7 @@ class PlatformRuntimeDesktopApi:
     def get_organization_statistics(self, organization_id: str) -> DesktopApiResult[OrganizationStatisticsDto]:
         return self._execute(
             lambda: self._serialize_organization_statistics(
-                self._platform_runtime_application_service.get_organization_statistics(organization_id)
+                self._organization_query.get_organization_statistics(organization_id)
             )
         )
 
@@ -98,7 +120,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[OrganizationCalendarSummaryDto]:
         return self._execute(
             lambda: self._serialize_organization_calendar_summary(
-                self._platform_runtime_application_service.get_organization_calendar_summary(organization_id)
+                self._organization_query.get_organization_calendar_summary(organization_id)
             )
         )
 
@@ -118,19 +140,19 @@ class PlatformRuntimeDesktopApi:
 
     def get_organization_count(self) -> DesktopApiResult[int]:
         return self._execute(
-            lambda: self._platform_runtime_application_service.get_organization_count()
+            lambda: self._organization_query.get_organization_count()
         )
 
     def get_current_permissions(self) -> DesktopApiResult[tuple[str, ...]]:
         return self._execute(
-            lambda: tuple(sorted(self._platform_runtime_application_service.get_current_permissions()))
+            lambda: tuple(sorted(self._platform_runtime_query.get_current_permissions()))
         )
 
     def list_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
         return self._execute(
             lambda: tuple(
                 self._serialize_module(module)
-                for module in self._platform_runtime_application_service.list_modules()
+                for module in self._module_catalog_service.list_modules()
             )
         )
 
@@ -142,7 +164,7 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: tuple(
                 self._serialize_module(module)
-                for module in self._platform_runtime_application_service.list_accessible_modules()
+                for module in self._platform_runtime_query.list_accessible_modules()
             )
         )
 
@@ -230,7 +252,7 @@ class PlatformRuntimeDesktopApi:
     def _require_active_organization_id(self) -> str:
         """Active-organization module commands act on the caller's selected organization;
         the `*_for_organization` variants take an explicit organization instead."""
-        active_organization = self._platform_runtime_application_service.get_active_organization()
+        active_organization = self._tenant_context_service.get_active_organization()
         if active_organization is None:
             raise RuntimeError("Active organization is required to manage module entitlements.")
         return active_organization.id
@@ -241,7 +263,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.provision_organization(command)
+                self._organization_provisioning_commands.provision_organization(command)
             )
         )
 
@@ -251,28 +273,28 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.update_organization(command)
+                self._organization_commands.update_organization(command)
             )
         )
 
     def activate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.activate_organization(organization_id)
+                self._organization_lifecycle.activate_organization(organization_id)
             )
         )
 
     def deactivate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.deactivate_organization(organization_id)
+                self._organization_lifecycle.deactivate_organization(organization_id)
             )
         )
 
     def archive_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.archive_organization(organization_id)
+                self._organization_lifecycle.archive_organization(organization_id)
             )
         )
 
@@ -282,7 +304,7 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: tuple(
                 self._serialize_organization(row)
-                for row in self._platform_runtime_application_service.bulk_activate_organizations(
+                for row in self._organization_lifecycle.bulk_activate_organizations(
                     organization_ids
                 )
             )
@@ -294,7 +316,7 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: tuple(
                 self._serialize_organization(row)
-                for row in self._platform_runtime_application_service.bulk_deactivate_organizations(
+                for row in self._organization_lifecycle.bulk_deactivate_organizations(
                     organization_ids
                 )
             )
@@ -306,7 +328,7 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: tuple(
                 self._serialize_organization(row)
-                for row in self._platform_runtime_application_service.bulk_archive_organizations(
+                for row in self._organization_lifecycle.bulk_archive_organizations(
                     organization_ids
                 )
             )
@@ -318,7 +340,7 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: tuple(
                 self._serialize_organization(row)
-                for row in self._platform_runtime_application_service.bulk_update_organization_currency(
+                for row in self._organization_commands.bulk_update_organization_currency(
                     organization_ids, base_currency
                 )
             )
@@ -330,7 +352,7 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: tuple(
                 self._serialize_organization(row)
-                for row in self._platform_runtime_application_service.bulk_update_organization_timezone(
+                for row in self._organization_commands.bulk_update_organization_timezone(
                     organization_ids, timezone_name
                 )
             )
@@ -344,7 +366,7 @@ class PlatformRuntimeDesktopApi:
         search: str | None,
         status: str | None,
     ) -> OrganizationCatalogPageDto:
-        organization_page = self._platform_runtime_application_service.list_organizations_page(
+        organization_page = self._organization_query.list_organizations_page(
             page=page, page_size=page_size, search=search, status=status
         )
         return OrganizationCatalogPageDto(
@@ -377,8 +399,8 @@ class PlatformRuntimeDesktopApi:
         )
 
     def _build_runtime_context(self) -> PlatformRuntimeContextDto:
-        snapshot = self._platform_runtime_application_service.snapshot()
-        active_organization = self._platform_runtime_application_service.get_active_organization()
+        snapshot = self._platform_runtime_query.snapshot()
+        active_organization = self._tenant_context_service.get_active_organization()
         return PlatformRuntimeContextDto(
             context_label=snapshot.context_label,
             shell_summary=snapshot.module_snapshot.shell_summary,

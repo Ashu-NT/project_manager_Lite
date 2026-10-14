@@ -55,8 +55,8 @@ def _set_tenant_admin(services, *, username: str = "custom-role-admin"):
 
 
 def _permission_codes(services, role_id: str) -> set[str]:
-    service = services["tenant_role_administration_service"]
-    return service._permission_codes(role_id)
+    service = services["tenant_role_commands"]
+    return service._authorization.permission_codes(role_id)
 
 
 def _audit_actions(services, role_id: str) -> list[str]:
@@ -76,7 +76,7 @@ def test_custom_role_creation_is_tenant_scoped_and_atomically_audited(
     services,
 ) -> None:
     _set_tenant_admin(services)
-    service = services["tenant_role_administration_service"]
+    service = services["tenant_role_commands"]
 
     role = service.create_custom_role(
         name="project_coordinator",
@@ -93,7 +93,7 @@ def test_custom_role_creation_is_tenant_scoped_and_atomically_audited(
         "project.read",
         "project.manage",
     }
-    assert [listed.id for listed in service.list_custom_roles()] == [role.id]
+    assert [listed.id for listed in services["tenant_role_queries"].list_custom_roles()] == [role.id]
     assert _audit_actions(services, role.id) == [
         "auth.custom_role.created"
     ]
@@ -120,7 +120,7 @@ def test_custom_role_creation_blocks_system_impersonation_and_escalation(
 
     with pytest.raises(BusinessRuleError) as exc_info:
         services[
-            "tenant_role_administration_service"
+            "tenant_role_commands"
         ].create_custom_role(
             name=name,
             display_name=name.replace("_", " ").title(),
@@ -149,7 +149,7 @@ def test_custom_role_administration_requires_policy_v2_permission(
 
     with pytest.raises(BusinessRuleError) as exc_info:
         services[
-            "tenant_role_administration_service"
+            "tenant_role_commands"
         ].create_custom_role(
             name="policy_v2_required",
             display_name="Policy V2 Required",
@@ -164,7 +164,7 @@ def test_platform_operator_cannot_use_customer_custom_role_path(
 ) -> None:
     with pytest.raises(BusinessRuleError) as exc_info:
         services[
-            "tenant_role_administration_service"
+            "tenant_role_commands"
         ].create_custom_role(
             name="platform_created_customer_role",
             display_name="Platform Created Customer Role",
@@ -202,7 +202,7 @@ def test_customer_role_manager_requires_canonical_tenant_scope(
 
     with pytest.raises(BusinessRuleError) as exc_info:
         services[
-            "tenant_role_administration_service"
+            "tenant_role_commands"
         ].create_custom_role(
             name="scope_escape_role",
             display_name="Scope Escape Role",
@@ -216,7 +216,7 @@ def test_custom_role_update_is_full_replacement_and_optimistic(
     services,
 ) -> None:
     _set_tenant_admin(services)
-    service = services["tenant_role_administration_service"]
+    service = services["tenant_role_commands"]
     role = service.create_custom_role(
         name="project_observer",
         display_name="Project Observer",
@@ -259,7 +259,7 @@ def test_custom_role_permissions_enforce_separation_of_duties(
 
     with pytest.raises(ValidationError) as exc_info:
         services[
-            "tenant_role_administration_service"
+            "tenant_role_commands"
         ].create_custom_role(
             name="conflicted_approver",
             display_name="Conflicted Approver",
@@ -271,12 +271,12 @@ def test_custom_role_permissions_enforce_separation_of_duties(
 
 def test_custom_role_cannot_be_updated_across_tenants(services) -> None:
     _set_tenant_admin(services)
-    service = services["tenant_role_administration_service"]
+    service = services["tenant_role_commands"]
     other_tenant = Tenant.create(
         tenant_code="CUSTOM-ROLE-OTHER",
         display_name="Other Custom Role Tenant",
     )
-    service._tenant_repo.add(other_tenant)
+    service._authorization._tenant_repo.add(other_tenant)
     services["session"].flush()
     other_role = Role.create(
         name="other_tenant_role",
@@ -303,7 +303,7 @@ def test_custom_role_creation_rolls_back_when_audit_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _set_tenant_admin(services)
-    service = services["tenant_role_administration_service"]
+    service = services["tenant_role_commands"]
 
     def _fail_audit(*_args, **_kwargs) -> None:
         raise RuntimeError("audit unavailable")
@@ -336,7 +336,7 @@ def test_custom_role_update_rolls_back_definition_when_audit_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _set_tenant_admin(services)
-    service = services["tenant_role_administration_service"]
+    service = services["tenant_role_commands"]
     role = service.create_custom_role(
         name="audit_guarded_role",
         display_name="Audit Guarded Role",
@@ -371,7 +371,7 @@ def test_permission_update_revokes_current_tenant_holder_session(
     services,
 ) -> None:
     actor = _set_tenant_admin(services)
-    service = services["tenant_role_administration_service"]
+    service = services["tenant_role_commands"]
     tenant_id = _tenant_id(services)
     role = service.create_custom_role(
         name="session_guarded_role",
@@ -427,8 +427,8 @@ def test_custom_role_update_invalidates_reviewed_delegation(
     _set_tenant_admin(services)
     tenant_principal = services["user_session"].principal
     assert tenant_principal is not None
-    service = services["tenant_role_administration_service"]
-    governance = services["role_governance_service"]
+    service = services["tenant_role_commands"]
+    governance = services["role_governance_commands"]
     tenant_id = _tenant_id(services)
     role = service.create_custom_role(
         name="delegated_coordinator",
@@ -473,7 +473,7 @@ def test_retiring_custom_role_revokes_bindings_and_tenant_sessions(
     services,
 ) -> None:
     actor = _set_tenant_admin(services)
-    service = services["tenant_role_administration_service"]
+    service = services["tenant_role_commands"]
     tenant_id = _tenant_id(services)
     role = service.create_custom_role(
         name="temporary_coordinator",
@@ -524,7 +524,7 @@ def test_retiring_custom_role_revokes_bindings_and_tenant_sessions(
     )
     assert revoked_session is not None
     assert revoked_session.revoked_at is not None
-    assert service.list_custom_roles() == []
+    assert services["tenant_role_queries"].list_custom_roles() == []
     assert _audit_actions(services, role.id) == [
         "auth.custom_role.created",
         "auth.custom_role.retired",

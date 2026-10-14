@@ -47,7 +47,7 @@ def _setup_billable_project(services, *, name: str = "Billing Command Surface", 
         code=f"BILL-{project.id[-4:].upper()}", name="Billing cost code"
     )
     if create_period:
-        services["financial_period_service"].create_period(
+        services["financial_period_commands"].create_period(
             code="FY26-BILL",
             name="August 2026",
             fiscal_year=2026,
@@ -184,8 +184,8 @@ def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_requ
     services["user_session"].set_principal(
         services["principal_builder"].build(reviewer)
     )
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
-    services["approval_service"].approve_and_apply(request.id, note="Approved for delivery")
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
+    services["approval_commands"].approve_and_apply(request.id, note="Approved for delivery")
 
     admin = services["authentication"].authenticate("admin", "ChangeMe123!")
     services["user_session"].set_principal(services["principal_builder"].build(admin))

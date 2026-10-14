@@ -61,7 +61,7 @@ def build_project_management_desktop_runtime_apis(
             baseline_service=resolved.baseline_service,
             earned_value_report=resolved.earned_value_report,
             collaboration_inbox_query=resolved.collaboration_inbox_query,
-            approval_service=platform_dependencies.approval_service,
+            approval_queries=platform_dependencies.approval_queries,
             task_workspace_query=resolved.task_workspace_query,
             module_catalog_service=platform_dependencies.module_catalog_service,
         ),

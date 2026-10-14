@@ -46,7 +46,7 @@ def _setup_billable_project(
         code=f"PROF-{project.id[-4:].upper()}", name="Profitability cost code"
     )
     if create_period:
-        services["financial_period_service"].create_period(
+        services["financial_period_commands"].create_period(
             code="FY26-PROF",
             name="August 2026",
             fiscal_year=2026,
@@ -363,8 +363,8 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     )
     reviewer = services["authentication"].authenticate("profit-billing-reviewer", "StrongPass123")
     services["user_session"].set_principal(services["principal_builder"].build(reviewer))
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
-    services["approval_service"].approve_and_apply(request.id, note="Approved for delivery")
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
+    services["approval_commands"].approve_and_apply(request.id, note="Approved for delivery")
 
     approved = preparation_service.get_preparation(preparation.id)
     admin = services["authentication"].authenticate("admin", "ChangeMe123!")
@@ -452,8 +452,8 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
         )
         reviewer = services["authentication"].authenticate("profit-multi-reviewer", "StrongPass123")
         services["user_session"].set_principal(services["principal_builder"].build(reviewer))
-        request = services["approval_service"].list_pending(project_id=project.id)[-1]
-        services["approval_service"].approve_and_apply(request.id, note="Approved")
+        request = services["approval_queries"].list_pending(project_id=project.id)[-1]
+        services["approval_commands"].approve_and_apply(request.id, note="Approved")
         return preparation_service.get_preparation(preparation.id)
 
     _govern("BP-PROFIT-A", line_a, "billing-run-a")

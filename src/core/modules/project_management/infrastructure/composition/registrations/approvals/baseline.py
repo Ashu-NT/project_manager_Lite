@@ -73,7 +73,7 @@ def build_baseline_approval_deps(
         calendar=calendar,
         user_session=user_session,
         activity_service=activity_service,
-        approval_service=None,
+        approval_commands=None,
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
     )

@@ -82,7 +82,7 @@ def _tenant_scoped_binding_setup(services, *, suffix: str, role_name: str = "vie
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
         target_scope_type="tenant",
@@ -104,7 +104,7 @@ def _resource_scoped_binding_setup(services, *, suffix, scope_type, role_name, o
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
         target_scope_type=scope_type,
@@ -120,9 +120,9 @@ def _resource_scoped_binding_setup(services, *, suffix, scope_type, role_name, o
     return target, target_role
 
 
-def _spy_recorded_events(role_governance_service, monkeypatch) -> list:
+def _spy_recorded_events(role_governance_commands, monkeypatch) -> list:
     recorded = []
-    original_create = type(role_governance_service._uow_factory).create
+    original_create = type(role_governance_commands._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
@@ -136,7 +136,7 @@ def _spy_recorded_events(role_governance_service, monkeypatch) -> list:
         uow.record_event = _spy_record_event
         return uow
 
-    monkeypatch.setattr(type(role_governance_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(role_governance_commands._uow_factory), "create", _spy_create)
     return recorded
 
 
@@ -231,20 +231,20 @@ def test_tenant_role_facade_does_not_record_role_binding_events():
         assert forbidden not in source
 
 
-def test_role_governance_service_has_no_ui_or_qt_vocabulary():
-    import src.core.platform.application.security.authorization.roles.role_governance_service as service_module
+def test_role_governance_commands_has_no_ui_or_qt_vocabulary():
+    import src.core.platform.application.security.authorization.roles.commands.role_governance as service_module
 
     source = inspect.getsource(service_module)
     for forbidden in ("ViewInvalidation", "PySide6", "ui_qml", "QtCore"):
         assert forbidden not in source
 
 
-def test_role_governance_service_introduces_no_new_arbitrary_session_usage():
+def test_role_governance_commands_introduces_no_new_arbitrary_session_usage():
     """The `session: Session` parameter threaded through `_validate_target_scope`/
     `_resolve_domain_scope_for_binding` exists ONLY to pass the calling UoW's own Session into
     the registered (session-bound) resource resolvers -- never a new, separate, direct SQLAlchemy
-    query inside `RoleGovernanceService` itself."""
-    import src.core.platform.application.security.authorization.roles.role_governance_service as service_module
+    query inside `RoleGovernanceCommandHandler` itself."""
+    import src.core.platform.application.security.authorization.roles.commands.role_governance as service_module
 
     source = inspect.getsource(service_module)
     for forbidden in ("session.execute(", "session.query(", "select(", "session.add(", "session.get("):
@@ -258,16 +258,16 @@ def test_role_governance_service_introduces_no_new_arbitrary_session_usage():
 
 def test_assign_role_uses_the_injected_clock_deterministically(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="clock")
-    role_governance_service = services["role_governance_service"]
+    role_governance_commands = services["role_governance_commands"]
     fixed_when = datetime(2031, 3, 4, 9, 30, 0, tzinfo=UTC)
-    original_clock = role_governance_service._clock
-    role_governance_service._clock = _FixedClock(fixed_when)
+    original_clock = role_governance_commands._clock
+    role_governance_commands._clock = _FixedClock(fixed_when)
     try:
-        recorded = _spy_recorded_events(role_governance_service, monkeypatch)
-        role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+        recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
+        role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
         assert recorded[0].occurred_at == fixed_when
     finally:
-        role_governance_service._clock = original_clock
+        role_governance_commands._clock = original_clock
 
 
 # ---------------------------------------------------------------------------
@@ -277,10 +277,10 @@ def test_assign_role_uses_the_injected_clock_deterministically(services, monkeyp
 
 def test_assign_role_records_exactly_one_role_binding_assigned_with_tenant_scope(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="assign-tenant")
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    binding = role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+    binding = role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert len(recorded) == 1
     event = recorded[0]
@@ -293,22 +293,22 @@ def test_assign_role_records_exactly_one_role_binding_assigned_with_tenant_scope
 
 def test_assign_role_on_identical_active_binding_records_zero_events(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="assign-noop")
-    role_governance_service = services["role_governance_service"]
-    role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+    role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert recorded == []
 
 
 def test_revoke_role_binding_records_exactly_one_role_binding_revoked(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="revoke")
-    role_governance_service = services["role_governance_service"]
-    binding = role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    binding = role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    role_governance_service.revoke_role_binding(binding.id)
+    role_governance_commands.revoke_role_binding(binding.id)
 
     assert len(recorded) == 1
     event = recorded[0]
@@ -321,23 +321,23 @@ def test_revoke_role_binding_records_exactly_one_role_binding_revoked(services, 
 
 def test_revoke_already_revoked_binding_records_zero_events(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="revoke-noop")
-    role_governance_service = services["role_governance_service"]
-    binding = role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
-    role_governance_service.revoke_role_binding(binding.id)
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    binding = role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
+    role_governance_commands.revoke_role_binding(binding.id)
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    role_governance_service.revoke_role_binding(binding.id)
+    role_governance_commands.revoke_role_binding(binding.id)
 
     assert recorded == []
 
 
 def test_revoke_unknown_binding_records_zero_events(services, monkeypatch):
     _tenant_scoped_binding_setup(services, suffix="revoke-unknown")
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
     with pytest.raises(NotFoundError):
-        role_governance_service.revoke_role_binding(_unique_code("nonexistent-binding"))
+        role_governance_commands.revoke_role_binding(_unique_code("nonexistent-binding"))
 
     assert recorded == []
 
@@ -365,11 +365,11 @@ def test_platform_scope_assignment_is_denied_by_the_legitimate_canonical_path_an
     _switch_session_to_actor(
         services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",)
     )
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        role_governance_service.assign_role(target_user_id=target.id, role_id=platform_role.id)
+        role_governance_commands.assign_role(target_user_id=target.id, role_id=platform_role.id)
 
     assert exc_info.value.code == "PLATFORM_ROLE_ASSIGNMENT_DENIED"
     assert recorded == []
@@ -390,10 +390,10 @@ def test_resource_scope_assignment_in_a_non_active_organization_carries_the_auth
         services, suffix="resource-nonactive", scope_type="site", role_name="site_viewer",
         organization_id=org_a2.id,
     )
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    binding = role_governance_service.assign_role(
+    binding = role_governance_commands.assign_role(
         target_user_id=target.id, role_id=target_role.id, actual_scope_id=site_a1.id
     )
 
@@ -424,13 +424,13 @@ def test_resource_scope_revocation_preserves_the_same_authoritative_binding_scop
         services, suffix="resource-revoke-nonactive", scope_type="site", role_name="site_viewer",
         organization_id=org_a2.id,
     )
-    role_governance_service = services["role_governance_service"]
-    binding = role_governance_service.assign_role(
+    role_governance_commands = services["role_governance_commands"]
+    binding = role_governance_commands.assign_role(
         target_user_id=target.id, role_id=target_role.id, actual_scope_id=site_a1.id
     )
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    role_governance_service.revoke_role_binding(binding.id)
+    role_governance_commands.revoke_role_binding(binding.id)
 
     assert tenant_context_service.get_active_organization_id() == org_a2.id  # never switched
     assert len(recorded) == 1
@@ -457,10 +457,10 @@ def test_project_scope_event_carries_the_authoritative_organization_from_the_cor
         services, suffix="project-scope", scope_type="project", role_name="project_viewer",
         organization_id=org_a2.id,
     )
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    role_governance_service.assign_role(
+    role_governance_commands.assign_role(
         target_user_id=target.id, role_id=target_role.id, actual_scope_id=project_a1.id
     )
 
@@ -485,10 +485,10 @@ def test_site_scope_event_carries_the_authoritative_organization_from_the_correc
         services, suffix="site-scope", scope_type="site", role_name="site_viewer",
         organization_id=org_a2.id,
     )
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    role_governance_service.assign_role(
+    role_governance_commands.assign_role(
         target_user_id=target.id, role_id=target_role.id, actual_scope_id=site_a1.id
     )
 
@@ -539,11 +539,11 @@ def test_cross_tenant_site_assignment_attempt_emits_zero_events(services, monkey
     target, target_role = _resource_scoped_binding_setup(
         services, suffix="cross-tenant", scope_type="site", role_name="site_viewer",
     )
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
     with pytest.raises(NotFoundError) as exc_info:
-        role_governance_service.assign_role(
+        role_governance_commands.assign_role(
             target_user_id=target.id, role_id=target_role.id, actual_scope_id=foreign_site_id
         )
 
@@ -569,11 +569,11 @@ def test_delegation_denied_produces_zero_mutation_zero_audit_zero_event(services
     _switch_session_to_actor(
         services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",)
     )
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        role_governance_service.assign_role(target_user_id=target.id, role_id=viewer_role.id)
+        role_governance_commands.assign_role(target_user_id=target.id, role_id=viewer_role.id)
 
     assert exc_info.value.code == "ROLE_DELEGATION_DENIED"
     assert recorded == []
@@ -600,29 +600,29 @@ def test_separation_of_duties_conflict_produces_zero_mutation_zero_audit_zero_ev
         _unique_code("p5c2-sod-target"), "P5C2Target123!", role_names=[grantor_role.name], tenant_id=tenant_id
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id, assignable_role_id=security_role.id,
         target_scope_type="tenant", tenant_id=tenant_id,
     )
     _switch_session_to_actor(
         services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",)
     )
-    role_governance_service = services["role_governance_service"]
-    original_policy = role_governance_service._sod_policy
-    role_governance_service._sod_policy = SeparationOfDutiesPolicy(rules=(
+    role_governance_commands = services["role_governance_commands"]
+    original_policy = role_governance_commands._sod_policy
+    role_governance_commands._sod_policy = SeparationOfDutiesPolicy(rules=(
         SeparationOfDutiesRule(
             required_permissions=frozenset({"access.manage", "security.manage"}),
             message="Users cannot both manage scoped access and manage login security controls.",
         ),
     ))
     try:
-        recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+        recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
         with pytest.raises(ValidationError) as exc_info:
-            role_governance_service.assign_role(target_user_id=target.id, role_id=security_role.id)
+            role_governance_commands.assign_role(target_user_id=target.id, role_id=security_role.id)
         assert exc_info.value.code == "ROLE_CONFLICT"
         assert recorded == []
     finally:
-        role_governance_service._sod_policy = original_policy
+        role_governance_commands._sod_policy = original_policy
 
 
 # ---------------------------------------------------------------------------
@@ -632,8 +632,8 @@ def test_separation_of_duties_conflict_produces_zero_mutation_zero_audit_zero_ev
 
 def test_audit_staging_failure_rolls_back_binding_and_records_zero_observable_event(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="audit-fail")
-    role_governance_service = services["role_governance_service"]
-    bus = role_governance_service._uow_factory._post_commit_bus
+    role_governance_commands = services["role_governance_commands"]
+    bus = role_governance_commands._uow_factory._post_commit_bus
     seen = []
     bus.subscribe(RoleBindingAssigned, lambda e, c: seen.append(e))
 
@@ -643,7 +643,7 @@ def test_audit_staging_failure_rolls_back_binding_and_records_zero_observable_ev
     monkeypatch.setattr(SqlAlchemyAuditRepository, "add_for_tenant", _fail_audit)
 
     with pytest.raises(RuntimeError, match="simulated audit staging failure"):
-        role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+        role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert seen == []
     assert SqlAlchemyRoleBindingRepository(services["session"]).get_active_for_assignment(
@@ -654,8 +654,8 @@ def test_audit_staging_failure_rolls_back_binding_and_records_zero_observable_ev
 
 def test_no_event_observable_on_commit_failure(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="commit-fail")
-    role_governance_service = services["role_governance_service"]
-    bus = role_governance_service._uow_factory._post_commit_bus
+    role_governance_commands = services["role_governance_commands"]
+    bus = role_governance_commands._uow_factory._post_commit_bus
     seen = []
     bus.subscribe(RoleBindingAssigned, lambda e, c: seen.append(e))
 
@@ -665,15 +665,15 @@ def test_no_event_observable_on_commit_failure(services, monkeypatch):
     monkeypatch.setattr(SqlAlchemyRoleGovernanceUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated role governance commit failure"):
-        role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+        role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert seen == []
 
 
 def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(services):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="handler-fail")
-    role_governance_service = services["role_governance_service"]
-    bus = role_governance_service._uow_factory._post_commit_bus
+    role_governance_commands = services["role_governance_commands"]
+    bus = role_governance_commands._uow_factory._post_commit_bus
 
     def _failing_handler(event, context):
         raise RuntimeError("simulated post-commit handler failure")
@@ -683,7 +683,7 @@ def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(
     bus.subscribe(RoleBindingAssigned, lambda e, c: healthy_seen.append(e))
 
     # Must not raise -- ISOLATE_AND_CONTINUE swallows the failing handler's exception.
-    binding = role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+    binding = role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert len(healthy_seen) == 1
     assert SqlAlchemyRoleBindingRepository(services["session"]).get(binding.id) is not None
@@ -691,8 +691,8 @@ def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(
 
 def test_post_commit_subscriber_receives_the_commands_own_domain_event_context(services):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="context")
-    role_governance_service = services["role_governance_service"]
-    bus = role_governance_service._uow_factory._post_commit_bus
+    role_governance_commands = services["role_governance_commands"]
+    bus = role_governance_commands._uow_factory._post_commit_bus
     seen = {}
 
     def _capture(event, context):
@@ -700,7 +700,7 @@ def test_post_commit_subscriber_receives_the_commands_own_domain_event_context(s
         seen["context"] = context
 
     bus.subscribe(RoleBindingAssigned, _capture)
-    role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+    role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert isinstance(seen["event"], RoleBindingAssigned)
     assert not hasattr(seen["event"], "correlation_id")
@@ -725,7 +725,7 @@ def test_current_principal_self_refresh_unaffected_by_a_broken_role_binding_even
     )
     tenant_admin_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id, assignable_role_id=viewer_role.id,
         target_scope_type="tenant", tenant_id=tenant_id,
     )
@@ -733,8 +733,8 @@ def test_current_principal_self_refresh_unaffected_by_a_broken_role_binding_even
     services["role_assignment_commands"].assign_role(self_actor.id, "viewer")
     assert "viewer" in services["user_session"].principal.role_names
 
-    role_governance_service = services["role_governance_service"]
-    bus = role_governance_service._uow_factory._post_commit_bus
+    role_governance_commands = services["role_governance_commands"]
+    bus = role_governance_commands._uow_factory._post_commit_bus
 
     def _failing_handler(event, context):
         raise RuntimeError("simulated post-commit handler failure")
@@ -753,10 +753,10 @@ def test_current_principal_self_refresh_unaffected_by_a_broken_role_binding_even
 
 def test_only_the_typed_event_fires_for_role_binding_mutations(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="legacy-signal")
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+    role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert len(recorded) == 1
 
@@ -765,14 +765,14 @@ def test_delegation_policy_lifecycle_emits_no_role_binding_events(services, monk
     tenant_id = _tenant_id(services)
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    policy = role_governance_service.create_delegation_policy(
+    policy = role_governance_commands.create_delegation_policy(
         actor_role_id=actor_role.id, assignable_role_id=viewer_role.id,
         target_scope_type="tenant", tenant_id=tenant_id,
     )
-    role_governance_service.revoke_delegation_policy(policy.id)
+    role_governance_commands.revoke_delegation_policy(policy.id)
 
     assert recorded == []
 
@@ -795,19 +795,19 @@ def test_sequence_of_assign_assign_revoke_produces_events_in_committed_order(ser
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id, assignable_role_id=viewer_role.id,
         target_scope_type="tenant", tenant_id=tenant_id,
     )
     _switch_session_to_actor(
         services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",)
     )
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
+    role_governance_commands = services["role_governance_commands"]
+    recorded = _spy_recorded_events(role_governance_commands, monkeypatch)
 
-    binding_a = role_governance_service.assign_role(target_user_id=target_a.id, role_id=viewer_role.id)
-    role_governance_service.assign_role(target_user_id=target_b.id, role_id=viewer_role.id)
-    role_governance_service.revoke_role_binding(binding_a.id)
+    binding_a = role_governance_commands.assign_role(target_user_id=target_a.id, role_id=viewer_role.id)
+    role_governance_commands.assign_role(target_user_id=target_b.id, role_id=viewer_role.id)
+    role_governance_commands.revoke_role_binding(binding_a.id)
 
     assert len(recorded) == 3
     assert [type(e) for e in recorded] == [RoleBindingAssigned, RoleBindingAssigned, RoleBindingRevoked]

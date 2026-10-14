@@ -6,7 +6,7 @@ from src.core.global_overview.contract.action_center import (
 from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
 )
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.contract.port.approval.capabilities import ApprovalQueries
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -24,8 +24,8 @@ class PlatformModuleOverviewContributor:
     renders, just without that figure.
     """
 
-    def __init__(self, *, approval_service: ApprovalService) -> None:
-        self._approval_service = approval_service
+    def __init__(self, *, approval_queries: ApprovalQueries) -> None:
+        self._approval_queries = approval_queries
 
     def get_summary(self, context: ActionCenterContext) -> ModuleSummaryDto | None:
         return ModuleSummaryDto(
@@ -41,7 +41,7 @@ class PlatformModuleOverviewContributor:
 
     def _attention_summary_text(self) -> str:
         try:
-            count = self._approval_service.count_pending()
+            count = self._approval_queries.count_pending()
         except BusinessRuleError:
             return "Shared administration and governance"
         noun = "item" if count == 1 else "items"

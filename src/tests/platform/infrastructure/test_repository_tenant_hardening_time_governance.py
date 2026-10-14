@@ -193,7 +193,7 @@ def test_time_and_governance_repositories_scope_cross_organization_data(
     seeded = _seed_time_governance_scope_rows(services)
     session = services["session"]
 
-    approval_repo = services["approval_service"]._approval_repo
+    approval_repo = services["approval_queries"]._approval_repo
     audit_repo = services["enterprise_audit_service"]._audit_repo
     time_entry_repo = services["time_entry_queries"]._time_entry_repo
     timesheet_period_repo = services["timesheet_period_query"]._timesheet_period_repo

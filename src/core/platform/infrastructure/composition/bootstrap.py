@@ -18,10 +18,10 @@ from src.core.platform.contract.port.time_management.calendar.external_assignmen
 )
 from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 from src.core.platform.infrastructure.composition.dependencies.approvals.approval import (
-    build_approval_service,
+    build_approval_handlers,
 )
 from src.core.platform.infrastructure.composition.dependencies.finance.period import (
-    build_financial_period_service,
+    build_financial_period_handlers,
 )
 from src.core.platform.infrastructure.composition.dependencies.history.services import (
     build_activity_service,
@@ -34,13 +34,13 @@ from src.core.platform.infrastructure.composition.dependencies.master_data.emplo
     build_employee_handlers,
 )
 from src.core.platform.infrastructure.composition.dependencies.master_data.exchange import (
-    build_master_data_exchange_service,
+    build_master_data_exchange,
 )
 from src.core.platform.infrastructure.composition.dependencies.master_data.organization import (
     build_organization_handlers,
 )
 from src.core.platform.infrastructure.composition.dependencies.notifications.delivery import (
-    build_notification_service,
+    build_notification_handlers,
 )
 from src.core.platform.infrastructure.composition.dependencies.repositories import (
     PlatformRepositories,
@@ -54,16 +54,16 @@ from src.core.platform.infrastructure.composition.dependencies.security.auth imp
 )
 from src.core.platform.infrastructure.composition.dependencies.security.governance import (
     build_role_assignment_handler,
-    build_role_governance_service,
+    build_role_governance_commands,
 )
 from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
-    build_tenant_admin_service,
+    build_tenant_admin_dependencies,
 )
 from src.core.platform.infrastructure.composition.dependencies.tenancy.context import (
     build_tenancy_dependencies,
 )
 from src.core.platform.infrastructure.composition.dependencies.tenancy.membership import (
-    build_tenant_membership_service,
+    build_tenant_membership_dependencies,
 )
 from src.core.platform.infrastructure.composition.dependencies.tenancy.modules import (
     build_module_dependencies,
@@ -151,7 +151,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
-    financial_period_service = build_financial_period_service(
+    financial_period_commands, financial_period_queries = build_financial_period_handlers(
         session=session,
         repositories=repositories,
         tenant_context_service=tenant_context_service,
@@ -159,7 +159,7 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
     )
     platform_view_invalidation_channel = InProcessViewInvalidationChannel()
-    notification_service = build_notification_service(
+    notifications = build_notification_handlers(
         session=session,
         repositories=repositories,
         user_session=user_session,
@@ -190,12 +190,11 @@ def build_platform_service_bundle(
         platform_post_commit_bus, platform_view_invalidation_channel
     )
 
-    approval_service = build_approval_service(
+    approval = build_approval_handlers(
         session=session,
         repositories=repositories,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
-        enterprise_audit_service=enterprise_audit_service,
         transactional_dispatcher=platform_transactional_dispatcher,
         post_commit_bus=platform_post_commit_bus,
     )
@@ -244,7 +243,7 @@ def build_platform_service_bundle(
         "Platform organization defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    tenant_admin_service = build_tenant_admin_service(
+    tenant_admin = build_tenant_admin_dependencies(
         session=session,
         repositories=repositories,
         user_session=user_session,
@@ -275,7 +274,7 @@ def build_platform_service_bundle(
     module_catalog_service = modules.module_catalog_service
     module_entitlement_commands = modules.module_entitlement_commands
     platform_runtime_application_service = modules.platform_runtime_application_service
-    runtime_execution_service = modules.runtime_execution_service
+    runtime_execution_commands = modules.runtime_execution_commands
     logger.debug(
         "Platform module catalog defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
@@ -286,7 +285,7 @@ def build_platform_service_bundle(
         site_repo=repositories.site_repo,
     )
 
-    role_governance_service = build_role_governance_service(
+    role_governance_commands = build_role_governance_commands(
         session=session,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
@@ -295,7 +294,7 @@ def build_platform_service_bundle(
         transactional_dispatcher=platform_transactional_dispatcher,
         post_commit_bus=platform_post_commit_bus,
     )
-    tenant_membership_service = build_tenant_membership_service(
+    tenant_membership = build_tenant_membership_dependencies(
         session=session,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
@@ -310,7 +309,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         enterprise_audit_service=enterprise_audit_service,
         auth=auth,
-        role_governance_service=role_governance_service,
+        role_governance_commands=role_governance_commands,
         scope_resolvers=scope_resolvers,
         transactional_dispatcher=platform_transactional_dispatcher,
         post_commit_bus=platform_post_commit_bus,
@@ -325,7 +324,7 @@ def build_platform_service_bundle(
         transactional_dispatcher=platform_transactional_dispatcher,
         post_commit_bus=platform_post_commit_bus,
     )
-    master_data_exchange_service = build_master_data_exchange_service(
+    master_data_exchange = build_master_data_exchange(
         site_commands=master_data.site_commands,
         site_query=master_data.site_query,
         party_commands=master_data.party_commands,
@@ -360,12 +359,13 @@ def build_platform_service_bundle(
         role_assignment_commands=build_role_assignment_handler(
             repositories=repositories,
             auth=auth,
-            role_governance_service=role_governance_service,
+            role_governance_commands=role_governance_commands,
             user_session=user_session,
             tenant_context_service=tenant_context_service,
         ),
-        role_governance_service=role_governance_service,
-        tenant_role_administration_service=security.tenant_role_administration_service,
+        role_governance_commands=role_governance_commands,
+        tenant_role_commands=security.tenant_role_commands,
+        tenant_role_queries=security.tenant_role_queries,
         organization_commands=organization.commands,
         organization_lifecycle=organization.lifecycle,
         organization_query=organization.query,
@@ -384,14 +384,20 @@ def build_platform_service_bundle(
         employee_commands=employee.commands,
         employee_query=employee.query,
         employee_document_commands=employee.documents,
-        master_data_exchange_service=master_data_exchange_service,
-        runtime_execution_service=runtime_execution_service,
+        master_data_import_runtime=master_data_exchange.import_runtime,
+        master_data_export_runtime=master_data_exchange.export_runtime,
+        runtime_execution_commands=runtime_execution_commands,
+        runtime_execution_query=modules.runtime_execution_query,
         access_service=security.access_service,
         activity_service=activity_service,
         enterprise_audit_service=enterprise_audit_service,
-        financial_period_service=financial_period_service,
-        notification_service=notification_service,
-        approval_service=approval_service,
+        financial_period_commands=financial_period_commands,
+        financial_period_queries=financial_period_queries,
+        notification_commands=notifications.commands,
+        notification_queries=notifications.queries,
+        approval_commands=approval.commands,
+        approval_queries=approval.queries,
+        approval_participants=approval.participants,
         platform_calendar_service=calendar.platform_calendar_service,
         working_rule_service=calendar.working_rule_service,
         calendar_exception_service=calendar.calendar_exception_service,
@@ -400,9 +406,14 @@ def build_platform_service_bundle(
         calendar_assignment_service=calendar.calendar_assignment_service,
         platform_calendar_resolver=calendar.platform_calendar_resolver,
         working_time_calculator=calendar.working_time_calculator,
-        tenant_admin_service=tenant_admin_service,
-        tenant_membership_service=tenant_membership_service,
-        service_principal_service=security.service_principal_service,
+        tenant_admin_queries=tenant_admin.tenant_admin_queries,
+        tenant_lifecycle_commands=tenant_admin.tenant_lifecycle_commands,
+        tenant_invitation_commands=tenant_membership.tenant_invitation_commands,
+        tenant_membership_lifecycle_commands=tenant_membership.tenant_membership_lifecycle_commands,
+        tenant_membership_queries=tenant_membership.tenant_membership_queries,
+        service_principal_commands=security.service_principal_commands,
+        service_principal_query=security.service_principal_query,
+        api_key_authentication=security.api_key_authentication,
         global_calendar_shim=calendar.global_calendar_shim,
         runtime_security_configuration=security_configuration,
     )

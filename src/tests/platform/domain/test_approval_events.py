@@ -112,7 +112,7 @@ def _request_budget_approval_as_a_different_user(services, budget):
     _login_as_fresh_requester(services)
     if active_organization_id:
         services["user_session"].set_active_organization_id(active_organization_id)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     request = approvals.request_change(
         request_type="budget.approve",
         entity_type="project_budget",
@@ -253,7 +253,7 @@ def test_approval_requested_has_exactly_one_recording_responsibility():
 
 def test_standalone_request_change_uses_the_injected_clock_deterministically(services, monkeypatch):
     _login_as_fresh_requester(services)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     fixed_when = datetime(2031, 5, 6, 8, 0, 0, tzinfo=UTC)
     original_clock = approvals._clock
     approvals._clock = _FixedClock(fixed_when)
@@ -279,7 +279,7 @@ def test_standalone_request_change_uses_the_injected_clock_deterministically(ser
 
 def test_standalone_request_change_records_exactly_one_approval_requested(services, monkeypatch):
     _login_as_fresh_requester(services)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
     request = approvals.request_change(
@@ -370,7 +370,7 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
     cost_code = services["financial_configuration_service"].create_cost_code(
         code=_unique("EVT-BILL-CC"), name="Events billing cost code"
     )
-    services["financial_period_service"].create_period(
+    services["financial_period_commands"].create_period(
         code=_unique("EVT-FY26"), name="Events period", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
     )
@@ -431,7 +431,7 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
 def test_approve_and_apply_records_exactly_one_approval_approved(services, session, monkeypatch):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
     decided = approvals.approve_and_apply(request.id, note="Approved")
@@ -458,7 +458,7 @@ def test_apply_handler_failure_emits_zero_approval_approved(services, session, m
     the failure is unobservable to real post-commit subscribers, not just absent from the spy."""
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     bus = approvals._uow_factory._post_commit_bus
     seen = []
     bus.subscribe(ApprovalApproved, lambda e, c: seen.append(e))
@@ -467,17 +467,17 @@ def test_apply_handler_failure_emits_zero_approval_approved(services, session, m
     def _failing_handler(request, deps):
         raise RuntimeError("simulated apply participant failure")
 
-    saved = approvals._apply_handlers["budget.approve"]
-    approvals._apply_handlers["budget.approve"] = (_failing_handler, saved[1])
+    saved = services["approval_participants"].apply_handlers["budget.approve"]
+    services["approval_participants"].apply_handlers["budget.approve"] = (_failing_handler, saved[1])
     try:
         with pytest.raises(RuntimeError, match="simulated apply participant failure"):
             approvals.approve_and_apply(request.id, note="Should not apply")
     finally:
-        approvals._apply_handlers["budget.approve"] = saved
+        services["approval_participants"].apply_handlers["budget.approve"] = saved
 
     assert recorded == []
     assert seen == []
-    still_pending = [r for r in approvals.list_pending() if r.id == request.id]
+    still_pending = [r for r in services["approval_queries"].list_pending() if r.id == request.id]
     assert len(still_pending) == 1
     assert still_pending[0].status == ApprovalStatus.PENDING
 
@@ -487,7 +487,7 @@ def test_approve_already_decided_request_emits_zero_new_events(services, session
     fact -- zero events, zero audit, zero postcommit reaction."""
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     approvals.approve_and_apply(request.id, note="First decision")
 
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
@@ -506,7 +506,7 @@ def test_approve_already_decided_request_emits_zero_new_events(services, session
 def test_reject_records_exactly_one_approval_rejected(services, session, monkeypatch):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
     decided = approvals.reject(request.id, note="Rejected")
@@ -532,22 +532,22 @@ def test_reject_handler_failure_emits_zero_approval_rejected(services, session, 
     PENDING."""
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
     def _failing_reject_handler(request, deps):
         raise RuntimeError("simulated reject participant failure")
 
-    saved = approvals._reject_handlers["budget.approve"]
-    approvals._reject_handlers["budget.approve"] = (_failing_reject_handler, saved[1])
+    saved = services["approval_participants"].reject_handlers["budget.approve"]
+    services["approval_participants"].reject_handlers["budget.approve"] = (_failing_reject_handler, saved[1])
     try:
         with pytest.raises(RuntimeError, match="simulated reject participant failure"):
             approvals.reject(request.id, note="Should not reject")
     finally:
-        approvals._reject_handlers["budget.approve"] = saved
+        services["approval_participants"].reject_handlers["budget.approve"] = saved
 
     assert recorded == []
-    still_pending = [r for r in approvals.list_pending() if r.id == request.id]
+    still_pending = [r for r in services["approval_queries"].list_pending() if r.id == request.id]
     assert len(still_pending) == 1
     assert still_pending[0].status == ApprovalStatus.PENDING
 
@@ -555,7 +555,7 @@ def test_reject_handler_failure_emits_zero_approval_rejected(services, session, 
 def test_reject_already_decided_request_emits_zero_new_events(services, session, monkeypatch):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     approvals.reject(request.id, note="First decision")
 
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
@@ -579,7 +579,7 @@ def test_standalone_request_audit_failure_emits_zero_observable_approval_request
     )
 
     _login_as_fresh_requester(services)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     bus = approvals._uow_factory._post_commit_bus
     seen = []
     bus.subscribe(ApprovalRequested, lambda e, c: seen.append(e))
@@ -607,7 +607,7 @@ def test_no_approval_requested_observable_on_commit_failure(services, monkeypatc
     )
 
     _login_as_fresh_requester(services)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     bus = approvals._uow_factory._post_commit_bus
     seen = []
     bus.subscribe(ApprovalRequested, lambda e, c: seen.append(e))
@@ -634,7 +634,7 @@ def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(
 ):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     bus = approvals._uow_factory._post_commit_bus
 
     def _failing_handler(event, context):
@@ -657,7 +657,7 @@ def test_transactional_handler_failure_rolls_back_the_whole_request_transaction(
     """A FAIL_FAST transactional (pre-commit) handler failing rolls back the whole owning
     transaction -- no `ApprovalRequest` persists, no postcommit publication follows."""
     _login_as_fresh_requester(services)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     dispatcher = approvals._uow_factory._transactional_dispatcher
     bus = approvals._uow_factory._post_commit_bus
     postcommit_seen = []
@@ -678,7 +678,7 @@ def test_transactional_handler_failure_rolls_back_the_whole_request_transaction(
                 payload={"name": "Transactional failure probe"},
             )
         assert postcommit_seen == []
-        matching = [r for r in approvals.list_pending() if r.entity_id == entity_id]
+        matching = [r for r in services["approval_queries"].list_pending() if r.entity_id == entity_id]
         assert matching == []
     finally:
         subscription.dispose()
@@ -708,7 +708,7 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
 
     _login(services, approver_username, "StrongPass123")
     services["user_session"].set_active_organization_id(org_a2.id)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     bus = approvals._uow_factory._post_commit_bus
     approved_seen, rejected_seen = [], []
     bus.subscribe(ApprovalApproved, lambda e, c: approved_seen.append(e))
@@ -730,7 +730,10 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
-    from src.core.platform.application.approval.approval_service import ApprovalService
+    from src.core.platform.application.approval.commands import ApprovalCommandHandler
+    from src.core.platform.application.approval.participants import ApprovalParticipantRegistry
+    from src.core.platform.application.approval.queries import ApprovalQueryHandler
+    from src.core.platform.application.approval.scope import ApprovalScope
     from src.core.platform.domain.security.auth.session import (
         UserSessionContext,
         UserSessionPrincipal,
@@ -794,9 +797,9 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     session_a.set_principal(principal_a)
     approval_repo_a = SqlAlchemyApprovalRepository(session_factory())
     approval_repo_a._tenant_context_service = _FakeTenantContextService("evt-tenant-a", "evt-org-a")
-    approvals_a = ApprovalService(
-        session=approval_repo_a.session, approval_repo=approval_repo_a, uow_factory=factory_a,
-        user_session=session_a, tenant_context_service=_FakeTenantContextService("evt-tenant-a", "evt-org-a"),
+    approvals_a = ApprovalCommandHandler(
+        uow_factory=factory_a, participants=ApprovalParticipantRegistry(),
+        user_session=session_a, scope=ApprovalScope(_FakeTenantContextService("evt-tenant-a", "evt-org-a")),
         clock=_FixedClock(datetime(2031, 1, 1, tzinfo=UTC)),
     )
     request = approvals_a.request_change(
@@ -814,9 +817,9 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     )
     session_b = UserSessionContext()
     session_b.set_principal(principal_b)
-    approvals_b = ApprovalService(
-        session=session_factory(), approval_repo=None, uow_factory=factory_b,
-        user_session=session_b, tenant_context_service=_FakeTenantContextService("evt-tenant-b", "evt-org-b"),
+    approvals_b = ApprovalCommandHandler(
+        uow_factory=factory_b, participants=ApprovalParticipantRegistry(),
+        user_session=session_b, scope=ApprovalScope(_FakeTenantContextService("evt-tenant-b", "evt-org-b")),
         clock=_FixedClock(datetime(2031, 1, 1, tzinfo=UTC)),
     )
 
@@ -827,7 +830,11 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
 
     assert approved_seen == []
     assert rejected_seen == []
-    reloaded = [r for r in approvals_a.list_pending() if r.id == request.id]
+    queries_a = ApprovalQueryHandler(
+        approval_repo=approval_repo_a, user_session=session_a,
+        scope=ApprovalScope(_FakeTenantContextService("evt-tenant-a", "evt-org-a")),
+    )
+    reloaded = [r for r in queries_a.list_pending() if r.id == request.id]
     assert len(reloaded) == 1
     assert reloaded[0].status == ApprovalStatus.PENDING
 
@@ -843,7 +850,7 @@ def test_approve_and_apply_records_approval_approved_before_the_target_event(
 
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
     approvals.approve_and_apply(request.id, note="Approved")
@@ -859,7 +866,7 @@ def test_approve_and_apply_records_approval_approved_before_the_target_event(
 def test_sequence_of_two_standalone_requests_produces_events_in_committed_order(
     services, monkeypatch
 ):
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
     _login_as_fresh_requester(services)

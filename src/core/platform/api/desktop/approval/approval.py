@@ -11,15 +11,16 @@ from src.core.platform.api.desktop.approval.models.approval import (
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.contract.port.approval.capabilities import ApprovalCommands, ApprovalQueries
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 
 
 class PlatformApprovalDesktopApi:
     """Desktop-facing adapter for governed approval queue flows."""
 
-    def __init__(self, *, approval_service: ApprovalService) -> None:
-        self._approval_service = approval_service
+    def __init__(self, *, approval_commands: ApprovalCommands, approval_queries: ApprovalQueries) -> None:
+        self._approval_commands = approval_commands
+        self._approval_queries = approval_queries
 
     def list_requests(
         self,
@@ -37,11 +38,11 @@ class PlatformApprovalDesktopApi:
         )
 
     def _list_requests(self, *, status, project_id, entity_type, limit):
-        requests = tuple(self._approval_service.list_requests(
+        requests = tuple(self._approval_queries.list_requests(
             status=status, project_id=project_id,
             limit=max(1, min(int(limit), 500)), entity_type=entity_type,
         ))
-        eligible_ids = self._approval_service.eligible_request_ids(requests)
+        eligible_ids = self._approval_queries.eligible_request_ids(requests)
         return tuple(
             self._serialize_request(request, can_decide=request.id in eligible_ids)
             for request in requests
@@ -53,14 +54,14 @@ class PlatformApprovalDesktopApi:
     ) -> DesktopApiResult[ApprovalRequestDto]:
         return execute_desktop_operation(
             lambda: self._serialize_request(
-                self._approval_service.approve_and_apply(command.request_id, note=command.note)
+                self._approval_commands.approve_and_apply(command.request_id, note=command.note)
             )
         )
 
     def reject(self, command: ApprovalDecisionCommand) -> DesktopApiResult[ApprovalRequestDto]:
         return execute_desktop_operation(
             lambda: self._serialize_request(
-                self._approval_service.reject(command.request_id, note=command.note)
+                self._approval_commands.reject(command.request_id, note=command.note)
             )
         )
 

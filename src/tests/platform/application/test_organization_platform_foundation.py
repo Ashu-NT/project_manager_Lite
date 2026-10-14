@@ -153,7 +153,7 @@ def test_organization_service_bootstraps_default_and_activates_another_organizat
 def test_organization_provisioning_seeds_requested_modules_and_switches_to_the_new_org(services):
     """New organizations are always created ACTIVE, and provisioning always switches the caller's
     session into the just-created organization."""
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     tenant_context_service = services["tenant_context_service"]
     module_catalog = services["module_catalog_service"]
 
@@ -161,7 +161,7 @@ def test_organization_provisioning_seeds_requested_modules_and_switches_to_the_n
     assert default_organization.organization_code == "DEFAULT"
     assert module_catalog.is_enabled("project_management") is True
 
-    created = app_service.provision_organization(OrganizationProvisionCommand(organization_code="EMPTY", display_name="Empty Module Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    created = provisioning.provision_organization(OrganizationProvisionCommand(organization_code="EMPTY", display_name="Empty Module Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert created.organization_code == "EMPTY"
     assert tenant_context_service.get_active_organization().organization_code == "EMPTY"

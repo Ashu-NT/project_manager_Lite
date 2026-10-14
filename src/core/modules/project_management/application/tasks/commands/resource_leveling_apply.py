@@ -36,7 +36,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
@@ -85,7 +85,7 @@ class ResourceLevelingCommandHandler:
         resource_repo: ResourceRepository,
         work_calendar_engine: CalendarProtocol,
         user_session: UserSessionContext | None,
-        approval_service: ApprovalService | None,
+        approval_commands: ApprovalCommands | None,
         tenant_context_service: TenantContextService,
         schedule_synchronizer: TaskScheduleSynchronizer,
         uow_scope: TaskUowScope,
@@ -96,7 +96,7 @@ class ResourceLevelingCommandHandler:
         self._resource_repo = resource_repo
         self._work_calendar_engine = work_calendar_engine
         self._user_session = user_session
-        self._approval_service = approval_service
+        self._approval_commands = approval_commands
         self._tenant_context_service = tenant_context_service
         self._schedule_synchronizer = schedule_synchronizer
         self._uow_scope = uow_scope
@@ -133,7 +133,7 @@ class ResourceLevelingCommandHandler:
         proposal: LevelingProposal,
     ) -> list[Task]:
         governed = (
-            self._approval_service is not None
+            self._approval_commands is not None
             and is_governance_required("scheduling.leveling.apply")
             and not is_admin_session(self._user_session)
         )
@@ -153,8 +153,8 @@ class ResourceLevelingCommandHandler:
         if not proposal.moves:
             return []
 
-        if governed and self._approval_service is not None:
-            request = self._approval_service.request_change(
+        if governed and self._approval_commands is not None:
+            request = self._approval_commands.request_change(
                 request_type="scheduling.leveling.apply",
                 entity_type="project",
                 entity_id=project_id,

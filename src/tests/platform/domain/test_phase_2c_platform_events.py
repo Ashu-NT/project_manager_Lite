@@ -1,4 +1,4 @@
-"""Tests for PlatformEvent persistence and TenantAdminService emission.
+"""Tests for PlatformEvent persistence and TenantAdminDependencies emission.
 
 Covers:
   1. create_tenant emits a platform_event with severity=low and correct metadata
@@ -10,12 +10,16 @@ Covers:
   7. list_for_tenant returns only events scoped to the given tenant
   8. list_for_resource filters by resource_type and resource_id
 """
+
 from __future__ import annotations
 
 import pytest
 
-from src.core.platform.application.tenant.tenancy.tenant_admin_service import (
-    TenantAdminService,
+from types import SimpleNamespace
+
+from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
+    TenantAdminDependencies,
+    build_tenant_admin_dependencies,
 )
 from src.core.platform.common.exceptions import OperationNotPermittedError
 from src.core.platform.domain.history.platform_events.platform_event import (
@@ -40,15 +44,20 @@ from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.us
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_svc_with_events(services) -> tuple[TenantAdminService, SqlAlchemyPlatformEventRepository]:
+
+def _make_svc_with_events(
+    services,
+) -> tuple[TenantAdminDependencies, SqlAlchemyPlatformEventRepository]:
     session = services["session"]
     event_repo = SqlAlchemyPlatformEventRepository(session)
-    svc = TenantAdminService(
+    svc = build_tenant_admin_dependencies(
         session=session,
-        tenant_repo=SqlAlchemyTenantRepository(session),
-        user_tenant_repo=SqlAlchemyUserTenantMembershipRepository(session),
+        repositories=SimpleNamespace(
+            tenant_repo=SqlAlchemyTenantRepository(session),
+            user_tenant_repo=SqlAlchemyUserTenantMembershipRepository(session),
+            platform_event_repo=event_repo,
+        ),
         user_session=services["user_session"],
-        platform_event_repo=event_repo,
     )
     return svc, event_repo
 
@@ -57,9 +66,12 @@ def _make_svc_with_events(services) -> tuple[TenantAdminService, SqlAlchemyPlatf
 # 1–4. Emission tests
 # ---------------------------------------------------------------------------
 
+
 def test_create_tenant_emits_event_low_severity(services):
     svc, event_repo = _make_svc_with_events(services)
-    tenant = svc.create_tenant("P2C-CREATE1", "Create Emission Test")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(
+        "P2C-CREATE1", "Create Emission Test"
+    )
     services["session"].flush()
 
     events = event_repo.list_for_tenant(tenant.id)
@@ -75,10 +87,12 @@ def test_create_tenant_emits_event_low_severity(services):
 
 def test_suspend_tenant_emits_event_medium_severity(services):
     svc, event_repo = _make_svc_with_events(services)
-    tenant = svc.create_tenant("P2C-SUSP1", "Suspend Emission Test")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(
+        "P2C-SUSP1", "Suspend Emission Test"
+    )
     services["session"].flush()
 
-    svc.suspend_tenant(tenant.id)
+    svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
     services["session"].flush()
 
     events = event_repo.list_for_tenant(tenant.id)
@@ -93,12 +107,14 @@ def test_suspend_tenant_emits_event_medium_severity(services):
 
 def test_archive_tenant_emits_event_high_severity_with_old_status(services):
     svc, event_repo = _make_svc_with_events(services)
-    tenant = svc.create_tenant("P2C-ARCH1", "Archive Emission Test")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(
+        "P2C-ARCH1", "Archive Emission Test"
+    )
     services["session"].flush()
-    svc.suspend_tenant(tenant.id)
+    svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
     services["session"].flush()
 
-    svc.archive_tenant(tenant.id)
+    svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
     services["session"].flush()
 
     events = event_repo.list_for_tenant(tenant.id)
@@ -112,12 +128,14 @@ def test_archive_tenant_emits_event_high_severity_with_old_status(services):
 
 def test_restore_tenant_emits_event_medium_severity(services):
     svc, event_repo = _make_svc_with_events(services)
-    tenant = svc.create_tenant("P2C-REST1", "Restore Emission Test")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(
+        "P2C-REST1", "Restore Emission Test"
+    )
     services["session"].flush()
-    svc.archive_tenant(tenant.id)
+    svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
     services["session"].flush()
 
-    svc.restore_tenant(tenant.id)
+    svc.tenant_lifecycle_commands.restore_tenant(tenant.id)
     services["session"].flush()
 
     events = event_repo.list_for_tenant(tenant.id)
@@ -132,6 +150,7 @@ def test_restore_tenant_emits_event_medium_severity(services):
 # ---------------------------------------------------------------------------
 # 5–6. Append-only enforcement
 # ---------------------------------------------------------------------------
+
 
 def test_platform_event_repo_update_raises(services):
     event_repo = SqlAlchemyPlatformEventRepository(services["session"])
@@ -158,13 +177,18 @@ def test_platform_event_repo_delete_raises(services):
 # 7–8. Scoping
 # ---------------------------------------------------------------------------
 
+
 def test_list_for_tenant_scoped_to_tenant(services):
     svc_a, event_repo = _make_svc_with_events(services)
-    tenant_a = svc_a.create_tenant("P2C-SCOPE-A", "Scope Tenant A")
+    tenant_a = svc_a.tenant_lifecycle_commands.create_tenant(
+        "P2C-SCOPE-A", "Scope Tenant A"
+    )
     services["session"].flush()
 
     svc_b, _ = _make_svc_with_events(services)
-    tenant_b = svc_b.create_tenant("P2C-SCOPE-B", "Scope Tenant B")
+    tenant_b = svc_b.tenant_lifecycle_commands.create_tenant(
+        "P2C-SCOPE-B", "Scope Tenant B"
+    )
     services["session"].flush()
 
     events_a = event_repo.list_for_tenant(tenant_a.id)
@@ -181,8 +205,12 @@ def test_list_for_tenant_scoped_to_tenant(services):
 
 def test_list_for_resource_filters_correctly(services):
     svc, event_repo = _make_svc_with_events(services)
-    tenant_x = svc.create_tenant("P2C-RES-X", "Resource Filter X")
-    tenant_y = svc.create_tenant("P2C-RES-Y", "Resource Filter Y")
+    tenant_x = svc.tenant_lifecycle_commands.create_tenant(
+        "P2C-RES-X", "Resource Filter X"
+    )
+    tenant_y = svc.tenant_lifecycle_commands.create_tenant(
+        "P2C-RES-Y", "Resource Filter Y"
+    )
     services["session"].flush()
 
     events_x = event_repo.list_for_resource(tenant_x.id, "tenant", tenant_x.id)

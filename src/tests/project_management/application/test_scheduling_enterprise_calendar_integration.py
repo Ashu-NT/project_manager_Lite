@@ -24,8 +24,11 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyProjectCalendarAssignmentRepository,
     SqlAlchemyResourceCalendarAssignmentRepository,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -33,11 +36,17 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarType,
@@ -129,7 +138,9 @@ def repos(db_session, tenant_context):
         "recurring": SqlAlchemyCalendarRecurringEventRepository(db_session),
         "assignment": SqlAlchemyCalendarAssignmentRepository(db_session),
         "project_assignment": SqlAlchemyProjectCalendarAssignmentRepository(db_session),
-        "resource_assignment": SqlAlchemyResourceCalendarAssignmentRepository(db_session),
+        "resource_assignment": SqlAlchemyResourceCalendarAssignmentRepository(
+            db_session
+        ),
     }
     for repo in repos.values():
         if hasattr(repo, "_tenant_context_service"):
@@ -138,8 +149,8 @@ def repos(db_session, tenant_context):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return PlatformCalendarService(
+def cal_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -150,8 +161,17 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 
 @pytest.fixture
-def rule_service(db_session, repos, mock_user_session):
-    return WorkingRuleService(
+def cal_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def rule_commands(db_session, repos, mock_user_session):
+    return WorkingRuleCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -160,14 +180,32 @@ def rule_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def assignment_service(db_session, repos, mock_user_session):
-    return CalendarAssignmentService(
+def rule_queries(db_session, repos, mock_user_session):
+    return WorkingRuleQueryHandler(
+        calendar_repo=repos["calendar"],
+        rule_repo=repos["rule"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def assignment_commands(db_session, repos, mock_user_session):
+    return CalendarAssignmentCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         project_assignment_repo=repos["project_assignment"],
         resource_assignment_repo=repos["resource_assignment"],
         user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def assignment_queries(db_session, repos, mock_user_session):
+    return CalendarAssignmentQueryHandler(
+        assignment_repo=repos["assignment"],
+        project_assignment_repo=repos["project_assignment"],
+        resource_assignment_repo=repos["resource_assignment"],
     )
 
 
@@ -192,17 +230,16 @@ def resolver(repos, org_id, calculator):
 
 
 @pytest.fixture
-def adapter(resolver, assignment_service):
+def adapter(resolver, assignment_commands):
     return ProjectCalendarAdapter(
         resolver=resolver,
-        assignment_service=assignment_service,
     )
 
 
 @pytest.fixture
-def global_cal(cal_service, org_id, rule_service):
-    cal = cal_service.ensure_global_calendar(org_id)
-    rule_service.seed_standard_week(
+def global_cal(cal_commands, org_id, rule_commands):
+    cal = cal_commands.ensure_global_calendar(org_id)
+    rule_commands.seed_standard_week(
         cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
@@ -234,10 +271,10 @@ def _seed_project(db_session, tenant_context, project_id: str) -> None:
 
 
 def test_bound_project_calendar_is_working_day_uses_enterprise(
-    global_cal, adapter, assignment_service, db_session, tenant_context
+    global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-bind-test")
-    assignment_service.assign_project_calendar("proj-bind-test", global_cal.id)
+    assignment_commands.assign_project_calendar("proj-bind-test", global_cal.id)
     bound = BoundProjectCalendar(adapter, "proj-bind-test")
 
     # 2026-06-01 is Monday — should be working per global Mon-Fri rules
@@ -247,10 +284,10 @@ def test_bound_project_calendar_is_working_day_uses_enterprise(
 
 
 def test_bound_project_calendar_add_working_days(
-    global_cal, adapter, assignment_service, db_session, tenant_context
+    global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-add-test")
-    assignment_service.assign_project_calendar("proj-add-test", global_cal.id)
+    assignment_commands.assign_project_calendar("proj-add-test", global_cal.id)
     bound = BoundProjectCalendar(adapter, "proj-add-test")
 
     # Start Monday 2026-06-01, add 5 working days → Friday 2026-06-05
@@ -259,10 +296,10 @@ def test_bound_project_calendar_add_working_days(
 
 
 def test_bound_project_calendar_working_days_between(
-    global_cal, adapter, assignment_service, db_session, tenant_context
+    global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-between-test")
-    assignment_service.assign_project_calendar("proj-between-test", global_cal.id)
+    assignment_commands.assign_project_calendar("proj-between-test", global_cal.id)
     bound = BoundProjectCalendar(adapter, "proj-between-test")
 
     # Mon-Fri: 5 working days
@@ -271,10 +308,10 @@ def test_bound_project_calendar_working_days_between(
 
 
 def test_bound_project_calendar_next_working_day(
-    global_cal, adapter, assignment_service, db_session, tenant_context
+    global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-next-test")
-    assignment_service.assign_project_calendar("proj-next-test", global_cal.id)
+    assignment_commands.assign_project_calendar("proj-next-test", global_cal.id)
     bound = BoundProjectCalendar(adapter, "proj-next-test")
 
     # Saturday → next working day is Monday
@@ -306,24 +343,31 @@ def test_bind_for_project_returns_bound_when_only_global_exists(global_cal, adap
 
 
 def test_bind_for_project_returns_bound_when_assigned(
-    global_cal, adapter, assignment_service, db_session, tenant_context
+    global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-assigned")
-    assignment_service.assign_project_calendar("proj-assigned", global_cal.id)
+    assignment_commands.assign_project_calendar("proj-assigned", global_cal.id)
     bound = adapter.bind_for_project("proj-assigned")
     assert bound is not None
     assert isinstance(bound, BoundProjectCalendar)
 
 
 def test_project_calendar_overrides_weekend_via_bound(
-    global_cal, cal_service, rule_service, assignment_service, adapter, org_id, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    rule_commands,
+    assignment_commands,
+    adapter,
+    org_id,
+    db_session,
+    tenant_context,
 ):
-    project_cal = cal_service.create_calendar(
+    project_cal = cal_commands.create_calendar(
         code="PRJ-SAT",
         name="Weekend Project",
         calendar_type=CalendarType.PROJECT.value,
     )
-    rule_service.save_rule(
+    rule_commands.save_rule(
         project_cal.id,
         weekday=5,  # Saturday
         is_working_day=True,
@@ -331,7 +375,7 @@ def test_project_calendar_overrides_weekend_via_bound(
         end_time=time(14, 0),
     )
     _seed_project(db_session, tenant_context, "proj-sat")
-    assignment_service.assign_project_calendar("proj-sat", project_cal.id)
+    assignment_commands.assign_project_calendar("proj-sat", project_cal.id)
 
     bound = adapter.bind_for_project("proj-sat")
     assert bound is not None
@@ -375,7 +419,7 @@ def test_scheduling_engine_falls_back_to_base_calendar_when_not_bootstrapped(
 
 
 def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
-    global_cal, adapter, assignment_service, db_session, tenant_context
+    global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     from unittest.mock import MagicMock
 
@@ -387,7 +431,7 @@ def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
     )
 
     _seed_project(db_session, tenant_context, "proj-enterprise-cal")
-    assignment_service.assign_project_calendar("proj-enterprise-cal", global_cal.id)
+    assignment_commands.assign_project_calendar("proj-enterprise-cal", global_cal.id)
 
     mock_cal = MagicMock(spec=CalendarProtocol)
     engine = SchedulingEngine(

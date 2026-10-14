@@ -52,7 +52,9 @@ def _tenant_id(services) -> str:
 
 
 def _register_user(services, username: str):
-    return services["user_registration"].register_user(username, _PASSWORD, display_name=username)
+    return services["user_registration"].register_user(
+        username, _PASSWORD, display_name=username
+    )
 
 
 def _set_user_principal(services, username: str):
@@ -70,8 +72,12 @@ class _Recorder:
     def __init__(self, services) -> None:
         self.events: list[object] = []
         self.contexts: list[DomainEventContext] = []
-        bus = services["tenant_membership_service"]._uow_factory._post_commit_bus
-        for event_type in (*_MEMBERSHIP_EVENT_TYPES, RoleBindingAssigned, RoleBindingRevoked):
+        bus = services["tenant_invitation_commands"]._uow_factory._post_commit_bus
+        for event_type in (
+            *_MEMBERSHIP_EVENT_TYPES,
+            RoleBindingAssigned,
+            RoleBindingRevoked,
+        ):
             bus.subscribe(event_type, self._on_event)
 
     def _on_event(self, event, context) -> None:
@@ -86,14 +92,14 @@ class _Recorder:
 
 
 def _issue_and_accept(services, *, username: str):
-    membership_service = services["tenant_membership_service"]
+    invitation_commands = services["tenant_invitation_commands"]
     admin_principal = services["user_session"].principal
     target = _register_user(services, username)
-    issued = membership_service.issue_invitation(
+    issued = invitation_commands.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
-    accepted = membership_service.accept_invitation(issued.token)
+    accepted = invitation_commands.accept_invitation(issued.token)
     services["user_session"].set_principal(admin_principal)
     return target, accepted
 
@@ -109,7 +115,9 @@ def test_acceptance_records_activated_before_role_binding_assigned(services):
     happens strictly before the default RoleBinding grant that follows it in the same
     command."""
     recorder = _Recorder(services)
-    target, accepted = _issue_and_accept(services, username=_unique_code("p5d2-activate"))
+    target, accepted = _issue_and_accept(
+        services, username=_unique_code("p5d2-activate")
+    )
 
     assert accepted.status == MEMBERSHIP_STATUS_ACTIVE
     assert recorder.types() == [TenantMembershipActivated, RoleBindingAssigned]
@@ -120,16 +128,16 @@ def test_acceptance_records_activated_before_role_binding_assigned(services):
 
 
 def test_accept_invitation_for_tenant_also_records_activated_exactly_once(services):
-    membership_service = services["tenant_membership_service"]
+    invitation_commands = services["tenant_invitation_commands"]
     tenant_id = _tenant_id(services)
     target = _register_user(services, _unique_code("p5d2-activate-for-tenant"))
-    membership_service.issue_invitation(
+    invitation_commands.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
     recorder = _Recorder(services)
 
-    accepted = membership_service.accept_invitation_for_tenant(tenant_id)
+    accepted = invitation_commands.accept_invitation_for_tenant(tenant_id)
 
     assert recorder.of(TenantMembershipActivated) == [
         e for e in recorder.of(TenantMembershipActivated)
@@ -139,34 +147,38 @@ def test_accept_invitation_for_tenant_also_records_activated_exactly_once(servic
 
 
 def test_issue_invitation_records_no_membership_event(services):
-    membership_service = services["tenant_membership_service"]
+    invitation_commands = services["tenant_invitation_commands"]
     target = _register_user(services, _unique_code("p5d2-issue-no-event"))
     recorder = _Recorder(services)
 
-    membership_service.issue_invitation(
+    invitation_commands.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
 
     assert recorder.events == []
 
 
-def test_reinvite_then_accept_records_removed_then_activated_never_reactivated(services):
+def test_reinvite_then_accept_records_removed_then_activated_never_reactivated(
+    services,
+):
     """`removed -> reinvite -> invited -> accept` must produce `TenantMembershipRemoved` (from
     the earlier `remove_member`) and `TenantMembershipActivated` (from acceptance) -- never
     `TenantMembershipReactivated`, and `issue_invitation`'s own reinvite branch itself emits
     nothing (per section 25)."""
-    membership_service = services["tenant_membership_service"]
-    target, _accepted = _issue_and_accept(services, username=_unique_code("p5d2-reinvite"))
-    membership_service.remove_member(target.id)
+    invitation_commands = services["tenant_invitation_commands"]
+    target, _accepted = _issue_and_accept(
+        services, username=_unique_code("p5d2-reinvite")
+    )
+    services["tenant_membership_lifecycle_commands"].remove_member(target.id)
 
     recorder = _Recorder(services)
-    reinvited = membership_service.issue_invitation(
+    reinvited = invitation_commands.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     assert recorder.events == []  # reinvite itself: eventless
 
     _set_user_principal(services, target.username)
-    accepted = membership_service.accept_invitation(reinvited.token)
+    accepted = invitation_commands.accept_invitation(reinvited.token)
 
     assert recorder.types() == [TenantMembershipActivated, RoleBindingAssigned]
     assert TenantMembershipReactivated not in recorder.types()
@@ -181,12 +193,17 @@ def test_reinvite_then_accept_records_removed_then_activated_never_reactivated(s
 def test_suspend_then_reactivate_records_exactly_those_two_events_and_no_role_binding_events(
     services,
 ):
-    membership_service = services["tenant_membership_service"]
-    target, _accepted = _issue_and_accept(services, username=_unique_code("p5d2-suspend-cycle"))
+    target, _accepted = _issue_and_accept(
+        services, username=_unique_code("p5d2-suspend-cycle")
+    )
     recorder = _Recorder(services)
 
-    suspended = membership_service.suspend_member(target.id)
-    reactivated = membership_service.reactivate_member(target.id)
+    suspended = services["tenant_membership_lifecycle_commands"].suspend_member(
+        target.id
+    )
+    reactivated = services["tenant_membership_lifecycle_commands"].reactivate_member(
+        target.id
+    )
 
     assert suspended.status == MEMBERSHIP_STATUS_SUSPENDED
     assert reactivated.status == MEMBERSHIP_STATUS_ACTIVE
@@ -206,11 +223,12 @@ def test_removal_records_removed_before_role_binding_revoked(services):
     """`membership.remove()` (the transition `TenantMembershipRemoved` anchors to) happens
     strictly before the RoleBinding revocation cascade that follows it in the same command --
     the committed event order mirrors that."""
-    membership_service = services["tenant_membership_service"]
-    target, _accepted = _issue_and_accept(services, username=_unique_code("p5d2-remove"))
+    target, _accepted = _issue_and_accept(
+        services, username=_unique_code("p5d2-remove")
+    )
     recorder = _Recorder(services)
 
-    removed = membership_service.remove_member(target.id)
+    removed = services["tenant_membership_lifecycle_commands"].remove_member(target.id)
 
     assert removed.status == MEMBERSHIP_STATUS_REMOVED
     assert recorder.types() == [TenantMembershipRemoved, RoleBindingRevoked]
@@ -219,14 +237,13 @@ def test_removal_records_removed_before_role_binding_revoked(services):
 
 
 def test_removal_of_suspended_member_also_records_exactly_one_removed(services):
-    membership_service = services["tenant_membership_service"]
     target, _accepted = _issue_and_accept(
         services, username=_unique_code("p5d2-remove-suspended")
     )
-    membership_service.suspend_member(target.id)
+    services["tenant_membership_lifecycle_commands"].suspend_member(target.id)
     recorder = _Recorder(services)
 
-    removed = membership_service.remove_member(target.id)
+    removed = services["tenant_membership_lifecycle_commands"].remove_member(target.id)
 
     assert recorder.of(TenantMembershipRemoved) == recorder.of(TenantMembershipRemoved)
     assert len(recorder.of(TenantMembershipRemoved)) == 1
@@ -239,16 +256,18 @@ def test_removal_of_suspended_member_also_records_exactly_one_removed(services):
 
 
 def test_revoke_invitation_emits_no_membership_event(services):
-    membership_service = services["tenant_membership_service"]
+    invitation_commands = services["tenant_invitation_commands"]
     target = _register_user(services, _unique_code("p5d2-revoke-invite"))
-    membership_service.issue_invitation(
+    invitation_commands.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     recorder = _Recorder(services)
 
-    revoked = membership_service.revoke_invitation(target.id)
+    revoked = invitation_commands.revoke_invitation(target.id)
 
-    assert revoked.status == MEMBERSHIP_STATUS_REMOVED  # persisted status only -- not a fact
+    assert (
+        revoked.status == MEMBERSHIP_STATUS_REMOVED
+    )  # persisted status only -- not a fact
     assert recorder.events == []
 
 
@@ -261,15 +280,15 @@ def test_invalid_transition_records_no_membership_event(services):
     """`suspend_member` on a membership that is still `invited` (never accepted) hits the
     aggregate's own `USER_TENANT_MEMBERSHIP_SUSPEND_INVALID_TRANSITION` guard -- command
     invocation is not the same as a real business transition, so it must record nothing."""
-    membership_service = services["tenant_membership_service"]
+    invitation_commands = services["tenant_invitation_commands"]
     target = _register_user(services, _unique_code("p5d2-invalid-transition"))
-    membership_service.issue_invitation(
+    invitation_commands.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     recorder = _Recorder(services)
 
     with pytest.raises(BusinessRuleError) as exc:
-        membership_service.suspend_member(target.id)
+        services["tenant_membership_lifecycle_commands"].suspend_member(target.id)
     assert exc.value.code == "USER_TENANT_MEMBERSHIP_SUSPEND_INVALID_TRANSITION"
 
     assert recorder.events == []
@@ -281,7 +300,6 @@ def test_invalid_transition_records_no_membership_event(services):
 
 
 def test_audit_failure_leaves_zero_observable_membership_event(services, monkeypatch):
-    membership_service = services["tenant_membership_service"]
     target, _accepted = _issue_and_accept(
         services, username=_unique_code("p5d2-audit-fail-suspend")
     )
@@ -293,13 +311,12 @@ def test_audit_failure_leaves_zero_observable_membership_event(services, monkeyp
     monkeypatch.setattr(SqlAlchemyAuditRepository, "add_for_tenant", _fail_audit)
 
     with pytest.raises(RuntimeError, match="simulated audit failure"):
-        membership_service.suspend_member(target.id)
+        services["tenant_membership_lifecycle_commands"].suspend_member(target.id)
 
     assert recorder.events == []
 
 
 def test_commit_failure_leaves_zero_observable_membership_event(services, monkeypatch):
-    membership_service = services["tenant_membership_service"]
     target, _accepted = _issue_and_accept(
         services, username=_unique_code("p5d2-commit-fail-suspend")
     )
@@ -311,7 +328,7 @@ def test_commit_failure_leaves_zero_observable_membership_event(services, monkey
     monkeypatch.setattr(SqlAlchemyTenantMembershipUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        membership_service.suspend_member(target.id)
+        services["tenant_membership_lifecycle_commands"].suspend_member(target.id)
 
     assert recorder.events == []
 
@@ -322,15 +339,15 @@ def test_transactional_handler_failure_rolls_back_the_whole_membership_transacti
     """A FAIL_FAST pre-commit handler failing for `TenantMembershipActivated` must roll back the
     membership transition itself, atomically with the default RoleBinding grant that already
     recorded its own event earlier in the same transaction."""
-    membership_service = services["tenant_membership_service"]
+    invitation_commands = services["tenant_invitation_commands"]
     tenant_id = _tenant_id(services)
     target = _register_user(services, _unique_code("p5d2-transactional-fail"))
-    issued = membership_service.issue_invitation(
+    issued = invitation_commands.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
 
-    dispatcher = membership_service._uow_factory._transactional_dispatcher
+    dispatcher = invitation_commands._uow_factory._transactional_dispatcher
 
     def _failing_handler(event, uow):
         raise RuntimeError("simulated transactional handler failure")
@@ -338,8 +355,10 @@ def test_transactional_handler_failure_rolls_back_the_whole_membership_transacti
     subscription = dispatcher.subscribe(TenantMembershipActivated, _failing_handler)
     recorder = _Recorder(services)
     try:
-        with pytest.raises(RuntimeError, match="simulated transactional handler failure"):
-            membership_service.accept_invitation(issued.token)
+        with pytest.raises(
+            RuntimeError, match="simulated transactional handler failure"
+        ):
+            invitation_commands.accept_invitation(issued.token)
     finally:
         subscription.dispose()
 
@@ -351,23 +370,30 @@ def test_transactional_handler_failure_rolls_back_the_whole_membership_transacti
         SqlAlchemyUserTenantMembershipRepository,
     )
 
-    stored = SqlAlchemyUserTenantMembershipRepository(services["session"]).get(target.id, tenant_id)
+    stored = SqlAlchemyUserTenantMembershipRepository(services["session"]).get(
+        target.id, tenant_id
+    )
     assert stored is not None
     assert stored.status != MEMBERSHIP_STATUS_ACTIVE
-    assert SqlAlchemyRoleBindingRepository(services["session"]).list_active_for_principal(
-        target.id, tenant_id=tenant_id
-    ) == []
+    assert (
+        SqlAlchemyRoleBindingRepository(services["session"]).list_active_for_principal(
+            target.id, tenant_id=tenant_id
+        )
+        == []
+    )
 
 
-def test_post_commit_handler_failure_does_not_block_a_sibling_handler_or_the_commit(services):
-    membership_service = services["tenant_membership_service"]
+def test_post_commit_handler_failure_does_not_block_a_sibling_handler_or_the_commit(
+    services,
+):
+    invitation_commands = services["tenant_invitation_commands"]
     target = _register_user(services, _unique_code("p5d2-postcommit-isolate"))
-    issued = membership_service.issue_invitation(
+    issued = invitation_commands.issue_invitation(
         target.id, expires_at=datetime.now(UTC) + timedelta(days=1)
     )
     _set_user_principal(services, target.username)
 
-    bus = membership_service._uow_factory._post_commit_bus
+    bus = invitation_commands._uow_factory._post_commit_bus
 
     def _failing_handler(event, context):
         raise RuntimeError("simulated post-commit handler failure")
@@ -376,7 +402,7 @@ def test_post_commit_handler_failure_does_not_block_a_sibling_handler_or_the_com
     sub_failing = bus.subscribe(TenantMembershipActivated, _failing_handler)
     sub_ok = bus.subscribe(TenantMembershipActivated, lambda e, c: seen.append(e))
     try:
-        accepted = membership_service.accept_invitation(issued.token)  # must not raise
+        accepted = invitation_commands.accept_invitation(issued.token)  # must not raise
     finally:
         sub_failing.dispose()
         sub_ok.dispose()
@@ -399,7 +425,9 @@ def test_membership_event_carries_tenant_scope_only_no_organization_id(services)
     )
 
     recorder = _Recorder(services)
-    target, accepted = _issue_and_accept(services, username=_unique_code("p5d2-tenant-scope"))
+    target, accepted = _issue_and_accept(
+        services, username=_unique_code("p5d2-tenant-scope")
+    )
     activated = recorder.of(TenantMembershipActivated)[0]
     assert activated.tenant_id == tenant_id
     assert not hasattr(activated, "organization_id")
@@ -409,8 +437,7 @@ def test_membership_event_carries_tenant_scope_only_no_organization_id(services)
     # be unaffected.
     tenant_context.set_active_organization(other_org.id)
     removed_recorder = _Recorder(services)
-    membership_service = services["tenant_membership_service"]
-    removed = membership_service.remove_member(target.id)
+    removed = services["tenant_membership_lifecycle_commands"].remove_member(target.id)
     removed_event = removed_recorder.of(TenantMembershipRemoved)[0]
     assert removed_event.tenant_id == tenant_id
     assert removed.id == accepted.id
@@ -419,13 +446,14 @@ def test_membership_event_carries_tenant_scope_only_no_organization_id(services)
 def test_cross_tenant_actor_cannot_mutate_another_tenants_membership(services):
     from src.tests.ui_runtime_helpers import login_as
 
-    membership_service = services["tenant_membership_service"]
     tenant_context = services["tenant_context_service"]
     admin_principal = services["user_session"].principal
     home_tenant_id = _tenant_id(services)
 
-    admin_svc = services["tenant_admin_service"]
-    other_tenant = admin_svc.create_tenant(_unique_code("P5D2-OTHER"), "P5D-2 Other Tenant")
+    admin_svc = services["tenant_lifecycle_commands"]
+    other_tenant = admin_svc.create_tenant(
+        _unique_code("P5D2-OTHER"), "P5D-2 Other Tenant"
+    )
     services["session"].flush()
     other_username = _unique_code("p5d2-other-tenant-actor")
     services["user_registration"].register_user(
@@ -435,7 +463,9 @@ def test_cross_tenant_actor_cannot_mutate_another_tenants_membership(services):
         tenant_id=other_tenant.id,
     )
     # a target that only ever exists in the HOME tenant -- not a member of `other_tenant` at all.
-    target, _accepted = _issue_and_accept(services, username=_unique_code("p5d2-cross-target"))
+    target, _accepted = _issue_and_accept(
+        services, username=_unique_code("p5d2-cross-target")
+    )
 
     login_as(services, other_username, _PASSWORD)
     tenant_context.set_active_tenant(other_tenant.id)
@@ -445,7 +475,7 @@ def test_cross_tenant_actor_cannot_mutate_another_tenants_membership(services):
             # the target's membership lives in the HOME tenant; the other-tenant actor's own
             # active-tenant context resolves to `other_tenant.id`, where no such membership row
             # exists at all.
-            membership_service.suspend_member(target.id)
+            services["tenant_membership_lifecycle_commands"].suspend_member(target.id)
         assert exc.value.code == "TENANT_MEMBERSHIP_NOT_FOUND"
     finally:
         services["user_session"].set_principal(admin_principal)
@@ -468,16 +498,24 @@ def test_cross_tenant_actor_cannot_mutate_another_tenants_membership(services):
 # ---------------------------------------------------------------------------
 
 
-def test_domain_event_context_is_passed_separately_and_never_duplicated_onto_the_event(services):
+def test_domain_event_context_is_passed_separately_and_never_duplicated_onto_the_event(
+    services,
+):
     recorder = _Recorder(services)
-    _target, accepted = _issue_and_accept(services, username=_unique_code("p5d2-context"))
+    _target, accepted = _issue_and_accept(
+        services, username=_unique_code("p5d2-context")
+    )
 
     activated_index = recorder.types().index(TenantMembershipActivated)
     context = recorder.contexts[activated_index]
     assert isinstance(context, DomainEventContext)
     assert context.correlation_id
-    event_field_names = {f.name for f in fields(recorder.of(TenantMembershipActivated)[0])}
-    assert event_field_names.isdisjoint({"correlation_id", "causation_id", "command_id"})
+    event_field_names = {
+        f.name for f in fields(recorder.of(TenantMembershipActivated)[0])
+    }
+    assert event_field_names.isdisjoint(
+        {"correlation_id", "causation_id", "command_id"}
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -555,20 +593,20 @@ def test_no_disapproved_membership_event_names_exist_anywhere_in_the_events_modu
 def test_issue_invitation_source_never_records_activated():
     """`issue_invitation` covers both the fresh-invite AND reinvite (`removed -> invited`)
     branches -- neither may ever record `TenantMembershipActivated` (section 24/25)."""
-    from src.core.platform.application.tenant.tenancy.tenant_membership_service import (
-        TenantMembershipService,
+    from src.core.platform.application.tenant.tenancy.commands.invitations import (
+        TenantInvitationCommandHandler,
     )
 
-    source = inspect.getsource(TenantMembershipService.issue_invitation)
+    source = inspect.getsource(TenantInvitationCommandHandler.issue_invitation)
     assert "uow.record_event(TenantInvitationChanged(" in source
     assert "TenantMembershipActivated" not in source
 
 
 def test_revoke_invitation_source_never_records_a_membership_event():
-    from src.core.platform.application.tenant.tenancy.tenant_membership_service import (
-        TenantMembershipService,
+    from src.core.platform.application.tenant.tenancy.commands.invitations import (
+        TenantInvitationCommandHandler,
     )
 
-    source = inspect.getsource(TenantMembershipService.revoke_invitation)
+    source = inspect.getsource(TenantInvitationCommandHandler.revoke_invitation)
     assert "uow.record_event(TenantInvitationChanged(" in source
     assert "TenantMembershipActivated" not in source

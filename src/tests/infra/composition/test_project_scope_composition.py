@@ -3,7 +3,7 @@ from __future__ import annotations
 
 def test_project_scope_resolvers_are_registered_once_on_shared_platform_services(services) -> None:
     access = services["access_service"]
-    governance = services["role_governance_service"]
+    governance = services["role_governance_commands"]
 
     assert "project" in access.list_supported_scope_types()
     assert (

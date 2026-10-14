@@ -9,19 +9,19 @@ def test_enterprise_calendar_holiday_blocks_scheduling_day(services):
     A holiday exception on Wed 2023-11-08 means a 3-working-day task starting Tue 2023-11-07
     finishes on Fri 2023-11-10 (Tue, Thu, Fri — Wed skipped as holiday).
     """
-    exc_svc = services["calendar_exception_service"]
-    cal_svc = services["platform_calendar_service"]
+    exc_svc_commands = services["calendar_exception_commands"]
+    cal_svc_queries = services["platform_calendar_queries"]
     ps = services["project_service"]
     ts = services["task_service"]
     sched = services["scheduling_engine"]
 
     # Find the global enterprise calendar (bootstrapped on startup)
-    global_calendars = cal_svc.list_calendars(calendar_type="GLOBAL")
+    global_calendars = cal_svc_queries.list_calendars(calendar_type="GLOBAL")
     assert global_calendars, "Global enterprise calendar must exist"
     global_cal_id = global_calendars[0].id
 
     # Add holiday exception on Wednesday 2023-11-08
-    exc_svc.add_exception(
+    exc_svc_commands.add_exception(
         global_cal_id,
         exception_date=date(2023, 11, 8),
         exception_type="HOLIDAY",
@@ -51,8 +51,8 @@ def test_enterprise_calendar_global_working_week(services):
     """Global enterprise calendar returns Mon-Fri as working days by default."""
     shim = services["work_calendar_engine"]  # now GlobalCalendarShim
 
-    assert shim.is_working_day(date(2026, 6, 1)) is True   # Monday
-    assert shim.is_working_day(date(2026, 6, 5)) is True   # Friday
+    assert shim.is_working_day(date(2026, 6, 1)) is True  # Monday
+    assert shim.is_working_day(date(2026, 6, 5)) is True  # Friday
     assert shim.is_working_day(date(2026, 6, 6)) is False  # Saturday
     assert shim.is_working_day(date(2026, 6, 7)) is False  # Sunday
 

@@ -487,8 +487,7 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         work_calendar_engine=work_calendar_engine,
         platform_calendar_resolver=platform_services.platform_calendar_resolver,
-        calendar_assignment_service=platform_services.calendar_assignment_service,
-        financial_period_service=platform_services.financial_period_service,
+        financial_period_queries=platform_services.financial_period_queries,
     )
     logger.debug("Project Management approval handlers registered")
     logger.debug(

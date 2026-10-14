@@ -81,7 +81,7 @@ def apply_procurement_receipt_source(
             "A changed receipt revision requires an explicit correction contract.",
             code="PROCUREMENT_RECEIPT_CORRECTION_CONTRACT_REQUIRED",
         )
-    period = service._financial_period_service.require_open_period_for_integration(
+    period = service._financial_period_queries.require_open_period_for_integration(
         posting_date
     )
     actor_id = execution.service_principal.id

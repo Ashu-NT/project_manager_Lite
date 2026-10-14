@@ -37,7 +37,7 @@ def test_application_and_contract_packages_do_not_import_api_adapters() -> None:
 
 
 def test_runtime_use_case_facts_do_not_contain_domain_aggregates(services) -> None:
-    snapshot = services["platform_runtime_application_service"].snapshot().module_snapshot
+    snapshot = services["platform_runtime_query"].snapshot().module_snapshot
     assert snapshot.entitlements
     assert all(isinstance(item, RuntimeEntitlementFact) for item in snapshot.entitlements)
     assert all(not isinstance(item, ModuleEntitlement) for item in snapshot.entitlements)
@@ -84,7 +84,7 @@ def test_pm_handler_facades_leave_handler_construction_to_composition() -> None:
 def test_migrated_platform_services_do_not_import_concrete_infrastructure() -> None:
     migrated = (
         *(SRC_ROOT / "platform/application/master_data/org").rglob("*.py"),
-        SRC_ROOT / "platform/application/security/authorization/roles/tenant_role_administration_service.py",
+        SRC_ROOT / "platform/application/security/authorization/roles/commands/tenant_role_commands.py",
         SRC_ROOT / "platform/application/security/authorization/roles/role_policy_reconciliation_service.py",
         *(SRC_ROOT / "platform/application/security/auth").rglob("*.py"),
         *(SRC_ROOT / "platform/application/security/authorization/roles/commands").rglob("*.py"),

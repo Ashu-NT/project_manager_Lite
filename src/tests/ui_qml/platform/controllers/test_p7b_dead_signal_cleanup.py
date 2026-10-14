@@ -62,10 +62,10 @@ def test_costs_changed_and_calendars_changed_have_zero_production_references():
     assert hits == [], hits
 
 
-def test_approval_service_reflective_emission_mechanism_retired_by_task_modernization():
-    import src.core.platform.application.approval.approval_service as approval_service_module
+def test_approval_commands_reflective_emission_mechanism_retired_by_task_modernization():
+    import src.core.platform.application.approval.commands as approval_commands_module
 
-    source = inspect.getsource(approval_service_module)
+    source = inspect.getsource(approval_commands_module)
     assert "_emit_signal_safely" not in source
 
 

@@ -257,10 +257,10 @@ def test_organization_service_create_never_emits_the_legacy_signal():
     assert "organizations_changed" not in source
 
 
-def test_approval_service_never_emits_the_deleted_legacy_signal():
-    import src.core.platform.application.approval.approval_service as approval_service_module
+def test_approval_commands_never_emits_the_deleted_legacy_signal():
+    import src.core.platform.application.approval.commands as approval_commands_module
 
-    source = _strip_strings_and_comments(inspect.getsource(approval_service_module))
+    source = _strip_strings_and_comments(inspect.getsource(approval_commands_module))
     assert "approvals_changed" not in source
 
 

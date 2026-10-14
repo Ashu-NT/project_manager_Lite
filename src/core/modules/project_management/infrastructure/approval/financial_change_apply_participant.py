@@ -24,8 +24,8 @@ from src.core.platform.domain.approval import ApprovalRequest
 @dataclass(frozen=True)
 class FinancialChangeApprovalDeps:
     """`financial_change_service` is a fresh `FinancialChangeService`,
-    constructed with `approval_service=None` -- the apply path never calls
-    back into `ApprovalService`."""
+    constructed with `approval_commands=None` -- the apply path never calls
+    back into `ApprovalCommands`."""
 
     financial_change_service: FinancialChangeService
 

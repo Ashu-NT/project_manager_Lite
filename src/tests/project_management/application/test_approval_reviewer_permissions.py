@@ -26,7 +26,7 @@ class _ApprovalRegistration:
 
 def test_every_registered_pm_approval_has_a_specific_catalog_permission():
     registration = _ApprovalRegistration()
-    register_project_management_approval_handlers(approval_service=registration)
+    register_project_management_approval_handlers(approval_participants=registration)
 
     assert registration.apply_permissions == PM_APPROVAL_REVIEW_PERMISSIONS
     assert registration.reject_types <= registration.apply_permissions.keys()

@@ -11,7 +11,7 @@ from src.core.platform.application.global_overview.platform_module_overview_cont
 
 
 def _contributor(services) -> PlatformModuleOverviewContributor:
-    return PlatformModuleOverviewContributor(approval_service=services["approval_service"])
+    return PlatformModuleOverviewContributor(approval_queries=services["approval_queries"])
 
 
 def _context(services) -> ActionCenterContext:
@@ -34,13 +34,13 @@ def test_platform_summary_is_returned_using_platform_access_semantics_not_module
 
 
 def test_summary_text_reflects_the_real_pending_approval_count(services):
-    services["approval_service"].request_change(
+    services["approval_commands"].request_change(
         request_type="organization_request",
         entity_type="organization_request",
         entity_id="org-request-module-card-1",
         project_id=None,
     )
-    services["approval_service"].request_change(
+    services["approval_commands"].request_change(
         request_type="organization_request",
         entity_type="organization_request",
         entity_id="org-request-module-card-2",

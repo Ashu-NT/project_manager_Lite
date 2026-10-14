@@ -59,7 +59,7 @@ def test_notification_list_is_bounded_and_stably_ordered(services, session):
     for index in range(125):
         seed(session, recipient=user.id, notification_id=f"notification-{index:04d}")
     principal(services, user.username)
-    notifications = services["notification_service"]
+    notifications = services["notification_queries"]
     page = notifications.list_my_notifications(limit=10000)
     assert len(page) == 100
     assert [row.id for row in page] == [f"notification-{index:04d}" for index in range(124, 24, -1)]
@@ -107,9 +107,9 @@ def test_personal_visibility_excludes_another_recipient(services, session):
     other = register(services, "notify-other")
     seed(session, recipient=owner.id, notification_id="owner-invitation")
     principal(services, other.username)
-    assert services["notification_service"].list_my_notifications() == []
+    assert services["notification_queries"].list_my_notifications() == []
     with pytest.raises(NotFoundError):
-        services["notification_service"].mark_read("owner-invitation")
+        services["notification_commands"].mark_read("owner-invitation")
 
 
 def test_signed_in_user_without_active_tenant_cannot_read_in_app_notifications(services, session):
@@ -117,15 +117,15 @@ def test_signed_in_user_without_active_tenant_cannot_read_in_app_notifications(s
     seed(session, recipient=owner.id, notification_id="tenant-notice")
     principal(services, owner.username)
     services["user_session"].set_active_tenant_id(None)
-    notifications = services["notification_service"]
+    notifications = services["notification_queries"]
     assert notifications.list_my_notifications() == []
     assert notifications.count_my_unread() == 0
     with pytest.raises(NotFoundError):
-        notifications.mark_read("tenant-notice")
+        services["notification_commands"].mark_read("tenant-notice")
 
 
 def test_authentication_is_required(anonymous_services):
-    service = anonymous_services["notification_service"]
+    service = anonymous_services["notification_queries"]
     with pytest.raises(BusinessRuleError, match="Authentication"):
         service.list_my_notifications()
     with pytest.raises(BusinessRuleError, match="Authentication"):
@@ -137,13 +137,13 @@ def test_mark_read_and_mark_all_are_idempotent(services, session):
     seed(session, recipient=owner.id, notification_id="read-first")
     seed(session, recipient=owner.id, notification_id="read-second")
     principal(services, owner.username)
-    notifications = services["notification_service"]
+    notifications = services["notification_queries"]
     assert notifications.count_my_unread() == 2
-    assert notifications.mark_read("read-first").is_read
-    assert notifications.mark_read("read-first").is_read
+    assert services["notification_commands"].mark_read("read-first").is_read
+    assert services["notification_commands"].mark_read("read-first").is_read
     assert notifications.count_my_unread() == 1
-    assert notifications.mark_all_read() == 1
-    assert notifications.mark_all_read() == 0
+    assert services["notification_commands"].mark_all_read() == 1
+    assert services["notification_commands"].mark_all_read() == 0
     assert notifications.list_my_notifications(unread_only=True) == []
 
 
@@ -172,8 +172,8 @@ def test_other_organization_is_hidden_by_repository_even_on_sqlite(services, ses
     principal(services, owner.username)
     services["user_session"].set_active_tenant_id(TENANT)
     services["user_session"].set_active_organization_id("notification-org-a")
-    notifications = services["notification_service"]
+    notifications = services["notification_queries"]
     assert {row.id for row in notifications.list_my_notifications()} == {"tenant-notice", "org-a-only"}
     with pytest.raises(NotFoundError):
-        notifications.mark_read("org-b-only")
-    assert notifications.mark_all_read() == 2
+        services["notification_commands"].mark_read("org-b-only")
+    assert services["notification_commands"].mark_all_read() == 2

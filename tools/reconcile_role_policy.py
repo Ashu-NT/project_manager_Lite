@@ -168,19 +168,33 @@ def main(argv: list[str] | None = None) -> int:
     ):
         parser.error("--output and --rollback-output must be different paths")
     for artifact_path in (args.output, args.rollback_output):
-        if (
-            artifact_path is not None
-            and artifact_path.expanduser().resolve().exists()
-        ):
+        if artifact_path is not None and artifact_path.expanduser().resolve().exists():
             parser.error(f"artifact already exists: {artifact_path}")
 
-    from src.infra.composition.persistence.repositories import build_repository_bundle
-
-    from src.core.platform.application.security.auth import AuthService
     from src.core.platform.application.security.authorization.roles import (
-        RolePolicyReconciliationService,
+        RolePolicyReconciliationCommandHandler,
+        RolePolicyReconciliationQueryHandler,
+    )
+    from src.core.platform.application.tenant.tenancy import (
+        TenantContextService,
+        build_tenant_context_policy,
     )
     from src.core.platform.domain.security.auth import UserSessionContext
+    from src.core.platform.infrastructure.composition.dependencies.repositories import (
+        build_platform_repositories,
+    )
+    from src.core.platform.infrastructure.composition.dependencies.security.auth import (
+        build_auth_handlers,
+    )
+    from src.core.platform.infrastructure.persistence.uow.security.auth_unit_of_work import (
+        SqlAlchemyAuthUnitOfWorkFactory,
+    )
+    from src.infra.events.in_process_post_commit_event_bus import (
+        InProcessPostCommitEventBus,
+    )
+    from src.infra.events.in_process_transactional_event_dispatcher import (
+        InProcessTransactionalEventDispatcher,
+    )
     from src.infra.persistence.db.session_factory import SessionLocal
     from src.infra.platform.logging_config import setup_logging
     from src.infra.platform.security_config import (
@@ -193,29 +207,46 @@ def main(argv: list[str] | None = None) -> int:
     password = _resolve_password()
     session = SessionLocal()
     try:
-        repositories = build_repository_bundle(session)
+        repositories = build_platform_repositories(session)
         user_session = UserSessionContext()
-        auth_service = AuthService(
-            session=session,
-            user_repo=repositories.user_repo,
-            role_repo=repositories.role_repo,
-            permission_repo=repositories.permission_repo,
-            role_permission_repo=repositories.role_permission_repo,
-            auth_session_repo=repositories.auth_session_repo,
-            user_session=user_session,
+        transactional_dispatcher = InProcessTransactionalEventDispatcher()
+        post_commit_bus = InProcessPostCommitEventBus()
+        tenant_context_service = TenantContextService(
+            tenant_repo=repositories.tenant_repo,
+            organization_repo=repositories.organization_repo,
             user_tenant_repo=repositories.user_tenant_repo,
-            role_binding_repo=repositories.role_binding_repo,
-            security_audit_repo=repositories.audit_entry_repo,
+            user_session=user_session,
+            context_policy=build_tenant_context_policy(
+                security_configuration.tenancy_mode
+            ),
         )
-        actor = auth_service.authenticate(
+        auth = build_auth_handlers(
+            session=session,
+            repositories=repositories,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+            transactional_dispatcher=transactional_dispatcher,
+            post_commit_bus=post_commit_bus,
+        )
+        actor = auth.authentication.authenticate(
             args.username,
             password,
             mfa_code=args.mfa_code,
             device_label="role-policy-reconciliation",
         )
-        user_session.set_principal(auth_service.build_principal(actor))
-        service = RolePolicyReconciliationService(
+        user_session.set_principal(auth.principals.build(actor))
+        queries = RolePolicyReconciliationQueryHandler(
+            role_repo=repositories.role_repo,
+            permission_repo=repositories.permission_repo,
+            role_permission_repo=repositories.role_permission_repo,
+            auth_session_repo=repositories.auth_session_repo,
+            reconciliation_repo=repositories.auth_policy_reconciliation_repo,
+            user_session=user_session,
+            role_binding_repo=repositories.role_binding_repo,
+        )
+        commands = RolePolicyReconciliationCommandHandler(
             session=session,
+            queries=queries,
             role_repo=repositories.role_repo,
             permission_repo=repositories.permission_repo,
             role_permission_repo=repositories.role_permission_repo,
@@ -223,17 +254,17 @@ def main(argv: list[str] | None = None) -> int:
             auth_session_repo=repositories.auth_session_repo,
             reconciliation_repo=repositories.auth_policy_reconciliation_repo,
             user_session=user_session,
-            role_binding_repo=repositories.role_binding_repo,
+            transactional_dispatcher=transactional_dispatcher,
+            post_commit_bus=post_commit_bus,
+            uow_factory=SqlAlchemyAuthUnitOfWorkFactory(),
         )
-        plan = service.preview()
+        plan = queries.preview()
         payload = {
             "schema_version": 1,
             "generated_at": datetime.now(UTC).isoformat(),
             "mode": "apply" if args.apply else "dry-run",
             "application_version": get_app_version(),
-            "runtime_security": _runtime_security_payload(
-                security_configuration
-            ),
+            "runtime_security": _runtime_security_payload(security_configuration),
             "plan": _plan_payload(plan),
         }
         if not args.apply:
@@ -242,13 +273,13 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(payload, indent=2, sort_keys=True))
             return 0
 
-        rollback_payload = {
+        rollback_payload: dict[str, object] = {
             "generated_at": datetime.now(UTC).isoformat(),
             "reviewed_plan": _plan_payload(plan),
         }
         rollback_path = _write_json(args.rollback_output, rollback_payload)
         rollback_sha256 = _sha256_file(rollback_path)
-        result = service.apply(
+        result = commands.apply(
             expected_version=args.expected_version,
             expected_change_set_hash=args.expected_hash,
         )

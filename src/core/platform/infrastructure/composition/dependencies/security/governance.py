@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.application.security.authorization.roles import (
-    RoleGovernanceService,
+    RoleGovernanceCommandHandler,
 )
 from src.core.platform.application.security.authorization.roles.commands import (
     RoleAssignmentHandler,
@@ -37,7 +37,7 @@ from src.infra.platform.security_config import RuntimeSecurityConfiguration
 from src.infra.time.system_clock import SystemClock
 
 
-def build_role_governance_service(
+def build_role_governance_commands(
     *,
     session: Session,
     user_session: UserSessionContext,
@@ -46,13 +46,13 @@ def build_role_governance_service(
     scope_resolvers: ScopeResolvers,
     transactional_dispatcher: InProcessTransactionalEventDispatcher,
     post_commit_bus: InProcessPostCommitEventBus,
-) -> RoleGovernanceService:
+) -> RoleGovernanceCommandHandler:
     uow_factory = SqlAlchemyRoleGovernanceUnitOfWorkFactory(
         session_factory=sessionmaker(bind=session.bind, future=True),
         transactional_dispatcher=transactional_dispatcher,
         post_commit_bus=post_commit_bus,
     )
-    service = RoleGovernanceService(
+    return RoleGovernanceCommandHandler(
         uow_factory=uow_factory,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
@@ -63,14 +63,13 @@ def build_role_governance_service(
             security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT
         ),
     )
-    return service
 
 
 def build_role_assignment_handler(
     *,
     repositories: PlatformRepositories,
     auth: AuthComposition,
-    role_governance_service: RoleGovernanceService,
+    role_governance_commands: RoleGovernanceCommandHandler,
     user_session: UserSessionContext,
     tenant_context_service: TenantContextService,
 ) -> RoleAssignmentHandler:
@@ -82,5 +81,5 @@ def build_role_assignment_handler(
         user_tenant_repo=repositories.user_tenant_repo,
         target_users=auth.target_users,
         lifecycle=auth.session_lifecycle,
-        role_governance_service=role_governance_service,
+        role_governance_commands=role_governance_commands,
     )

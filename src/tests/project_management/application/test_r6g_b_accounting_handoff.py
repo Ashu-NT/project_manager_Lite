@@ -38,12 +38,12 @@ def approved_preparation(services):
     _, project, _ = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
     submitted = _submitted_preparation(services, project, line)
-    approval = services["approval_service"].list_pending(project_id=project.id)[0]
+    approval = services["approval_queries"].list_pending(project_id=project.id)[0]
     services["user_registration"].register_user(
         "handoff-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "handoff-reviewer", "StrongPass123")
-    services["approval_service"].approve_and_apply(approval.id)
+    services["approval_commands"].approve_and_apply(approval.id)
     _login(services, "admin", "ChangeMe123!")
     return services["billing_preparation_service"].get_preparation(submitted.id)
 
@@ -429,15 +429,15 @@ def test_configuration_permission_is_distinct_and_versioned(accounting_services)
 def test_configuration_audit_failure_rolls_back(
     accounting_services, session, monkeypatch
 ):
-    from src.core.platform.application.integration.accounting import (
-        configuration_service,
+    from src.core.platform.application.integration.accounting.commands import (
+        connector_configuration,
     )
 
     def fail(*args, **kwargs):
         raise RuntimeError("configuration audit unavailable")
 
     before = session.scalar(select(func.count()).select_from(AuditEntryORM))
-    monkeypatch.setattr(configuration_service, "record_audit_entry", fail)
+    monkeypatch.setattr(connector_configuration, "record_audit_entry", fail)
     with pytest.raises(RuntimeError, match="configuration audit unavailable"):
         accounting_services["accounting_connector_commands"].configure(
             adapter_id="test_connector",
@@ -607,11 +607,11 @@ def test_correction_gets_new_identity_without_changing_parent(
     correction = billing.submit_preparation(
         correction.id, expected_row_version=correction.row_version
     )
-    approval = services["approval_service"].list_pending(
+    approval = services["approval_queries"].list_pending(
         project_id=approved.project_id
     )[0]
     _login(services, "handoff-reviewer", "StrongPass123")
-    services["approval_service"].approve_and_apply(approval.id)
+    services["approval_commands"].approve_and_apply(approval.id)
     _login(services, "admin", "ChangeMe123!")
     correction = billing.get_preparation(correction.id)
     successor = billing.request_delivery(

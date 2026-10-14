@@ -411,7 +411,7 @@ def test_provisioning_the_active_organization_produces_direct_invalidation_and_n
     `ExactOrganization` would require."""
     from src.core.shared.events.view_invalidation import AnyOrganizationInTenant
 
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)
 
@@ -430,7 +430,7 @@ def test_provisioning_the_active_organization_produces_direct_invalidation_and_n
     channel.subscribe(AnyOrganizationInTenant(tenant_id), lambda hint: hints.append(hint))
 
     code = _unique_code("QTCUT-PROV-ACTIVE")
-    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Provisioned Active Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
+    organization = provisioning.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Provisioned Active Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
 
     assert recorded == []
     module_hints = [h for h in hints if h.category == MODULE_ENTITLEMENT_CATEGORY]

@@ -72,7 +72,7 @@ from src.core.modules.project_management.domain.financials.forecast import (
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
 )
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.contract.port.approval.capabilities import ApprovalCommands
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -111,7 +111,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         task_service: ApprovedScheduleChangePort,
         budget_authority: BudgetService | None = None,
         forecast_authority: ForecastVersionService | None = None,
-        approval_service: ApprovalService | None,
+        approval_commands: ApprovalCommands | None,
         clock: CalendarClock,
         approval_repo: ApprovalRepository | None = None,
         record_event: Callable[[object], None] | None = None,
@@ -131,7 +131,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._task_service = task_service
         self._budget_authority = budget_authority
         self._forecast_authority = forecast_authority
-        self._approval_service = approval_service
+        self._approval_commands = approval_commands
         self._clock = clock
         self._approval_repo = approval_repo
         self._record_event = record_event

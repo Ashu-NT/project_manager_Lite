@@ -272,7 +272,7 @@ def test_finance_governed_operations_use_one_fresh_session_for_billing_and_rates
         billing = operations.billing_preparations
         assert billing._cost_entry_repo is uow.cost_entries
         assert billing._labor_posting_repo is uow.labor_postings
-        assert billing._financial_period_service._session is uow._session
+        assert billing._financial_period_queries._period_repo.session is uow._session
         assert billing._rate_resolver._reader._session is uow._session
         assert operations.planned_costs._rate_resolver is billing._rate_resolver
         assert operations.cost_entries._rate_resolver is billing._rate_resolver

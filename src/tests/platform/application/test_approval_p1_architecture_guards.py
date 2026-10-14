@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from src.core.platform.application.approval import approval_mutation_participant
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.approval.commands import ApprovalCommandHandler
 from src.core.platform.domain.approval.approval_request import ApprovalRequest
 
 _SRC_CORE = Path(__file__).resolve().parents[3] / "core"
@@ -23,8 +23,8 @@ def test_approval_request_does_not_implement_records_domain_events():
 
 
 def test_request_change_has_no_commit_parameter():
-    """`request_change(commit=False)` no longer exists on `ApprovalService`."""
-    params = inspect.signature(ApprovalService.request_change).parameters
+    """`request_change(commit=False)` no longer exists on `ApprovalCommandHandler`."""
+    params = inspect.signature(ApprovalCommandHandler.request_change).parameters
     assert "commit" not in params
 
 

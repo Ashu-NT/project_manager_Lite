@@ -83,7 +83,7 @@ def _resource_scoped_binding_setup(services, *, suffix, scope_type, role_name, o
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
         target_scope_type=scope_type,
@@ -395,7 +395,7 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id, assignable_role_id=viewer_role.id,
         target_scope_type="tenant", tenant_id=tenant_id,
     )
@@ -403,7 +403,7 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
 
     refresh_calls = []
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
-    services["role_governance_service"].assign_role(target_user_id=target.id, role_id=viewer_role.id)
+    services["role_governance_commands"].assign_role(target_user_id=target.id, role_id=viewer_role.id)
 
     assert refresh_calls == ["refresh"]
 
@@ -448,7 +448,7 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     channel.subscribe(ExactOrganization(tenant_a, "does-not-matter"), lambda hint: hints.append(hint))
 
     with pytest.raises(NotFoundError):
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id, role_id=target_role.id, actual_scope_id=foreign_site_id
         )
 
@@ -621,6 +621,6 @@ def test_platform_scope_assignment_remains_denied_no_invalidation_ever_fabricate
     _switch_session_to_actor(services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",))
 
     with pytest.raises(BusinessRuleError):
-        services["role_governance_service"].assign_role(target_user_id=target.id, role_id=platform_role.id)
+        services["role_governance_commands"].assign_role(target_user_id=target.id, role_id=platform_role.id)
 
     assert hints == []

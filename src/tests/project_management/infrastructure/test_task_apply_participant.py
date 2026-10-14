@@ -38,7 +38,9 @@ def _make_two_tasks(services, name: str = "Task Approval Participant"):
     ps = services["project_service"]
     ts = services["task_service"]
     project = ps.create_project(name, "")
-    a = ts.create_task(project.id, "Task A", "", start_date=date(2026, 9, 1), duration_days=2)
+    a = ts.create_task(
+        project.id, "Task A", "", start_date=date(2026, 9, 1), duration_days=2
+    )
     b = ts.create_task(project.id, "Task B", "", duration_days=2)
     return project, a, b
 
@@ -47,11 +49,15 @@ def _make_task(services, name: str = "Task Approval Participant Constraint"):
     ps = services["project_service"]
     ts = services["task_service"]
     project = ps.create_project(name, "")
-    task = ts.create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)
+    task = ts.create_task(
+        project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3
+    )
     return project, task
 
 
-def _dependency_add_request(services, project, predecessor, successor) -> ApprovalRequest:
+def _dependency_add_request(
+    services, project, predecessor, successor
+) -> ApprovalRequest:
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="test approval request"
     )
@@ -75,7 +81,9 @@ def _dependency_add_request(services, project, predecessor, successor) -> Approv
     )
 
 
-def _constraint_update_request(services, project, task, *, constraint_type, constraint_date) -> ApprovalRequest:
+def _constraint_update_request(
+    services, project, task, *, constraint_type, constraint_date
+) -> ApprovalRequest:
     tenant_id = services["tenant_context_service"].require_active_tenant_id(
         operation_label="test approval request"
     )
@@ -89,8 +97,12 @@ def _constraint_update_request(services, project, task, *, constraint_type, cons
         payload={
             "task_id": task.id,
             "task_name": task.name,
-            "constraint_type": constraint_type.value if constraint_type is not None else None,
-            "constraint_date": constraint_date.isoformat() if constraint_date is not None else None,
+            "constraint_type": constraint_type.value
+            if constraint_type is not None
+            else None,
+            "constraint_date": constraint_date.isoformat()
+            if constraint_date is not None
+            else None,
             "expected_version": task.version,
         },
         requested_by_user_id="requester-1",
@@ -105,11 +117,12 @@ def _deps(services, session):
         tenant_context_service=services["tenant_context_service"],
         work_calendar_engine=services["work_calendar_engine"],
         platform_calendar_resolver=services["platform_calendar_resolver"],
-        calendar_assignment_service=services["calendar_assignment_service"],
     )
 
 
-def test_participant_apply_dependency_add_adds_dependency_on_the_supplied_session(services, session):
+def test_participant_apply_dependency_add_adds_dependency_on_the_supplied_session(
+    services, session
+):
     _login(services, "admin", "ChangeMe123!")
     project, a, b = _make_two_tasks(services)
 
@@ -132,7 +145,9 @@ def test_participant_apply_dependency_add_adds_dependency_on_the_supplied_sessio
     assert event.change_type == TaskDependencyChangeType.ADDED
 
 
-def test_participant_apply_task_constraint_update_updates_task_on_the_supplied_session(services, session):
+def test_participant_apply_task_constraint_update_updates_task_on_the_supplied_session(
+    services, session
+):
     _login(services, "admin", "ChangeMe123!")
     project, task = _make_task(services)
 
@@ -140,7 +155,11 @@ def test_participant_apply_task_constraint_update_updates_task_on_the_supplied_s
     # A Friday -- a working day, matching test_task_constraint_governance.py's pattern.
     constraint_date = date(2026, 9, 18)
     request = _constraint_update_request(
-        services, project, task, constraint_type=ConstraintType.MUST_START_ON, constraint_date=constraint_date
+        services,
+        project,
+        task,
+        constraint_type=ConstraintType.MUST_START_ON,
+        constraint_date=constraint_date,
     )
 
     result = TaskApprovalParticipant().apply_task_constraint_update(request, deps)
@@ -165,7 +184,9 @@ def test_participant_never_calls_commit_or_rollback(services, session, monkeypat
     request = _dependency_add_request(services, project, a, b)
 
     def _forbidden(*_args, **_kwargs):
-        raise AssertionError("the participant must never commit or roll back its own Session")
+        raise AssertionError(
+            "the participant must never commit or roll back its own Session"
+        )
 
     monkeypatch.setattr(type(session), "commit", _forbidden)
     monkeypatch.setattr(type(session), "rollback", _forbidden)
@@ -198,15 +219,21 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         assert activity_a is not activity_b
         assert activity_a._session is session_a
         assert activity_b._session is session_b
-        scheduler_a = deps_a.task_service._scheduling_constraint_handler._scheduling_engine
-        scheduler_b = deps_b.task_service._scheduling_constraint_handler._scheduling_engine
+        scheduler_a = (
+            deps_a.task_service._scheduling_constraint_handler._scheduling_engine
+        )
+        scheduler_b = (
+            deps_b.task_service._scheduling_constraint_handler._scheduling_engine
+        )
         assert scheduler_a is not scheduler_b
         assert scheduler_a._session is session_a
         assert scheduler_b._session is session_b
-        assert deps_a.task_service._dependency_command_handler._approval_service is None, (
-            "the apply path must never reach back into ApprovalService"
+        assert (
+            deps_a.task_service._dependency_command_handler._approval_commands is None
+        ), "the apply path must never reach back into ApprovalCommandHandler"
+        assert (
+            deps_b.task_service._dependency_command_handler._approval_commands is None
         )
-        assert deps_b.task_service._dependency_command_handler._approval_service is None
     finally:
         session_a.close()
         session_b.close()

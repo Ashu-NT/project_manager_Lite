@@ -130,7 +130,7 @@ def test_participant_never_owns_commit_or_rollback(
     deps = _deps(services, session)
 
     def _forbidden(*_args, **_kwargs):
-        raise AssertionError("ApprovalService owns transaction completion")
+        raise AssertionError("ApprovalCommandHandler owns transaction completion")
 
     monkeypatch.setattr(type(session), "commit", _forbidden)
     monkeypatch.setattr(type(session), "rollback", _forbidden)
@@ -171,8 +171,8 @@ def test_dependencies_are_bound_to_the_approval_uow_session(tmp_path, services) 
         assert deps_a.forecast_service is not deps_b.forecast_service
         assert deps_a.forecast_service._enterprise_audit_service._session is session_a
         assert deps_b.forecast_service._enterprise_audit_service._session is session_b
-        assert deps_a.forecast_service._approval_service is None
-        assert deps_b.forecast_service._approval_service is None
+        assert deps_a.forecast_service._approval_commands is None
+        assert deps_b.forecast_service._approval_commands is None
     finally:
         session_a.close()
         session_b.close()
@@ -198,10 +198,10 @@ def test_platform_approval_request_enforces_separation_of_duties(
     assert requester_row.can_reject is False
 
     with pytest.raises(BusinessRuleError) as exc:
-        services["approval_service"].approve_and_apply(result.approval_request_id)
+        services["approval_commands"].approve_and_apply(result.approval_request_id)
     assert exc.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
     with pytest.raises(BusinessRuleError) as reject_error:
-        services["approval_service"].reject(result.approval_request_id)
+        services["approval_commands"].reject(result.approval_request_id)
     assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
 
     services["user_registration"].register_user(
@@ -214,7 +214,7 @@ def test_platform_approval_request_enforces_separation_of_duties(
     reviewer_row = reviewer_view.versions.items[0]
     assert reviewer_row.can_approve is True
     assert reviewer_row.can_reject is True
-    services["approval_service"].approve_and_apply(
+    services["approval_commands"].approve_and_apply(
         result.approval_request_id, note="Approved independently"
     )
 
@@ -279,13 +279,13 @@ def test_platform_approval_rolls_back_forecast_when_participant_fails(
     )
 
     with pytest.raises(RuntimeError, match="injected participant failure"):
-        services["approval_service"].approve_and_apply(result.approval_request_id)
+        services["approval_commands"].approve_and_apply(result.approval_request_id)
 
     session.expire_all()
     unchanged = services["forecast_version_service"].get_forecast(forecast.id)
     pending = next(
         request
-        for request in services["approval_service"].list_pending(project_id=project.id)
+        for request in services["approval_queries"].list_pending(project_id=project.id)
         if request.id == result.approval_request_id
     )
     assert unchanged.status is ForecastStatus.SUBMITTED

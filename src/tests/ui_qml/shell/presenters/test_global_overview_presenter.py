@@ -592,7 +592,7 @@ def test_quick_actions_failure_returns_friendly_message():
 
 def test_presenter_never_imports_platform_runtime_directly():
     """Structural guard for the Quick Actions API gap: the presenter must
-    not import PlatformRuntimeApplicationService to work around the missing
+    not import PlatformRuntimeQueryHandler to work around the missing
     permission/module input -- everything comes through get_capabilities()."""
     import ast
     import inspect
@@ -606,7 +606,7 @@ def test_presenter_never_imports_platform_runtime_directly():
         if isinstance(node, (ast.Import, ast.ImportFrom))
         for alias in node.names
     }
-    assert "PlatformRuntimeApplicationService" not in imported_names
+    assert "PlatformRuntimeQueryHandler" not in imported_names
 
 
 def test_quick_actions_never_check_role_names():

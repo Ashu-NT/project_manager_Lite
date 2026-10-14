@@ -100,7 +100,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
         record_event: Callable[[object], None] | None = None,
-        approval_service=None,
+        approval_commands=None,
     ) -> None:
         self._session = session
         self._forecast_repo = forecast_repo
@@ -114,7 +114,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
         self._record_event = record_event
-        self._approval_service = approval_service
+        self._approval_commands = approval_commands
 
     def _emit_version_event(
         self, forecast: ProjectForecast, *, change_type: ForecastVersionChangeType, occurred_at: datetime
@@ -429,7 +429,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
     def request_forecast_approval(
         self, forecast_id: str, *, expected_version: int, notes: str = ""
     ) -> ForecastApprovalRequestResult:
-        if self._approval_service is None:
+        if self._approval_commands is None:
             raise BusinessRuleError(
                 "Platform Approval is not configured for Forecast decisions.",
                 code="PROJECT_FORECAST_APPROVAL_UNAVAILABLE",
@@ -445,7 +445,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
                 "Only a submitted Forecast can be sent for approval.",
                 code="PROJECT_FORECAST_APPROVAL_STATUS_INVALID",
             )
-        request = self._approval_service.request_change(
+        request = self._approval_commands.request_change(
             request_type="forecast.approve",
             entity_type="project_forecast",
             entity_id=forecast.id,

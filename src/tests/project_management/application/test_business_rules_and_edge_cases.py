@@ -50,7 +50,9 @@ def test_task_dates_must_fit_project_window(services):
         ts.create_task(pid, "Too Late", start_date=date(2023, 11, 21), duration_days=1)
     assert exc_after.value.code == "TASK_INVALID_DATE"
 
-    ok = ts.create_task(pid, "Within Range", start_date=date(2023, 11, 13), duration_days=2)
+    ok = ts.create_task(
+        pid, "Within Range", start_date=date(2023, 11, 13), duration_days=2
+    )
     assert ok.id
 
 
@@ -81,8 +83,12 @@ def test_assignment_allocation_and_resource_validation(services):
     ts = services["task_service"]
     project = ps.create_project("Assign Rules", "")
     pid = project.id
-    task = ts.create_task(pid, "Assignable Task", start_date=date(2023, 11, 6), duration_days=2)
-    resource = services["resource_master_commands"].create_resource("Assignable Dev", "Developer", hourly_rate=100.0)
+    task = ts.create_task(
+        pid, "Assignable Task", start_date=date(2023, 11, 6), duration_days=2
+    )
+    resource = services["resource_master_commands"].create_resource(
+        "Assignable Dev", "Developer", hourly_rate=100.0
+    )
 
     with pytest.raises(ValidationError):
         ts.assign_resource(task.id, resource.id, allocation_percent=0.0)
@@ -95,26 +101,30 @@ def test_assignment_allocation_and_resource_validation(services):
 def test_work_calendar_next_and_negative_day_math(services):
     # wc is now GlobalCalendarShim backed by the enterprise calendar
     wc = services["work_calendar_engine"]
-    exc_svc = services["calendar_exception_service"]
-    cal_svc = services["platform_calendar_service"]
+    exc_svc_commands = services["calendar_exception_commands"]
+    cal_svc_queries = services["platform_calendar_queries"]
 
     # Saturday 2023-11-04 -> next working day is Monday 2023-11-06
-    assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(2023, 11, 6)
+    assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(
+        2023, 11, 6
+    )
 
     # One working day backward from Monday 2023-11-06 -> Friday 2023-11-03
     assert wc.add_working_days(date(2023, 11, 6), -1) == date(2023, 11, 3)
 
     # Add enterprise holiday on Monday 2023-11-06 — should now skip to Tuesday
-    global_cals = cal_svc.list_calendars(calendar_type="GLOBAL")
+    global_cals = cal_svc_queries.list_calendars(calendar_type="GLOBAL")
     assert global_cals, "Global enterprise calendar must exist"
-    exc_svc.add_exception(
+    exc_svc_commands.add_exception(
         global_cals[0].id,
         exception_date=date(2023, 11, 6),
         exception_type="HOLIDAY",
         name="Holiday Monday",
         impact_type="UNAVAILABLE",
     )
-    assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(2023, 11, 7)
+    assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(
+        2023, 11, 7
+    )
 
 
 def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services):
@@ -135,7 +145,9 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
     ts.create_task(pid, "Budgeted Task", start_date=date(2023, 11, 6), duration_days=3)
     baseline = bs.create_baseline(pid, "BL-Budget", rate_as_of=date.today())
 
-    evm = services["earned_value_report"].get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))
+    evm = services["earned_value_report"].get_earned_value(
+        project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30)
+    )
     assert evm.availability == "baseline_unavailable"
     assert evm.BAC is None
 
@@ -171,8 +183,12 @@ def test_resource_load_summary_sorted_descending(services):
     t1 = ts.create_task(pid, "Task One", start_date=date(2023, 11, 6), duration_days=2)
     t2 = ts.create_task(pid, "Task Two", start_date=date(2023, 11, 6), duration_days=2)
 
-    r1 = services["resource_master_commands"].create_resource("Res One", "Dev", hourly_rate=100.0)
-    r2 = services["resource_master_commands"].create_resource("Res Two", "QA", hourly_rate=100.0)
+    r1 = services["resource_master_commands"].create_resource(
+        "Res One", "Dev", hourly_rate=100.0
+    )
+    r2 = services["resource_master_commands"].create_resource(
+        "Res Two", "QA", hourly_rate=100.0
+    )
 
     ts.assign_resource(t1.id, r1.id, allocation_percent=20.0)
     ts.assign_resource(t2.id, r2.id, allocation_percent=80.0)
@@ -187,11 +203,17 @@ def test_dependency_diagnostics_flags_duplicates(services):
     ts = services["task_service"]
 
     project = ps.create_project("Dependency Diagnostics", "")
-    t1 = ts.create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1)
-    t2 = ts.create_task(project.id, "Task B", start_date=date(2023, 11, 6), duration_days=1)
+    t1 = ts.create_task(
+        project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1
+    )
+    t2 = ts.create_task(
+        project.id, "Task B", start_date=date(2023, 11, 6), duration_days=1
+    )
     ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(t1.id, t2.id, include_impact=False)
+    diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(
+        t1.id, t2.id, include_impact=False
+    )
     assert not diag.is_valid
     assert diag.code == "DEPENDENCY_DUPLICATE"
     assert diag.risk_level == "blocked"
@@ -203,13 +225,17 @@ def test_dependency_diagnostics_cycle_includes_path_names(services):
     ts = services["task_service"]
 
     project = ps.create_project("Cycle Detail", "")
-    task_a = ts.create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1)
+    task_a = ts.create_task(
+        project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1
+    )
     task_b = ts.create_task(project.id, "Task B", duration_days=1)
     task_c = ts.create_task(project.id, "Task C", duration_days=1)
     ts.add_dependency(task_a.id, task_b.id, DependencyType.FINISH_TO_START, lag_days=0)
     ts.add_dependency(task_b.id, task_c.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(task_c.id, task_a.id, include_impact=False)
+    diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(
+        task_c.id, task_a.id, include_impact=False
+    )
     assert not diag.is_valid
     assert diag.code == "DEPENDENCY_CYCLE"
     assert "Task A" in diag.detail
@@ -224,8 +250,12 @@ def test_dependency_diagnostics_reports_schedule_impact(services):
     ts = services["task_service"]
 
     project = ps.create_project("Impact Preview", "")
-    task_a = ts.create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2)
-    task_b = ts.create_task(project.id, "Task B", start_date=date(2023, 11, 6), duration_days=2)
+    task_a = ts.create_task(
+        project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2
+    )
+    task_b = ts.create_task(
+        project.id, "Task B", start_date=date(2023, 11, 6), duration_days=2
+    )
 
     diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(
         task_a.id,
@@ -247,8 +277,12 @@ def test_dependency_diagnostics_no_shift_reports_none_risk(services):
     ts = services["task_service"]
 
     project = ps.create_project("No Shift Preview", "")
-    pred = ts.create_task(project.id, "Task P", start_date=date(2023, 11, 6), duration_days=2)
-    succ = ts.create_task(project.id, "Task S", start_date=date(2023, 11, 6), duration_days=2)
+    pred = ts.create_task(
+        project.id, "Task P", start_date=date(2023, 11, 6), duration_days=2
+    )
+    succ = ts.create_task(
+        project.id, "Task S", start_date=date(2023, 11, 6), duration_days=2
+    )
 
     diag = services["task_dependency_diagnostics"].get_dependency_diagnostics(
         pred.id,
@@ -266,7 +300,9 @@ def test_add_dependency_uses_diagnostics_for_cycle_rule(services):
     ts = services["task_service"]
 
     project = ps.create_project("Cycle Enforcement", "")
-    t1 = ts.create_task(project.id, "Task 1", start_date=date(2023, 11, 6), duration_days=1)
+    t1 = ts.create_task(
+        project.id, "Task 1", start_date=date(2023, 11, 6), duration_days=1
+    )
     t2 = ts.create_task(project.id, "Task 2", duration_days=1)
     ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
 
@@ -274,4 +310,3 @@ def test_add_dependency_uses_diagnostics_for_cycle_rule(services):
         ts.add_dependency(t2.id, t1.id, DependencyType.FINISH_TO_START, lag_days=0)
     assert exc.value.code == "DEPENDENCY_CYCLE"
     assert "Cycle path" in str(exc.value)
-

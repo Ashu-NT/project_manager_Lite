@@ -65,7 +65,7 @@ class DashboardSnapshotService:
         baseline_service=None,
         earned_value_report=None,
         collaboration_inbox_query=None,
-        approval_service=None,
+        approval_queries=None,
     ) -> None:
         self._project_service = project_service
         self._project_dashboard = project_dashboard
@@ -73,7 +73,7 @@ class DashboardSnapshotService:
         self._baseline_service = baseline_service
         self._earned_value_report = earned_value_report
         self._collaboration_inbox_query = collaboration_inbox_query
-        self._approval_service = approval_service
+        self._approval_queries = approval_queries
 
     def build_snapshot(
         self,
@@ -175,9 +175,9 @@ class DashboardSnapshotService:
         )
 
     def _list_pending_approvals(self, *, project_id: str | None) -> tuple[Any, ...]:
-        if self._approval_service is None:
+        if self._approval_queries is None:
             return ()
-        return tuple(self._approval_service.list_pending(project_id=project_id, limit=120))
+        return tuple(self._approval_queries.list_pending(project_id=project_id, limit=120))
 
 
 __all__ = ["DashboardSnapshotService"]

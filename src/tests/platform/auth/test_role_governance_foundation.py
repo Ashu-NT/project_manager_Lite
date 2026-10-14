@@ -47,7 +47,7 @@ _NO_STOREROOM_RESOLVER_REASON = (
     "src/infra/composition/inventory_registry.py's "
     "register_canonical_scope_tenant_resolver('storeroom', ...) call). That "
     "module was removed 2026-09-09 pending a future rebuild, so "
-    "role_governance_service.assign_role() raises BusinessRuleError "
+    "role_governance_commands.assign_role() raises BusinessRuleError "
     "('Tenant ownership validation is not configured for storeroom.') for "
     "storeroom-scoped assignments. Un-skip once a module registers this "
     "resolver again."
@@ -55,7 +55,7 @@ _NO_STOREROOM_RESOLVER_REASON = (
 
 
 def _role_binding_repo(services):
-    """`RoleGovernanceService` opens a fresh UoW-bound repository per mutation -- this
+    """`RoleGovernanceCommandHandler` opens a fresh UoW-bound repository per mutation -- this
     freshly-constructed one, bound to the same shared test `session`, reads/writes the identical
     underlying data for setup/assertion purposes."""
     return SqlAlchemyRoleBindingRepository(services["session"])
@@ -112,7 +112,7 @@ def _prepare_canonical_assignment(
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
-        services["role_governance_service"].create_delegation_policy(
+        services["role_governance_commands"].create_delegation_policy(
             actor_role_id=actor_role.id,
             assignable_role_id=target_role.id,
             target_scope_type=ROLE_SCOPE_TENANT,
@@ -163,7 +163,7 @@ def _prepare_organization_canonical_assignment(
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
-        services["role_governance_service"].create_delegation_policy(
+        services["role_governance_commands"].create_delegation_policy(
             actor_role_id=actor_role.id,
             assignable_role_id=target_role.id,
             target_scope_type="organization",
@@ -197,7 +197,7 @@ def test_organization_role_assignment_is_scoped_and_audited(services) -> None:
         organization_id=organization_id,
     )
 
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=target_role.id,
         actual_scope_id=organization_id,
@@ -233,7 +233,7 @@ def test_organization_role_assignment_rejects_cross_tenant_organization(
     services["session"].flush()
 
     with pytest.raises(NotFoundError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=target_role.id,
             actual_scope_id=other_organization.id,
@@ -267,7 +267,7 @@ def _prepare_project_canonical_assignment(
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
-        services["role_governance_service"].create_delegation_policy(
+        services["role_governance_commands"].create_delegation_policy(
             actor_role_id=actor_role.id,
             assignable_role_id=target_role.id,
             target_scope_type="project",
@@ -300,7 +300,7 @@ def test_project_role_assignment_is_scoped_and_audited(services) -> None:
         project_id=project.id,
     )
 
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=target_role.id,
         actual_scope_id=project.id,
@@ -320,7 +320,7 @@ def test_project_role_assignment_rejects_unresolvable_project(services) -> None:
     )
 
     with pytest.raises(NotFoundError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=target_role.id,
             actual_scope_id="nonexistent-project-id",
@@ -354,7 +354,7 @@ def _prepare_site_canonical_assignment(
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
-        services["role_governance_service"].create_delegation_policy(
+        services["role_governance_commands"].create_delegation_policy(
             actor_role_id=actor_role.id,
             assignable_role_id=target_role.id,
             target_scope_type="site",
@@ -387,7 +387,7 @@ def test_site_role_assignment_is_scoped_and_audited(services) -> None:
         site_id=site.id,
     )
 
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=target_role.id,
         actual_scope_id=site.id,
@@ -407,7 +407,7 @@ def test_site_role_assignment_rejects_unresolvable_site(services) -> None:
     )
 
     with pytest.raises(NotFoundError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=target_role.id,
             actual_scope_id="nonexistent-site-id",
@@ -454,7 +454,7 @@ def _prepare_storeroom_canonical_assignment(
     assert actor_role is not None
     assert target_role is not None
     if create_policy:
-        services["role_governance_service"].create_delegation_policy(
+        services["role_governance_commands"].create_delegation_policy(
             actor_role_id=actor_role.id,
             assignable_role_id=target_role.id,
             target_scope_type="storeroom",
@@ -488,7 +488,7 @@ def test_storeroom_role_assignment_is_scoped_and_audited(services) -> None:
         storeroom_id=storeroom.id,
     )
 
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=target_role.id,
         actual_scope_id=storeroom.id,
@@ -509,7 +509,7 @@ def test_storeroom_role_assignment_rejects_unresolvable_storeroom(services) -> N
     )
 
     with pytest.raises(NotFoundError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=target_role.id,
             actual_scope_id="nonexistent-storeroom-id",
@@ -608,7 +608,7 @@ def test_canonical_assignment_requires_explicit_delegation(services) -> None:
     services["user_session"].set_security_denial_listener(events.append)
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=target_role.id,
         )
@@ -623,7 +623,7 @@ def test_canonical_assignment_requires_explicit_delegation(services) -> None:
 def test_canonical_assignment_is_tenant_scoped_and_audited(services) -> None:
     _, target, target_role = _prepare_canonical_assignment(services)
 
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=target_role.id,
     )
@@ -658,7 +658,7 @@ def test_expired_binding_is_revoked_before_reassignment(services) -> None:
     _role_binding_repo(services).add(expired)
     services["session"].commit()
 
-    replacement = services["role_governance_service"].assign_role(
+    replacement = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=target_role.id,
     )
@@ -685,7 +685,7 @@ def test_permission_drift_invalidates_delegation_snapshot(services) -> None:
     services["session"].commit()
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=target_role.id,
         )
@@ -710,7 +710,7 @@ def test_tenant_owned_role_cannot_cross_tenant_namespace(services) -> None:
     services["session"].commit()
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=other_role.id,
         )
@@ -782,7 +782,7 @@ def test_canonical_assignment_enforces_separation_of_duties(
     services["user_session"].set_security_denial_listener(events.append)
 
     with pytest.raises(ValidationError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=approver_role.id,
         )
@@ -798,12 +798,12 @@ def test_canonical_binding_revocation_uses_same_delegation_guard(
     services,
 ) -> None:
     _, target, target_role = _prepare_canonical_assignment(services)
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=target_role.id,
     )
 
-    revoked = services["role_governance_service"].revoke_role_binding(
+    revoked = services["role_governance_commands"].revoke_role_binding(
         binding.id
     )
 
@@ -832,7 +832,7 @@ def test_canonical_assignment_rolls_back_when_audit_persistence_fails(
     )
 
     with pytest.raises(RuntimeError, match="audit unavailable"):
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=target_role.id,
         )
@@ -861,7 +861,7 @@ def test_platform_operator_cannot_use_customer_assignment_path(
     role = services["auth_queries"]._role_repo.get_by_name("viewer")
     assert role is not None
     services[
-        "role_governance_service"
+        "role_governance_commands"
     ]._allow_platform_customer_context = False
     principal = services["user_session"].principal
     services["user_session"].set_principal(
@@ -875,7 +875,7 @@ def test_platform_operator_cannot_use_customer_assignment_path(
     )
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=role.id,
         )

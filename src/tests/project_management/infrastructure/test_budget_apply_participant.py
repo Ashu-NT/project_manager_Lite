@@ -164,8 +164,8 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         )
         assert deps_a.budget_service._enterprise_audit_service._session is session_a
         assert deps_b.budget_service._enterprise_audit_service._session is session_b
-        assert deps_a.budget_service._approval_service is None, (
-            "the apply path must never reach back into ApprovalService"
+        assert deps_a.budget_service._approval_commands is None, (
+            "the apply path must never reach back into ApprovalCommandHandler"
         )
     finally:
         session_a.close()

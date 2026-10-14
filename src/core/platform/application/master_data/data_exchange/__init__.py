@@ -1,9 +1,5 @@
-from src.core.platform.application.master_data.data_exchange.service import (
-    MasterDataExchangeService,
+from src.core.platform.application.master_data.data_exchange.dto import (
     MasterDataExportRequest,
 )
 
-__all__ = [
-    "MasterDataExchangeService",
-    "MasterDataExportRequest",
-]
+__all__ = ["MasterDataExportRequest"]

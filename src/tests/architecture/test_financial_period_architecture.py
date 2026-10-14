@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 from src.infra.persistence.orm import Base
@@ -48,3 +49,28 @@ def test_financial_period_foundation_contains_no_reopen_transition_code() -> Non
 
     assert "def reopen" not in source
     assert "reopen_period" not in source
+
+
+def test_financial_period_authority_is_split_without_compatibility_service() -> None:
+    root = Path("src/core/platform/application/finance")
+    assert not (root / "financial_period_service.py").exists()
+    query_source = (root / "queries/financial_period_query.py").read_text(encoding="utf-8")
+    command_source = (root / "commands/financial_period_command.py").read_text(encoding="utf-8")
+    queries = ast.parse(query_source)
+    commands = ast.parse(command_source)
+    query_methods = {
+        node.name for node in ast.walk(queries)
+        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_")
+    }
+    command_methods = {
+        node.name for node in ast.walk(commands)
+        if isinstance(node, ast.FunctionDef) and not node.name.startswith("_")
+    }
+    assert query_methods == {
+        "list_periods", "get_period", "require_open_period_for_date",
+        "require_open_period_for_integration",
+    }
+    assert command_methods == {"create_period", "update_period", "close_period", "lock_period"}
+    assert "sqlalchemy" not in query_source
+    assert "record_audit_entry" not in query_source
+    assert "record_activity" not in query_source

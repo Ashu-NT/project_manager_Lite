@@ -37,7 +37,7 @@ def _tenant_scoped_binding_setup(services, *, suffix: str, role_name: str = "vie
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
         target_scope_type="tenant",
@@ -55,10 +55,10 @@ def _tenant_scoped_binding_setup(services, *, suffix: str, role_name: str = "vie
 # ---------------------------------------------------------------------------
 
 
-def test_role_governance_service_emits_no_auth_changed():
+def test_role_governance_commands_emits_no_auth_changed():
     import inspect
 
-    import src.core.platform.application.security.authorization.roles.role_governance_service as module
+    import src.core.platform.application.security.authorization.roles.commands.role_governance as module
 
     source = inspect.getsource(module)
     assert "auth_changed" not in source
@@ -109,7 +109,7 @@ def test_role_binding_assignment_causes_exactly_one_narrow_refresh_and_zero_coar
         lambda: coarse_security_calls.append("legacy_auth_changed") or None
     )
 
-    services["role_governance_service"].assign_role(target_user_id=target.id, role_id=target_role.id)
+    services["role_governance_commands"].assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert narrow_calls == ["role_binding"]
     assert coarse_security_calls == []
@@ -121,7 +121,7 @@ def test_role_binding_revocation_causes_exactly_one_narrow_refresh_and_zero_coar
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
     target, target_role = _tenant_scoped_binding_setup(services, suffix="revoke-refresh")
-    binding = services["role_governance_service"].assign_role(target_user_id=target.id, role_id=target_role.id)
+    binding = services["role_governance_commands"].assign_role(target_user_id=target.id, role_id=target_role.id)
 
     narrow_calls = []
     coarse_security_calls = []
@@ -130,7 +130,7 @@ def test_role_binding_revocation_causes_exactly_one_narrow_refresh_and_zero_coar
         lambda: coarse_security_calls.append("legacy_auth_changed") or None
     )
 
-    services["role_governance_service"].revoke_role_binding(binding.id)
+    services["role_governance_commands"].revoke_role_binding(binding.id)
 
     assert narrow_calls == ["role_binding"]
     assert coarse_security_calls == []
@@ -149,7 +149,7 @@ def test_role_binding_assignment_no_longer_reaches_the_admin_console_coarse_bind
     coarse_admin_calls = []
     catalog.adminWorkspace.refresh = lambda: coarse_admin_calls.append("admin_console_full_refresh") or None
 
-    services["role_governance_service"].assign_role(target_user_id=target.id, role_id=target_role.id)
+    services["role_governance_commands"].assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert coarse_admin_calls == []
 
@@ -162,14 +162,14 @@ def test_role_binding_events_stay_silent_on_rollback(services, monkeypatch):
     )
 
     target, target_role = _tenant_scoped_binding_setup(services, suffix="rollback-silent")
-    role_governance_service = services["role_governance_service"]
+    role_governance_commands = services["role_governance_commands"]
 
     def _fail_commit(self):
         raise RuntimeError("simulated commit failure")
 
     monkeypatch.setattr(SqlAlchemyRoleGovernanceUnitOfWork, "commit", _fail_commit)
     with pytest.raises(RuntimeError, match="simulated commit failure"):
-        role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+        role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +188,7 @@ def test_current_principal_refresh_still_occurs_and_fails_closed_without_auth_ch
     )
     tenant_admin_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id,
         assignable_role_id=viewer_role.id,
         target_scope_type="tenant",
@@ -225,7 +225,7 @@ def test_other_user_role_binding_mutation_leaves_acting_admin_principal_untouche
     narrow_calls = []
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: narrow_calls.append("role_binding") or None
 
-    binding = services["role_governance_service"].assign_role(target_user_id=target.id, role_id=target_role.id)
+    binding = services["role_governance_commands"].assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert binding.principal_id == target.id
     assert narrow_calls == ["role_binding"]

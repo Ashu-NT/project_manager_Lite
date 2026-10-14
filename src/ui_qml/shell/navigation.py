@@ -45,7 +45,7 @@ def filter_navigation_items(
     items: list[NavigationItemViewModel], *, accessible_module_codes: frozenset[str]
 ) -> list[NavigationItemViewModel]:
     """Presentation-safe navigation accessibility projection: consumes an
-    already-resolved accessible-module set (see PlatformRuntimeApplicationService
+    already-resolved accessible-module set (see PlatformRuntimeQueryHandler
     .list_accessible_modules(), the same authoritative source Global Overview's
     module cards and Quick Actions already use) and returns only the items the
     current user may see. No permission/role logic lives here or in QML --

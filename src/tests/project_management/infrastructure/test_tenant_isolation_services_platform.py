@@ -7,11 +7,11 @@ from src.core.platform.application.master_data.documents import DocumentQueryHan
 from src.core.platform.application.master_data.party import PartyQueryHandler
 from src.core.platform.application.master_data.site import SiteQueryHandler
 from src.core.platform.application.tenant.tenancy import TenantContextService
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
-    ShiftPatternService,
+from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
+    ShiftPatternQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.contract.port.master_data.documents.document_access_policy import (
@@ -130,7 +130,11 @@ class _ResourceRepo:
             try:
                 org_id = self._tenant_context_service.get_active_organization_id()
                 if org_id:
-                    return [r for r in self.rows if getattr(r, "organization_id", None) == org_id]
+                    return [
+                        r
+                        for r in self.rows
+                        if getattr(r, "organization_id", None) == org_id
+                    ]
             except Exception:
                 pass
         return list(self.rows)
@@ -145,7 +149,9 @@ class _PlatformScopedRepo:
         self.list_for_organization_calls: list[str] = []
 
     def get(self, row_id: str):
-        return next((row for row in self.rows if getattr(row, "id", "") == row_id), None)
+        return next(
+            (row for row in self.rows if getattr(row, "id", "") == row_id), None
+        )
 
     def get_by_code(self, organization_id: str, code: str):
         for row in self.rows:
@@ -156,7 +162,10 @@ class _PlatformScopedRepo:
                 or getattr(row, "document_code", None)
                 or getattr(row, "code", None)
             )
-            if getattr(row, "organization_id", None) == organization_id and row_code == code:
+            if (
+                getattr(row, "organization_id", None) == organization_id
+                and row_code == code
+            ):
                 return row
         return None
 
@@ -169,14 +178,26 @@ class _PlatformScopedRepo:
         site_id: str | None = None,
     ):
         self.list_for_organization_calls.append(organization_id)
-        rows = [row for row in self.rows if getattr(row, "organization_id", None) == organization_id]
+        rows = [
+            row
+            for row in self.rows
+            if getattr(row, "organization_id", None) == organization_id
+        ]
         if site_id is not None:
             rows = [row for row in rows if getattr(row, "site_id", None) == site_id]
         if calendar_type is not None:
-            rows = [row for row in rows if getattr(row, "calendar_type", None) == calendar_type]
+            rows = [
+                row
+                for row in rows
+                if getattr(row, "calendar_type", None) == calendar_type
+            ]
         if active_only is None:
             return rows
-        return [row for row in rows if bool(getattr(row, "is_active", True)) is bool(active_only)]
+        return [
+            row
+            for row in rows
+            if bool(getattr(row, "is_active", True)) is bool(active_only)
+        ]
 
 
 class _SeeEveryDocumentPolicy:
@@ -235,26 +256,60 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
     org_repo = _OrgRepo()
     site_repo = _PlatformScopedRepo(
         [
-            Site(id="site-a", organization_id="org-a", site_code="SITE-A", name="A Site"),
-            Site(id="site-b", organization_id="org-b", site_code="SITE-B", name="B Site"),
+            Site(
+                id="site-a", organization_id="org-a", site_code="SITE-A", name="A Site"
+            ),
+            Site(
+                id="site-b", organization_id="org-b", site_code="SITE-B", name="B Site"
+            ),
         ]
     )
     department_repo = _PlatformScopedRepo(
         [
-            Department(id="department-a", organization_id="org-a", department_code="DEPT-A", name="A Department"),
-            Department(id="department-b", organization_id="org-b", department_code="DEPT-B", name="B Department"),
+            Department(
+                id="department-a",
+                organization_id="org-a",
+                department_code="DEPT-A",
+                name="A Department",
+            ),
+            Department(
+                id="department-b",
+                organization_id="org-b",
+                department_code="DEPT-B",
+                name="B Department",
+            ),
         ]
     )
     party_repo = _PlatformScopedRepo(
         [
-            Party(id="party-a", organization_id="org-a", party_code="PARTY-A", party_name="A Party"),
-            Party(id="party-b", organization_id="org-b", party_code="PARTY-B", party_name="B Party"),
+            Party(
+                id="party-a",
+                organization_id="org-a",
+                party_code="PARTY-A",
+                party_name="A Party",
+            ),
+            Party(
+                id="party-b",
+                organization_id="org-b",
+                party_code="PARTY-B",
+                party_name="B Party",
+            ),
         ]
     )
     document_repo = _PlatformScopedRepo(
         [
-            Document(id="document-a", organization_id="org-a", document_code="DOC-A", title="A Document"),
-            Document(id="document-b", organization_id="org-b", document_code="DOC-B", title="B Document"),
+            Document(
+                id="document-a",
+                organization_id="org-a",
+                document_code="DOC-A",
+                title="A Document",
+            ),
+            Document(
+                id="document-b",
+                organization_id="org-b",
+                document_code="DOC-B",
+                title="B Document",
+            ),
         ]
     )
     calendar_repo = _PlatformScopedRepo(
@@ -325,36 +380,39 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
         overview_rollup_reader=None,
         access_policy=_SeeEveryDocumentPolicy(),
     )
-    calendar_service = PlatformCalendarService(
-        session=object(),
+    calendar_queries = PlatformCalendarQueryHandler(
         calendar_repo=calendar_repo,
-        assignment_repo=object(),
-        organization_repo=org_repo,
         user_session=user_session,
         tenant_context_service=tenant_context,
     )
-    shift_pattern_service = ShiftPatternService(
-        session=object(),
+    shift_pattern_queries = ShiftPatternQueryHandler(
         pattern_repo=shift_pattern_repo,
-        organization_repo=org_repo,
         user_session=user_session,
         tenant_context_service=tenant_context,
     )
 
     assert [row.id for row in site_query.list_sites(active_only=None)] == ["site-b"]
-    assert [row.id for row in department_query.list_departments(active_only=None)] == ["department-b"]
+    assert [row.id for row in department_query.list_departments(active_only=None)] == [
+        "department-b"
+    ]
     assert [row.id for row in party_query.list_parties(active_only=None)] == ["party-b"]
-    assert [row.id for row in document_query.list_documents(active_only=None)] == ["document-b"]
-    assert [row.id for row in calendar_service.list_calendars(active_only=None)] == ["calendar-b"]
-    assert [row.id for row in shift_pattern_service.list_shift_patterns(active_only=None)] == ["pattern-b"]
+    assert [row.id for row in document_query.list_documents(active_only=None)] == [
+        "document-b"
+    ]
+    assert [row.id for row in calendar_queries.list_calendars(active_only=None)] == [
+        "calendar-b"
+    ]
+    assert [
+        row.id for row in shift_pattern_queries.list_shift_patterns(active_only=None)
+    ] == ["pattern-b"]
     try:
-        calendar_service.get_calendar("calendar-a")
+        calendar_queries.get_calendar("calendar-a")
     except NotFoundError:
         pass
     else:  # pragma: no cover - defensive clarity
         raise AssertionError("Cross-tenant calendar access should be denied")
     try:
-        shift_pattern_service.get_shift_pattern("pattern-a")
+        shift_pattern_queries.get_shift_pattern("pattern-a")
     except NotFoundError:
         pass
     else:  # pragma: no cover - defensive clarity

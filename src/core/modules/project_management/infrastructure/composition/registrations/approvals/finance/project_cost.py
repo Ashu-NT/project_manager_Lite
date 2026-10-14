@@ -21,7 +21,7 @@ def build_project_cost_approval_deps(
     *,
     user_session,
     tenant_context_service,
-    financial_period_service,
+    financial_period_queries,
     module_catalog_service=None,
 ) -> ProjectCostApprovalDeps:
 
@@ -43,13 +43,13 @@ def build_project_cost_approval_deps(
         cost_code_repo=bundle.pm.project_cost_code_repo,
         task_repo=bundle.pm.task_repo,
         resource_repo=bundle.pm.resource_repo,
-        financial_period_service=financial_period_service,
+        financial_period_queries=financial_period_queries,
         clock=SystemClock(),
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
-        approval_service=None,
+        approval_commands=None,
     )
     return ProjectCostApprovalDeps(cost_entry_service=cost_entry_service)
 

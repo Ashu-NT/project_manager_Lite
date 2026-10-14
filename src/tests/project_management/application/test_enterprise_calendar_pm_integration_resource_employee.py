@@ -27,8 +27,11 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyProjectCalendarAssignmentRepository,
     SqlAlchemyResourceCalendarAssignmentRepository,
 )
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -36,17 +39,29 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
@@ -95,7 +110,9 @@ def repos(db_session, tenant_context):
         "recurring": SqlAlchemyCalendarRecurringEventRepository(db_session),
         "assignment": SqlAlchemyCalendarAssignmentRepository(db_session),
         "project_assignment": SqlAlchemyProjectCalendarAssignmentRepository(db_session),
-        "resource_assignment": SqlAlchemyResourceCalendarAssignmentRepository(db_session),
+        "resource_assignment": SqlAlchemyResourceCalendarAssignmentRepository(
+            db_session
+        ),
     }
     for repo in repos.values():
         if hasattr(repo, "_tenant_context_service"):
@@ -151,8 +168,8 @@ def tenant_context(org_id):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return PlatformCalendarService(
+def cal_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -163,8 +180,17 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 
 @pytest.fixture
-def rule_service(db_session, repos, mock_user_session):
-    return WorkingRuleService(
+def cal_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def rule_commands(db_session, repos, mock_user_session):
+    return WorkingRuleCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -173,8 +199,17 @@ def rule_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def exc_service(db_session, repos, mock_user_session):
-    return CalendarExceptionService(
+def rule_queries(db_session, repos, mock_user_session):
+    return WorkingRuleQueryHandler(
+        calendar_repo=repos["calendar"],
+        rule_repo=repos["rule"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def exc_commands(db_session, repos, mock_user_session):
+    return CalendarExceptionCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         exception_repo=repos["exception"],
@@ -183,8 +218,17 @@ def exc_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def recurring_service(db_session, repos, mock_user_session):
-    return RecurringEventService(
+def exc_queries(db_session, repos, mock_user_session):
+    return CalendarExceptionQueryHandler(
+        calendar_repo=repos["calendar"],
+        exception_repo=repos["exception"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def recurring_commands(db_session, repos, mock_user_session):
+    return RecurringEventCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         event_repo=repos["recurring"],
@@ -193,14 +237,32 @@ def recurring_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def assignment_service(db_session, repos, mock_user_session):
-    return CalendarAssignmentService(
+def recurring_queries(db_session, repos, mock_user_session):
+    return RecurringEventQueryHandler(
+        calendar_repo=repos["calendar"],
+        event_repo=repos["recurring"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def assignment_commands(db_session, repos, mock_user_session):
+    return CalendarAssignmentCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         project_assignment_repo=repos["project_assignment"],
         resource_assignment_repo=repos["resource_assignment"],
         user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def assignment_queries(db_session, repos, mock_user_session):
+    return CalendarAssignmentQueryHandler(
+        assignment_repo=repos["assignment"],
+        project_assignment_repo=repos["project_assignment"],
+        resource_assignment_repo=repos["resource_assignment"],
     )
 
 
@@ -225,9 +287,9 @@ def resolver(repos, org_id, calculator):
 
 
 @pytest.fixture
-def global_cal(cal_service, org_id, rule_service):
-    cal = cal_service.ensure_global_calendar(org_id)
-    rule_service.seed_standard_week(
+def global_cal(cal_commands, org_id, rule_commands):
+    cal = cal_commands.ensure_global_calendar(org_id)
+    rule_commands.seed_standard_week(
         cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
@@ -339,21 +401,27 @@ def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
 
 
 def test_employee_backed_resource_inherits_employee_calendar(
-    global_cal, cal_service, assignment_service, resolver, rule_service, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    assignment_commands,
+    resolver,
+    rule_commands,
+    db_session,
+    tenant_context,
 ):
-    emp_cal = cal_service.create_calendar(
+    emp_cal = cal_commands.create_calendar(
         code="EMP-SMITH",
         name="John Smith Employee Calendar",
         calendar_type=CalendarType.EMPLOYEE.value,
     )
-    rule_service.save_rule(
+    rule_commands.save_rule(
         emp_cal.id,
         weekday=0,
         is_working_day=True,
         hours_override=7.5,
     )
     _seed_employee(db_session, tenant_context, "emp-smith")
-    assignment_service.assign_employee_calendar("emp-smith", emp_cal.id)
+    assignment_commands.assign_employee_calendar("emp-smith", emp_cal.id)
 
     resource_repo = _make_resource_repo(
         "res-smith", worker_type="EMPLOYEE", employee_id="emp-smith"
@@ -367,17 +435,26 @@ def test_employee_backed_resource_inherits_employee_calendar(
 
 
 def test_employee_vacation_blocks_pm_resource(
-    global_cal, cal_service, assignment_service, exc_service, resolver, rule_service, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    assignment_commands,
+    exc_commands,
+    resolver,
+    rule_commands,
+    db_session,
+    tenant_context,
 ):
-    emp_cal = cal_service.create_calendar(
+    emp_cal = cal_commands.create_calendar(
         code="EMP-JONES",
         name="Jones Employee Calendar",
         calendar_type=CalendarType.EMPLOYEE.value,
     )
-    rule_service.save_rule(emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0)
+    rule_commands.save_rule(
+        emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0
+    )
     _seed_employee(db_session, tenant_context, "emp-jones")
-    assignment_service.assign_employee_calendar("emp-jones", emp_cal.id)
-    exc_service.add_exception(
+    assignment_commands.assign_employee_calendar("emp-jones", emp_cal.id)
+    exc_commands.add_exception(
         emp_cal.id,
         exception_date=date(2026, 6, 1),
         exception_type=ExceptionType.VACATION.value,
@@ -396,17 +473,26 @@ def test_employee_vacation_blocks_pm_resource(
 
 
 def test_employee_training_reduces_pm_resource_capacity(
-    global_cal, cal_service, assignment_service, recurring_service, resolver, rule_service, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    assignment_commands,
+    recurring_commands,
+    resolver,
+    rule_commands,
+    db_session,
+    tenant_context,
 ):
-    emp_cal = cal_service.create_calendar(
+    emp_cal = cal_commands.create_calendar(
         code="EMP-TRAINING",
         name="Training Employee Calendar",
         calendar_type=CalendarType.EMPLOYEE.value,
     )
-    rule_service.save_rule(emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0)
+    rule_commands.save_rule(
+        emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0
+    )
     _seed_employee(db_session, tenant_context, "emp-trainer")
-    assignment_service.assign_employee_calendar("emp-trainer", emp_cal.id)
-    recurring_service.add_recurring_event(
+    assignment_commands.assign_employee_calendar("emp-trainer", emp_cal.id)
+    recurring_commands.add_recurring_event(
         emp_cal.id,
         title="Weekly Safety Training",
         event_type=RecurringEventType.TRAINING.value,
@@ -428,30 +514,40 @@ def test_employee_training_reduces_pm_resource_capacity(
 
 
 def test_employee_backed_resource_does_not_duplicate_employee_rules(
-    global_cal, cal_service, assignment_service, resolver, rule_service, db_session, tenant_context
+    global_cal,
+    cal_commands,
+    assignment_commands,
+    resolver,
+    rule_commands,
+    db_session,
+    tenant_context,
 ):
     """
     An employee-backed resource should inherit employee calendar.
     PM resource calendar assignment should NOT be consulted for employee-backed resources.
     """
-    emp_cal = cal_service.create_calendar(
+    emp_cal = cal_commands.create_calendar(
         code="EMP-NODUPE",
         name="No Dupe Employee",
         calendar_type=CalendarType.EMPLOYEE.value,
     )
-    rule_service.save_rule(emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0)
+    rule_commands.save_rule(
+        emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0
+    )
     _seed_employee(db_session, tenant_context, "emp-nodupe")
-    assignment_service.assign_employee_calendar("emp-nodupe", emp_cal.id)
+    assignment_commands.assign_employee_calendar("emp-nodupe", emp_cal.id)
 
     # Also assign a resource calendar with different hours — should NOT be used
-    res_cal = cal_service.create_calendar(
+    res_cal = cal_commands.create_calendar(
         code="RES-NODUPE",
         name="No Dupe Resource",
         calendar_type=CalendarType.RESOURCE.value,
     )
-    rule_service.save_rule(res_cal.id, weekday=0, is_working_day=True, hours_override=4.0)
+    rule_commands.save_rule(
+        res_cal.id, weekday=0, is_working_day=True, hours_override=4.0
+    )
     _seed_resource(db_session, tenant_context, "res-nodupe")
-    assignment_service.assign_resource_calendar("res-nodupe", res_cal.id)
+    assignment_commands.assign_resource_calendar("res-nodupe", res_cal.id)
 
     # Resource is EMPLOYEE-backed → should use employee calendar (8h), not resource calendar (4h)
     resource_repo = _make_resource_repo(
@@ -465,16 +561,16 @@ def test_employee_backed_resource_does_not_duplicate_employee_rules(
 
 
 def test_resource_calendar_assignment_service_uses_dto_validation_and_normalization(
-    cal_service, assignment_service, db_session, tenant_context
+    cal_commands, assignment_commands, db_session, tenant_context
 ):
-    res_cal = cal_service.create_calendar(
+    res_cal = cal_commands.create_calendar(
         code="RES-NORMALIZED",
         name="Normalized Resource Calendar",
         calendar_type=CalendarType.RESOURCE.value,
     )
     _seed_resource(db_session, tenant_context, "res-normalized")
 
-    assignment = assignment_service.assign_resource_calendar(
+    assignment = assignment_commands.assign_resource_calendar(
         "  res-normalized  ",
         f"  {res_cal.id}  ",
         effective_from=date(2026, 1, 1),
@@ -487,7 +583,7 @@ def test_resource_calendar_assignment_service_uses_dto_validation_and_normalizat
     assert assignment.priority == 3
 
     with pytest.raises(ValidationError) as exc:
-        assignment_service.assign_resource_calendar(
+        assignment_commands.assign_resource_calendar(
             "res-normalized",
             res_cal.id,
             effective_from=date(2026, 12, 31),

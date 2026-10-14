@@ -149,7 +149,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
     registers = services["register_query"]
     baselines = services["baseline_service"]
     collaboration = services["collaboration_inbox_query"]
-    approvals = services["approval_service"]
+    approvals = services["approval_queries"]
     portfolio_templates = services["portfolio_template_query"]
     portfolio_intake = services["portfolio_intake_query"]
     portfolio_scenarios = services["portfolio_scenario_query"]
@@ -165,7 +165,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
         baseline_service=baselines,
         earned_value_report=earned_value,
         collaboration_inbox_query=collaboration,
-        approval_service=approvals,
+        approval_queries=approvals,
     )
     dashboard_presenter = ProjectDashboardWorkspacePresenter(desktop_api=dashboard_api)
     portfolio_presenter = ProjectPortfolioWorkspacePresenter(desktop_api=portfolio_api)

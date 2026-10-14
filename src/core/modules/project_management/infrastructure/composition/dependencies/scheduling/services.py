@@ -25,7 +25,6 @@ def build_scheduling_foundation(
 ) -> tuple[ProjectCalendarAdapter, SchedulingEngine]:
     adapter = ProjectCalendarAdapter(
         resolver=platform_services.platform_calendar_resolver,
-        assignment_service=platform_services.calendar_assignment_service,
     )
     engine = SchedulingEngine(
         session,
@@ -61,7 +60,7 @@ def build_baseline_service(
         calendar=platform_services.global_calendar_shim,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
-        approval_service=platform_services.approval_service,
+        approval_commands=platform_services.approval_commands,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         uow_factory=uow_factory.create,

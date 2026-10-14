@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.platform.application.notifications.notification_service import (
-    NotificationService,
+from src.core.platform.application.notifications import (
+    NotificationCommandHandler,
+    NotificationDeliveryHandler,
+    NotificationQueryHandler,
 )
+from src.core.platform.application.notifications.scope import NotificationRecipientScope
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.infrastructure.composition.dependencies.repositories import (
     PlatformRepositories,
@@ -24,14 +28,21 @@ from src.infra.integration.notification_dispatcher import NotificationDispatcher
 from src.infra.persistence.db.postgresql_rls import configure_session_rls_context
 
 
-def build_notification_service(
+@dataclass(frozen=True)
+class NotificationHandlers:
+    commands: NotificationCommandHandler
+    queries: NotificationQueryHandler
+    delivery: NotificationDeliveryHandler
+
+
+def build_notification_handlers(
     *,
     session: Session,
     repositories: PlatformRepositories,
     user_session: UserSessionContext,
     view_invalidation_channel: InProcessViewInvalidationChannel,
     recipient_policy: Callable[[Session, object], bool] | None,
-) -> NotificationService:
+) -> NotificationHandlers:
     notification_session_factory = sessionmaker(bind=session.bind, future=True)
 
     def _notification_session() -> Session:
@@ -52,14 +63,26 @@ def build_notification_service(
             )
         )
 
-    return NotificationService(
-        session=session,
-        notification_repo=repositories.notification_repo,
+    scope = NotificationRecipientScope(
         user_session=user_session,
         memberships=repositories.user_tenant_repo,
-        delivery=NotificationDispatcher(
-            session_factory=_notification_session,
-            on_delivered=_notification_delivered,
-            recipient_policy=recipient_policy,
+    )
+    return NotificationHandlers(
+        commands=NotificationCommandHandler(
+            session=session,
+            notification_repo=repositories.notification_repo,
+            scope=scope,
+        ),
+        queries=NotificationQueryHandler(
+            notification_repo=repositories.notification_repo,
+            scope=scope,
+        ),
+        delivery=NotificationDeliveryHandler(
+            scope=scope,
+            delivery=NotificationDispatcher(
+                session_factory=_notification_session,
+                on_delivered=_notification_delivered,
+                recipient_policy=recipient_policy,
+            ),
         ),
     )

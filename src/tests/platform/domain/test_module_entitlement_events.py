@@ -428,10 +428,10 @@ def test_command_against_a_foreign_tenant_organization_is_rejected_with_no_event
 
 
 def test_provisioning_new_organization_records_zero_module_events(services, monkeypatch):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     recorded = _spy_recorded_events(services["module_entitlement_commands"], monkeypatch)
 
-    app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROV-NOEVT"), display_name="Provisioned No-Event Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
+    provisioning.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("PROV-NOEVT"), display_name="Provisioned No-Event Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
 
     assert recorded == []
 

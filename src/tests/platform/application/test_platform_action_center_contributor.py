@@ -42,14 +42,14 @@ def _become_decider(services) -> None:
 
 
 def _become_non_decider(services) -> None:
-    """Holds approval.request (so ApprovalService.list_requests/count_pending
+    """Holds approval.request (so ApprovalCommandHandler.list_requests/count_pending
     would still succeed if called) but not approval.decide."""
     viewer = services["user_registration"].register_user("action-viewer", "StrongPass123", role_names=["viewer"])
     services["user_session"].set_principal(services["principal_builder"].build(viewer))
 
 
 def _create_pending_approval(services, *, entity_id: str = "org-request-1"):
-    return services["approval_service"].request_change(
+    return services["approval_commands"].request_change(
         request_type="organization_request",
         entity_type="organization_request",
         entity_id=entity_id,
@@ -80,7 +80,7 @@ def test_revoked_reviewer_cannot_act_on_a_previously_visible_action(services):
     )
     session.commit()
     with pytest.raises(BusinessRuleError) as error:
-        services["approval_service"].reject(request.id)
+        services["approval_commands"].reject(request.id)
     assert error.value.code in {"APPROVAL_REVIEWER_NOT_ELIGIBLE", "PERMISSION_DENIED"}
     assert _contributor(services).collect(context, 10).summary.all_action_items == 0
     assert session.get(ApprovalRequestORM, request.id).status == "PENDING"
@@ -97,13 +97,13 @@ def test_completed_action_disappears_and_repeated_command_cannot_apply(services)
         _contributor(services).collect(_context(services), 10).summary.all_action_items
         == 1
     )
-    services["approval_service"].reject(request.id)
+    services["approval_commands"].reject(request.id)
     assert (
         _contributor(services).collect(_context(services), 10).summary.all_action_items
         == 0
     )
     with pytest.raises(BusinessRuleError) as error:
-        services["approval_service"].reject(request.id)
+        services["approval_commands"].reject(request.id)
     assert error.value.code == "APPROVAL_ALREADY_DECIDED"
 
 

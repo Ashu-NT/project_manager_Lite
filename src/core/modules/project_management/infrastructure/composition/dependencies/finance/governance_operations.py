@@ -30,8 +30,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWork,
 )
-from src.core.platform.application.finance.financial_period_service import (
-    FinancialPeriodService,
+from src.core.platform.application.finance.queries.financial_period_query import (
+    FinancialPeriodQueryHandler,
 )
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
@@ -63,12 +63,9 @@ def build_finance_governance_operations_factory(
             tenant_context_service=platform_services.tenant_context_service,
             clock=clock,
         )
-        governed_financial_period_service = FinancialPeriodService(
-            session=uow._session,
+        governed_financial_period_queries = FinancialPeriodQueryHandler(
             period_repo=uow.financial_periods,
-            tenant_context_service=platform_services.tenant_context_service,
             user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
         )
         budget_operations = BudgetService(
             session=uow._session,
@@ -82,7 +79,7 @@ def build_finance_governance_operations_factory(
             enterprise_audit_service=uow._enterprise_audit_service,
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
-            approval_service=platform_services.approval_service,
+            approval_commands=platform_services.approval_commands,
             record_event=record_event,
         )
         forecast_version_operations = ForecastVersionService(
@@ -98,7 +95,7 @@ def build_finance_governance_operations_factory(
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
             record_event=record_event,
-            approval_service=platform_services.approval_service,
+            approval_commands=platform_services.approval_commands,
         )
         forecast_generation_operations = ForecastGenerationService(
             session=uow._session,
@@ -175,13 +172,13 @@ def build_finance_governance_operations_factory(
             cost_code_repo=uow.cost_codes,
             task_repo=uow.tasks,
             resource_repo=uow.resources,
-            financial_period_service=governed_financial_period_service,
+            financial_period_queries=governed_financial_period_queries,
             clock=clock,
             user_session=platform_services.user_session,
             enterprise_audit_service=uow._enterprise_audit_service,
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
-            approval_service=platform_services.approval_service,
+            approval_commands=platform_services.approval_commands,
             rate_resolver=governed_rate_resolver,
             labor_posting_repo=uow.labor_postings,
             record_event=record_event,
@@ -205,7 +202,7 @@ def build_finance_governance_operations_factory(
             cost_entry_repo=uow.cost_entries,
             labor_posting_repo=uow.labor_postings,
             rate_resolver=governed_rate_resolver,
-            financial_period_service=governed_financial_period_service,
+            financial_period_queries=governed_financial_period_queries,
             tenant_context_service=platform_services.tenant_context_service,
             clock=clock,
             user_session=platform_services.user_session,

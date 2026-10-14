@@ -100,7 +100,7 @@ def build_global_overview_service_bundle(
             ProjectManagementActionCenterContributor(
                 is_accessible=lambda: any(
                     module.code == "project_management"
-                    for module in platform_services.platform_runtime_application_service.list_accessible_modules()
+                    for module in platform_services.platform_runtime_query.list_accessible_modules()
                 ),
                 reader=SqlAlchemyProjectManagementActionCenterReader(session=session,
                     resource_identity_reader=resource_identity_reader,
@@ -117,8 +117,8 @@ def build_global_overview_service_bundle(
     )
     global_overview_service = GlobalOverviewService(
         tenant_context_service=platform_services.tenant_context_service,
-        platform_runtime_application_service=(
-            platform_services.platform_runtime_application_service
+        platform_runtime_query=(
+            platform_services.platform_runtime_query
         ),
         activity_service=platform_services.activity_service,
         action_center_service=action_center_service,
@@ -127,8 +127,8 @@ def build_global_overview_service_bundle(
                 approval_service=platform_services.approval_service,
             ),
             ProjectManagementModuleOverviewContributor(
-                platform_runtime_application_service=(
-                    platform_services.platform_runtime_application_service
+                platform_runtime_query=(
+                    platform_services.platform_runtime_query
                 ),
                 portfolio_dashboard=project_management_services.portfolio_dashboard_query,
                 project_service=project_management_services.project_service,

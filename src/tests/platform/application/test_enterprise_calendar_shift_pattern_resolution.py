@@ -18,14 +18,23 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
-    ShiftPatternService,
+from src.core.platform.application.time_management.calendar.definitions.commands.shift_pattern_commands import (
+    ShiftPatternCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
+    ShiftPatternQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     PatternType,
@@ -81,13 +90,16 @@ def tenant_context(org_id):
     context.require_active_scope_ids.return_value = ActiveScopeIds(
         tenant_id="tenant-shift-pattern", organization_id=org_id
     )
-    context.require_organization_context.return_value = FakeContext(organization=FakeOrg())
+    context.require_organization_context.return_value = FakeContext(
+        organization=FakeOrg()
+    )
     return context
 
 
 @pytest.fixture
 def mock_user_session():
     from unittest.mock import MagicMock
+
     session = MagicMock()
     session.has_permission.return_value = True
     session.username = "test-admin"
@@ -125,8 +137,8 @@ def repos(db_session, tenant_context):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return PlatformCalendarService(
+def cal_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -137,8 +149,17 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 
 @pytest.fixture
-def rule_service(db_session, repos, mock_user_session):
-    return WorkingRuleService(
+def cal_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def rule_commands(db_session, repos, mock_user_session):
+    return WorkingRuleCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
@@ -147,11 +168,32 @@ def rule_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def shift_pattern_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return ShiftPatternService(
+def rule_queries(db_session, repos, mock_user_session):
+    return WorkingRuleQueryHandler(
+        calendar_repo=repos["calendar"],
+        rule_repo=repos["rule"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def shift_pattern_commands(
+    db_session, repos, mock_org_repo, mock_user_session, tenant_context
+):
+    return ShiftPatternCommandHandler(
         session=db_session,
         pattern_repo=repos["shift"],
-        organization_repo=mock_org_repo,
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def shift_pattern_queries(
+    db_session, repos, mock_org_repo, mock_user_session, tenant_context
+):
+    return ShiftPatternQueryHandler(
+        pattern_repo=repos["shift"],
         user_session=mock_user_session,
         tenant_context_service=tenant_context,
     )
@@ -160,6 +202,7 @@ def shift_pattern_service(db_session, repos, mock_org_repo, mock_user_session, t
 @pytest.fixture
 def resolver(repos, org_id):
     from unittest.mock import MagicMock
+
     return PlatformCalendarResolver(
         organization_id=org_id,
         calendar_repo=repos["calendar"],
@@ -175,34 +218,38 @@ def resolver(repos, org_id):
 
 
 @pytest.fixture
-def rotating_global_calendar(cal_service, rule_service, shift_pattern_service, org_id):
+def rotating_global_calendar(
+    cal_commands, rule_commands, shift_pattern_commands, org_id
+):
     """Global calendar where every weekday rule points at a 2-on/2-off
     rotation pattern anchored on Monday 2026-06-01, 12h shifts."""
-    global_cal = cal_service.ensure_global_calendar(org_id)
+    global_cal = cal_commands.ensure_global_calendar(org_id)
     for weekday in range(7):
-        rule_service.save_rule(
+        rule_commands.save_rule(
             global_cal.id,
             weekday=weekday,
             is_working_day=True,
             shift_code="ROT-A",
         )
 
-    pattern = shift_pattern_service.create_shift_pattern(
+    pattern = shift_pattern_commands.create_shift_pattern(
         code="ROT-A",
         name="2-on 2-off Rotation",
         pattern_type=PatternType.ROTATING.value,
         rotation_cycle_days=4,
         anchor_date=date(2026, 6, 1),
     )
-    shift_pattern_service.set_day(pattern.id, 0, is_working_day=True, hours=12.0)
-    shift_pattern_service.set_day(pattern.id, 1, is_working_day=True, hours=12.0)
-    shift_pattern_service.set_day(pattern.id, 2, is_working_day=False)
-    shift_pattern_service.set_day(pattern.id, 3, is_working_day=False)
+    shift_pattern_commands.set_day(pattern.id, 0, is_working_day=True, hours=12.0)
+    shift_pattern_commands.set_day(pattern.id, 1, is_working_day=True, hours=12.0)
+    shift_pattern_commands.set_day(pattern.id, 2, is_working_day=False)
+    shift_pattern_commands.set_day(pattern.id, 3, is_working_day=False)
 
     return global_cal
 
 
-def test_shift_pattern_overrides_weekday_rule_single_day(resolver, rotating_global_calendar):
+def test_shift_pattern_overrides_weekday_rule_single_day(
+    resolver, rotating_global_calendar
+):
     # Anchor Monday 2026-06-01 = offset 0 = 12h working, overriding the
     # weekday rule (which would otherwise use the default 8h fallback).
     ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 1))
@@ -219,18 +266,26 @@ def test_shift_pattern_overrides_weekday_rule_single_day(resolver, rotating_glob
     assert ctx_friday.available_hours == 12.0
 
 
-def test_shift_pattern_overrides_weekday_rule_in_bulk_range(resolver, rotating_global_calendar):
+def test_shift_pattern_overrides_weekday_rule_in_bulk_range(
+    resolver, rotating_global_calendar
+):
     results = resolver.resolve_range(start=date(2026, 6, 1), end=date(2026, 6, 5))
     available_by_date = {r.date: r.available_hours for r in results}
     assert available_by_date[date(2026, 6, 1)] == 12.0  # Mon, offset 0
     assert available_by_date[date(2026, 6, 2)] == 12.0  # Tue, offset 1
-    assert available_by_date[date(2026, 6, 3)] == 0.0   # Wed, offset 2 (off)
-    assert available_by_date[date(2026, 6, 4)] == 0.0   # Thu, offset 3 (off)
+    assert available_by_date[date(2026, 6, 3)] == 0.0  # Wed, offset 2 (off)
+    assert available_by_date[date(2026, 6, 4)] == 0.0  # Thu, offset 3 (off)
     assert available_by_date[date(2026, 6, 5)] == 12.0  # Fri, offset 0 again
 
 
 def test_desktop_api_can_set_and_delete_shift_pattern_days(
-    db_session, repos, mock_org_repo, mock_user_session, tenant_context, shift_pattern_service
+    shift_pattern_queries,
+    db_session,
+    repos,
+    mock_org_repo,
+    mock_user_session,
+    tenant_context,
+    shift_pattern_commands,
 ):
     from unittest.mock import MagicMock
 
@@ -241,8 +296,11 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
     from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
         PlatformCalendarDesktopApi,
     )
-    from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-        CalendarAssignmentService,
+    from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+        CalendarAssignmentCommandHandler,
+    )
+    from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+        CalendarAssignmentQueryHandler,
     )
     from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
         PlatformCalendarResolver,
@@ -250,11 +308,14 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
     from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
         WorkingTimeCalculator,
     )
-    from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-        PlatformCalendarService,
+    from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+        PlatformCalendarCommandHandler,
+    )
+    from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+        PlatformCalendarQueryHandler,
     )
 
-    cal_service = PlatformCalendarService(
+    cal_commands = PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -262,13 +323,23 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
         user_session=mock_user_session,
         tenant_context_service=tenant_context,
     )
-    assignment_service = CalendarAssignmentService(
+    cal_queries = PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+    assignment_commands = CalendarAssignmentCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         project_assignment_repo=MagicMock(),
         resource_assignment_repo=MagicMock(),
         user_session=mock_user_session,
+    )
+    assignment_queries = CalendarAssignmentQueryHandler(
+        assignment_repo=repos["assignment"],
+        project_assignment_repo=MagicMock(),
+        resource_assignment_repo=MagicMock(),
     )
     resolver = PlatformCalendarResolver(
         organization_id="org-shift-pattern",
@@ -283,12 +354,18 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
         shift_pattern_repo=repos["shift"],
     )
     api = PlatformCalendarDesktopApi(
-        calendar_service=cal_service,
-        rule_service=MagicMock(),
-        exception_service=MagicMock(),
-        recurring_event_service=MagicMock(),
-        shift_pattern_service=shift_pattern_service,
-        assignment_service=assignment_service,
+        platform_calendar_commands=cal_commands,
+        platform_calendar_queries=cal_queries,
+        working_rule_commands=MagicMock(),
+        working_rule_queries=MagicMock(),
+        calendar_exception_commands=MagicMock(),
+        calendar_exception_queries=MagicMock(),
+        recurring_event_commands=MagicMock(),
+        recurring_event_queries=MagicMock(),
+        shift_pattern_commands=shift_pattern_commands,
+        shift_pattern_queries=shift_pattern_queries,
+        calendar_assignment_commands=assignment_commands,
+        calendar_assignment_queries=assignment_queries,
         resolver=resolver,
     )
 

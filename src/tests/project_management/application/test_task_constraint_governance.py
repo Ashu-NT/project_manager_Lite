@@ -155,7 +155,7 @@ class TestGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "task.constraint.update")
         _login(services, "admin", "ChangeMe123!")
 
-        approvals = services["approval_service"]
+        approvals = services["approval_commands"]
         ts = services["task_service"]
         project, task = _make_task(services)
 
@@ -173,7 +173,7 @@ class TestGovernanceParity:
         # Not applied yet.
         assert ts.get_task(task.id).constraint_type is None
 
-        req = approvals.list_pending(project_id=project.id)[0]
+        req = services["approval_queries"].list_pending(project_id=project.id)[0]
         assert req.request_type == "task.constraint.update"
         assert req.payload["constraint_type"] == "must_start_on"
         assert req.payload["constraint_date"] == "2026-09-18"
@@ -208,7 +208,7 @@ class TestGovernanceParity:
         monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "task.constraint.update")
         _login(services, "admin", "ChangeMe123!")
 
-        approvals = services["approval_service"]
+        approvals = services["approval_commands"]
         ts = services["task_service"]
         project, task = _make_task(services)
 
@@ -222,7 +222,7 @@ class TestGovernanceParity:
                 constraint_date=date(2026, 9, 18),
                 expected_version=task.version,
             )
-        req = approvals.list_pending(project_id=project.id)[0]
+        req = services["approval_queries"].list_pending(project_id=project.id)[0]
 
         # The task changes while the request is pending: an admin edits
         # it directly, bumping its version.

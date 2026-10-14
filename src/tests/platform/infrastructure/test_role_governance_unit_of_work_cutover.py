@@ -71,7 +71,7 @@ def _tenant_scoped_binding_setup(services, *, suffix: str, role_name: str = "vie
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     target_role = services["auth_queries"]._role_repo.get_by_name(role_name)
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=target_role.id,
         target_scope_type="tenant",
@@ -90,19 +90,19 @@ def _tenant_scoped_binding_setup(services, *, suffix: str, role_name: str = "vie
 
 def test_fresh_session_per_assign_and_revoke_call(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="fresh-session")
-    role_governance_service = services["role_governance_service"]
+    role_governance_commands = services["role_governance_commands"]
     seen_sessions = []
-    original_create = type(role_governance_service._uow_factory).create
+    original_create = type(role_governance_commands._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         seen_sessions.append(uow._session)
         return uow
 
-    monkeypatch.setattr(type(role_governance_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(role_governance_commands._uow_factory), "create", _spy_create)
 
-    binding = role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
-    role_governance_service.revoke_role_binding(binding.id)
+    binding = role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
+    role_governance_commands.revoke_role_binding(binding.id)
 
     assert len(seen_sessions) == 2
     assert seen_sessions[0] is not seen_sessions[1]
@@ -111,9 +111,9 @@ def test_fresh_session_per_assign_and_revoke_call(services, monkeypatch):
 
 def test_repository_and_audit_share_the_uow_session(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="shared-session")
-    role_governance_service = services["role_governance_service"]
+    role_governance_commands = services["role_governance_commands"]
     seen = {}
-    original_create = type(role_governance_service._uow_factory).create
+    original_create = type(role_governance_commands._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
@@ -122,9 +122,9 @@ def test_repository_and_audit_share_the_uow_session(services, monkeypatch):
         seen["audit_session"] = uow.audit.session
         return uow
 
-    monkeypatch.setattr(type(role_governance_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(role_governance_commands._uow_factory), "create", _spy_create)
 
-    role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+    role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert seen["uow_session"] is seen["role_bindings_session"]
     assert seen["uow_session"] is seen["audit_session"]
@@ -135,7 +135,7 @@ def test_no_global_mutation_session_touch(services):
     legacy_session = services["session"]
     legacy_session.commit()
 
-    services["role_governance_service"].assign_role(target_user_id=target.id, role_id=target_role.id)
+    services["role_governance_commands"].assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert len(legacy_session.new) == 0
     assert len(legacy_session.dirty) == 0
@@ -148,16 +148,16 @@ def test_no_global_mutation_session_touch(services):
 
 def test_commit_failure_rolls_back_binding_and_audit_together(services, monkeypatch):
     target, target_role = _tenant_scoped_binding_setup(services, suffix="commit-fail")
-    role_governance_service = services["role_governance_service"]
+    role_governance_commands = services["role_governance_commands"]
     captured_uow = {}
-    original_create = type(role_governance_service._uow_factory).create
+    original_create = type(role_governance_commands._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         captured_uow["uow"] = uow
         return uow
 
-    monkeypatch.setattr(type(role_governance_service._uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(role_governance_commands._uow_factory), "create", _spy_create)
 
     def _fail_commit(self):
         raise RuntimeError("simulated role governance commit failure")
@@ -165,7 +165,7 @@ def test_commit_failure_rolls_back_binding_and_audit_together(services, monkeypa
     monkeypatch.setattr(SqlAlchemyRoleGovernanceUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated role governance commit failure"):
-        role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
+        role_governance_commands.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     uow = captured_uow["uow"]
     assert uow._committed is False
@@ -207,7 +207,7 @@ def test_project_role_assignment_in_a_non_active_organization_remains_a_confirme
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     project_role = services["auth_queries"]._role_repo.get_by_name("project_viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=project_role.id,
         target_scope_type="project",
@@ -223,7 +223,7 @@ def test_project_role_assignment_in_a_non_active_organization_remains_a_confirme
 
     # Active organization is A2, but the project being granted belongs to A1 -- must succeed
     # without switching back, matching storeroom's already-fixed behavior.
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=project_role.id,
         actual_scope_id=project_a1.id,
@@ -257,7 +257,7 @@ def test_project_role_assignment_reverse_direction_active_a2_target_in_a1(servic
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     project_role = services["auth_queries"]._role_repo.get_by_name("project_viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=project_role.id,
         target_scope_type="project",
@@ -271,7 +271,7 @@ def test_project_role_assignment_reverse_direction_active_a2_target_in_a1(servic
         extra_permissions=("auth.role.assign",),
     )
 
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=project_role.id,
         actual_scope_id=project_a1.id,
@@ -279,13 +279,13 @@ def test_project_role_assignment_reverse_direction_active_a2_target_in_a1(servic
     assert tenant_context_service.get_active_organization_id() == org_a2.id  # never switched
     assert binding.actual_scope_id == project_a1.id
 
-    services["role_governance_service"].revoke_role_binding(binding.id)
+    services["role_governance_commands"].revoke_role_binding(binding.id)
     assert tenant_context_service.get_active_organization_id() == org_a2.id  # still never switched
 
 
 def test_site_role_assignment_targets_a_non_active_organization(services):
     """Same fix, "site" scope: `SiteRepository.get_for_tenant()` backs the "site" resolver
-    registered on `role_governance_service` at construction -- ambiently org-scoped, exactly
+    registered on `role_governance_commands` at construction -- ambiently org-scoped, exactly
     like storeroom."""
     tenant_context_service = services["tenant_context_service"]
     org_a1_id = tenant_context_service.get_active_organization_id()
@@ -306,7 +306,7 @@ def test_site_role_assignment_targets_a_non_active_organization(services):
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     site_role = services["auth_queries"]._role_repo.get_by_name("site_viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=site_role.id,
         target_scope_type="site",
@@ -320,7 +320,7 @@ def test_site_role_assignment_targets_a_non_active_organization(services):
         extra_permissions=("auth.role.assign",),
     )
 
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=site_role.id,
         actual_scope_id=site_a1.id,
@@ -351,7 +351,7 @@ def test_organization_scoped_role_assignment_targets_a_non_active_organization(s
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     org_role = services["auth_queries"]._role_repo.get_by_name("org_viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=org_role.id,
         target_scope_type="organization",
@@ -361,7 +361,7 @@ def test_organization_scoped_role_assignment_targets_a_non_active_organization(s
         services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",)
     )
 
-    binding = services["role_governance_service"].assign_role(
+    binding = services["role_governance_commands"].assign_role(
         target_user_id=target.id,
         role_id=org_role.id,
         actual_scope_id=org_a2.id,
@@ -378,9 +378,9 @@ def test_department_role_assignment_remains_unreachable_and_undocumented_as_a_ne
     assignment for departments was never wired up at all, not merely left ambient-scoped like
     the others. `DepartmentRepository.get()` shares the same ambient-active-organization filter
     already fixed elsewhere, proven directly below."""
-    role_governance_service = services["role_governance_service"]
-    assert role_governance_service._scope_exists_resolvers.get("department") is None
-    assert role_governance_service._organization_owner_resolvers.get("department") is None
+    role_governance_commands = services["role_governance_commands"]
+    assert role_governance_commands._scope_exists_resolvers.get("department") is None
+    assert role_governance_commands._organization_owner_resolvers.get("department") is None
     assert not any(
         role.allowed_scope_type == "department" for role in services["auth_queries"]._role_repo.list_all()
     )
@@ -435,7 +435,7 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
     )
     actor_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     site_role = services["auth_queries"]._role_repo.get_by_name("site_viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=actor_role.id,
         assignable_role_id=site_role.id,
         target_scope_type="site",
@@ -485,7 +485,7 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
     )
 
     with pytest.raises(NotFoundError) as exc_info:
-        services["role_governance_service"].assign_role(
+        services["role_governance_commands"].assign_role(
             target_user_id=target.id,
             role_id=site_role.id,
             actual_scope_id=foreign_site_id,
@@ -501,7 +501,7 @@ def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
 def test_self_assignment_refreshes_current_principal_only_after_commit(services):
     """The real production path (`AuthService.assign_role`/`.revoke_role`) calls
     `refresh_current_session_if_user` AFTER the canonical UoW commits.
-    `RoleGovernanceService.assign_role`/`revoke_role_binding` never call this refresh
+    `RoleGovernanceCommandHandler.assign_role`/`revoke_role_binding` never call this refresh
     themselves -- it's deliberately the calling facade's responsibility."""
     tenant_id = _tenant_id(services)
     username = _unique_code("p5c1-self-actor")
@@ -510,7 +510,7 @@ def test_self_assignment_refreshes_current_principal_only_after_commit(services)
     )
     tenant_admin_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id,
         assignable_role_id=viewer_role.id,
         target_scope_type="tenant",
@@ -533,7 +533,7 @@ def test_other_user_mutation_does_not_refresh_the_calling_actors_own_principal(s
     )
     calling_actor_principal_before = services["user_session"].principal
 
-    services["role_governance_service"].assign_role(target_user_id=target.id, role_id=target_role.id)
+    services["role_governance_commands"].assign_role(target_user_id=target.id, role_id=target_role.id)
 
     # `refresh_current_session_if_user` guards on `principal.user_id != user_id` -- a mutation
     # targeting a DIFFERENT user must never touch the calling actor's own session principal.
@@ -551,7 +551,7 @@ def test_current_principal_refresh_failure_after_commit_fails_closed(services, m
     )
     tenant_admin_role = services["auth_queries"]._role_repo.get_by_name("tenant_admin")
     viewer_role = services["auth_queries"]._role_repo.get_by_name("viewer")
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id,
         assignable_role_id=viewer_role.id,
         target_scope_type="tenant",
@@ -602,19 +602,19 @@ def test_access_facade_does_not_own_a_competing_transaction(services):
 # ---------------------------------------------------------------------------
 
 
-def _role_governance_service_source() -> str:
+def _role_governance_commands_source() -> str:
     module = __import__(
-        "src.core.platform.application.security.authorization.roles.role_governance_service",
-        fromlist=["role_governance_service"],
+        "src.core.platform.application.security.authorization.roles.commands.role_governance",
+        fromlist=["role_governance_commands"],
     )
     return inspect.getsource(module)
 
 
-def test_role_governance_service_has_no_inline_commit_or_rollback_or_global_session():
+def test_role_governance_commands_has_no_inline_commit_or_rollback_or_global_session():
     """`_validate_target_scope` legitimately takes a per-call `session: Session` parameter
     (resource-scope resolvers read within the calling UoW's own transaction) -- what must never
     exist is a process-lifetime `self._session` the service stores and reuses across calls."""
-    source = _role_governance_service_source()
+    source = _role_governance_commands_source()
     for forbidden in (
         "self._session.commit(",
         "self._session.rollback(",
@@ -627,9 +627,9 @@ def test_role_governance_service_has_no_inline_commit_or_rollback_or_global_sess
 def test_role_governance_emits_no_legacy_signal_and_no_view_invalidation_or_qt_vocabulary():
     """`RoleBindingAssigned`/`RoleBindingRevoked` are legitimately recorded (see
     `test_role_binding_events.py`); this guard asserts what must still never exist -- any legacy
-    Signal emission, and no ViewInvalidation/Qt dependency (`RoleGovernanceService` stays a pure
+    Signal emission, and no ViewInvalidation/Qt dependency (`RoleGovernanceCommandHandler` stays a pure
     DomainEvent recorder, never a ViewInvalidation producer or Qt-aware component)."""
-    source = _role_governance_service_source()
+    source = _role_governance_commands_source()
     emitted_signals = set(re.findall(r"domain_events\.(\w+)\.emit\(", source))
     assert emitted_signals == set()
     assert "domain_events" not in source

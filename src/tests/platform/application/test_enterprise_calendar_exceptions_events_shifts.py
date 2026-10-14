@@ -7,17 +7,29 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
-    ShiftPatternService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.commands.shift_pattern_commands import (
+    ShiftPatternCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
+    ShiftPatternQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
@@ -57,6 +69,7 @@ def org_id():
 @pytest.fixture
 def mock_user_session():
     from unittest.mock import MagicMock
+
     session = MagicMock()
     session.has_permission.return_value = True
     session.username = "test-admin"
@@ -100,7 +113,9 @@ def tenant_context(org_id):
     context.require_active_scope_ids.return_value = ActiveScopeIds(
         tenant_id="tenant-platform-foundation", organization_id=org_id
     )
-    context.require_organization_context.return_value = FakeContext(organization=FakeOrg())
+    context.require_organization_context.return_value = FakeContext(
+        organization=FakeOrg()
+    )
     return context
 
 
@@ -121,8 +136,8 @@ def repos(db_session, tenant_context):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return PlatformCalendarService(
+def cal_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -133,8 +148,17 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 
 @pytest.fixture
-def exc_service(db_session, repos, mock_user_session):
-    return CalendarExceptionService(
+def cal_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def exc_commands(db_session, repos, mock_user_session):
+    return CalendarExceptionCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         exception_repo=repos["exception"],
@@ -143,8 +167,17 @@ def exc_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def recurring_service(db_session, repos, mock_user_session):
-    return RecurringEventService(
+def exc_queries(db_session, repos, mock_user_session):
+    return CalendarExceptionQueryHandler(
+        calendar_repo=repos["calendar"],
+        exception_repo=repos["exception"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def recurring_commands(db_session, repos, mock_user_session):
+    return RecurringEventCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         event_repo=repos["recurring"],
@@ -153,19 +186,36 @@ def recurring_service(db_session, repos, mock_user_session):
 
 
 @pytest.fixture
-def shift_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return ShiftPatternService(
+def recurring_queries(db_session, repos, mock_user_session):
+    return RecurringEventQueryHandler(
+        calendar_repo=repos["calendar"],
+        event_repo=repos["recurring"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def shift_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return ShiftPatternCommandHandler(
         session=db_session,
         pattern_repo=repos["shift"],
-        organization_repo=mock_org_repo,
         user_session=mock_user_session,
         tenant_context_service=tenant_context,
     )
 
 
 @pytest.fixture
-def global_cal(cal_service, org_id):
-    return cal_service.ensure_global_calendar(org_id)
+def shift_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return ShiftPatternQueryHandler(
+        pattern_repo=repos["shift"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def global_cal(cal_commands, org_id):
+    return cal_commands.ensure_global_calendar(org_id)
 
 
 # ---------------------------------------------------------------------------
@@ -173,8 +223,8 @@ def global_cal(cal_service, org_id):
 # ---------------------------------------------------------------------------
 
 
-def test_exception_types_persist_correctly(exc_service, global_cal):
-    exc = exc_service.add_exception(
+def test_exception_types_persist_correctly(exc_commands, global_cal):
+    exc = exc_commands.add_exception(
         global_cal.id,
         exception_date=date(2026, 12, 25),
         exception_type=ExceptionType.HOLIDAY.value,
@@ -186,9 +236,9 @@ def test_exception_types_persist_correctly(exc_service, global_cal):
     assert exc.exception_date == date(2026, 12, 25)
 
 
-def test_exception_invalid_type_raises(exc_service, global_cal):
+def test_exception_invalid_type_raises(exc_commands, global_cal):
     with pytest.raises(ValidationError, match="Invalid exception_type"):
-        exc_service.add_exception(
+        exc_commands.add_exception(
             global_cal.id,
             exception_date=date(2026, 1, 1),
             exception_type="BOGUS",
@@ -197,35 +247,35 @@ def test_exception_invalid_type_raises(exc_service, global_cal):
         )
 
 
-def test_exception_list_by_calendar(exc_service, global_cal):
-    exc_service.add_exception(
+def test_exception_list_by_calendar(exc_queries, exc_commands, global_cal):
+    exc_commands.add_exception(
         global_cal.id,
         exception_date=date(2026, 1, 1),
         exception_type=ExceptionType.HOLIDAY.value,
         name="New Year",
         impact_type=ImpactType.UNAVAILABLE.value,
     )
-    exc_service.add_exception(
+    exc_commands.add_exception(
         global_cal.id,
         exception_date=date(2026, 12, 25),
         exception_type=ExceptionType.HOLIDAY.value,
         name="Christmas",
         impact_type=ImpactType.UNAVAILABLE.value,
     )
-    exceptions = exc_service.list_exceptions(global_cal.id)
+    exceptions = exc_queries.list_exceptions(global_cal.id)
     assert len(exceptions) == 2
 
 
-def test_exception_delete(exc_service, global_cal):
-    exc = exc_service.add_exception(
+def test_exception_delete(exc_queries, exc_commands, global_cal):
+    exc = exc_commands.add_exception(
         global_cal.id,
         exception_date=date(2026, 6, 15),
         exception_type=ExceptionType.SHUTDOWN.value,
         name="Site Shutdown",
         impact_type=ImpactType.UNAVAILABLE.value,
     )
-    exc_service.delete_exception(exc.id)
-    exceptions = exc_service.list_exceptions(global_cal.id)
+    exc_commands.delete_exception(exc.id)
+    exceptions = exc_queries.list_exceptions(global_cal.id)
     assert all(e.id != exc.id for e in exceptions)
 
 
@@ -234,8 +284,10 @@ def test_exception_delete(exc_service, global_cal):
 # ---------------------------------------------------------------------------
 
 
-def test_recurring_event_rrule_expanded(recurring_service, global_cal):
-    event = recurring_service.add_recurring_event(
+def test_recurring_event_rrule_expanded(
+    recurring_queries, recurring_commands, global_cal
+):
+    event = recurring_commands.add_recurring_event(
         global_cal.id,
         title="Weekly Standup",
         event_type=RecurringEventType.MEETING.value,
@@ -245,7 +297,7 @@ def test_recurring_event_rrule_expanded(recurring_service, global_cal):
         impact_type=ImpactType.REDUCED_CAPACITY.value,
         effective_from=date(2026, 6, 1),
     )
-    occurrences = recurring_service.expand_occurrences(
+    occurrences = recurring_queries.expand_occurrences(
         event.id,
         date(2026, 6, 1),
         date(2026, 6, 30),
@@ -254,9 +306,9 @@ def test_recurring_event_rrule_expanded(recurring_service, global_cal):
     assert all(d.weekday() == 0 for d in occurrences)  # all Mondays
 
 
-def test_recurring_event_invalid_rrule_raises(recurring_service, global_cal):
+def test_recurring_event_invalid_rrule_raises(recurring_commands, global_cal):
     with pytest.raises(ValidationError, match="Invalid recurrence_rule"):
-        recurring_service.add_recurring_event(
+        recurring_commands.add_recurring_event(
             global_cal.id,
             title="Bad",
             event_type=RecurringEventType.MEETING.value,
@@ -268,8 +320,8 @@ def test_recurring_event_invalid_rrule_raises(recurring_service, global_cal):
         )
 
 
-def test_recurring_event_delete(recurring_service, global_cal):
-    event = recurring_service.add_recurring_event(
+def test_recurring_event_delete(recurring_queries, recurring_commands, global_cal):
+    event = recurring_commands.add_recurring_event(
         global_cal.id,
         title="Weekly Cleanup",
         event_type=RecurringEventType.ADMIN.value,
@@ -279,20 +331,20 @@ def test_recurring_event_delete(recurring_service, global_cal):
         impact_type=ImpactType.INFORMATION_ONLY.value,
         effective_from=date(2026, 1, 1),
     )
-    recurring_service.delete_recurring_event(event.id)
-    events = recurring_service.list_recurring_events(global_cal.id)
+    recurring_commands.delete_recurring_event(event.id)
+    events = recurring_queries.list_recurring_events(global_cal.id)
     assert all(e.id != event.id for e in events)
 
 
 def test_recurring_event_repository_page_is_bounded_and_filtered(
-    recurring_service, repos, global_cal
+    recurring_commands, repos, global_cal
 ):
     for title, event_type in (
         ("Alpha Meeting", RecurringEventType.MEETING.value),
         ("Beta Meeting", RecurringEventType.MEETING.value),
         ("Gamma Admin", RecurringEventType.ADMIN.value),
     ):
-        recurring_service.add_recurring_event(
+        recurring_commands.add_recurring_event(
             global_cal.id,
             title=title,
             event_type=event_type,
@@ -319,8 +371,8 @@ def test_recurring_event_repository_page_is_bounded_and_filtered(
 # ---------------------------------------------------------------------------
 
 
-def test_shift_pattern_created(shift_service):
-    pattern = shift_service.create_shift_pattern(
+def test_shift_pattern_created(shift_commands):
+    pattern = shift_commands.create_shift_pattern(
         code="STD-8H",
         name="Standard 8h",
         pattern_type=PatternType.STANDARD.value,
@@ -330,14 +382,14 @@ def test_shift_pattern_created(shift_service):
     assert pattern.pattern_type == PatternType.STANDARD.value
 
 
-def test_shift_pattern_days_created(shift_service):
-    pattern = shift_service.create_shift_pattern(
+def test_shift_pattern_days_created(shift_queries, shift_commands):
+    pattern = shift_commands.create_shift_pattern(
         code="DAY-NIGHT",
         name="Day/Night Rotation",
         pattern_type=PatternType.TWO_SHIFT.value,
         rotation_cycle_days=2,
     )
-    shift_service.set_day(
+    shift_commands.set_day(
         pattern.id,
         day_offset=0,
         is_working_day=True,
@@ -345,7 +397,7 @@ def test_shift_pattern_days_created(shift_service):
         end_time=time(14, 0),
         shift_label="Day",
     )
-    shift_service.set_day(
+    shift_commands.set_day(
         pattern.id,
         day_offset=1,
         is_working_day=True,
@@ -353,17 +405,17 @@ def test_shift_pattern_days_created(shift_service):
         end_time=time(22, 0),
         shift_label="Night",
     )
-    days = shift_service.list_days(pattern.id)
+    days = shift_queries.list_days(pattern.id)
     assert len(days) == 2
     assert days[0].shift_label == "Day"
     assert days[1].shift_label == "Night"
 
 
-def test_shift_pattern_duplicate_code_raises(shift_service):
-    shift_service.create_shift_pattern(
+def test_shift_pattern_duplicate_code_raises(shift_commands):
+    shift_commands.create_shift_pattern(
         code="UNIQUE", name="X", pattern_type=PatternType.STANDARD.value
     )
     with pytest.raises(ValidationError, match="already exists"):
-        shift_service.create_shift_pattern(
+        shift_commands.create_shift_pattern(
             code="UNIQUE", name="Y", pattern_type=PatternType.STANDARD.value
         )

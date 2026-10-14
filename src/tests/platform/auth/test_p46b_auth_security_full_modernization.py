@@ -68,7 +68,7 @@ def _allow_tenant_admin_to_assign(services, role_id: str) -> None:
     services["user_session"].set_principal(
         services["principal_builder"].build(services["authentication"].authenticate("admin", "ChangeMe123!"))
     )
-    services["role_governance_service"].create_delegation_policy(
+    services["role_governance_commands"].create_delegation_policy(
         actor_role_id=tenant_admin_role.id,
         assignable_role_id=role_id,
         target_scope_type="tenant",
@@ -342,8 +342,8 @@ def test_custom_role_retirement_revokes_every_active_binding_with_one_event_each
 
     _set_tenant_admin(services)
     tenant_id = _tenant_id(services)
-    role_admin_service = services["tenant_role_administration_service"]
-    role_governance_service = services["role_governance_service"]
+    role_admin_service = services["tenant_role_commands"]
+    role_governance_commands = services["role_governance_commands"]
 
     role = role_admin_service.create_custom_role(
         name=_unique("p46b_custom_role"),
@@ -356,7 +356,7 @@ def test_custom_role_retirement_revokes_every_active_binding_with_one_event_each
         for _ in range(3)
     ]
     for holder in holders:
-        role_governance_service.assign_role(target_user_id=holder.id, role_id=role.id)
+        role_governance_commands.assign_role(target_user_id=holder.id, role_id=role.id)
 
     recorded = _spy_record_event(monkeypatch)
     retired = role_admin_service.retire_custom_role(
@@ -390,8 +390,8 @@ def test_custom_role_retirement_rolls_back_all_binding_revocations_on_audit_fail
 
     _set_tenant_admin(services)
     tenant_id = _tenant_id(services)
-    role_admin_service = services["tenant_role_administration_service"]
-    role_governance_service = services["role_governance_service"]
+    role_admin_service = services["tenant_role_commands"]
+    role_governance_commands = services["role_governance_commands"]
 
     role = role_admin_service.create_custom_role(
         name=_unique("p46b_custom_role_rb"),
@@ -404,7 +404,7 @@ def test_custom_role_retirement_rolls_back_all_binding_revocations_on_audit_fail
         for _ in range(2)
     ]
     for holder in holders:
-        role_governance_service.assign_role(target_user_id=holder.id, role_id=role.id)
+        role_governance_commands.assign_role(target_user_id=holder.id, role_id=role.id)
 
     before_active = services["session"].scalar(
         select(func.count()).select_from(RoleBindingORM).where(
@@ -462,7 +462,7 @@ def test_account_security_and_authorization_context_targets_never_cross_fire(ser
     assert authorization_context_calls == []
 
     account_security_calls.clear()
-    services["tenant_role_administration_service"].create_custom_role(
+    services["tenant_role_commands"].create_custom_role(
         name=_unique("p46b_precision_role"), display_name="Precision Role"
     )
     assert authorization_context_calls == ["stale"]

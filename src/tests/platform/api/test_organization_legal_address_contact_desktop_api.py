@@ -14,7 +14,13 @@ from src.core.platform.application.master_data.org.dto import (
 
 def test_list_countries_returns_static_reference_data(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"],
+        platform_runtime_query=services["platform_runtime_query"],
+        module_catalog_service=services["module_catalog_service"],
+        organization_query=services["organization_query"],
+        organization_commands=services["organization_commands"],
+        organization_lifecycle=services["organization_lifecycle"],
+        organization_provisioning_commands=services["organization_provisioning_commands"],
+        tenant_context_service=services["tenant_context_service"],
         module_entitlement_commands=services["module_entitlement_commands"],
     )
 
@@ -32,7 +38,13 @@ def test_list_countries_returns_static_reference_data(services):
 
 def test_provision_organization_carries_new_fields_through_the_dto(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"],
+        platform_runtime_query=services["platform_runtime_query"],
+        module_catalog_service=services["module_catalog_service"],
+        organization_query=services["organization_query"],
+        organization_commands=services["organization_commands"],
+        organization_lifecycle=services["organization_lifecycle"],
+        organization_provisioning_commands=services["organization_provisioning_commands"],
+        tenant_context_service=services["tenant_context_service"],
         module_entitlement_commands=services["module_entitlement_commands"],
     )
 
@@ -68,7 +80,13 @@ def test_provision_organization_carries_new_fields_through_the_dto(services):
 
 def test_update_organization_carries_new_fields_through_the_dto(services):
     api = PlatformRuntimeDesktopApi(
-        platform_runtime_application_service=services["platform_runtime_application_service"],
+        platform_runtime_query=services["platform_runtime_query"],
+        module_catalog_service=services["module_catalog_service"],
+        organization_query=services["organization_query"],
+        organization_commands=services["organization_commands"],
+        organization_lifecycle=services["organization_lifecycle"],
+        organization_provisioning_commands=services["organization_provisioning_commands"],
+        tenant_context_service=services["tenant_context_service"],
         module_entitlement_commands=services["module_entitlement_commands"],
     )
     created = api.provision_organization(

@@ -92,8 +92,8 @@ from src.core.modules.project_management.domain.financials.labor_posting import 
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.domain.identifiers import generate_id
-from src.core.platform.application.finance.financial_period_service import (
-    FinancialPeriodService,
+from src.core.platform.application.finance.queries.financial_period_query import (
+    FinancialPeriodQueryHandler,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -133,13 +133,13 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         cost_code_repo: ProjectCostCodeRepository,
         task_repo: TaskRepository,
         resource_repo: ResourceRepository,
-        financial_period_service: FinancialPeriodService,
+        financial_period_queries: FinancialPeriodQueryHandler,
         clock: CalendarClock,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
-        approval_service=None,
+        approval_commands=None,
         rate_resolver: RateCardResolver | None = None,
         labor_posting_repo: ApprovedTimeLaborPostingRepository | None = None,
         record_event: Callable[[object], None] | None = None,
@@ -151,13 +151,13 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._cost_code_repo = cost_code_repo
         self._task_repo = task_repo
         self._resource_repo = resource_repo
-        self._financial_period_service = financial_period_service
+        self._financial_period_queries = financial_period_queries
         self._clock = clock
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
-        self._approval_service = approval_service
+        self._approval_commands = approval_commands
         self._rate_resolver = rate_resolver
         self._labor_posting_repo = labor_posting_repo
         self._record_event = record_event
@@ -248,7 +248,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         money = Money.of(hours * rate_money.amount, rate_money.currency.code).rounded()
         if money.amount <= 0:
             raise BusinessRuleError("Approved labor cost must be positive.", code="APPROVED_TIME_COST_INVALID")
-        period = self._financial_period_service.require_open_period_for_integration(
+        period = self._financial_period_queries.require_open_period_for_integration(
             source.work_date
         )
         actor_id = principal.id
@@ -661,7 +661,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
     ) -> CostEntryApprovalResult:
         entry = self._require_entry(entry_id)
         self._require_manual_interactive_entry(entry, operation="approve")
-        governed = self._approval_service is not None and is_governance_required(
+        governed = self._approval_commands is not None and is_governance_required(
             "project_cost.approve"
         )
         permission = "approval.request" if governed else "project_cost.approve"
@@ -674,7 +674,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_COST_ENTRY_APPROVE_INVALID",
             )
         if governed:
-            request = self._approval_service.request_change(
+            request = self._approval_commands.request_change(
                 request_type="project_cost.approve",
                 entity_type="project_cost_entry",
                 entity_id=entry.id,
@@ -715,7 +715,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
     ) -> ProjectCostEntry:
         entry = self._require_entry(entry_id)
         self._require_manual_interactive_entry(entry, operation="reject")
-        if self._approval_service is not None and is_governance_required(
+        if self._approval_commands is not None and is_governance_required(
             "project_cost.approve"
         ):
             raise BusinessRuleError(
@@ -748,7 +748,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._require_expected_version(entry, expected_version)
         profile = self._require_active_profile(entry.project_id)
         del profile
-        period = self._financial_period_service.require_open_period_for_date(posting_date)
+        period = self._financial_period_queries.require_open_period_for_date(posting_date)
         context = self._require_full_context("post project cost entry")
         base_currency = context.organization.base_currency
         rate, rate_date, rate_source, captured_at = self._resolve_fx_snapshot(
@@ -816,7 +816,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         if existing is not None:
             return self._resolve_replay(existing, source)
         self._require_expected_version(entry, expected_version)
-        period = self._financial_period_service.require_open_period_for_date(posting_date)
+        period = self._financial_period_queries.require_open_period_for_date(posting_date)
         actor_id = self._actor_id()
         now = self._clock.now()
         reversal_id = generate_id()

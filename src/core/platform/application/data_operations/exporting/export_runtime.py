@@ -6,8 +6,8 @@ from src.core.platform.application.data_operations.exporting.artifact_delivery i
 from src.core.platform.application.data_operations.exporting.export_definition_registry import (
     ExportDefinitionRegistry,
 )
-from src.core.platform.application.data_operations.runtime_tracking.runtime_execution_service import (
-    RuntimeExecutionService,
+from src.core.platform.application.data_operations.runtime_tracking.commands.execution import (
+    RuntimeExecutionCommandHandler,
 )
 from src.core.platform.common.runtime_access import enforce_runtime_access
 from src.core.platform.contract.port.tenant.modules import SupportsModuleEntitlements
@@ -22,12 +22,12 @@ class ExportRuntime:
         *,
         user_session: UserSessionContext | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
-        runtime_execution_service: RuntimeExecutionService | None = None,
+        runtime_execution_commands: RuntimeExecutionCommandHandler | None = None,
     ) -> None:
         self._registry = registry
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
-        self._runtime_execution_service = runtime_execution_service
+        self._runtime_execution_commands = runtime_execution_commands
 
     def export(
         self,
@@ -49,7 +49,7 @@ class ExportRuntime:
             permission_code=definition.permission_code,
             operation_label=f"export {self._humanize_key(definition.operation_key)}",
         )
-        tracker = self._runtime_execution_service
+        tracker = self._runtime_execution_commands
         execution = (
             tracker.start_execution(
                 operation_type="export",

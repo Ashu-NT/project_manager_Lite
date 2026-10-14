@@ -89,7 +89,7 @@ def _setup_billable_project(services):
     cost_code = services["financial_configuration_service"].create_cost_code(
         code=_unique("P39-CC"), name="P39 Billing cost code"
     )
-    services["financial_period_service"].create_period(
+    services["financial_period_commands"].create_period(
         code=_unique("P39-FY26"), name="August 2026", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
     )
@@ -387,7 +387,7 @@ def test_governed_approval_produces_status_changed_approved(services):
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
     submitted = _submitted_preparation(services, project, line)
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     creator_view = services["finance_workspace_query"].get_billing_read_workspace(
         project.id, selected_preparation_id=submitted.id
@@ -400,7 +400,7 @@ def test_governed_approval_produces_status_changed_approved(services):
     _login(services, reviewer, "StrongPass123")
 
     hints = _spy_hints(services)
-    services["approval_service"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(request.id)
 
     approved = services["billing_preparation_service"].get_preparation(submitted.id)
     assert approved.status == BillingPreparationStatus.APPROVED
@@ -412,14 +412,14 @@ def test_governed_rejection_produces_status_changed_rejected(services):
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
     submitted = _submitted_preparation(services, project, line)
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     reviewer = _unique("p39-billing-rejector")
     services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
 
     hints = _spy_hints(services)
-    services["approval_service"].reject(request.id, note="Not this time")
+    services["approval_commands"].reject(request.id, note="Not this time")
 
     rejected = services["billing_preparation_service"].get_preparation(submitted.id)
     assert rejected.status == BillingPreparationStatus.REJECTED
@@ -431,7 +431,7 @@ def test_rejected_preparation_releases_source_for_new_draft(services):
     _, project, _cost_code = _setup_billable_project(services)
     _, schedule_line = _ready_schedule_line(services, project)
     submitted = _submitted_preparation(services, project, schedule_line)
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     reviewer = _unique("billing-release-reviewer")
     services["user_registration"].register_user(
@@ -445,7 +445,7 @@ def test_rejected_preparation_releases_source_for_new_draft(services):
     assert reviewer_view is not None
     assert reviewer_view.can_approve is True
     assert reviewer_view.can_reject is True
-    services["approval_service"].reject(request.id, note="Revise the claim")
+    services["approval_commands"].reject(request.id, note="Revise the claim")
 
     _login(services, "admin", "ChangeMe123!")
     service = services["billing_preparation_service"]
@@ -588,11 +588,11 @@ def test_request_delivery_produces_status_changed_delivery_pending(accounting_se
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
     submitted = _submitted_preparation(services, project, line)
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
     reviewer = _unique("p39-delivery-reviewer")
     services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
-    services["approval_service"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(request.id)
     _login(services, "admin", "ChangeMe123!")
 
     billing_preparation_service = services["billing_preparation_service"]
@@ -625,11 +625,11 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(account
 
     with pytest.raises(BusinessRuleError, match="reconciled"):
         correction(parent.id)
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
     reviewer = _unique("correction-reviewer")
     services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
-    services["approval_service"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(request.id)
     _login(services, "admin", "ChangeMe123!")
     approved = billing.get_preparation(parent.id)
     billing.request_delivery(parent.id, expected_row_version=approved.row_version)
@@ -668,11 +668,11 @@ def test_external_outcome_replay_produces_zero_hints(accounting_services, accoun
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
     submitted = _submitted_preparation(services, project, line)
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
     reviewer = _unique("p39-replay-reviewer")
     services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
-    services["approval_service"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(request.id)
     _login(services, "admin", "ChangeMe123!")
 
     billing_preparation_service = services["billing_preparation_service"]

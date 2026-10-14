@@ -29,8 +29,8 @@ from src.core.platform.domain.approval import ApprovalRequest
 @dataclass(frozen=True)
 class BillingPreparationApprovalDeps:
     """`billing_preparation_service` is a fresh `ProjectBillingPreparationService`,
-    constructed with `approval_service=None` -- the apply path never calls
-    back into `ApprovalService`."""
+    constructed with `approval_commands=None` -- the apply path never calls
+    back into `ApprovalCommands`."""
 
     billing_preparation_service: ProjectBillingPreparationService
 

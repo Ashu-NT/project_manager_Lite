@@ -143,22 +143,25 @@ from src.core.platform.access import AccessControlService
 from src.core.platform.api.desktop.notifications.notification import (
     PlatformNotificationDesktopApi,
 )
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.approval import ApprovalCommandHandler, ApprovalQueryHandler, ApprovalParticipantRegistry
 from src.core.platform.application.data_operations.runtime_tracking import (
-    RuntimeExecutionService,
+    RuntimeExecutionCommandHandler,
+    RuntimeExecutionQueryHandler,
 )
-from src.core.platform.application.finance import FinancialPeriodService
+from src.core.platform.application.finance import (
+    FinancialPeriodCommandHandler,
+    FinancialPeriodQueryHandler,
+)
 from src.core.platform.application.history.activity.activity_service import (
     ActivityService,
 )
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.integration.accounting.commands import (
-    AccountingConnectorConfigurationCommands,
+    AccountingConnectorConfigurationCommandHandler,
 )
-from src.core.platform.application.master_data.data_exchange import (
-    MasterDataExchangeService,
-)
+from src.core.platform.application.data_operations.importing import CsvImportRuntime
+from src.core.platform.application.data_operations.exporting import ExportRuntime
 from src.core.platform.application.master_data.department import (
     DepartmentCommandHandler,
     DepartmentQueryHandler,
@@ -188,28 +191,34 @@ from src.core.platform.application.master_data.site import (
     SiteCommandHandler,
     SiteQueryHandler,
 )
-from src.core.platform.application.notifications.notification_service import (
-    NotificationService,
-)
+from src.core.platform.application.notifications import NotificationCommandHandler, NotificationQueryHandler
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
 )
 from src.core.platform.application.security.authorization.roles import (
-    RoleGovernanceService,
-    TenantRoleAdministrationService,
+    RoleGovernanceCommandHandler,
+    TenantRoleCommandHandler,
+    TenantRoleQueryHandler,
 )
 from src.core.platform.application.security.authorization.roles.commands import (
     RoleAssignmentHandler,
 )
-from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.security.identity import (
+    ApiKeyAuthenticationHandler,
+    ServicePrincipalCommandHandler,
+    ServicePrincipalQueryHandler,
+)
 from src.core.platform.application.tenant.modules import (
     ModuleCatalogQueryHandler,
     ModuleEntitlementCommandHandler,
 )
 from src.core.platform.application.tenant.tenancy import (
-    TenantAdminService,
+    TenantAdminQueryHandler,
+    TenantLifecycleCommandHandler,
     TenantContextService,
-    TenantMembershipService,
+    TenantInvitationCommandHandler,
+    TenantMembershipLifecycleCommandHandler,
+    TenantMembershipQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
@@ -279,16 +288,22 @@ class ServiceGraph:
     time_entry_queries: TimeEntryQueryHandler
     auth: AuthComposition
     role_assignment_commands: RoleAssignmentHandler
-    role_governance_service: RoleGovernanceService
-    tenant_role_administration_service: TenantRoleAdministrationService
+    role_governance_commands: RoleGovernanceCommandHandler
+    tenant_role_commands: TenantRoleCommandHandler
+    tenant_role_queries: TenantRoleQueryHandler
     organization_commands: OrganizationCommandHandler
     organization_lifecycle: OrganizationLifecycleCommandHandler
     organization_query: OrganizationQueryHandler
     tenant_context_service: TenantContextService
     platform_view_invalidation_channel: ViewInvalidationChannel
-    tenant_admin_service: TenantAdminService
-    tenant_membership_service: TenantMembershipService
-    service_principal_service: ServicePrincipalService
+    tenant_admin_queries: TenantAdminQueryHandler
+    tenant_lifecycle_commands: TenantLifecycleCommandHandler
+    tenant_invitation_commands: TenantInvitationCommandHandler
+    tenant_membership_lifecycle_commands: TenantMembershipLifecycleCommandHandler
+    tenant_membership_queries: TenantMembershipQueryHandler
+    service_principal_commands: ServicePrincipalCommandHandler
+    service_principal_query: ServicePrincipalQueryHandler
+    api_key_authentication: ApiKeyAuthenticationHandler
     document_access_policy: DocumentAccessPolicy
     document_commands: DocumentCommandHandler
     document_structure_commands: DocumentStructureCommandHandler
@@ -304,15 +319,21 @@ class ServiceGraph:
     employee_commands: EmployeeCommandHandler
     employee_query: EmployeeQueryHandler
     employee_document_commands: EmployeeDocumentCommandHandler
-    master_data_exchange_service: MasterDataExchangeService
-    runtime_execution_service: RuntimeExecutionService
+    master_data_import_runtime: CsvImportRuntime
+    master_data_export_runtime: ExportRuntime
+    runtime_execution_commands: RuntimeExecutionCommandHandler
+    runtime_execution_query: RuntimeExecutionQueryHandler
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
-    financial_period_service: FinancialPeriodService
-    accounting_connector_commands: AccountingConnectorConfigurationCommands
-    notification_service: NotificationService
-    approval_service: ApprovalService
+    financial_period_commands: FinancialPeriodCommandHandler
+    financial_period_queries: FinancialPeriodQueryHandler
+    accounting_connector_commands: AccountingConnectorConfigurationCommandHandler
+    notification_commands: NotificationCommandHandler
+    notification_queries: NotificationQueryHandler
+    approval_commands: ApprovalCommandHandler
+    approval_queries: ApprovalQueryHandler
+    approval_participants: ApprovalParticipantRegistry
     collaboration_comment_commands: CollaborationCommentCommandHandler
     collaboration_comment_engagement: CollaborationCommentEngagementHandler
     collaboration_presence_commands: CollaborationPresenceCommandHandler
@@ -430,18 +451,22 @@ class ServiceGraph:
             "principal_builder": self.auth.principals,
             "auth_session_lifecycle": self.auth.session_lifecycle,
             "role_assignment_commands": self.role_assignment_commands,
-            "role_governance_service": self.role_governance_service,
-            "tenant_role_administration_service": (
-                self.tenant_role_administration_service
-            ),
+            "role_governance_commands": self.role_governance_commands,
+            "tenant_role_commands": self.tenant_role_commands,
+            "tenant_role_queries": self.tenant_role_queries,
             "organization_commands": self.organization_commands,
             "organization_lifecycle": self.organization_lifecycle,
             "organization_query": self.organization_query,
             "tenant_context_service": self.tenant_context_service,
             "platform_view_invalidation_channel": self.platform_view_invalidation_channel,
-            "tenant_admin_service": self.tenant_admin_service,
-            "tenant_membership_service": self.tenant_membership_service,
-            "service_principal_service": self.service_principal_service,
+            "tenant_admin_queries": self.tenant_admin_queries,
+            "tenant_lifecycle_commands": self.tenant_lifecycle_commands,
+            "tenant_invitation_commands": self.tenant_invitation_commands,
+            "tenant_membership_lifecycle_commands": self.tenant_membership_lifecycle_commands,
+            "tenant_membership_queries": self.tenant_membership_queries,
+            "service_principal_commands": self.service_principal_commands,
+            "service_principal_query": self.service_principal_query,
+            "api_key_authentication": self.api_key_authentication,
             "document_access_policy": self.document_access_policy,
             "document_commands": self.document_commands,
             "document_structure_commands": self.document_structure_commands,
@@ -457,15 +482,21 @@ class ServiceGraph:
             "employee_commands": self.employee_commands,
             "employee_query": self.employee_query,
             "employee_document_commands": self.employee_document_commands,
-            "master_data_exchange_service": self.master_data_exchange_service,
-            "runtime_execution_service": self.runtime_execution_service,
+            "master_data_import_runtime": self.master_data_import_runtime,
+            "master_data_export_runtime": self.master_data_export_runtime,
+            "runtime_execution_commands": self.runtime_execution_commands,
+            "runtime_execution_query": self.runtime_execution_query,
             "access_service": self.access_service,
             "activity_service": self.activity_service,
             "enterprise_audit_service": self.enterprise_audit_service,
-            "financial_period_service": self.financial_period_service,
+            "financial_period_commands": self.financial_period_commands,
+            "financial_period_queries": self.financial_period_queries,
             "accounting_connector_commands": self.accounting_connector_commands,
-            "notification_service": self.notification_service,
-            "approval_service": self.approval_service,
+            "notification_commands": self.notification_commands,
+            "notification_queries": self.notification_queries,
+            "approval_commands": self.approval_commands,
+            "approval_queries": self.approval_queries,
+            "approval_participants": self.approval_participants,
             "collaboration_comment_commands": self.collaboration_comment_commands,
             "collaboration_comment_engagement": self.collaboration_comment_engagement,
             "collaboration_presence_commands": self.collaboration_presence_commands,

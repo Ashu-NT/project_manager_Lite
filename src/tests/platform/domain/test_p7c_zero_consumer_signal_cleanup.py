@@ -66,12 +66,12 @@ def test_zero_remaining_approval_post_commit_event_sites_after_task_modernizatio
 
 
 def test_emit_signal_safely_removed_after_task_modernization():
-    import src.core.platform.application.approval.approval_service as approval_service_module
+    import src.core.platform.application.approval.commands as approval_commands_module
 
-    source = inspect.getsource(approval_service_module)
+    source = inspect.getsource(approval_commands_module)
     assert "_emit_signal_safely" not in source
     assert "_emit_handler_events" not in source
-    assert not hasattr(approval_service_module.ApprovalService, "_emit_signal_safely")
+    assert not hasattr(approval_commands_module.ApprovalCommandHandler, "_emit_signal_safely")
 
 
 # ---------------------------------------------------------------------------

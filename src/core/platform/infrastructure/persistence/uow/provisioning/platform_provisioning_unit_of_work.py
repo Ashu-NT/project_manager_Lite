@@ -35,7 +35,7 @@ from src.infra.persistence.db.unit_of_work import (
 
 class SqlAlchemyPlatformProvisioningUnitOfWork(SqlAlchemyUnitOfWorkBase, PlatformProvisioningUnitOfWork):
     """Owns a fresh Session per instance, distinct from the shared session
-    `PlatformRuntimeApplicationService`'s other collaborators still use."""
+    organization query and runtime query collaborators still use."""
 
     def __init__(
         self,

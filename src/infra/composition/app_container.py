@@ -93,7 +93,7 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         outbox_service=_time_financial_outbox_service,
         uow_factory=project_management_services.finance_worker_uow_factory,
         consumer_factory=project_management_services.approved_time_consumer_factory,
-        principal_resolver=lambda: platform_services.service_principal_service.resolve_execution_principal(
+        principal_resolver=lambda: platform_services.service_principal_query.resolve_execution_principal(
             name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME
         ),
     )
@@ -102,7 +102,7 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         outbox_service=_procurement_financial_outbox_service,
         uow_factory=project_management_services.finance_worker_uow_factory,
         consumer_factory=project_management_services.procurement_consumer_factory,
-        principal_resolver=lambda: platform_services.service_principal_service.resolve_execution_principal(
+        principal_resolver=lambda: platform_services.service_principal_query.resolve_execution_principal(
             name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
         ),
     )
@@ -138,18 +138,24 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         time_entry_queries=project_management_services.time_entry_queries,
         auth=platform_services.auth,
         role_assignment_commands=platform_services.role_assignment_commands,
-        role_governance_service=platform_services.role_governance_service,
-        tenant_role_administration_service=(
-            platform_services.tenant_role_administration_service
+        role_governance_commands=platform_services.role_governance_commands,
+        tenant_role_commands=(
+            platform_services.tenant_role_commands
         ),
+        tenant_role_queries=platform_services.tenant_role_queries,
         organization_commands=platform_services.organization_commands,
         organization_lifecycle=platform_services.organization_lifecycle,
         organization_query=platform_services.organization_query,
         tenant_context_service=platform_services.tenant_context_service,
         platform_view_invalidation_channel=platform_services.platform_view_invalidation_channel,
-        tenant_admin_service=platform_services.tenant_admin_service,
-        tenant_membership_service=platform_services.tenant_membership_service,
-        service_principal_service=platform_services.service_principal_service,
+        tenant_admin_queries=platform_services.tenant_admin_queries,
+        tenant_lifecycle_commands=platform_services.tenant_lifecycle_commands,
+        tenant_invitation_commands=platform_services.tenant_invitation_commands,
+        tenant_membership_lifecycle_commands=platform_services.tenant_membership_lifecycle_commands,
+        tenant_membership_queries=platform_services.tenant_membership_queries,
+        service_principal_commands=platform_services.service_principal_commands,
+        service_principal_query=platform_services.service_principal_query,
+        api_key_authentication=platform_services.api_key_authentication,
         document_access_policy=platform_services.document_access_policy,
         document_commands=platform_services.document_commands,
         document_structure_commands=platform_services.document_structure_commands,
@@ -165,17 +171,23 @@ def build_service_graph(session: Session, *, accounting_adapter_ids: frozenset[s
         employee_commands=platform_services.employee_commands,
         employee_query=platform_services.employee_query,
         employee_document_commands=platform_services.employee_document_commands,
-        master_data_exchange_service=platform_services.master_data_exchange_service,
-        runtime_execution_service=platform_services.runtime_execution_service,
+        master_data_import_runtime=platform_services.master_data_import_runtime,
+        master_data_export_runtime=platform_services.master_data_export_runtime,
+        runtime_execution_commands=platform_services.runtime_execution_commands,
+        runtime_execution_query=platform_services.runtime_execution_query,
         access_service=platform_services.access_service,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        financial_period_service=platform_services.financial_period_service,
+        financial_period_commands=platform_services.financial_period_commands,
+        financial_period_queries=platform_services.financial_period_queries,
         accounting_connector_commands=build_accounting_configuration_commands(
             session=session, platform_services=platform_services, installed_adapters=accounting_adapter_ids,
         ),
-        notification_service=platform_services.notification_service,
-        approval_service=platform_services.approval_service,
+        notification_commands=platform_services.notification_commands,
+        notification_queries=platform_services.notification_queries,
+        approval_commands=platform_services.approval_commands,
+        approval_queries=platform_services.approval_queries,
+        approval_participants=platform_services.approval_participants,
         collaboration_comment_commands=project_management_services.collaboration_comment_commands,
         collaboration_comment_engagement=project_management_services.collaboration_comment_engagement,
         collaboration_presence_commands=project_management_services.collaboration_presence_commands,

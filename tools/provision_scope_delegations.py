@@ -86,35 +86,50 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.apply and not str(args.expected_hash or "").strip():
         parser.error("--expected-hash is required with --apply")
-    if (
-        args.output is not None
-        and args.output.expanduser().resolve().exists()
-    ):
+    if args.output is not None and args.output.expanduser().resolve().exists():
         parser.error(f"artifact already exists: {args.output}")
 
+    from sqlalchemy.orm import sessionmaker
     from src.core.platform.tenancy import (
         TenantContextService,
         build_tenant_context_policy,
     )
-    from src.infra.composition.persistence.repositories import build_repository_bundle
 
-    from src.core.platform.application.security.auth import AuthService
     from src.core.platform.application.security.authorization.roles import (
-        RoleGovernanceService,
-        ScopeDelegationProvisioningService,
+        RoleGovernanceCommandHandler,
+        ScopeDelegationProvisioningCommandHandler,
+        ScopeDelegationProvisioningQueryHandler,
     )
     from src.core.platform.domain.security.auth import UserSessionContext
+    from src.core.platform.infrastructure.composition.dependencies.repositories import (
+        build_platform_repositories,
+    )
+    from src.core.platform.infrastructure.composition.dependencies.security.auth import (
+        build_auth_handlers,
+    )
+    from src.core.platform.infrastructure.persistence.uow.security.role_governance_unit_of_work import (
+        SqlAlchemyRoleGovernanceUnitOfWorkFactory,
+    )
+    from src.infra.events.in_process_post_commit_event_bus import (
+        InProcessPostCommitEventBus,
+    )
+    from src.infra.events.in_process_transactional_event_dispatcher import (
+        InProcessTransactionalEventDispatcher,
+    )
     from src.infra.persistence.db.session_factory import SessionLocal
     from src.infra.platform.logging_config import setup_logging
     from src.infra.platform.security_config import load_runtime_security_configuration
+    from src.infra.time.system_clock import SystemClock
 
     setup_logging()
     security_configuration = load_runtime_security_configuration()
     password = _resolve_password()
     session = SessionLocal()
     try:
-        repositories = build_repository_bundle(session)
+        repositories = build_platform_repositories(session)
         user_session = UserSessionContext()
+        transactional_dispatcher = InProcessTransactionalEventDispatcher()
+        post_commit_bus = InProcessPostCommitEventBus()
         tenant_context_service = TenantContextService(
             tenant_repo=repositories.tenant_repo,
             organization_repo=repositories.organization_repo,
@@ -124,45 +139,41 @@ def main(argv: list[str] | None = None) -> int:
                 security_configuration.tenancy_mode
             ),
         )
-        auth_service = AuthService(
+        auth = build_auth_handlers(
             session=session,
-            user_repo=repositories.user_repo,
-            role_repo=repositories.role_repo,
-            permission_repo=repositories.permission_repo,
-            role_permission_repo=repositories.role_permission_repo,
-            auth_session_repo=repositories.auth_session_repo,
+            repositories=repositories,
             user_session=user_session,
-            user_tenant_repo=repositories.user_tenant_repo,
-            role_binding_repo=repositories.role_binding_repo,
-            security_audit_repo=repositories.audit_entry_repo,
+            tenant_context_service=tenant_context_service,
+            transactional_dispatcher=transactional_dispatcher,
+            post_commit_bus=post_commit_bus,
         )
-        actor = auth_service.authenticate(
+        actor = auth.authentication.authenticate(
             args.username,
             password,
             mfa_code=args.mfa_code,
             device_label="scope-delegation-provisioning",
         )
-        user_session.set_principal(auth_service.build_principal(actor))
-        role_governance_service = RoleGovernanceService(
-            session=session,
-            role_repo=repositories.role_repo,
-            role_binding_repo=repositories.role_binding_repo,
-            delegation_repo=repositories.role_delegation_policy_repo,
-            role_permission_repo=repositories.role_permission_repo,
-            permission_repo=repositories.permission_repo,
-            user_repo=repositories.user_repo,
-            tenant_repo=repositories.tenant_repo,
-            membership_repo=repositories.user_tenant_repo,
-            audit_repo=repositories.audit_entry_repo,
+        user_session.set_principal(auth.principals.build(actor))
+        role_governance_commands = RoleGovernanceCommandHandler(
+            uow_factory=SqlAlchemyRoleGovernanceUnitOfWorkFactory(
+                session_factory=sessionmaker(bind=session.bind, future=True),
+                transactional_dispatcher=transactional_dispatcher,
+                post_commit_bus=post_commit_bus,
+            ),
             user_session=user_session,
             tenant_context_service=tenant_context_service,
+            clock=SystemClock(),
         )
-        service = ScopeDelegationProvisioningService(
+        queries = ScopeDelegationProvisioningQueryHandler(
             role_repo=repositories.role_repo,
             delegation_repo=repositories.role_delegation_policy_repo,
-            role_governance_service=role_governance_service,
         )
-        plan = service.preview()
+        commands = ScopeDelegationProvisioningCommandHandler(
+            role_repo=repositories.role_repo,
+            queries=queries,
+            role_governance_commands=role_governance_commands,
+        )
+        plan = queries.preview()
         payload = {
             "schema_version": 1,
             "generated_at": datetime.now(UTC).isoformat(),
@@ -175,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(payload, indent=2, sort_keys=True))
             return 0
 
-        result = service.apply(expected_catalog_hash=args.expected_hash)
+        result = commands.apply(expected_catalog_hash=args.expected_hash)
         receipt = {
             **payload,
             "result": {

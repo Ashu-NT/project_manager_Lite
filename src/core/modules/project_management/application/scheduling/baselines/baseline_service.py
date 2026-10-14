@@ -74,7 +74,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         calendar: CalendarProtocol,
         user_session=None,
         activity_service=None,
-        approval_service=None,
+        approval_commands=None,
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
         uow_factory: Callable[[], UnitOfWork] | None = None,
@@ -88,7 +88,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         self._cal: CalendarProtocol = calendar
         self._user_session = user_session
         self._activity_service = activity_service
-        self._approval_service = approval_service
+        self._approval_commands = approval_commands
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
         self._uow_factory = uow_factory
@@ -120,7 +120,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         rate_as_of: date,
     ) -> ProjectBaseline:
         governed = (
-            self._approval_service is not None
+            self._approval_commands is not None
             and is_governance_required("baseline.create")
             and not is_admin_session(self._user_session)
         )
@@ -152,7 +152,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
         if governed:
-            req = self._approval_service.request_change(
+            req = self._approval_commands.request_change(
                 request_type="baseline.create",
                 entity_type="project_baseline",
                 entity_id=project_id,

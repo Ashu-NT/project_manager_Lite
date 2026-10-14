@@ -44,12 +44,12 @@ from src.core.platform.integration import (
 
 
 def _setup(services):
-    principals = services["service_principal_service"].list_service_principals()
+    principals = services["service_principal_query"].list_service_principals()
     if not any(
         principal.name == APPROVED_TIME_FINANCE_PRINCIPAL_NAME
         for principal in principals
     ):
-        services["service_principal_service"].create_service_principal(
+        services["service_principal_commands"].create_service_principal(
             name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
             description="Posts approved Time facts into PM Finance labor actuals.",
             initial_role_name="viewer",
@@ -67,7 +67,7 @@ def _setup(services):
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
     )
-    services["financial_period_service"].create_period(
+    services["financial_period_commands"].create_period(
         code="LABOR-2026-05", name="May 2026", fiscal_year=2026,
         period_number=5, start_date=date(2026, 5, 1), end_date=date(2026, 5, 31),
     )
@@ -139,7 +139,7 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
     assert labor.rate_provenance_complete is True
     assert labor.worker_service_principal_id is not None
     assert labor.source_event_id is not None
-    principal = services["service_principal_service"].resolve_execution_principal(
+    principal = services["service_principal_query"].resolve_execution_principal(
         name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME
     )
     assert labor.worker_service_principal_id == principal.id
@@ -285,9 +285,9 @@ def test_audit_failure_rolls_back_transition_version_and_outbox(services, monkey
 
 def test_closed_financial_period_keeps_approved_time_retryable_without_posting(services) -> None:
     _, project, resource, _, assignment = _setup(services)
-    period_service = services["financial_period_service"]
-    financial_period = period_service.list_periods()[0]
-    period_service.close_period(financial_period.id, expected_version=financial_period.version)
+    period_queries = services["financial_period_queries"]
+    financial_period = period_queries.list_periods()[0]
+    services["financial_period_commands"].close_period(financial_period.id, expected_version=financial_period.version)
 
     services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 7), hours=Decimal(2)
@@ -520,10 +520,10 @@ def test_approved_time_correction_worker_statement_count(services) -> None:
 
 def test_disabled_worker_identity_is_quarantined_without_posting(services) -> None:
     _, project, resource, _, assignment = _setup(services)
-    principal = services["service_principal_service"].resolve_execution_principal(
+    principal = services["service_principal_query"].resolve_execution_principal(
         name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME
     )
-    services["service_principal_service"].disable_service_principal(principal.id)
+    services["service_principal_commands"].disable_service_principal(principal.id)
 
     services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 12), hours=Decimal(2)

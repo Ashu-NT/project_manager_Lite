@@ -145,10 +145,10 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         assert deps_a.baseline_service._activity_service._session is session_a
         assert deps_b.baseline_service._activity_service._session is session_b
 
-        assert deps_a.baseline_service._approval_service is None, (
-            "the apply path must never reach back into ApprovalService"
+        assert deps_a.baseline_service._approval_commands is None, (
+            "the apply path must never reach back into ApprovalCommandHandler"
         )
-        assert deps_b.baseline_service._approval_service is None
+        assert deps_b.baseline_service._approval_commands is None
     finally:
         session_a.close()
         session_b.close()

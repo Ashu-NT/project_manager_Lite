@@ -89,7 +89,6 @@ def build_task_approval_deps(
     tenant_context_service,
     work_calendar_engine: CalendarProtocol,
     platform_calendar_resolver,
-    calendar_assignment_service,
     module_catalog_service=None,
 ) -> TaskApprovalDeps:
 
@@ -112,7 +111,6 @@ def build_task_approval_deps(
     )
     project_calendar_adapter = ProjectCalendarAdapter(
         resolver=platform_calendar_resolver,
-        assignment_service=calendar_assignment_service,
     )
     scheduling_engine = SchedulingEngine(
         session,
@@ -153,7 +151,7 @@ def build_task_approval_deps(
     scheduling_constraint_handler = TaskSchedulingConstraintHandler(
         task_repo=bundle.pm.task_repo,
         user_session=user_session,
-        approval_service=None,
+        approval_commands=None,
         tenant_context_service=tenant_context_service,
         scheduling_engine=scheduling_engine,
         work_calendar_engine=work_calendar_engine,
@@ -218,7 +216,7 @@ def build_task_approval_deps(
             task_repo=bundle.pm.task_repo,
             dependency_repo=bundle.pm.dependency_repo,
             user_session=user_session,
-            approval_service=None,
+            approval_commands=None,
             tenant_context_service=tenant_context_service,
             hierarchy_policy=hierarchy_policy,
             diagnostics_handler=dependency_diagnostics_handler,
@@ -253,7 +251,7 @@ def build_task_approval_deps(
             resource_repo=bundle.pm.resource_repo,
             work_calendar_engine=work_calendar_engine,
             user_session=user_session,
-            approval_service=None,
+            approval_commands=None,
             tenant_context_service=tenant_context_service,
             schedule_synchronizer=schedule_synchronizer,
             uow_scope=task_uow_scope,

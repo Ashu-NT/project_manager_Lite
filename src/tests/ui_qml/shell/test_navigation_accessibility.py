@@ -1,6 +1,6 @@
 """centralized navigation accessibility -- shell navigation must
 consume the SAME authoritative accessible-module policy Global Overview's
-module cards and Quick Actions already use (PlatformRuntimeApplicationService
+module cards and Quick Actions already use (PlatformRuntimeQueryHandler
 .list_accessible_modules()), never a second copy of that rule."""
 
 from __future__ import annotations
@@ -345,7 +345,7 @@ def test_navigation_and_global_overview_capabilities_read_the_identical_source_m
     (ProjectManagementModuleOverviewContributor), and Quick Actions
     (GlobalOverviewService.get_capabilities) must never keep separate copies
     of "is PM accessible" -- all three call
-    PlatformRuntimeApplicationService.list_accessible_modules(), never
+    PlatformRuntimeQueryHandler.list_accessible_modules(), never
     list_modules()/list_enabled_modules()/a role-name check. This is a static
     guard against future drift: if any of these call sites is later changed
     to a different method, this test fails and the change should be

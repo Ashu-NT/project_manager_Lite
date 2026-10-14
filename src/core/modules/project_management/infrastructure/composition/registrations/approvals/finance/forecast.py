@@ -45,7 +45,7 @@ def build_forecast_approval_deps(
         enterprise_audit_service=audit,
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
-        approval_service=None,
+        approval_commands=None,
     )
     return ForecastApprovalDeps(forecast_service=service)
 

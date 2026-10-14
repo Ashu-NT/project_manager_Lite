@@ -1,6 +1,6 @@
-"""`PlatformRuntimeApplicationService.provision_organization` runs inside a fresh-session
+"""`OrganizationProvisioningCommandHandler.provision_organization` runs inside a fresh-session
 `PlatformProvisioningUnitOfWork`, mirroring `test_organization_service_unit_of_work_cutover.py`/
-`test_approval_service_unit_of_work_cutover.py`'s own equivalents."""
+`test_approval_commands_unit_of_work_cutover.py`'s own equivalents."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ import inspect
 
 import pytest
 
+from src.core.platform.application.master_data.org.commands import (
+    organization_provisioning as organization_provisioning_module,
+)
 from src.core.platform.application.master_data.org.dto import (
     OrganizationProvisionCommand,
-)
-from src.core.platform.application.platform_runtime import (
-    platform_runtime_service as platform_runtime_service_module,
 )
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.uow.provisioning.platform_provisioning_unit_of_work import (
@@ -30,10 +30,10 @@ def _unique_code(prefix: str) -> str:
 def test_successful_provisioning_persists_organization_and_entitlements_atomically_via_fresh_uow(
     services,
 ):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
 
     code = _unique_code("SUCCESS-PROV")
-    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Success Provisioned Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
+    organization = provisioning.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Success Provisioned Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
 
     reloaded = services["organization_query"]._organization_repo.get(organization.id)
     assert reloaded is not None
@@ -45,28 +45,28 @@ def test_successful_provisioning_persists_organization_and_entitlements_atomical
 
 
 def test_fresh_session_per_provisioning_call(services, monkeypatch):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     seen_sessions = []
-    original_create = type(app_service._provisioning_uow_factory).create
+    original_create = type(provisioning._provisioning_uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         seen_sessions.append(uow._session)
         return uow
 
-    monkeypatch.setattr(type(app_service._provisioning_uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(provisioning._provisioning_uow_factory), "create", _spy_create)
 
-    app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("FRESH-A"), display_name="Fresh A", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
-    app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("FRESH-B"), display_name="Fresh B", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    provisioning.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("FRESH-A"), display_name="Fresh A", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    provisioning.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("FRESH-B"), display_name="Fresh B", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert len(seen_sessions) == 2
     assert seen_sessions[0] is not seen_sessions[1]
 
 
 def test_provisioning_participants_share_the_same_uow_session(services, monkeypatch):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     seen = {}
-    original_create = type(app_service._provisioning_uow_factory).create
+    original_create = type(provisioning._provisioning_uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
@@ -76,9 +76,9 @@ def test_provisioning_participants_share_the_same_uow_session(services, monkeypa
         seen["audit_session"] = uow._enterprise_audit_service._session
         return uow
 
-    monkeypatch.setattr(type(app_service._provisioning_uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(provisioning._provisioning_uow_factory), "create", _spy_create)
 
-    app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("SHARE-PROV"), display_name="Shared Session Prov", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
+    provisioning.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("SHARE-PROV"), display_name="Shared Session Prov", timezone_name="UTC", base_currency="EUR", initial_module_codes=["project_management"]))
 
     assert seen["uow_session"] is seen["organizations_repo_session"]
     assert seen["uow_session"] is seen["entitlements_repo_session"]
@@ -86,11 +86,11 @@ def test_provisioning_participants_share_the_same_uow_session(services, monkeypa
 
 
 def test_no_global_session_touch_during_provisioning(services):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     legacy_session = services["session"]
     legacy_session.commit()  # settle any pending fixture-setup state
 
-    app_service.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("ISOLATED-PROV"), display_name="Isolated Prov", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    provisioning.provision_organization(OrganizationProvisionCommand(organization_code=_unique_code("ISOLATED-PROV"), display_name="Isolated Prov", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert len(legacy_session.new) == 0
     assert len(legacy_session.dirty) == 0
@@ -100,27 +100,27 @@ def test_late_step_failure_rolls_back_organization_and_entitlements_together(ser
     """A failure in a later provisioning step (an unknown module code, raised from module
     entitlement provisioning) must roll back the ALREADY-staged organization row too -- proving
     the two writes share one transaction, not two."""
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     code = _unique_code("LATEFAIL")
 
     with pytest.raises(NotFoundError):
-        app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Late Failure Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["definitely-not-a-real-module-code"]))
+        provisioning.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Late Failure Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=["definitely-not-a-real-module-code"]))
 
     assert services["organization_query"]._organization_repo.get_by_code(code) is None
 
 
 def test_commit_failure_leaves_no_partial_provisioning_state(services, monkeypatch):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
 
     captured_uow = {}
-    original_create = type(app_service._provisioning_uow_factory).create
+    original_create = type(provisioning._provisioning_uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         captured_uow["uow"] = uow
         return uow
 
-    monkeypatch.setattr(type(app_service._provisioning_uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(provisioning._provisioning_uow_factory), "create", _spy_create)
 
     def _fail_commit(self):
         raise RuntimeError("simulated provisioning commit failure")
@@ -129,7 +129,7 @@ def test_commit_failure_leaves_no_partial_provisioning_state(services, monkeypat
 
     code = _unique_code("COMMITFAIL-PROV")
     with pytest.raises(RuntimeError, match="simulated provisioning commit failure"):
-        app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Commit Fail Prov", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+        provisioning.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Commit Fail Prov", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     uow = captured_uow["uow"]
     assert uow._committed is False
@@ -138,24 +138,24 @@ def test_commit_failure_leaves_no_partial_provisioning_state(services, monkeypat
 
 
 def test_runtime_active_organization_context_changes_only_after_successful_commit(services):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     tenant_context_service = services["tenant_context_service"]
     default_active_id = tenant_context_service.get_active_organization().id
 
     code = _unique_code("ACTIVATE-PROV")
-    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Activate Prov Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    organization = provisioning.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Activate Prov Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     assert tenant_context_service.get_active_organization().id == organization.id
     assert organization.id != default_active_id
 
 
 def test_provisioning_remains_tenant_scoped(services):
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     tenant_context_service = services["tenant_context_service"]
     tenant_id = tenant_context_service.get_active_tenant_id()
 
     code = _unique_code("TENANT-PROV")
-    organization = app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Tenant Prov Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    organization = provisioning.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Tenant Prov Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     reloaded = services["organization_query"]._organization_repo.get_for_tenant(organization.id, tenant_id)
     assert reloaded is not None
@@ -164,7 +164,7 @@ def test_provisioning_remains_tenant_scoped(services):
 def test_provisioning_never_gains_module_or_authorization_event_vocabulary():
     """`OrganizationCreated` is recorded elsewhere (end-to-end, including through provisioning) --
     no module-entitlement or authorization event vocabulary belongs in this module."""
-    source = inspect.getsource(platform_runtime_service_module)
+    source = inspect.getsource(organization_provisioning_module)
     for forbidden in (
         "ModuleLicensed",
         "ModuleEnabled",

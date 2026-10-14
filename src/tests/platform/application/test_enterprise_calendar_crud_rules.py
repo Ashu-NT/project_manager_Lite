@@ -6,14 +6,23 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -54,6 +63,7 @@ def org_id():
 @pytest.fixture
 def mock_user_session():
     from unittest.mock import MagicMock
+
     session = MagicMock()
     session.has_permission.return_value = True
     session.username = "test-admin"
@@ -102,7 +112,9 @@ def tenant_context(org_id):
         tenant_id="tenant-platform-foundation",
         organization_id=org_id,
     )
-    context.require_organization_context.return_value = FakeContext(organization=FakeOrg())
+    context.require_organization_context.return_value = FakeContext(
+        organization=FakeOrg()
+    )
     return context
 
 
@@ -123,8 +135,8 @@ def repos(db_session, tenant_context):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return PlatformCalendarService(
+def cal_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -136,9 +148,27 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 
 
 @pytest.fixture
-def rule_service(db_session, repos, mock_user_session):
-    return WorkingRuleService(
+def cal_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def rule_commands(db_session, repos, mock_user_session):
+    return WorkingRuleCommandHandler(
         session=db_session,
+        calendar_repo=repos["calendar"],
+        rule_repo=repos["rule"],
+        user_session=mock_user_session,
+    )
+
+
+@pytest.fixture
+def rule_queries(db_session, repos, mock_user_session):
+    return WorkingRuleQueryHandler(
         calendar_repo=repos["calendar"],
         rule_repo=repos["rule"],
         user_session=mock_user_session,
@@ -172,8 +202,11 @@ def seeded_assignment_entities(db_session, org_id):
 
 
 @pytest.fixture
-def assignment_service(db_session, repos, mock_user_session, seeded_assignment_entities):
+def assignment_commands(
+    db_session, repos, mock_user_session, seeded_assignment_entities
+):
     from unittest.mock import MagicMock
+
     pm_proj_repo = MagicMock()
     pm_proj_repo.save.return_value = None
     pm_proj_repo.get.return_value = None
@@ -182,7 +215,7 @@ def assignment_service(db_session, repos, mock_user_session, seeded_assignment_e
     pm_res_repo.save.return_value = None
     pm_res_repo.get.return_value = None
     pm_res_repo.list_for_calendar.return_value = []
-    return CalendarAssignmentService(
+    return CalendarAssignmentCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -193,8 +226,29 @@ def assignment_service(db_session, repos, mock_user_session, seeded_assignment_e
 
 
 @pytest.fixture
-def global_cal(cal_service, org_id):
-    return cal_service.ensure_global_calendar(org_id)
+def assignment_queries(
+    db_session, repos, mock_user_session, seeded_assignment_entities
+):
+    from unittest.mock import MagicMock
+
+    pm_proj_repo = MagicMock()
+    pm_proj_repo.save.return_value = None
+    pm_proj_repo.get.return_value = None
+    pm_proj_repo.list_for_calendar.return_value = []
+    pm_res_repo = MagicMock()
+    pm_res_repo.save.return_value = None
+    pm_res_repo.get.return_value = None
+    pm_res_repo.list_for_calendar.return_value = []
+    return CalendarAssignmentQueryHandler(
+        assignment_repo=repos["assignment"],
+        project_assignment_repo=pm_proj_repo,
+        resource_assignment_repo=pm_res_repo,
+    )
+
+
+@pytest.fixture
+def global_cal(cal_commands, org_id):
+    return cal_commands.ensure_global_calendar(org_id)
 
 
 # ---------------------------------------------------------------------------
@@ -202,21 +256,21 @@ def global_cal(cal_service, org_id):
 # ---------------------------------------------------------------------------
 
 
-def test_global_calendar_created_on_bootstrap(cal_service, org_id):
-    cal = cal_service.ensure_global_calendar(org_id)
+def test_global_calendar_created_on_bootstrap(cal_commands, org_id):
+    cal = cal_commands.ensure_global_calendar(org_id)
     assert cal.calendar_type == CalendarType.GLOBAL.value
     assert cal.organization_id == org_id
     assert cal.is_active
 
 
-def test_global_calendar_idempotent(cal_service, org_id):
-    cal1 = cal_service.ensure_global_calendar(org_id)
-    cal2 = cal_service.ensure_global_calendar(org_id)
+def test_global_calendar_idempotent(cal_commands, org_id):
+    cal1 = cal_commands.ensure_global_calendar(org_id)
+    cal2 = cal_commands.ensure_global_calendar(org_id)
     assert cal1.id == cal2.id
 
 
 def test_global_calendar_bootstrap_seeds_working_rules_consistent_with_their_own_hours(
-    cal_service, repos, org_id
+    cal_commands, repos, org_id
 ):
     """Regression guard: the bootstrap seed previously set hours_override=8.0
     on a rule whose raw start/end window (08:00-16:00) only actually spans
@@ -225,7 +279,7 @@ def test_global_calendar_bootstrap_seeds_working_rules_consistent_with_their_own
     the raw start_time/end_time directly (e.g. the Month view) exposed the
     inconsistency. Every seeded working day's window must agree with its
     own declared hours."""
-    cal = cal_service.ensure_global_calendar(org_id)
+    cal = cal_commands.ensure_global_calendar(org_id)
     rules = repos["rule"].list_for_calendar(cal.id)
     working_rules = [r for r in rules if r.is_working_day]
     assert len(working_rules) == 5  # Mon-Fri
@@ -242,27 +296,29 @@ def test_global_calendar_bootstrap_seeds_working_rules_consistent_with_their_own
         assert net_hours_from_window == rule.compute_hours()
 
 
-def test_get_default_calendar_returns_canonical_global(cal_service, org_id):
-    cal_service.create_calendar(
+def test_get_default_calendar_returns_canonical_global(
+    cal_queries, cal_commands, org_id
+):
+    cal_commands.create_calendar(
         code="SITE-FIRST",
         name="Site First",
         calendar_type=CalendarType.SITE.value,
         is_default=True,
     )
-    global_calendar = cal_service.ensure_global_calendar(org_id)
+    global_calendar = cal_commands.ensure_global_calendar(org_id)
 
-    assert cal_service.get_default_calendar().id == global_calendar.id
+    assert cal_queries.get_default_calendar().id == global_calendar.id
 
 
-def test_get_default_calendar_fails_when_global_is_missing(cal_service):
+def test_get_default_calendar_fails_when_global_is_missing(cal_queries, cal_commands):
     with pytest.raises(NotFoundError) as exc_info:
-        cal_service.get_default_calendar()
+        cal_queries.get_default_calendar()
 
     assert exc_info.value.code == "DEFAULT_CALENDAR_NOT_FOUND"
 
 
-def test_create_site_calendar(cal_service, org_id):
-    cal = cal_service.create_calendar(
+def test_create_site_calendar(cal_commands, org_id):
+    cal = cal_commands.create_calendar(
         code="SITE-HH",
         name="Hamburg Site",
         calendar_type=CalendarType.SITE.value,
@@ -273,25 +329,25 @@ def test_create_site_calendar(cal_service, org_id):
     assert cal.timezone == "Europe/Berlin"
 
 
-def test_create_calendar_duplicate_code_raises(cal_service, org_id):
-    cal_service.create_calendar(
+def test_create_calendar_duplicate_code_raises(cal_commands, org_id):
+    cal_commands.create_calendar(
         code="DUPE", name="First", calendar_type=CalendarType.DEPARTMENT.value
     )
     with pytest.raises(ValidationError, match="already exists"):
-        cal_service.create_calendar(
+        cal_commands.create_calendar(
             code="DUPE", name="Second", calendar_type=CalendarType.DEPARTMENT.value
         )
 
 
-def test_create_calendar_invalid_type_raises(cal_service):
+def test_create_calendar_invalid_type_raises(cal_commands):
     with pytest.raises(ValidationError, match="Invalid calendar_type"):
-        cal_service.create_calendar(
+        cal_commands.create_calendar(
             code="BAD", name="Bad", calendar_type="NONEXISTENT"
         )
 
 
-def test_update_calendar(cal_service, global_cal):
-    updated = cal_service.update_calendar(
+def test_update_calendar(cal_commands, global_cal):
+    updated = cal_commands.update_calendar(
         global_cal.id, name="Global (Updated)", timezone="Europe/Berlin"
     )
     assert updated.name == "Global (Updated)"
@@ -299,44 +355,46 @@ def test_update_calendar(cal_service, global_cal):
     assert updated.version == global_cal.version + 1
 
 
-def test_delete_calendar_not_assigned(cal_service, org_id):
-    cal = cal_service.create_calendar(
+def test_delete_calendar_not_assigned(cal_queries, cal_commands, org_id):
+    cal = cal_commands.create_calendar(
         code="TODELETE", name="Temp", calendar_type=CalendarType.PROJECT.value
     )
-    cal_service.delete_calendar(cal.id)
+    cal_commands.delete_calendar(cal.id)
     with pytest.raises(NotFoundError):
-        cal_service.get_calendar(cal.id)
+        cal_queries.get_calendar(cal.id)
 
 
-def test_delete_calendar_blocked_if_assigned(cal_service, assignment_service, global_cal):
+def test_delete_calendar_blocked_if_assigned(
+    cal_commands, assignment_commands, global_cal
+):
     # Deliberately NOT global_cal -- the organization's default calendar is
     # blocked from deletion by its own, independent invariant (see
     # test_delete_calendar_blocked_if_default below) regardless of whether
     # it has any assignments. This test exercises the separate
     # assignment-count guard, so it needs a non-default calendar.
-    cal = cal_service.create_calendar(
+    cal = cal_commands.create_calendar(
         code="ASSIGNED", name="Assigned Calendar", calendar_type=CalendarType.SITE.value
     )
-    assignment_service.assign_site_calendar("site-x", cal.id)
+    assignment_commands.assign_site_calendar("site-x", cal.id)
     with pytest.raises(BusinessRuleError, match="assigned"):
-        cal_service.delete_calendar(cal.id)
+        cal_commands.delete_calendar(cal.id)
 
 
-def test_delete_calendar_blocked_if_default(cal_service, global_cal):
+def test_delete_calendar_blocked_if_default(cal_commands, global_cal):
     with pytest.raises(BusinessRuleError, match="default"):
-        cal_service.delete_calendar(global_cal.id)
+        cal_commands.delete_calendar(global_cal.id)
 
 
-def test_deactivate_calendar_blocked_if_default(cal_service, global_cal):
+def test_deactivate_calendar_blocked_if_default(cal_commands, global_cal):
     with pytest.raises(BusinessRuleError, match="default"):
-        cal_service.update_calendar(global_cal.id, is_active=False)
+        cal_commands.update_calendar(global_cal.id, is_active=False)
 
 
-def test_list_calendars_filtered_by_type(cal_service, global_cal, org_id):
-    cal_service.create_calendar(
+def test_list_calendars_filtered_by_type(cal_queries, cal_commands, global_cal, org_id):
+    cal_commands.create_calendar(
         code="SITE-A", name="Site A", calendar_type=CalendarType.SITE.value
     )
-    global_cals = cal_service.list_calendars(calendar_type=CalendarType.GLOBAL.value)
+    global_cals = cal_queries.list_calendars(calendar_type=CalendarType.GLOBAL.value)
     assert all(c.calendar_type == CalendarType.GLOBAL.value for c in global_cals)
     assert len(global_cals) >= 1
 
@@ -346,8 +404,8 @@ def test_list_calendars_filtered_by_type(cal_service, global_cal, org_id):
 # ---------------------------------------------------------------------------
 
 
-def test_working_rule_seed_standard_week(rule_service, global_cal):
-    rules = rule_service.seed_standard_week(
+def test_working_rule_seed_standard_week(rule_commands, global_cal):
+    rules = rule_commands.seed_standard_week(
         global_cal.id,
         start_time=time(8, 0),
         end_time=time(17, 0),
@@ -360,9 +418,9 @@ def test_working_rule_seed_standard_week(rule_service, global_cal):
         assert r.compute_hours() == 8.0
 
 
-def test_working_rule_start_before_end_enforced(rule_service, global_cal):
+def test_working_rule_start_before_end_enforced(rule_commands, global_cal):
     with pytest.raises(ValidationError, match="before end_time"):
-        rule_service.save_rule(
+        rule_commands.save_rule(
             global_cal.id,
             weekday=0,
             is_working_day=True,
@@ -371,13 +429,13 @@ def test_working_rule_start_before_end_enforced(rule_service, global_cal):
         )
 
 
-def test_working_rule_non_working_day_zero_hours(rule_service, global_cal):
-    rule = rule_service.save_rule(global_cal.id, weekday=6, is_working_day=False)
+def test_working_rule_non_working_day_zero_hours(rule_commands, global_cal):
+    rule = rule_commands.save_rule(global_cal.id, weekday=6, is_working_day=False)
     assert rule.compute_hours() == 0.0
 
 
-def test_working_rule_hours_override(rule_service, global_cal):
-    rule = rule_service.save_rule(
+def test_working_rule_hours_override(rule_commands, global_cal):
+    rule = rule_commands.save_rule(
         global_cal.id,
         weekday=0,
         is_working_day=True,
@@ -389,8 +447,10 @@ def test_working_rule_hours_override(rule_service, global_cal):
     assert rule.compute_hours() == 6.0
 
 
-def test_working_rule_save_normalizes_dto_inputs(rule_service, global_cal):
-    rule = rule_service.save_rule(
+def test_working_rule_save_normalizes_dto_inputs(
+    rule_queries, rule_commands, global_cal
+):
+    rule = rule_commands.save_rule(
         f"  {global_cal.id}  ",
         weekday="1",
         is_working_day=True,
@@ -411,6 +471,8 @@ def test_working_rule_save_normalizes_dto_inputs(rule_service, global_cal):
     assert rule.shift_code == "day"
     assert rule.priority == 2
 
-    stored = next(item for item in rule_service.list_rules(global_cal.id) if item.id == rule.id)
+    stored = next(
+        item for item in rule_queries.list_rules(global_cal.id) if item.id == rule.id
+    )
     assert stored.calendar_id == global_cal.id
     assert stored.weekday == 1

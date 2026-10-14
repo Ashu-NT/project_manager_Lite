@@ -1,11 +1,9 @@
-from src.core.platform.application.platform_runtime.platform_runtime_service import (
-    PlatformRuntimeApplicationService,
+from src.core.platform.application.platform_runtime.queries import (
     PlatformRuntimeContextSnapshot,
-    resolve_platform_runtime_application_service,
+    PlatformRuntimeQueryHandler,
 )
 
 __all__ = [
-    "PlatformRuntimeApplicationService",
     "PlatformRuntimeContextSnapshot",
-    "resolve_platform_runtime_application_service",
+    "PlatformRuntimeQueryHandler",
 ]

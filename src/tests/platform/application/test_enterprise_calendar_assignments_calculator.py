@@ -6,14 +6,20 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     ExceptionType,
@@ -50,6 +56,7 @@ def org_id():
 @pytest.fixture
 def mock_user_session():
     from unittest.mock import MagicMock
+
     session = MagicMock()
     session.has_permission.return_value = True
     session.username = "test-admin"
@@ -98,7 +105,9 @@ def tenant_context(org_id):
         tenant_id="tenant-platform-foundation",
         organization_id=org_id,
     )
-    context.require_organization_context.return_value = FakeContext(organization=FakeOrg())
+    context.require_organization_context.return_value = FakeContext(
+        organization=FakeOrg()
+    )
     return context
 
 
@@ -119,12 +128,21 @@ def repos(db_session, tenant_context):
 
 
 @pytest.fixture
-def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
-    return PlatformCalendarService(
+def cal_commands(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
         organization_repo=mock_org_repo,
+        user_session=mock_user_session,
+        tenant_context_service=tenant_context,
+    )
+
+
+@pytest.fixture
+def cal_queries(db_session, repos, mock_org_repo, mock_user_session, tenant_context):
+    return PlatformCalendarQueryHandler(
+        calendar_repo=repos["calendar"],
         user_session=mock_user_session,
         tenant_context_service=tenant_context,
     )
@@ -187,8 +205,11 @@ def seeded_assignment_entities(db_session, org_id):
 
 
 @pytest.fixture
-def assignment_service(db_session, repos, mock_user_session, seeded_assignment_entities):
+def assignment_commands(
+    db_session, repos, mock_user_session, seeded_assignment_entities
+):
     from unittest.mock import MagicMock
+
     pm_proj_repo = MagicMock()
     pm_proj_repo.save.return_value = None
     pm_proj_repo.get.return_value = None
@@ -197,7 +218,7 @@ def assignment_service(db_session, repos, mock_user_session, seeded_assignment_e
     pm_res_repo.save.return_value = None
     pm_res_repo.get.return_value = None
     pm_res_repo.list_for_calendar.return_value = []
-    return CalendarAssignmentService(
+    return CalendarAssignmentCommandHandler(
         session=db_session,
         calendar_repo=repos["calendar"],
         assignment_repo=repos["assignment"],
@@ -208,13 +229,34 @@ def assignment_service(db_session, repos, mock_user_session, seeded_assignment_e
 
 
 @pytest.fixture
+def assignment_queries(
+    db_session, repos, mock_user_session, seeded_assignment_entities
+):
+    from unittest.mock import MagicMock
+
+    pm_proj_repo = MagicMock()
+    pm_proj_repo.save.return_value = None
+    pm_proj_repo.get.return_value = None
+    pm_proj_repo.list_for_calendar.return_value = []
+    pm_res_repo = MagicMock()
+    pm_res_repo.save.return_value = None
+    pm_res_repo.get.return_value = None
+    pm_res_repo.list_for_calendar.return_value = []
+    return CalendarAssignmentQueryHandler(
+        assignment_repo=repos["assignment"],
+        project_assignment_repo=pm_proj_repo,
+        resource_assignment_repo=pm_res_repo,
+    )
+
+
+@pytest.fixture
 def calculator():
     return WorkingTimeCalculator()
 
 
 @pytest.fixture
-def global_cal(cal_service, org_id):
-    return cal_service.ensure_global_calendar(org_id)
+def global_cal(cal_commands, org_id):
+    return cal_commands.ensure_global_calendar(org_id)
 
 
 # ---------------------------------------------------------------------------
@@ -222,53 +264,57 @@ def global_cal(cal_service, org_id):
 # ---------------------------------------------------------------------------
 
 
-def test_site_calendar_assignment(assignment_service, global_cal):
-    a = assignment_service.assign_site_calendar(
+def test_site_calendar_assignment(assignment_queries, assignment_commands, global_cal):
+    a = assignment_commands.assign_site_calendar(
         "site-hamburg", global_cal.id, is_default=True
     )
     assert a.site_id == "site-hamburg"
     assert a.calendar_id == global_cal.id
 
-    fetched = assignment_service.get_site_calendar("site-hamburg")
+    fetched = assignment_queries.get_site_calendar("site-hamburg")
     assert fetched is not None
     assert fetched.calendar_id == global_cal.id
 
 
-def test_department_calendar_assignment(assignment_service, global_cal):
-    assignment_service.assign_department_calendar("dept-eng", global_cal.id)
-    fetched = assignment_service.get_department_calendar("dept-eng")
+def test_department_calendar_assignment(
+    assignment_queries, assignment_commands, global_cal
+):
+    assignment_commands.assign_department_calendar("dept-eng", global_cal.id)
+    fetched = assignment_queries.get_department_calendar("dept-eng")
     assert fetched is not None
     assert fetched.department_id == "dept-eng"
 
 
-def test_employee_calendar_assignment(assignment_service, global_cal):
-    assignment_service.assign_employee_calendar("emp-jsmith", global_cal.id)
-    fetched = assignment_service.get_employee_calendar("emp-jsmith")
+def test_employee_calendar_assignment(
+    assignment_queries, assignment_commands, global_cal
+):
+    assignment_commands.assign_employee_calendar("emp-jsmith", global_cal.id)
+    fetched = assignment_queries.get_employee_calendar("emp-jsmith")
     assert fetched is not None
     assert fetched.employee_id == "emp-jsmith"
 
 
-def test_assignment_removal(assignment_service, global_cal):
-    a = assignment_service.assign_site_calendar("site-x", global_cal.id)
-    assignment_service.remove_site_assignment(a.id)
-    fetched = assignment_service.get_site_calendar("site-x")
+def test_assignment_removal(assignment_queries, assignment_commands, global_cal):
+    a = assignment_commands.assign_site_calendar("site-x", global_cal.id)
+    assignment_commands.remove_site_assignment(a.id)
+    fetched = assignment_queries.get_site_calendar("site-x")
     assert fetched is None
 
 
 def test_platform_calendar_assignments_normalize_dto_inputs(
-    assignment_service, global_cal
+    assignment_queries, assignment_commands, global_cal
 ):
-    site_assignment = assignment_service.assign_site_calendar(
+    site_assignment = assignment_commands.assign_site_calendar(
         "  site-hamburg  ",
         f"  {global_cal.id}  ",
         priority="2",
     )
-    department_assignment = assignment_service.assign_department_calendar(
+    department_assignment = assignment_commands.assign_department_calendar(
         "  dept-eng  ",
         f"  {global_cal.id}  ",
         priority="3",
     )
-    employee_assignment = assignment_service.assign_employee_calendar(
+    employee_assignment = assignment_commands.assign_employee_calendar(
         "  emp-jsmith  ",
         f"  {global_cal.id}  ",
         priority="4",
@@ -286,9 +332,9 @@ def test_platform_calendar_assignments_normalize_dto_inputs(
     assert employee_assignment.calendar_id == global_cal.id
     assert employee_assignment.priority == 4
 
-    assert assignment_service.get_site_calendar("site-hamburg").priority == 2
-    assert assignment_service.get_department_calendar("dept-eng").priority == 3
-    assert assignment_service.get_employee_calendar("emp-jsmith").priority == 4
+    assert assignment_queries.get_site_calendar("site-hamburg").priority == 2
+    assert assignment_queries.get_department_calendar("dept-eng").priority == 3
+    assert assignment_queries.get_employee_calendar("emp-jsmith").priority == 4
 
 
 # ---------------------------------------------------------------------------

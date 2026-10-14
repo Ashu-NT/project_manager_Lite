@@ -15,7 +15,7 @@ def build_project_management_dashboard_desktop_api(
     baseline_service=None,
     earned_value_report=None,
     collaboration_inbox_query=None,
-    approval_service=None,
+    approval_queries=None,
     task_workspace_query=None,
     module_catalog_service=None,
 ) -> ProjectManagementDashboardDesktopApi:
@@ -26,7 +26,7 @@ def build_project_management_dashboard_desktop_api(
         baseline_service=baseline_service,
         earned_value_report=earned_value_report,
         collaboration_inbox_query=collaboration_inbox_query,
-        approval_service=approval_service,
+        approval_queries=approval_queries,
         task_workspace_query=task_workspace_query,
         module_catalog_service=module_catalog_service,
     )

@@ -25,8 +25,8 @@ from src.core.platform.domain.approval import ApprovalRequest
 @dataclass(frozen=True)
 class BudgetApprovalDeps:
     """`budget_service` is a fresh `BudgetService`, constructed with
-    `approval_service=None` -- the apply path never calls back into
-    `ApprovalService`."""
+    `approval_commands=None` -- the apply path never calls back into
+    `ApprovalCommands`."""
 
     budget_service: BudgetService
 

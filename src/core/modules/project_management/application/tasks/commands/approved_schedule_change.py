@@ -71,7 +71,7 @@ class ApprovedScheduleChangeHandler:
         *,
         actor_id: str,
     ) -> list[AppliedTaskScheduleChange]:
-        """Always runs inside the caller's (ApprovalService's) own transaction
+        """Always runs inside the caller's (ApprovalCommands's) own transaction
         -- this handler has a participant-scoped TaskUowScope, so `create()`
         joins the caller's transaction and never
         opens a second transaction. Recorded `TaskScheduleChanged` facts are

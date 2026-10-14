@@ -11,8 +11,11 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.application.tenant.tenancy import TenantContextService
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
+from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
+    CalendarAssignmentCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
+    CalendarAssignmentQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import (
     GlobalCalendarShim,
@@ -23,20 +26,35 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     WorkingTimeCalculator,
 )
-from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
-    CalendarExceptionService,
+from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
+    CalendarExceptionCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
-    RecurringEventService,
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
-    ShiftPatternService,
+from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
+    RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
-    WorkingRuleService,
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
 )
-from src.core.platform.application.time_management.calendar.platform_calendar_service import (
-    PlatformCalendarService,
+from src.core.platform.application.time_management.calendar.definitions.commands.shift_pattern_commands import (
+    ShiftPatternCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
+    ShiftPatternQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
+    WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
+    WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
+    PlatformCalendarQueryHandler,
 )
 from src.core.platform.contract.port.time_management.calendar.external_assignment_port import (
     ProjectCalendarAssignmentPort,
@@ -72,13 +90,19 @@ class _UnboundExternalCalendarAssignments:
 @dataclass(frozen=True)
 class CalendarDependencies:
     working_time_calculator: WorkingTimeCalculator
-    platform_calendar_service: PlatformCalendarService
+    platform_calendar_commands: PlatformCalendarCommandHandler
+    platform_calendar_queries: PlatformCalendarQueryHandler
     platform_calendar_resolver: PlatformCalendarResolver
-    working_rule_service: WorkingRuleService
-    calendar_exception_service: CalendarExceptionService
-    recurring_event_service: RecurringEventService
-    shift_pattern_service: ShiftPatternService
-    calendar_assignment_service: CalendarAssignmentService
+    working_rule_commands: WorkingRuleCommandHandler
+    working_rule_queries: WorkingRuleQueryHandler
+    calendar_exception_commands: CalendarExceptionCommandHandler
+    calendar_exception_queries: CalendarExceptionQueryHandler
+    recurring_event_commands: RecurringEventCommandHandler
+    recurring_event_queries: RecurringEventQueryHandler
+    shift_pattern_commands: ShiftPatternCommandHandler
+    shift_pattern_queries: ShiftPatternQueryHandler
+    calendar_assignment_commands: CalendarAssignmentCommandHandler
+    calendar_assignment_queries: CalendarAssignmentQueryHandler
     global_calendar_shim: GlobalCalendarShim
 
 
@@ -92,19 +116,27 @@ def build_calendar_dependencies(
     project_assignment_repo: ProjectCalendarAssignmentPort[Any] | None = None,
     resource_assignment_repo: ResourceCalendarAssignmentPort[Any] | None = None,
 ) -> CalendarDependencies:
-    project_assignment_repo = project_assignment_repo or _UnboundExternalCalendarAssignments()
-    resource_assignment_repo = resource_assignment_repo or _UnboundExternalCalendarAssignments()
+    project_assignment_repo = (
+        project_assignment_repo or _UnboundExternalCalendarAssignments()
+    )
+    resource_assignment_repo = (
+        resource_assignment_repo or _UnboundExternalCalendarAssignments()
+    )
     working_time_calculator = WorkingTimeCalculator()
-    platform_calendar_service = PlatformCalendarService(
+    platform_calendar_commands = PlatformCalendarCommandHandler(
         session=session,
         calendar_repo=repositories.platform_calendar_repo,
         assignment_repo=repositories.calendar_assignment_repo,
         organization_repo=repositories.organization_repo,
         rule_repo=repositories.calendar_working_rule_repo,
-        exception_repo=repositories.calendar_exception_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         activity_service=activity_service,
+    )
+    platform_calendar_queries = PlatformCalendarQueryHandler(
+        calendar_repo=repositories.platform_calendar_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
     )
 
     def _get_active_org_id() -> str:
@@ -123,35 +155,54 @@ def build_calendar_dependencies(
         calculator=working_time_calculator,
         shift_pattern_repo=repositories.shift_pattern_repo,
     )
-    working_rule_service = WorkingRuleService(
+    working_rule_commands = WorkingRuleCommandHandler(
         session=session,
         calendar_repo=repositories.platform_calendar_repo,
         rule_repo=repositories.calendar_working_rule_repo,
         user_session=user_session,
         on_calendar_data_changed=platform_calendar_resolver.invalidate_cache,
     )
-    calendar_exception_service = CalendarExceptionService(
+    working_rule_queries = WorkingRuleQueryHandler(
+        calendar_repo=repositories.platform_calendar_repo,
+        rule_repo=repositories.calendar_working_rule_repo,
+        user_session=user_session,
+    )
+    calendar_exception_commands = CalendarExceptionCommandHandler(
         session=session,
         calendar_repo=repositories.platform_calendar_repo,
         exception_repo=repositories.calendar_exception_repo,
         user_session=user_session,
     )
-    recurring_event_service = RecurringEventService(
+    calendar_exception_queries = CalendarExceptionQueryHandler(
+        calendar_repo=repositories.platform_calendar_repo,
+        exception_repo=repositories.calendar_exception_repo,
+        user_session=user_session,
+    )
+    recurring_event_commands = RecurringEventCommandHandler(
         session=session,
         calendar_repo=repositories.platform_calendar_repo,
         event_repo=repositories.calendar_recurring_event_repo,
         user_session=user_session,
         on_calendar_data_changed=platform_calendar_resolver.invalidate_cache,
     )
-    shift_pattern_service = ShiftPatternService(
+    recurring_event_queries = RecurringEventQueryHandler(
+        calendar_repo=repositories.platform_calendar_repo,
+        event_repo=repositories.calendar_recurring_event_repo,
+        user_session=user_session,
+    )
+    shift_pattern_commands = ShiftPatternCommandHandler(
         session=session,
         pattern_repo=repositories.shift_pattern_repo,
-        organization_repo=repositories.organization_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         on_calendar_data_changed=platform_calendar_resolver.invalidate_cache,
     )
-    calendar_assignment_service = CalendarAssignmentService(
+    shift_pattern_queries = ShiftPatternQueryHandler(
+        pattern_repo=repositories.shift_pattern_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
+    calendar_assignment_commands = CalendarAssignmentCommandHandler(
         session=session,
         calendar_repo=repositories.platform_calendar_repo,
         assignment_repo=repositories.calendar_assignment_repo,
@@ -160,25 +211,38 @@ def build_calendar_dependencies(
         user_session=user_session,
         activity_service=activity_service,
     )
+    calendar_assignment_queries = CalendarAssignmentQueryHandler(
+        assignment_repo=repositories.calendar_assignment_repo,
+        project_assignment_repo=project_assignment_repo,
+        resource_assignment_repo=resource_assignment_repo,
+    )
     global_calendar_shim = GlobalCalendarShim(resolver=platform_calendar_resolver)
     # Existing organizations may predate creation-time default calendar setup.
     try:
         org = tenant_context_service.get_active_organization()
         if org:
             logger.debug("Ensuring platform global calendar organization_id=%s", org.id)
-            platform_calendar_service.ensure_global_calendar(org.id)
+            platform_calendar_commands.ensure_global_calendar(org.id)
             logger.debug("Platform global calendar ensured organization_id=%s", org.id)
     except Exception:
-        logger.exception("Enterprise global calendar bootstrap failed; continuing startup")
+        logger.exception(
+            "Enterprise global calendar bootstrap failed; continuing startup"
+        )
 
     return CalendarDependencies(
         working_time_calculator=working_time_calculator,
-        platform_calendar_service=platform_calendar_service,
+        platform_calendar_commands=platform_calendar_commands,
+        platform_calendar_queries=platform_calendar_queries,
         platform_calendar_resolver=platform_calendar_resolver,
-        working_rule_service=working_rule_service,
-        calendar_exception_service=calendar_exception_service,
-        recurring_event_service=recurring_event_service,
-        shift_pattern_service=shift_pattern_service,
-        calendar_assignment_service=calendar_assignment_service,
+        working_rule_commands=working_rule_commands,
+        working_rule_queries=working_rule_queries,
+        calendar_exception_commands=calendar_exception_commands,
+        calendar_exception_queries=calendar_exception_queries,
+        recurring_event_commands=recurring_event_commands,
+        recurring_event_queries=recurring_event_queries,
+        shift_pattern_commands=shift_pattern_commands,
+        shift_pattern_queries=shift_pattern_queries,
+        calendar_assignment_commands=calendar_assignment_commands,
+        calendar_assignment_queries=calendar_assignment_queries,
         global_calendar_shim=global_calendar_shim,
     )

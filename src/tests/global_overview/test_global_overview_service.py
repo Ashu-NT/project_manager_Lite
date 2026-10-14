@@ -37,7 +37,7 @@ class _FakeTenantContextService:
         return self._scope
 
 
-class _FakePlatformRuntimeApplicationService:
+class _FakePlatformRuntimeQueryHandler:
     def __init__(
         self,
         *,
@@ -97,7 +97,7 @@ def _summary_dto(module_code: str) -> ModuleSummaryDto:
 def _build_service(
     *,
     tenant_context_service=None,
-    platform_runtime_application_service=None,
+    platform_runtime_query=None,
     activity_service=None,
     action_center_service=None,
     module_summary_contributors=(),
@@ -105,8 +105,8 @@ def _build_service(
 ) -> GlobalOverviewService:
     return GlobalOverviewService(
         tenant_context_service=tenant_context_service or _FakeTenantContextService(),
-        platform_runtime_application_service=(
-            platform_runtime_application_service or _FakePlatformRuntimeApplicationService()
+        platform_runtime_query=(
+            platform_runtime_query or _FakePlatformRuntimeQueryHandler()
         ),
         activity_service=activity_service or _FakeActivityService(),
         action_center_service=action_center_service
@@ -179,7 +179,7 @@ def test_list_action_center_delegates_with_the_requested_limit():
 
 def test_get_capabilities_returns_effective_permissions_and_accessible_modules():
     service = _build_service(
-        platform_runtime_application_service=_FakePlatformRuntimeApplicationService(
+        platform_runtime_query=_FakePlatformRuntimeQueryHandler(
             accessible_codes=frozenset({"project_management"}),
             permissions=frozenset({"project.manage", "task.read"}),
         )
@@ -193,7 +193,7 @@ def test_get_capabilities_returns_effective_permissions_and_accessible_modules()
 
 def test_get_capabilities_accessible_module_codes_are_deterministically_sorted():
     service = _build_service(
-        platform_runtime_application_service=_FakePlatformRuntimeApplicationService(
+        platform_runtime_query=_FakePlatformRuntimeQueryHandler(
             accessible_codes=frozenset({"qhse", "project_management", "hr_management"}),
         )
     )
@@ -280,7 +280,7 @@ def test_a_failing_module_summary_contributor_is_omitted_without_breaking_others
 def test_platform_activity_is_visible_regardless_of_accessible_modules():
     service = _build_service(
         activity_service=_FakeActivityService(entries=[_entry("platform")]),
-        platform_runtime_application_service=_FakePlatformRuntimeApplicationService(
+        platform_runtime_query=_FakePlatformRuntimeQueryHandler(
             accessible_codes=frozenset()
         ),
     )
@@ -293,7 +293,7 @@ def test_platform_activity_is_visible_regardless_of_accessible_modules():
 def test_accessible_enterprise_module_activity_is_visible():
     service = _build_service(
         activity_service=_FakeActivityService(entries=[_entry("project_management")]),
-        platform_runtime_application_service=_FakePlatformRuntimeApplicationService(
+        platform_runtime_query=_FakePlatformRuntimeQueryHandler(
             accessible_codes=frozenset({"project_management"})
         ),
     )
@@ -306,7 +306,7 @@ def test_accessible_enterprise_module_activity_is_visible():
 def test_inaccessible_enterprise_module_activity_is_excluded():
     service = _build_service(
         activity_service=_FakeActivityService(entries=[_entry("project_management")]),
-        platform_runtime_application_service=_FakePlatformRuntimeApplicationService(
+        platform_runtime_query=_FakePlatformRuntimeQueryHandler(
             accessible_codes=frozenset()
         ),
     )
@@ -319,7 +319,7 @@ def test_inaccessible_enterprise_module_activity_is_excluded():
 def test_unknown_module_activity_fails_closed():
     service = _build_service(
         activity_service=_FakeActivityService(entries=[_entry("qhse")]),
-        platform_runtime_application_service=_FakePlatformRuntimeApplicationService(
+        platform_runtime_query=_FakePlatformRuntimeQueryHandler(
             accessible_codes=frozenset()
         ),
     )

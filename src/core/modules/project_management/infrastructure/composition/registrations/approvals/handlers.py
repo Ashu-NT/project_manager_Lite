@@ -19,22 +19,21 @@ from src.core.modules.project_management.infrastructure.composition.registration
 
 def register_project_management_approval_handlers(
     *,
-    approval_service,
+    approval_participants,
     user_session=None,
     session=None,
     tenant_context_service=None,
     module_catalog_service=None,
     work_calendar_engine=None,
     platform_calendar_resolver=None,
-    calendar_assignment_service=None,
-    financial_period_service=None,
+    financial_period_queries=None,
 ) -> None:
     from src.core.modules.project_management.contracts.approval import (
         pm_reviewer_permission,
     )
 
     def register_apply(request_type, handler, *, dependencies_factory):
-        approval_service.register_apply_handler(
+        approval_participants.register_apply_handler(
             request_type, handler, dependencies_factory=dependencies_factory,
             reviewer_permission=pm_reviewer_permission(request_type),
         )
@@ -60,7 +59,6 @@ def register_project_management_approval_handlers(
         module_catalog_service=module_catalog_service,
         work_calendar_engine=work_calendar_engine,
         platform_calendar_resolver=platform_calendar_resolver,
-        calendar_assignment_service=calendar_assignment_service,
     )
     register_apply(
         "dependency.add",
@@ -90,12 +88,12 @@ def register_project_management_approval_handlers(
 
     register_finance_approval_handlers(
         register_apply=register_apply,
-        approval_service=approval_service,
+        approval_participants=approval_participants,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         module_catalog_service=module_catalog_service,
         work_calendar_engine=work_calendar_engine,
-        financial_period_service=financial_period_service,
+        financial_period_queries=financial_period_queries,
     )
 
 

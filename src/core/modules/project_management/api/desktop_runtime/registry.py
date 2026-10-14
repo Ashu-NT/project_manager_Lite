@@ -17,7 +17,7 @@ from src.core.modules.project_management.api.desktop import (
 from src.core.modules.project_management.gateway.task.reservation import (
     TaskReservationGateway,
 )
-from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.contract.port.approval.capabilities import ApprovalQueries
 from src.core.platform.application.master_data.department import (
     DepartmentQueryHandler,
 )
@@ -48,7 +48,7 @@ class ProjectManagementDesktopRuntimePlatformDependencies:
     employee_query: EmployeeQueryHandler
     site_query: SiteQueryHandler
     department_query: DepartmentQueryHandler | None
-    approval_service: ApprovalService
+    approval_queries: ApprovalQueries
     module_catalog_service: SupportsModuleEntitlements | None = None
     reservation_service: TaskReservationGateway | None = None
     platform_calendar_api: object | None = None

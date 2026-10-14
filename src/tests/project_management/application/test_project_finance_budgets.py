@@ -296,10 +296,10 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
     assert requester_row.can_reject is False
 
     with pytest.raises(BusinessRuleError) as approve_error:
-        services["approval_service"].approve_and_apply(result.approval_request_id)
+        services["approval_commands"].approve_and_apply(result.approval_request_id)
     assert approve_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
     with pytest.raises(BusinessRuleError) as reject_error:
-        services["approval_service"].reject(result.approval_request_id)
+        services["approval_commands"].reject(result.approval_request_id)
     assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
 
     services["user_registration"].register_user(
@@ -316,7 +316,7 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
     assert reviewer_view.can_create_version is False
     assert reviewer_view.create_version_disabled_reason == ""
 
-    services["approval_service"].approve_and_apply(
+    services["approval_commands"].approve_and_apply(
         result.approval_request_id, note="Approved by another principal"
     )
     approved = budget_service.get_budget(budget.id)
@@ -939,7 +939,7 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
 
     project = _make_project(services, name="Governed Budget Project")
     budget_service = services["budget_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     budget = budget_service.create_budget(project.id, "governed")
     budget = _submit_with_line(services, budget)
@@ -958,7 +958,7 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     assert result.budget_status is BudgetStatus.SUBMITTED
     assert result.row_version == budget.row_version
 
-    req = approvals.list_pending(project_id=project.id)[0]
+    req = services["approval_queries"].list_pending(project_id=project.id)[0]
     assert result.approval_request_id == req.id
     assert req.request_type == "budget.approve"
     assert req.requested_by_username == "budget-requester"
@@ -987,7 +987,7 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
 
     project = _make_project(services, name="Governed Reject Project")
     budget_service = services["budget_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     budget = budget_service.create_budget(project.id, "governed-reject")
     budget = _submit_with_line(services, budget)
@@ -998,7 +998,7 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
         budget.id, approved_by="budget-requester-2", expected_version=budget.row_version
     )
     assert result.outcome is BudgetApprovalOutcome.PENDING_APPROVAL
-    req = approvals.list_pending(project_id=project.id)[0]
+    req = services["approval_queries"].list_pending(project_id=project.id)[0]
     assert result.approval_request_id == req.id
     requester_user_id = req.requested_by_user_id
 
@@ -1021,7 +1021,7 @@ def test_governed_approve_checks_staleness_before_creating_request(services, mon
 
     project = _make_project(services, name="Stale Governance Project")
     budget_service = services["budget_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     budget = budget_service.create_budget(project.id, "stale-governance")
     budget = _submit_with_line(services, budget)
     stale_version = budget.row_version - 1
@@ -1029,7 +1029,7 @@ def test_governed_approve_checks_staleness_before_creating_request(services, mon
     with pytest.raises(ConcurrencyError):
         budget_service.approve_budget(budget.id, approved_by="admin", expected_version=stale_version)
 
-    assert approvals.list_pending(project_id=project.id) == []
+    assert services["approval_queries"].list_pending(project_id=project.id) == []
 
 
 def test_internal_apply_methods_bypass_budget_approve_permission(services) -> None:

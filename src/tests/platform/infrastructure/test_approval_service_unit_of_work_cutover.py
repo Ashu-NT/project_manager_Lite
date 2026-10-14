@@ -1,4 +1,4 @@
-"""`ApprovalService`'s transaction-owning commands (`request_change`, `approve_and_apply`,
+"""`ApprovalCommandHandler`'s transaction-owning commands (`request_change`, `approve_and_apply`,
 `reject`) use a fresh-session `PlatformUnitOfWork` per call -- proves session isolation, commit/
 rollback behavior, and audit failure semantics. Additive to `test_phase_b_approval_workflow.py`,
 which covers apply-failure/audit-failure rollback, self-decision, and notification dispatch."""
@@ -69,7 +69,7 @@ def _request_budget_approval_as_a_different_user(services, budget):
     _login_as_fresh_requester(services)
     if active_organization_id:
         services["user_session"].set_active_organization_id(active_organization_id)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     request = approvals.request_change(
         request_type="budget.approve",
         entity_type="project_budget",
@@ -91,7 +91,7 @@ def test_two_independent_approve_and_apply_calls_use_genuinely_different_session
     request_a = _request_budget_approval_as_a_different_user(services, budget_a)
     request_b = _request_budget_approval_as_a_different_user(services, budget_b)
 
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     created_sessions = []
     original_create = type(approvals._uow_factory).create
 
@@ -114,10 +114,10 @@ def test_approve_and_apply_shares_one_session_across_approvals_repo_and_particip
 ):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     seen = {}
-    handler, dependencies_factory = approvals._apply_handlers["budget.approve"]
+    handler, dependencies_factory = services["approval_participants"].apply_handlers["budget.approve"]
 
     def _spy_dependencies_factory(uow_session):
         deps = dependencies_factory(uow_session)
@@ -125,7 +125,7 @@ def test_approve_and_apply_shares_one_session_across_approvals_repo_and_particip
         seen["deps_repo_session"] = deps.budget_service._budget_repo.session
         return deps
 
-    approvals._apply_handlers["budget.approve"] = (handler, _spy_dependencies_factory)
+    services["approval_participants"].apply_handlers["budget.approve"] = (handler, _spy_dependencies_factory)
 
     original_create = type(approvals._uow_factory).create
 
@@ -156,7 +156,7 @@ def test_commit_failure_rolls_back_approval_decision_and_module_mutation_togethe
     Full end-to-end atomic-rollback proof exists in `test_phase_b_approval_workflow.py`."""
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     captured_uow = {}
     original_create = type(approvals._uow_factory).create
@@ -182,7 +182,7 @@ def test_commit_failure_rolls_back_approval_decision_and_module_mutation_togethe
 
     # Read through the shared session (never touched by the failed fresh-UoW transaction) to
     # confirm the request is still genuinely pending, not just that the exception propagated.
-    reloaded_request = approvals.list_pending(project_id=budget.project_id)
+    reloaded_request = services["approval_queries"].list_pending(project_id=budget.project_id)
     assert any(r.id == request.id for r in reloaded_request), (
         "approval decision must not persist when commit fails"
     )
@@ -190,7 +190,7 @@ def test_commit_failure_rolls_back_approval_decision_and_module_mutation_togethe
 
 def test_request_change_default_mode_uses_a_fresh_uow_session(services, session, monkeypatch):
     _login_as_fresh_requester(services)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     seen_sessions = []
     original_create = type(approvals._uow_factory).create
@@ -210,7 +210,7 @@ def test_request_change_default_mode_uses_a_fresh_uow_session(services, session,
         payload={"name": "Probe"},
     )
     assert len(seen_sessions) == 1
-    assert seen_sessions[0] is not approvals._session
+    assert seen_sessions[0] is not session
     assert request.status == ApprovalStatus.PENDING
 
 
@@ -220,7 +220,7 @@ def test_request_change_fails_closed_when_the_approval_audit_write_fails(service
     )
 
     _login_as_fresh_requester(services)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     def _fail_record(self, **kwargs):
         raise RuntimeError("simulated standalone request_change audit failure")
@@ -238,7 +238,7 @@ def test_request_change_fails_closed_when_the_approval_audit_write_fails(service
         )
 
     monkeypatch.undo()
-    matching = [row for row in approvals.list_pending() if row.entity_id == entity_id]
+    matching = [row for row in services["approval_queries"].list_pending() if row.entity_id == entity_id]
     assert matching == []
 
 
@@ -247,7 +247,7 @@ def test_request_change_has_no_commit_parameter(services):
     rather than being silently accepted."""
     import inspect
 
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     params = inspect.signature(approvals.request_change).parameters
     assert "commit" not in params
     with pytest.raises(TypeError):
@@ -264,7 +264,7 @@ def test_request_change_has_no_commit_parameter(services):
 def test_shared_legacy_session_is_not_touched_by_approval_mutation(services, session):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     session.commit()  # settle any pending state from setup before observing
 
     approvals.approve_and_apply(request.id)
@@ -278,21 +278,21 @@ def test_shared_legacy_session_is_not_touched_by_approval_mutation(services, ses
 def test_apply_handler_missing_does_not_open_or_leak_a_session(services, session, monkeypatch):
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
-    approvals = services["approval_service"]
-    saved = approvals._apply_handlers.pop("budget.approve")
+    approvals = services["approval_commands"]
+    saved = services["approval_participants"].apply_handlers.pop("budget.approve")
     try:
         with pytest.raises(BusinessRuleError, match="No apply handler registered"):
             approvals.approve_and_apply(request.id)
     finally:
-        approvals._apply_handlers["budget.approve"] = saved
+        services["approval_participants"].apply_handlers["budget.approve"] = saved
 
     session.expire_all()
-    still_pending = approvals.list_pending(project_id=budget.project_id)
+    still_pending = services["approval_queries"].list_pending(project_id=budget.project_id)
     assert any(r.id == request.id for r in still_pending)
 
 
 def test_decision_load_uses_locking_repository_read(services):
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     request = approvals.request_change(
         request_type="baseline.create",
         entity_type="project_baseline",

@@ -61,7 +61,7 @@ def _setup(services):
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="P37-LABOR", name="P37 Labor"
     )
-    period = services["financial_period_service"].create_period(
+    period = services["financial_period_commands"].create_period(
         code="P37-2026-01", name="January 2026", fiscal_year=2026, period_number=1,
         start_date=date(2026, 1, 1), end_date=date(2026, 1, 31),
     )

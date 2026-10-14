@@ -106,7 +106,7 @@ def _request_budget_approval_as_a_different_user(services, budget):
     _login_as_fresh_requester(services)
     if active_organization_id:
         services["user_session"].set_active_organization_id(active_organization_id)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     request = approvals.request_change(
         request_type="budget.approve",
         entity_type="project_budget",
@@ -240,7 +240,7 @@ def test_standalone_request_change_refreshes_control_workspace_exactly_once(serv
     catalog.controlWorkspace.refresh_approvals = lambda: refresh_calls.append("approvals") or None
     _login_as_fresh_requester(services)
 
-    services["approval_service"].request_change(
+    services["approval_commands"].request_change(
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id=_unique("standalone-ui-probe"),
@@ -312,7 +312,7 @@ def test_approve_and_apply_refreshes_control_workspace_exactly_once_no_legacy_si
     refresh_calls.clear()
     _login_as_scoped_approver(services)
 
-    decided = services["approval_service"].approve_and_apply(request.id, note="Approved")
+    decided = services["approval_commands"].approve_and_apply(request.id, note="Approved")
 
     assert decided.status == ApprovalStatus.APPROVED
     assert refresh_calls == ["approvals"]
@@ -329,7 +329,7 @@ def test_reject_refreshes_control_workspace_exactly_once(services, session):
     refresh_calls.clear()
     _login_as_scoped_approver(services)
 
-    decided = services["approval_service"].reject(request.id, note="Rejected")
+    decided = services["approval_commands"].reject(request.id, note="Rejected")
 
     assert decided.status == ApprovalStatus.REJECTED
     assert refresh_calls == ["approvals"]
@@ -346,7 +346,7 @@ def test_refresh_approvals_does_not_touch_the_unrelated_audit_feed(services, ses
     control._set_audit_feed = lambda *a, **k: audit_calls.append("audit") or None
     _login_as_fresh_requester(services)
 
-    services["approval_service"].request_change(
+    services["approval_commands"].request_change(
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id=_unique("audit-isolation-probe"),
@@ -368,7 +368,7 @@ def test_control_workspace_approval_refresh_respects_lazy_loading(services, sess
     control._refresh_approval_state = lambda: approval_calls.append("state") or None
     _login_as_fresh_requester(services)
 
-    services["approval_service"].request_change(
+    services["approval_commands"].request_change(
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id=_unique("lazy-loading-probe-1"),
@@ -380,7 +380,7 @@ def test_control_workspace_approval_refresh_respects_lazy_loading(services, sess
 
     control.ensureLoaded()
     approval_calls.clear()
-    services["approval_service"].request_change(
+    services["approval_commands"].request_change(
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id=_unique("lazy-loading-probe-2"),
@@ -402,7 +402,7 @@ def test_standalone_request_change_refreshes_pm_collaboration_workspace(services
     collaboration.refresh = lambda: refresh_calls.append("refresh")
     _login_as_fresh_requester(services)
 
-    services["approval_service"].request_change(
+    services["approval_commands"].request_change(
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id=_unique("pm-ui-probe"),
@@ -422,7 +422,7 @@ def test_pm_dashboard_no_longer_reacts_to_approval_mutations(services):
     dashboard.refresh = lambda: refresh_calls.append("refresh")
     _login_as_fresh_requester(services)
 
-    services["approval_service"].request_change(
+    services["approval_commands"].request_change(
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id=_unique("pm-dashboard-probe"),
@@ -669,7 +669,7 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
 
     _login(services, approver_username, "StrongPass123")
     services["user_session"].set_active_organization_id(org_a2.id)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     with pytest.raises(NotFoundError):
         approvals.approve_and_apply(request.id)
     assert refresh_calls == []
@@ -691,7 +691,9 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
-    from src.core.platform.application.approval.approval_service import ApprovalService
+    from src.core.platform.application.approval.commands import ApprovalCommandHandler
+    from src.core.platform.application.approval.participants import ApprovalParticipantRegistry
+    from src.core.platform.application.approval.scope import ApprovalScope
     from src.core.platform.domain.security.auth.session import (
         UserSessionContext,
         UserSessionPrincipal,
@@ -757,10 +759,10 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
     session_a.set_principal(principal_a)
     approval_repo_a = SqlAlchemyApprovalRepository(session_factory())
     approval_repo_a._tenant_context_service = _FakeTenantContextService("vi-xtenant-a", "vi-xorg-a")
-    approvals_a = ApprovalService(
-        session=approval_repo_a.session, approval_repo=approval_repo_a, uow_factory=factory_a,
+    approvals_a = ApprovalCommandHandler(
+        uow_factory=factory_a, participants=ApprovalParticipantRegistry(),
         user_session=session_a,
-        tenant_context_service=_FakeTenantContextService("vi-xtenant-a", "vi-xorg-a"),
+        scope=ApprovalScope(_FakeTenantContextService("vi-xtenant-a", "vi-xorg-a")),
         clock=_FixedClock(),
     )
 
@@ -801,21 +803,21 @@ def test_apply_handler_failure_produces_zero_ui_refresh(services, session):
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
     _login_as_scoped_approver(services)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     def _failing_handler(request, deps):
         raise RuntimeError("simulated apply participant failure")
 
-    saved = approvals._apply_handlers["budget.approve"]
-    approvals._apply_handlers["budget.approve"] = (_failing_handler, saved[1])
+    saved = services["approval_participants"].apply_handlers["budget.approve"]
+    services["approval_participants"].apply_handlers["budget.approve"] = (_failing_handler, saved[1])
     try:
         with pytest.raises(RuntimeError):
             approvals.approve_and_apply(request.id)
     finally:
-        approvals._apply_handlers["budget.approve"] = saved
+        services["approval_participants"].apply_handlers["budget.approve"] = saved
 
     assert refresh_calls == []
-    still_pending = [r for r in approvals.list_pending() if r.id == request.id]
+    still_pending = [r for r in services["approval_queries"].list_pending() if r.id == request.id]
     assert still_pending[0].status == ApprovalStatus.PENDING
 
 
@@ -829,18 +831,18 @@ def test_reject_handler_failure_produces_zero_ui_refresh(services, session):
     request = _request_budget_approval_as_a_different_user(services, budget)
     refresh_calls.clear()
     _login_as_scoped_approver(services)
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
 
     def _failing_reject_handler(request, deps):
         raise RuntimeError("simulated reject participant failure")
 
-    saved = approvals._reject_handlers["budget.approve"]
-    approvals._reject_handlers["budget.approve"] = (_failing_reject_handler, saved[1])
+    saved = services["approval_participants"].reject_handlers["budget.approve"]
+    services["approval_participants"].reject_handlers["budget.approve"] = (_failing_reject_handler, saved[1])
     try:
         with pytest.raises(RuntimeError):
             approvals.reject(request.id)
     finally:
-        approvals._reject_handlers["budget.approve"] = saved
+        services["approval_participants"].reject_handlers["budget.approve"] = saved
 
     assert refresh_calls == []
 
@@ -865,7 +867,7 @@ def test_audit_failure_produces_zero_ui_refresh(services):
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
     try:
         with pytest.raises(RuntimeError):
-            services["approval_service"].request_change(
+            services["approval_commands"].request_change(
                 request_type="baseline.create", entity_type="project_baseline",
                 entity_id=_unique("audit-fail-ui-probe"), project_id=None,
                 payload={"name": "Audit failure UI probe"},
@@ -896,7 +898,7 @@ def test_commit_failure_produces_zero_ui_refresh(services):
     monkeypatch.setattr(SqlAlchemyPlatformUnitOfWork, "commit", _fail_commit)
     try:
         with pytest.raises(RuntimeError):
-            services["approval_service"].request_change(
+            services["approval_commands"].request_change(
                 request_type="baseline.create", entity_type="project_baseline",
                 entity_id=_unique("commit-fail-ui-probe"), project_id=None,
                 payload={"name": "Commit failure UI probe"},
@@ -908,7 +910,7 @@ def test_commit_failure_produces_zero_ui_refresh(services):
 
 
 def test_transactional_handler_failure_rolls_back_with_zero_ui_refresh(services, monkeypatch):
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     dispatcher = approvals._uow_factory._transactional_dispatcher
     catalog = _catalog(services)
     catalog.controlWorkspace.ensureLoaded()
@@ -949,7 +951,7 @@ def test_one_broken_postcommit_subscriber_does_not_block_the_control_workspace_r
     ), _failing_subscriber)
     _login_as_fresh_requester(services)
 
-    request = services["approval_service"].request_change(
+    request = services["approval_commands"].request_change(
         request_type="baseline.create", entity_type="project_baseline",
         entity_id=_unique("postcommit-isolate-probe"), project_id=None,
         payload={"name": "Postcommit isolation probe"},

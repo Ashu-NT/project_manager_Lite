@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.application.platform_runtime import (
-    PlatformRuntimeApplicationService,
+    PlatformRuntimeQueryHandler,
 )
 from src.core.platform.application.platform_runtime.module_snapshot import (
     build_module_runtime_snapshot,
@@ -11,7 +11,7 @@ from src.core.platform.application.tenant.modules import build_default_module_ca
 
 def test_service_graph_exposes_project_management_as_enabled_module(services):
     catalog = services["module_catalog_service"]
-    platform_runtime = services["platform_runtime_application_service"]
+    platform_runtime = services["platform_runtime_query"]
 
     assert catalog.is_enabled("project_management") is True
     assert catalog.is_licensed("project_management") is True
@@ -30,11 +30,11 @@ def test_service_graph_exposes_project_management_as_enabled_module(services):
     assert "access" in catalog.enabled_capability_codes()
     assert "employees" in catalog.enabled_capability_codes()
     assert "projects" in catalog.enabled_capability_codes()
-    assert isinstance(platform_runtime, PlatformRuntimeApplicationService)
+    assert isinstance(platform_runtime, PlatformRuntimeQueryHandler)
     assert catalog.is_enabled("project_management") is True
     assert catalog.get_entitlement("project_management") is not None
     assert "Project Management" in build_module_runtime_snapshot(catalog).shell_summary
-    assert platform_runtime.current_context_label() == "Default Organization"
+    assert platform_runtime.snapshot().context_label == "Default Organization"
 
 
 def test_module_catalog_exposes_platform_base_capabilities():

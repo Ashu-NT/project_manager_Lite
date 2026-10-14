@@ -51,9 +51,9 @@ def test_provisioning_create_organization_refreshes_both_ui_consumers_identicall
     catalog.adminWorkspace.organizations
     catalog.settingsWorkspace.refresh()
 
-    app_service = services["platform_runtime_application_service"]
+    provisioning = services["organization_provisioning_commands"]
     code = _unique_code("QTCUT-PROV")
-    app_service.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Qt Cutover Provisioned Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
+    provisioning.provision_organization(OrganizationProvisionCommand(organization_code=code, display_name="Qt Cutover Provisioned Org", timezone_name="UTC", base_currency="EUR", initial_module_codes=[]))
 
     admin_titles = [row["title"] for row in catalog.adminWorkspace.organizations["items"]]
     settings_titles = [row["title"] for row in catalog.settingsWorkspace.organizationProfiles["items"]]

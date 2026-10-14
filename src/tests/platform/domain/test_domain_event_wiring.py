@@ -156,7 +156,7 @@ def test_approve_baseline_request_emits_project_baseline_view_invalidation(servi
 
     ps = services["project_service"]
     ts = services["task_service"]
-    approvals = services["approval_service"]
+    approvals = services["approval_commands"]
     baseline = services["baseline_service"]
     project = ps.create_project("Approval baseline events")
     ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=1)
@@ -164,7 +164,7 @@ def test_approve_baseline_request_emits_project_baseline_view_invalidation(servi
 
     with pytest.raises(BusinessRuleError, match="Approval required"):
         baseline.create_baseline(project.id, "Gate 1", rate_as_of=date.today())
-    request_id = approvals.list_pending(project_id=project.id)[0].id
+    request_id = services["approval_queries"].list_pending(project_id=project.id)[0].id
 
     class _AnyOrgFilter:
         def matches(self, scope) -> bool:

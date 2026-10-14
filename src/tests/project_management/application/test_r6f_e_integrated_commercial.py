@@ -39,17 +39,17 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     reporting = services["profitability_report"]
     cutoff = date(2026, 8, 31)
     original = _submitted_preparation(services, project, schedule)
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    request = services["approval_queries"].list_pending(project_id=project.id)[0]
     with pytest.raises(BusinessRuleError):
-        services["approval_service"].approve_and_apply(request.id)
+        services["approval_commands"].approve_and_apply(request.id)
     services["user_registration"].register_user(
         "golden-independent-reviewer", "StrongPass123", role_names=["approver"]
     )
 
     def approve(preparation_id):
-        request = services["approval_service"].list_pending(project_id=project.id)[0]
+        request = services["approval_queries"].list_pending(project_id=project.id)[0]
         _login(services, "golden-independent-reviewer", "StrongPass123")
-        services["approval_service"].approve_and_apply(
+        services["approval_commands"].approve_and_apply(
             request.id, note="Independent review"
         )
         _login(services, "admin", "ChangeMe123!")

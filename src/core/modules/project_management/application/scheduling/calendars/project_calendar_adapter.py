@@ -9,9 +9,6 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
-from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
-    CalendarAssignmentService,
-)
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
     ResolvedCalendarContext,
@@ -64,10 +61,8 @@ class ProjectCalendarAdapter:
     def __init__(
         self,
         resolver: PlatformCalendarResolver,
-        assignment_service: CalendarAssignmentService,
     ) -> None:
         self._resolver = resolver
-        self._assignment_service = assignment_service
 
     def _get_site_id_for_project(self, project_id: str) -> str | None:
         return None

@@ -35,12 +35,12 @@ from src.core.modules.project_management.infrastructure.composition.registration
 def register_finance_approval_handlers(
     *,
     register_apply,
-    approval_service,
+    approval_participants,
     user_session,
     tenant_context_service,
     module_catalog_service,
     work_calendar_engine,
-    financial_period_service,
+    financial_period_queries,
 ) -> None:
     budget_participant = BudgetApprovalParticipant()
     budget_dependencies_factory = lambda uow_session: build_budget_approval_deps(
@@ -54,7 +54,7 @@ def register_finance_approval_handlers(
         budget_participant.apply,
         dependencies_factory=budget_dependencies_factory,
     )
-    approval_service.register_reject_handler(
+    approval_participants.register_reject_handler(
         "budget.approve",
         budget_participant.reject,
         dependencies_factory=budget_dependencies_factory,
@@ -72,7 +72,7 @@ def register_finance_approval_handlers(
         forecast_participant.apply,
         dependencies_factory=forecast_dependencies_factory,
     )
-    approval_service.register_reject_handler(
+    approval_participants.register_reject_handler(
         "forecast.approve",
         forecast_participant.reject,
         dependencies_factory=forecast_dependencies_factory,
@@ -83,7 +83,7 @@ def register_finance_approval_handlers(
         uow_session,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
-        financial_period_service=financial_period_service,
+        financial_period_queries=financial_period_queries,
         module_catalog_service=module_catalog_service,
     )
     register_apply(
@@ -91,7 +91,7 @@ def register_finance_approval_handlers(
         project_cost_participant.apply,
         dependencies_factory=project_cost_dependencies_factory,
     )
-    approval_service.register_reject_handler(
+    approval_participants.register_reject_handler(
         "project_cost.approve",
         project_cost_participant.reject,
         dependencies_factory=project_cost_dependencies_factory,
@@ -110,7 +110,7 @@ def register_finance_approval_handlers(
         financial_change_participant.apply,
         dependencies_factory=financial_change_dependencies_factory,
     )
-    approval_service.register_reject_handler(
+    approval_participants.register_reject_handler(
         "financial_change.apply",
         financial_change_participant.reject,
         dependencies_factory=financial_change_dependencies_factory,
@@ -130,7 +130,7 @@ def register_finance_approval_handlers(
         billing_preparation_participant.apply,
         dependencies_factory=billing_preparation_dependencies_factory,
     )
-    approval_service.register_reject_handler(
+    approval_participants.register_reject_handler(
         "project_billing_preparation.approve",
         billing_preparation_participant.reject,
         dependencies_factory=billing_preparation_dependencies_factory,

@@ -44,7 +44,7 @@ def build_budget_approval_deps(
         enterprise_audit_service=enterprise_audit_service,
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
-        approval_service=None,
+        approval_commands=None,
     )
     return BudgetApprovalDeps(budget_service=budget_service)
 

@@ -40,8 +40,8 @@ def _as_optional_date(value: Any) -> date | None:
 @dataclass(frozen=True)
 class TaskApprovalDeps:
     """`task_service` is a fresh `TaskService`, constructed with
-    `approval_service=None` -- the apply path never calls back into
-    `ApprovalService`."""
+    `approval_commands=None` -- the apply path never calls back into
+    `ApprovalCommands`."""
 
     task_service: TaskService
 

@@ -1,12 +1,13 @@
 """Regression guardrail for an N+1 in `PlatformCalendarDesktopApi._serialize_assignment`:
 serializing a list of calendar assignments used to call `get_calendar(assignment.calendar_id)`
 once per assignment. The fix batches all distinct `calendar_id`s into one lookup
-(`PlatformCalendarService.get_calendars_by_ids`) and made `_serialize_assignment` pure -- it
+(`PlatformCalendarQueryHandler.get_calendars_by_ids`) and made `_serialize_assignment` pure -- it
 takes the already-resolved calendar instead of fetching it itself.
 
 These tests pin that batching so it cannot silently regress back to a per-assignment
 `get_calendar()` loop, across every assignment category (site/department/employee/project/
 resource)."""
+
 from __future__ import annotations
 
 from sqlalchemy import event
@@ -27,12 +28,18 @@ from src.core.platform.application.master_data.site.dto import (
 
 def _build_api(services):
     return PlatformCalendarDesktopApi(
-        calendar_service=services["platform_calendar_service"],
-        rule_service=services["working_rule_service"],
-        exception_service=services["calendar_exception_service"],
-        recurring_event_service=services["recurring_event_service"],
-        shift_pattern_service=services["shift_pattern_service"],
-        assignment_service=services["calendar_assignment_service"],
+        platform_calendar_commands=services["platform_calendar_commands"],
+        platform_calendar_queries=services["platform_calendar_queries"],
+        working_rule_commands=services["working_rule_commands"],
+        working_rule_queries=services["working_rule_queries"],
+        calendar_exception_commands=services["calendar_exception_commands"],
+        calendar_exception_queries=services["calendar_exception_queries"],
+        recurring_event_commands=services["recurring_event_commands"],
+        recurring_event_queries=services["recurring_event_queries"],
+        shift_pattern_commands=services["shift_pattern_commands"],
+        shift_pattern_queries=services["shift_pattern_queries"],
+        calendar_assignment_commands=services["calendar_assignment_commands"],
+        calendar_assignment_queries=services["calendar_assignment_queries"],
         resolver=services["platform_calendar_resolver"],
         capacity_calculator=services.get("resource_capacity_calculator"),
     )
@@ -80,12 +87,18 @@ def _count_calendar_selects(engine, fn):
 
 
 def _make_departments_against_one_shared_calendar(services, n, suffix):
-    calendar = services["platform_calendar_service"].create_calendar(
+    calendar = services["platform_calendar_commands"].create_calendar(
         code=f"CAL-{suffix}", name=f"Calendar {suffix}", calendar_type="DEPARTMENT"
     )
     for i in range(n):
-        dept = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"DEPT-{suffix}-{i}", name=f"Dept {suffix} {i}"))
-        services["calendar_assignment_service"].assign_department_calendar(dept.id, calendar.id)
+        dept = services["department_commands"].create_department(
+            DepartmentCreateCommand(
+                department_code=f"DEPT-{suffix}-{i}", name=f"Dept {suffix} {i}"
+            )
+        )
+        services["calendar_assignment_commands"].assign_department_calendar(
+            dept.id, calendar.id
+        )
     return calendar
 
 
@@ -94,13 +107,13 @@ def test_list_department_assignments_calendar_lookup_stays_constant(services, se
     (same shape covers list_site_/list_employee_calendar_assignments,
     which share the batch-then-serialize code path)."""
     api = _build_api(services)
-    calendar_repo = services["platform_calendar_service"]._calendar_repo
+    calendar_repo = services["platform_calendar_commands"]._calendar_repo
 
     def _measure(n, suffix):
         calendar = _make_departments_against_one_shared_calendar(services, n, suffix)
         dept_ids = [
             a.department_id
-            for a in services["calendar_assignment_service"].list_calendar_assignments(
+            for a in services["calendar_assignment_queries"].list_calendar_assignments(
                 calendar.id
             )["departments"]
         ]
@@ -108,7 +121,8 @@ def test_list_department_assignments_calendar_lookup_stays_constant(services, se
         counts, restore = _instrument(calendar_repo)
         try:
             results = [
-                api.list_department_calendar_assignments(dept_id) for dept_id in dept_ids
+                api.list_department_calendar_assignments(dept_id)
+                for dept_id in dept_ids
             ]
         finally:
             restore()
@@ -134,7 +148,7 @@ def test_list_calendar_assignments_issues_one_calendar_lookup_regardless_of_assi
     services, session
 ):
     api = _build_api(services)
-    calendar_repo = services["platform_calendar_service"]._calendar_repo
+    calendar_repo = services["platform_calendar_commands"]._calendar_repo
     engine = session.get_bind()
 
     def _measure(n, suffix):
@@ -168,17 +182,28 @@ def test_list_calendar_assignments_serializes_all_five_entity_types_correctly(se
     entity_type/entity_id and the shared calendar's name/type, exactly as before the batch-fetch
     rewire."""
     organization = services["tenant_context_service"].get_active_organization()
-    calendar_service = services["platform_calendar_service"]
-    assignment_service = services["calendar_assignment_service"]
+    calendar_commands = services["platform_calendar_commands"]
+    assignment_commands = services["calendar_assignment_commands"]
     api = _build_api(services)
 
-    calendar = calendar_service.create_calendar(
+    calendar = calendar_commands.create_calendar(
         code="CAL-ALL5", name="Shared Calendar", calendar_type="GLOBAL"
     )
 
-    site = services["site_commands"].create_site(SiteCreateCommand(site_code="P5-SITE", name="P5 Site"))
-    department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="P5-DEPT", name="P5 Department"))
-    employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="P5-EMP", full_name="P5 Employee", department_id=department.id, employment_type="FULL_TIME"))
+    site = services["site_commands"].create_site(
+        SiteCreateCommand(site_code="P5-SITE", name="P5 Site")
+    )
+    department = services["department_commands"].create_department(
+        DepartmentCreateCommand(department_code="P5-DEPT", name="P5 Department")
+    )
+    employee = services["employee_commands"].create_employee(
+        EmployeeCreateCommand(
+            employee_code="P5-EMP",
+            full_name="P5 Employee",
+            department_id=department.id,
+            employment_type="FULL_TIME",
+        )
+    )
     project = services["project_service"].create_project(
         "P5 Project", financial_currency_code=organization.base_currency
     )
@@ -186,11 +211,11 @@ def test_list_calendar_assignments_serializes_all_five_entity_types_correctly(se
         "P5 Resource", hourly_rate=0, currency_code=organization.base_currency
     )
 
-    assignment_service.assign_site_calendar(site.id, calendar.id)
-    assignment_service.assign_department_calendar(department.id, calendar.id)
-    assignment_service.assign_employee_calendar(employee.id, calendar.id)
-    assignment_service.assign_project_calendar(project.id, calendar.id)
-    assignment_service.assign_resource_calendar(resource.id, calendar.id)
+    assignment_commands.assign_site_calendar(site.id, calendar.id)
+    assignment_commands.assign_department_calendar(department.id, calendar.id)
+    assignment_commands.assign_employee_calendar(employee.id, calendar.id)
+    assignment_commands.assign_project_calendar(project.id, calendar.id)
+    assignment_commands.assign_resource_calendar(resource.id, calendar.id)
 
     result = api.list_calendar_assignments(calendar.id)
     assert result.ok is True, result.error
@@ -216,13 +241,15 @@ def test_single_assignment_write_paths_still_return_correct_calendar_fields(serv
     """The 5 assign_*_calendar write methods aren't part of the N+1 (each
     is inherently a single assignment), but they share the now-pure
     _serialize_assignment -- confirm the rewire didn't change their output."""
-    calendar_service = services["platform_calendar_service"]
+    calendar_commands = services["platform_calendar_commands"]
     api = _build_api(services)
 
-    calendar = calendar_service.create_calendar(
+    calendar = calendar_commands.create_calendar(
         code="CAL-WRITE", name="Write Path Calendar", calendar_type="SITE"
     )
-    site = services["site_commands"].create_site(SiteCreateCommand(site_code="P5-WRITE-SITE", name="Write Site"))
+    site = services["site_commands"].create_site(
+        SiteCreateCommand(site_code="P5-WRITE-SITE", name="Write Site")
+    )
 
     from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
         SiteCalendarAssignCommand,

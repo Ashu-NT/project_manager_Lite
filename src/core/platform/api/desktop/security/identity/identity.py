@@ -9,7 +9,10 @@ from src.core.platform.api.desktop.security.identity.models.identity import (
     ServicePrincipalDto,
 )
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.security.identity import (
+    ServicePrincipalCommandHandler,
+    ServicePrincipalQueryHandler,
+)
 from src.core.platform.domain.security.identity.service_principal import (
     ApiKeyCredential,
     IssuedApiKey,
@@ -18,14 +21,18 @@ from src.core.platform.domain.security.identity.service_principal import (
 
 
 class PlatformIdentityDesktopApi:
-    def __init__(self, *, service_principal_service: ServicePrincipalService) -> None:
-        self._service = service_principal_service
+    def __init__(
+        self, *, service_principal_commands: ServicePrincipalCommandHandler,
+        service_principal_query: ServicePrincipalQueryHandler,
+    ) -> None:
+        self._commands = service_principal_commands
+        self._query = service_principal_query
 
     def list_service_principals(self) -> DesktopApiResult[tuple[ServicePrincipalDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_principal(row)
-                for row in self._service.list_service_principals()
+                for row in self._query.list_service_principals()
             )
         )
 
@@ -35,7 +42,7 @@ class PlatformIdentityDesktopApi:
     ) -> DesktopApiResult[ServicePrincipalDto]:
         return execute_desktop_operation(
             lambda: self._serialize_principal(
-                self._service.create_service_principal(
+                self._commands.create_service_principal(
                     name=command.name,
                     description=command.description,
                     initial_role_name=command.initial_role_name,
@@ -49,7 +56,7 @@ class PlatformIdentityDesktopApi:
     ) -> DesktopApiResult[ServicePrincipalDto]:
         return execute_desktop_operation(
             lambda: self._serialize_principal(
-                self._service.disable_service_principal(principal_id)
+                self._commands.disable_service_principal(principal_id)
             )
         )
 
@@ -60,14 +67,14 @@ class PlatformIdentityDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_credential(row)
-                for row in self._service.list_api_keys(principal_id)
+                for row in self._query.list_api_keys(principal_id)
             )
         )
 
     def issue_api_key(self, command: ApiKeyIssueCommand) -> DesktopApiResult[IssuedApiKeyDto]:
         return execute_desktop_operation(
             lambda: self._serialize_issued(
-                self._service.issue_api_key(
+                self._commands.issue_api_key(
                     command.service_principal_id,
                     name=command.name,
                     permission_scopes=command.permission_scopes,
@@ -84,7 +91,7 @@ class PlatformIdentityDesktopApi:
     ) -> DesktopApiResult[IssuedApiKeyDto]:
         return execute_desktop_operation(
             lambda: self._serialize_issued(
-                self._service.rotate_api_key(
+                self._commands.rotate_api_key(
                     credential_id,
                     expires_in_days=expires_in_days,
                 )
@@ -94,7 +101,7 @@ class PlatformIdentityDesktopApi:
     def revoke_api_key(self, credential_id: str) -> DesktopApiResult[ApiKeyCredentialDto]:
         return execute_desktop_operation(
             lambda: self._serialize_credential(
-                self._service.revoke_api_key(credential_id)
+                self._commands.revoke_api_key(credential_id)
             )
         )
 

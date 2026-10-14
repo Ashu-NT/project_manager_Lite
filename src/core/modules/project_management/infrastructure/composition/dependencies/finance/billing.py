@@ -40,7 +40,7 @@ def build_billing_services(
         cost_entry_repo=repositories.pm.project_cost_entry_repo,
         labor_posting_repo=repositories.pm.approved_time_labor_posting_repo,
         rate_resolver=rate_resolver,
-        financial_period_service=platform_services.financial_period_service,
+        financial_period_queries=platform_services.financial_period_queries,
         tenant_context_service=platform_services.tenant_context_service,
         clock=clock,
         user_session=platform_services.user_session,

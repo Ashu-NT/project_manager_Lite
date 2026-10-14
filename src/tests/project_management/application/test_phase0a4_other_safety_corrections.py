@@ -145,12 +145,12 @@ def test_dashboard_pending_approvals_propagates_failure_instead_of_swallowing():
         DashboardSnapshotService,
     )
 
-    class _BoomApprovalService:
+    class _BoomApprovalCommandHandler:
         def list_pending(self, *_args, **_kwargs):
             raise RuntimeError("forced failure for Phase 0A.4 broad-exception test")
 
     service = DashboardSnapshotService.__new__(DashboardSnapshotService)
-    service._approval_service = _BoomApprovalService()
+    service._approval_commands = _BoomApprovalCommandHandler()
 
     with pytest.raises(RuntimeError, match="forced failure"):
         service._list_pending_approvals(project_id=None)
