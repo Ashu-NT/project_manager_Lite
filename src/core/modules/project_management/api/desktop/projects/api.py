@@ -51,11 +51,13 @@ from src.core.modules.project_management.application.projects.commands.status im
 from src.core.modules.project_management.application.projects.commands.update import (
     ProjectUpdateHandler,
 )
-from src.core.modules.project_management.application.projects.dto import (
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
     ProjectResourceAssignCommand,
     ProjectResourceUpdateCommand,
-    ProjectUpdateCommand,
 )
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,

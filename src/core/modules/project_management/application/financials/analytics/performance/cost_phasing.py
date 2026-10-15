@@ -5,14 +5,14 @@ from collections.abc import Callable
 from datetime import date
 from typing import TYPE_CHECKING
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
     CostPhasingFacts,
     CostPhasingQuery,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 if TYPE_CHECKING:
-    from src.core.modules.project_management.contracts.reads.financials.finance_performance_reader import (
+    from src.core.modules.project_management.contracts.reads.financials.performance.reader import (
         FinancePerformanceReader,
     )
     from src.core.platform.application.tenant.tenancy.tenant_context import (

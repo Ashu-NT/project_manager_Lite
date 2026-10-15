@@ -44,11 +44,17 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
 from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
     build_approval_repository_context,
 )
-from src.core.platform.application.master_data.party.dto import (
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+)
+from src.core.platform.application.master_data.party.dto.commands.party import (
     PartyCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
+)
+from src.core.platform.application.security.identity.dto.commands.service_principals import (
+    ServicePrincipalCreateCommand,
 )
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.domain.finance import (
@@ -91,10 +97,7 @@ def _setup(services):
         for principal in services["service_principal_query"].list_service_principals()
     ):
         services["service_principal_commands"].create_service_principal(
-            name=PROCUREMENT_FINANCE_PRINCIPAL_NAME,
-            description="Projects Procurement facts into PM Finance.",
-            initial_role_name="viewer",
-        )
+            ServicePrincipalCreateCommand(name=PROCUREMENT_FINANCE_PRINCIPAL_NAME, description="Projects Procurement facts into PM Finance.", initial_role_name="viewer"))
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(
         "P36 Commitment project", financial_currency_code=organization.base_currency
@@ -105,9 +108,7 @@ def _setup(services):
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="P36-COMMIT", name="P36 Commitment Site", currency_code=organization.base_currency))
     supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="P36-COMMIT-SUP", party_name="P36 Commitment Supplier", roles=["SUPPLIER"]))
     period = services["financial_period_commands"].create_period(
-        code="P36-COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8,
-        start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
-    )
+        FinancialPeriodCreateCommand(code="P36-COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8, start_date=date(2026, 8, 1).isoformat(), end_date=date(2026, 8, 31).isoformat()))
     profile = services['financial_configuration_query'].get_profile(project.id)
     services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,

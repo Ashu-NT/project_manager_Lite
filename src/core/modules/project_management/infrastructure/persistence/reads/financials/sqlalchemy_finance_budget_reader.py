@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
     BudgetLineFact,
     BudgetVersionFact,
     BudgetVersionPageFacts,

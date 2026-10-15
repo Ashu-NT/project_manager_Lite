@@ -14,13 +14,27 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
-    ForecastDraftGenerated,
+from src.core.modules.project_management.application.financials.forecasts._command_values import (
+    command_amount as _command_amount,
 )
-from src.core.modules.project_management.application.financials.forecasts.generation_models import (
-    ForecastGenerationResult,
+from src.core.modules.project_management.application.financials.forecasts._command_values import (
+    command_date as _command_date,
+)
+from src.core.modules.project_management.application.financials.forecasts._command_values import (
+    optional_command_date as _optional_command_date,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_estimates import (
     ManualEtcEstimate,
     RiskContingencyEstimate,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_generation import (
+    FinancialGenerateForecastCommand,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.responses.forecast_generation import (
+    ForecastGenerationResult,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastDraftGenerated,
 )
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
@@ -89,6 +103,7 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
+    ValidationError,
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
@@ -113,6 +128,15 @@ class _PlanSlice:
 
 class ForecastGenerationCommands(ProjectManagementModuleGuardMixin):
     """Build one atomic ETC draft from canonical source snapshots."""
+
+    def _command_actor_id(self) -> str:
+        actor_id = self.current_actor_user_id
+        if not actor_id:
+            raise ValidationError(
+                "An authenticated actor is required for Forecast commands.",
+                code="FORECAST_ACTOR_REQUIRED",
+            )
+        return str(actor_id)
 
     def __init__(
         self,
@@ -151,17 +175,14 @@ class ForecastGenerationCommands(ProjectManagementModuleGuardMixin):
         self._tenant_context_service = tenant_context_service
         self._record_event = record_event
 
-    def generate_draft(
-        self,
-        project_id: str,
-        *,
-        name: str,
-        as_of_date: date,
-        generated_by: str,
-        manual_estimates: tuple[ManualEtcEstimate, ...] = (),
-        risk_contingencies: tuple[RiskContingencyEstimate, ...] = (),
-        notes: str = "",
-    ) -> ForecastGenerationResult:
+    def generate_draft(self, command: FinancialGenerateForecastCommand) -> ForecastGenerationResult:
+        project_id = command.project_id
+        name = command.name
+        as_of_date = _command_date(command.as_of_date, "Forecast as-of date")
+        generated_by = self._command_actor_id()
+        manual_estimates = tuple(ManualEtcEstimate.for_command_item(item, amount=_command_amount(item.amount), period_start=_optional_command_date(item.period_start), period_end=_optional_command_date(item.period_end)) for item in command.manual_estimates)
+        risk_contingencies = tuple(RiskContingencyEstimate.for_command_item(item, amount=_command_amount(item.amount), period_start=_optional_command_date(item.period_start), period_end=_optional_command_date(item.period_end)) for item in command.risk_contingencies)
+        notes = command.notes
         self._require_manage(project_id)
         if self._project_repo.get(project_id) is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")

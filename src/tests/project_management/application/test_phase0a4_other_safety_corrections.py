@@ -15,6 +15,9 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
@@ -27,10 +30,7 @@ def test_create_project_dependency_succeeds_for_authorized_caller(services):
     project_a = services['project_create'].create_project("Dependency Auth Project A")
     project_b = services['project_create'].create_project("Dependency Auth Project B")
 
-    dependency = services["portfolio_dependency_commands"].create_project_dependency(
-        predecessor_project_id=project_a.id,
-        successor_project_id=project_b.id,
-    )
+    dependency = services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=project_a.id, successor_project_id=project_b.id))
 
     assert dependency.predecessor_project_id == project_a.id
     assert dependency.successor_project_id == project_b.id
@@ -59,10 +59,7 @@ def test_create_project_dependency_denies_caller_without_project_scope(services)
     )
 
     with pytest.raises(BusinessRuleError, match="Permission denied") as exc:
-        services["portfolio_dependency_commands"].create_project_dependency(
-            predecessor_project_id=project_a.id,
-            successor_project_id=project_b.id,
-        )
+        services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=project_a.id, successor_project_id=project_b.id))
 
     assert exc.value.code == "PERMISSION_DENIED"
 

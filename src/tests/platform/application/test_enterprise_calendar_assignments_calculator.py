@@ -9,6 +9,11 @@ from sqlalchemy.orm import sessionmaker
 from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
     CalendarAssignmentCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    DeptCalendarAssignCommand,
+    EmpCalendarAssignCommand,
+    SiteCalendarAssignCommand,
+)
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
 )
@@ -266,7 +271,9 @@ def global_cal(cal_commands, org_id):
 
 def test_site_calendar_assignment(assignment_queries, assignment_commands, global_cal):
     a = assignment_commands.assign_site_calendar(
-        "site-hamburg", global_cal.id, is_default=True
+        SiteCalendarAssignCommand(
+            site_id="site-hamburg", calendar_id=global_cal.id, is_default=True
+        )
     )
     assert a.site_id == "site-hamburg"
     assert a.calendar_id == global_cal.id
@@ -279,7 +286,9 @@ def test_site_calendar_assignment(assignment_queries, assignment_commands, globa
 def test_department_calendar_assignment(
     assignment_queries, assignment_commands, global_cal
 ):
-    assignment_commands.assign_department_calendar("dept-eng", global_cal.id)
+    assignment_commands.assign_department_calendar(
+        DeptCalendarAssignCommand(department_id="dept-eng", calendar_id=global_cal.id)
+    )
     fetched = assignment_queries.get_department_calendar("dept-eng")
     assert fetched is not None
     assert fetched.department_id == "dept-eng"
@@ -288,14 +297,18 @@ def test_department_calendar_assignment(
 def test_employee_calendar_assignment(
     assignment_queries, assignment_commands, global_cal
 ):
-    assignment_commands.assign_employee_calendar("emp-jsmith", global_cal.id)
+    assignment_commands.assign_employee_calendar(
+        EmpCalendarAssignCommand(employee_id="emp-jsmith", calendar_id=global_cal.id)
+    )
     fetched = assignment_queries.get_employee_calendar("emp-jsmith")
     assert fetched is not None
     assert fetched.employee_id == "emp-jsmith"
 
 
 def test_assignment_removal(assignment_queries, assignment_commands, global_cal):
-    a = assignment_commands.assign_site_calendar("site-x", global_cal.id)
+    a = assignment_commands.assign_site_calendar(
+        SiteCalendarAssignCommand(site_id="site-x", calendar_id=global_cal.id)
+    )
     assignment_commands.remove_site_assignment(a.id)
     fetched = assignment_queries.get_site_calendar("site-x")
     assert fetched is None
@@ -305,19 +318,23 @@ def test_platform_calendar_assignments_normalize_dto_inputs(
     assignment_queries, assignment_commands, global_cal
 ):
     site_assignment = assignment_commands.assign_site_calendar(
-        "  site-hamburg  ",
-        f"  {global_cal.id}  ",
-        priority="2",
+        SiteCalendarAssignCommand(
+            site_id="  site-hamburg  ", calendar_id=f"  {global_cal.id}  ", priority="2"
+        )
     )
     department_assignment = assignment_commands.assign_department_calendar(
-        "  dept-eng  ",
-        f"  {global_cal.id}  ",
-        priority="3",
+        DeptCalendarAssignCommand(
+            department_id="  dept-eng  ",
+            calendar_id=f"  {global_cal.id}  ",
+            priority="3",
+        )
     )
     employee_assignment = assignment_commands.assign_employee_calendar(
-        "  emp-jsmith  ",
-        f"  {global_cal.id}  ",
-        priority="4",
+        EmpCalendarAssignCommand(
+            employee_id="  emp-jsmith  ",
+            calendar_id=f"  {global_cal.id}  ",
+            priority="4",
+        )
     )
 
     assert site_assignment.site_id == "site-hamburg"

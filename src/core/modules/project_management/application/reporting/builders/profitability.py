@@ -10,7 +10,7 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.revenue.commercial_projection_query import (
     CommercialProjectionQuery,
 )
-from src.core.modules.project_management.application.financials.revenue.dto import (
+from src.core.modules.project_management.application.financials.revenue.dto.responses.commercial_projection import (
     ProjectCommercialProjection,
 )
 from src.core.modules.project_management.application.reporting.builders.access import (
@@ -19,7 +19,7 @@ from src.core.modules.project_management.application.reporting.builders.access i
 from src.core.modules.project_management.application.reporting.builders.cost_policy import (
     ReportingCostPolicy,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_billing_reader import (
+from src.core.modules.project_management.contracts.reads.financials.invoicing.reader import (
     FinanceBillingReader,
 )
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (

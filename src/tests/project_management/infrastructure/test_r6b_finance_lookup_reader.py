@@ -5,7 +5,16 @@ from datetime import date, timedelta
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.financial_profile import (
+    FinancialUpdateProfileCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
+from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
     FinanceLookupQuery,
 )
 
@@ -66,10 +75,12 @@ def test_task_lookup_is_project_dependent_paged_and_resolvable(services) -> None
         "R6B Lookup Other Tasks", financial_currency_code="XAF"
     )
     tasks = [
-        services['task_lifecycle_commands'].create_task(project.id, f"Lookup Task {index:02d}")
+        services['task_lifecycle_commands'].create_task(
+            TaskCreateCommand(project.id, f"Lookup Task {index:02d}")
+        )
         for index in range(5)
     ]
-    services['task_lifecycle_commands'].create_task(other.id, "Lookup Task foreign")
+    services['task_lifecycle_commands'].create_task(TaskCreateCommand(other.id, "Lookup Task foreign"))
     desktop = ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"]
     )
@@ -94,26 +105,26 @@ def test_cost_code_lookup_preserves_restriction_and_effective_date_policy(servic
     )
     services['financial_configuration_query']
     profile = services['financial_configuration_query'].get_profile(project.id)
-    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
+    services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(FinancialUpdateProfileCommand(
         project.id,
         expected_version=profile.version,
         cost_code_policy="restricted",
-    ))
-    allowed = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
+    )))
+    allowed = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(FinancialCreateCostCodeCommand(
         code="R6B-LKP-ALLOW",
         name="Allowed",
-        available_to_project_id=project.id,
-    ))
-    services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
+        project_id=project.id,
+    )))
+    services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(FinancialCreateCostCodeCommand(
         code="R6B-LKP-GLOBAL",
         name="Not restricted to project",
-    ))
-    services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
+    )))
+    services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(FinancialCreateCostCodeCommand(
         code="R6B-LKP-EXPIRED",
         name="Expired",
-        available_to_project_id=project.id,
+        project_id=project.id,
         effective_to=date.today() - timedelta(days=1),
-    ))
+    )))
     desktop = ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"]
     )

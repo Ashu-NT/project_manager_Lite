@@ -1,0 +1,1 @@
+"""Finance configuration read contracts."""

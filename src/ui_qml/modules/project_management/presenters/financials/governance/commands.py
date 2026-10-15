@@ -5,12 +5,14 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.application.financials.configuration.dto import (
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
     FinancialChangeCostCodeStatusCommand,
     FinancialCostCodeRestrictionCommand,
     FinancialCreateCostCodeCommand,
-    FinancialTransitionProfileCommand,
     FinancialUpdateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.financial_profile import (
+    FinancialTransitionProfileCommand,
     FinancialUpdateProfileCommand,
 )
 from src.ui_qml.modules.project_management.presenters.financials.shared.commands import (

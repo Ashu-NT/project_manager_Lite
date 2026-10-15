@@ -9,21 +9,21 @@ from decimal import Decimal
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostControlTotals,
 )
-from src.core.modules.project_management.application.financials.revenue.dto import (
+from src.core.modules.project_management.application.financials.revenue.dto.responses.commercial_projection import (
     ProjectCommercialProjection,
 )
 from src.core.modules.project_management.application.financials.revenue.profitability_calculator import (
     ProfitabilityInputs,
     ProjectProfitabilityCalculator,
 )
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.invoicing.reader import (
+    FinanceBillingReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
     CommercialMetricAvailability as Availability,
 )
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
     CommercialMetricUnavailableReason as Reason,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_billing_reader import (
-    FinanceBillingReader,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectFinancialProfileRepository,

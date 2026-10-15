@@ -4,6 +4,9 @@ from sqlalchemy import text
 from src.core.modules.project_management.api.desktop.collaboration.serializers.collaboration_serializers import (
     serialize_inbox_item,
 )
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+)
 from src.core.platform.common.exceptions import DomainError
 from src.tests.project_management._test_repository_tenant_hardening_helpers import (
     _seed_priority_pm_rows,
@@ -31,8 +34,7 @@ def test_same_organization_foreign_project_rejected_by_service(services):
     comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Private project comment")
     user = services["user_registration"].register_user("r7b-reader", "StrongPass123", role_names=["viewer"])
     services["access_service"].assign_scope_grant(
-        scope_type="project", scope_id=visible.id, user_id=user.id, scope_role="viewer"
-    )
+        ScopedAccessGrantAssignCommand(scope_type="project", scope_id=visible.id, user_id=user.id, scope_role="viewer"))
     services["user_session"].set_principal(
         services["principal_builder"].build(services["authentication"].authenticate("r7b-reader", "StrongPass123"))
     )

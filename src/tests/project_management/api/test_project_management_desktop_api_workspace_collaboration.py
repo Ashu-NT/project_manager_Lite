@@ -5,6 +5,9 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_workspace_desktop_api,
 )
+from src.core.modules.project_management.application.collaboration.dto.commands.task_comments import (
+    TaskCollaborationPostCommand,
+)
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
 
 EXPECTED_PM_WORKSPACE_KEYS = [
@@ -100,7 +103,7 @@ def test_project_management_collaboration_desktop_api_exposes_purpose_queries() 
     ]
 
     posted = api.post_task_comment(
-        SimpleNamespace(
+        TaskCollaborationPostCommand(
             task_id="task-1",
             body="Please review the linked checklist with @planner.",
             attachments=("handover.txt",),
@@ -332,22 +335,19 @@ class _FakeCollaborationService:
             can_manage=bool(task_id),
         )
 
-    def post_comment(
-        self,
-        *,
-        task_id: str,
-        body: str,
-        attachments=(),
-        linked_document_ids=(),
-        parent_comment_id=None,
-        submission_id=None,
-    ) -> SimpleNamespace:
+    def post_comment(self, command: TaskCollaborationPostCommand) -> SimpleNamespace:
+        task_id = command.task_id
+        body = command.body
+        attachments = command.attachments
+        linked_document_ids = command.linked_document_ids
+        parent_comment_id = command.parent_comment_id
         self.posted_comments.append(
             {
                 "task_id": task_id,
                 "body": body,
                 "attachments": tuple(attachments),
                 "linked_document_ids": tuple(linked_document_ids),
+                "submission_id": command.submission_id,
             }
         )
         comment = SimpleNamespace(

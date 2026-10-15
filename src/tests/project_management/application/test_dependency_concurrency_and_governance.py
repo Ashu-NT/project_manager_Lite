@@ -7,6 +7,9 @@ from datetime import date
 import pytest
 
 from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -137,7 +140,7 @@ class TestUpdateOptimisticConcurrency:
 
         _login_eligible_reviewer(services)
         with pytest.raises(ConcurrencyError):
-            approvals.approve_and_apply(req.id)
+            approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id))
 
         # The admin's direct edit must survive -- the stale pending
         # request must not silently overwrite it.
@@ -167,7 +170,7 @@ class TestUpdateGovernanceParity:
         assert req.request_type == "dependency.update"
 
         _login_eligible_reviewer(services)
-        approvals.approve_and_apply(req.id)
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id))
 
         assert services['task_dependency_query'].get_dependency(dep.id).lag_days == 3
 
@@ -259,6 +262,6 @@ class TestApprovalApplyToctou:
         services['task_lifecycle_commands'].create_task(project.id, "Task B Child", "", duration_days=1, parent_task_id=b.id)
 
         with pytest.raises(BusinessRuleError):
-            approvals.approve_and_apply(req.id)
+            approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id))
 
         assert services['task_dependency_query'].list_dependencies_for_task(b.id) == []

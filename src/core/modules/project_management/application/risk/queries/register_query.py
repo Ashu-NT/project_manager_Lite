@@ -13,7 +13,7 @@ from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
 )
-from src.core.modules.project_management.application.risk.dto.register_summary import (
+from src.core.modules.project_management.application.risk.dto.responses.register_summary import (
     RegisterDashboardSnapshot,
     RegisterHighRiskItem,
     RegisterProjectSummary,

@@ -20,29 +20,19 @@ from src.core.modules.project_management.api.desktop.portfolio.models import (
     PortfolioScenarioEvaluationDesktopDto,
     PortfolioTemplateDesktopDto,
 )
-from src.core.modules.project_management.application.portfolio.dto import (
-    PortfolioDependencyCreateCommand,
-    PortfolioIntakeCreateCommand,
-    PortfolioScenarioCreateCommand,
-    PortfolioTemplateCreateCommand,
-)
 
 __all__ = [
     "PortfolioCapacityResourceDto",
-    "PortfolioDependencyCreateCommand",
     "PortfolioDependencyDesktopDto",
     "PortfolioExecutiveDesktopSnapshot",
     "PortfolioHeatmapDesktopDto",
-    "PortfolioIntakeCreateCommand",
     "PortfolioIntakeDesktopDto",
     "PortfolioOptionDescriptor",
     "PortfolioProjectOptionDescriptor",
     "PortfolioRecentActionDesktopDto",
     "PortfolioScenarioComparisonDesktopDto",
-    "PortfolioScenarioCreateCommand",
     "PortfolioScenarioDesktopDto",
     "PortfolioScenarioEvaluationDesktopDto",
-    "PortfolioTemplateCreateCommand",
     "PortfolioTemplateDesktopDto",
     "ProjectManagementPortfolioDesktopApi",
     "build_project_management_portfolio_desktop_api",

@@ -7,15 +7,15 @@ from typing import TYPE_CHECKING
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
-    FinanceLookupOptionFact,
-    FinanceLookupPageFacts,
-    FinanceLookupQuery,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
+from src.core.modules.project_management.contracts.reads.financials.configuration.models.setup_facts import (
     FinanceSetupCostCodeQuery,
     FinanceSetupRestrictionQuery,
     FinanceSetupWorkspaceFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
+    FinanceLookupOptionFact,
+    FinanceLookupPageFacts,
+    FinanceLookupQuery,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -23,7 +23,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.common.exceptions import ConfigurationError, NotFoundError
 
 if TYPE_CHECKING:
-    from src.core.modules.project_management.contracts.reads.financials.finance_setup_reader import (
+    from src.core.modules.project_management.contracts.reads.financials.configuration.reader import (
         FinanceSetupReader,
     )
     from src.core.platform.application.tenant.tenancy.tenant_context import (

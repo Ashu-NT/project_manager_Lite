@@ -11,7 +11,7 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
 from src.core.platform.common.exceptions import (

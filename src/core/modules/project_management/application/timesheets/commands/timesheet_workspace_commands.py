@@ -5,6 +5,10 @@ from datetime import date
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.timesheets.dto.commands.time_entries import (
+    TimesheetEntryCreateCommand,
+    TimesheetEntryUpdateCommand,
+)
 from src.core.modules.project_management.application.timesheets.timesheet_workspace_scope import (
     SelectedTimesheetResource,
     TimesheetWorkspaceScope,
@@ -62,60 +66,54 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def add_timesheet_entry(
-        self,
-        assignment_id: str,
-        *,
-        scope: TimesheetScope | str,
-        resource_id: str | None,
-        period_start: date,
-        entry_date: date,
-        hours: float,
-        note: str = "",
-    ) -> TimeEntry:
-        selected = self._scope.require_edit_target(
-            scope=scope, resource_id=resource_id, operation_label="add Timesheet entry"
-        )
-        allocation, _, _ = self._support.load_work_allocation_context(assignment_id)
-        if str(allocation.resource_id) != selected.resource.resource_id:
-            raise BusinessRuleError(
-                "The assignment does not belong to the selected Resource.",
-                code="TIMESHEET_RESOURCE_ASSIGNMENT_MISMATCH",
+    def add_timesheet_entry(self, command: TimesheetEntryCreateCommand, *, scope: TimesheetScope | str | None = None, resource_id: str | None = None, period_start: date | None = None) -> TimeEntry:
+        assignment_id = command.assignment_id.strip()
+        entry_date = command.entry_date
+        hours = float(command.hours)
+        note = command.note
+        if scope is not None:
+            if period_start is None:
+                raise ValidationError("Reporting period is required.", code="TIMESHEET_PERIOD_REQUIRED")
+            selected = self._scope.require_edit_target(
+                scope=scope, resource_id=resource_id, operation_label="add Timesheet entry"
             )
-        if not self._period(selected, period_start).can_add_entry:
-            raise _entry_change_denied()
-        start, end = self._support.timesheet_period_bounds(period_start)
-        if not start <= entry_date <= end:
-            raise ValidationError(
-                "The time entry date must be inside the selected reporting period.",
-                code="TIME_ENTRY_OUTSIDE_SELECTED_PERIOD",
-            )
+            allocation, _, _ = self._support.load_work_allocation_context(assignment_id)
+            if str(allocation.resource_id) != selected.resource.resource_id:
+                raise BusinessRuleError(
+                    "The assignment does not belong to the selected Resource.",
+                    code="TIMESHEET_RESOURCE_ASSIGNMENT_MISMATCH",
+                )
+            if not self._period(selected, period_start).can_add_entry:
+                raise _entry_change_denied()
+            start, end = self._support.timesheet_period_bounds(period_start)
+            if not start <= entry_date <= end:
+                raise ValidationError(
+                    "The time entry date must be inside the selected reporting period.",
+                    code="TIME_ENTRY_OUTSIDE_SELECTED_PERIOD",
+                )
         return self._time_entries.add_time_entry(
             assignment_id, entry_date=entry_date, hours=hours, note=note
         )
 
-    def update_timesheet_entry(
-        self,
-        entry_id: str,
-        *,
-        scope: TimesheetScope | str,
-        resource_id: str | None,
-        period_start: date,
-        expected_version: int,
-        entry_date: date | None = None,
-        hours: float | None = None,
-        note: str | None = None,
-    ) -> TimeEntry:
-        selected = self._scope.require_edit_target(
-            scope=scope, resource_id=resource_id, operation_label="update Timesheet entry"
-        )
-        entry = self._require_resource_entry(entry_id, selected)
-        if not self._period(selected, period_start).can_edit_entry:
-            raise _entry_change_denied()
-        start, end = self._support.timesheet_period_bounds(period_start)
-        target_date = entry_date or entry.entry_date
-        if not (start <= entry.entry_date <= end and start <= target_date <= end):
-            raise _entry_outside_period()
+    def update_timesheet_entry(self, command: TimesheetEntryUpdateCommand, *, scope: TimesheetScope | str | None = None, resource_id: str | None = None, period_start: date | None = None) -> TimeEntry:
+        entry_id = command.entry_id.strip()
+        expected_version = command.expected_version
+        entry_date = command.entry_date
+        hours = command.hours
+        note = command.note
+        if scope is not None:
+            if period_start is None:
+                raise ValidationError("Reporting period is required.", code="TIMESHEET_PERIOD_REQUIRED")
+            selected = self._scope.require_edit_target(
+                scope=scope, resource_id=resource_id, operation_label="update Timesheet entry"
+            )
+            entry = self._require_resource_entry(entry_id, selected)
+            if not self._period(selected, period_start).can_edit_entry:
+                raise _entry_change_denied()
+            start, end = self._support.timesheet_period_bounds(period_start)
+            target_date = entry_date or entry.entry_date
+            if not (start <= entry.entry_date <= end and start <= target_date <= end):
+                raise _entry_outside_period()
         return self._time_entries.update_time_entry(
             entry_id,
             expected_version=expected_version,

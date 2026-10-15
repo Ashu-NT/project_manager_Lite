@@ -27,6 +27,9 @@ from src.core.modules.project_management.infrastructure.approval.forecast_apply_
 from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.forecast import (
     build_forecast_approval_deps,
 )
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.persistence.orm.base import Base
@@ -208,10 +211,10 @@ def test_platform_approval_request_enforces_separation_of_duties(
     assert requester_row.can_reject is False
 
     with pytest.raises(BusinessRuleError) as exc:
-        services["approval_commands"].approve_and_apply(result.approval_request_id)
+        services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=result.approval_request_id))
     assert exc.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
     with pytest.raises(BusinessRuleError) as reject_error:
-        services["approval_commands"].reject(result.approval_request_id)
+        services["approval_commands"].reject(ApprovalDecisionCommand(request_id=result.approval_request_id))
     assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
 
     services["user_registration"].register_user(
@@ -225,8 +228,7 @@ def test_platform_approval_request_enforces_separation_of_duties(
     assert reviewer_row.can_approve is True
     assert reviewer_row.can_reject is True
     services["approval_commands"].approve_and_apply(
-        result.approval_request_id, note="Approved independently"
-    )
+        ApprovalDecisionCommand(request_id=result.approval_request_id, note="Approved independently"))
 
     session.expire_all()
     approved = services["forecast_version_query"].get_forecast(forecast.id)
@@ -293,7 +295,7 @@ def test_platform_approval_rolls_back_forecast_when_participant_fails(
     )
 
     with pytest.raises(RuntimeError, match="injected participant failure"):
-        services["approval_commands"].approve_and_apply(result.approval_request_id)
+        services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=result.approval_request_id))
 
     session.expire_all()
     unchanged = services["forecast_version_query"].get_forecast(forecast.id)

@@ -5,6 +5,9 @@ from datetime import UTC
 from src.core.global_overview.contract.action_center import (
     ActionCenterContext,
 )
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.application.global_overview.platform_action_center_contributor import (
     PlatformActionCenterContributor,
 )
@@ -80,7 +83,7 @@ def test_revoked_reviewer_cannot_act_on_a_previously_visible_action(services):
     )
     session.commit()
     with pytest.raises(BusinessRuleError) as error:
-        services["approval_commands"].reject(request.id)
+        services["approval_commands"].reject(ApprovalDecisionCommand(request_id=request.id))
     assert error.value.code in {"APPROVAL_REVIEWER_NOT_ELIGIBLE", "PERMISSION_DENIED"}
     assert _contributor(services).collect(context, 10).summary.all_action_items == 0
     assert session.get(ApprovalRequestORM, request.id).status == "PENDING"
@@ -97,13 +100,13 @@ def test_completed_action_disappears_and_repeated_command_cannot_apply(services)
         _contributor(services).collect(_context(services), 10).summary.all_action_items
         == 1
     )
-    services["approval_commands"].reject(request.id)
+    services["approval_commands"].reject(ApprovalDecisionCommand(request_id=request.id))
     assert (
         _contributor(services).collect(_context(services), 10).summary.all_action_items
         == 0
     )
     with pytest.raises(BusinessRuleError) as error:
-        services["approval_commands"].reject(request.id)
+        services["approval_commands"].reject(ApprovalDecisionCommand(request_id=request.id))
     assert error.value.code == "APPROVAL_ALREADY_DECIDED"
 
 

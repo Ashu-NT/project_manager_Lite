@@ -41,15 +41,6 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingWorkingDayCalculationDto,
     TaskScheduleImpactOverviewDesktopDto,
 )
-from src.core.modules.project_management.application.scheduling.dto import (
-    SchedulingBaselineApproveCommand,
-    SchedulingBaselineCreateCommand,
-    SchedulingBaselineRejectCommand,
-    SchedulingBaselineSubmitCommand,
-    SchedulingDependencyCreateCommand,
-    SchedulingDependencyUpdateCommand,
-    SchedulingWorkingDayCalculationCommand,
-)
 
 __all__ = [
     "ActualVarianceDto",
@@ -64,13 +55,9 @@ __all__ = [
     "ScheduleDriverDto",
     "ScheduleImpactAffectedTaskDto",
     "ScheduleImpactReportDto",
-    "SchedulingBaselineApproveCommand",
     "SchedulingBaselineComparisonRowDto",
-    "SchedulingBaselineCreateCommand",
     "SchedulingBaselineOptionDescriptor",
-    "SchedulingBaselineRejectCommand",
     "SchedulingBaselineRowDto",
-    "SchedulingBaselineSubmitCommand",
     "SchedulingBaselineVarianceRowDto",
     "SchedulingCalendarOptionDescriptor",
     "SchedulingCalendarSnapshotDto",
@@ -78,10 +65,8 @@ __all__ = [
     "SchedulingChangeImpactDto",
     "SchedulingConstraintViolationDto",
     "SchedulingDayDescriptor",
-    "SchedulingDependencyCreateCommand",
     "SchedulingDependencyDto",
     "SchedulingDependencyTypeDescriptor",
-    "SchedulingDependencyUpdateCommand",
     "SchedulingHolidayDto",
     "SchedulingLevelingProposalDto",
     "SchedulingProjectDependencyDto",
@@ -90,7 +75,6 @@ __all__ = [
     "SchedulingResourceLoadDto",
     "SchedulingTaskDto",
     "SchedulingUnresolvedConflictDto",
-    "SchedulingWorkingDayCalculationCommand",
     "SchedulingWorkingDayCalculationDto",
     "TaskScheduleImpactOverviewDesktopDto",
     "build_project_management_scheduling_desktop_api",

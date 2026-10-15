@@ -10,9 +10,15 @@ from src.core.modules.project_management.application.common.module_guard import 
     ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
+from src.core.modules.project_management.application.tasks._command_values import (
+    constraint_type as normalize_constraint_type,
+)
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSynchronizer,
     emit_cascade_schedule_changed,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_constraints import (
+    TaskConstraintUpdateCommand,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskScheduleChanged,
@@ -83,14 +89,11 @@ class TaskSchedulingConstraintHandler(ProjectManagementModuleGuardMixin):
         self._schedule_synchronizer = schedule_synchronizer
         self._uow_scope = uow_scope
 
-    def update_task_scheduling_constraint(
-        self,
-        task_id: str,
-        *,
-        constraint_type: ConstraintType | None,
-        constraint_date: date | None,
-        expected_version: int | None = None,
-    ) -> Task:
+    def update_task_scheduling_constraint(self, command: TaskConstraintUpdateCommand) -> Task:
+        task_id = command.task_id
+        constraint_type = normalize_constraint_type(command.constraint_type)
+        constraint_date = command.constraint_date
+        expected_version = command.expected_version
         task = self._task_repo.get(task_id)
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")

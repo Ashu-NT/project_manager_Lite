@@ -13,7 +13,7 @@ from src.core.platform.api.desktop.master_data.employee.employee import (
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )

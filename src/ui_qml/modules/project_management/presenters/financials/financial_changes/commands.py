@@ -2,16 +2,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.application.financials.financial_changes.dto import (
-    FinancialChangeImpactCommand,
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_draft import (
     FinancialCreateChangeCommand,
-    FinancialRemoveChangeImpactCommand,
-    FinancialSubmitChangeCommand,
     FinancialUpdateChangeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_impacts import (
+    FinancialChangeImpactCommand,
+    FinancialRemoveChangeImpactCommand,
     FinancialUpdateChangeImpactCommand,
 )
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_submission import (
+    FinancialSubmitChangeCommand,
+)
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.approval.models.approval import (
+from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
 from src.ui_qml.modules.project_management.presenters.financials.shared.validation import (

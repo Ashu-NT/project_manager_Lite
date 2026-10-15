@@ -6,7 +6,7 @@ from pathlib import Path
 from src.core.platform.application.data_operations.exporting import (
     ensure_output_path,
 )
-from src.core.platform.application.master_data.data_exchange.dto import (
+from src.core.platform.application.master_data.data_exchange.dto.commands.export import (
     MasterDataExportRequest,
 )
 from src.core.platform.application.master_data.data_exchange.schema import _PARTY_FIELDS

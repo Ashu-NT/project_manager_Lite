@@ -5,10 +5,10 @@ from decimal import Decimal
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
     FinancePageFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_change_facts import (
+from src.core.modules.project_management.contracts.reads.financials.financial_changes.models.change_facts import (
     FinancialChangeDetailFact,
     FinancialChangeImpactFact,
     FinancialChangeImpactQuery,

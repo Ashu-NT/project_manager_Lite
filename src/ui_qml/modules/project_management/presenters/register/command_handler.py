@@ -5,8 +5,10 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementRegisterDesktopApi,
 )
-from src.core.modules.project_management.application.risk.dto.register_commands import (
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryBulkStatusCommand,
     RegisterEntryCreateCommand,
+    RegisterEntryDeleteCommand,
     RegisterEntryUpdateCommand,
 )
 from src.core.modules.project_management.domain.risk.register import (
@@ -108,7 +110,7 @@ def delete_entry(
     normalized_entry_id = (entry_id or "").strip()
     if not normalized_entry_id:
         raise ValueError("Register entry ID is required to delete an entry.")
-    desktop_api.delete_entry(normalized_entry_id)
+    desktop_api.delete_entry(RegisterEntryDeleteCommand(normalized_entry_id))
 
 def bulk_set_entry_status(
     desktop_api: ProjectManagementRegisterDesktopApi,
@@ -121,4 +123,4 @@ def bulk_set_entry_status(
         raise ValueError("At least one register entry is required to change status.")
     if not normalized_status:
         raise ValueError("Choose a status before saving.")
-    desktop_api.bulk_set_entry_status(normalized_ids, normalized_status)
+    desktop_api.bulk_set_entry_status(RegisterEntryBulkStatusCommand(normalized_ids, normalized_status))

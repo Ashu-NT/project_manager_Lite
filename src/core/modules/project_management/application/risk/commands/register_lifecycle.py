@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import replace
-from datetime import UTC, datetime
-from typing import Any
+from datetime import UTC, date, datetime
+from typing import cast
 
 from sqlalchemy.exc import IntegrityError
 
@@ -12,6 +11,15 @@ from src.core.modules.project_management.access.scope_permissions import (
 )
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.risk._command_values import (
+    REGISTER_UNSET,
+)
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryBulkStatusCommand,
+    RegisterEntryCreateCommand,
+    RegisterEntryDeleteCommand,
+    RegisterEntryUpdateCommand,
 )
 from src.core.modules.project_management.application.risk.register_events import (
     RegisterEntryChanged,
@@ -55,7 +63,7 @@ from src.core.shared.events.domain_event_context import DomainEventContext
 
 
 class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
-    _UNSET = object()
+    _UNSET = REGISTER_UNSET
 
     def __init__(
         self,
@@ -141,21 +149,18 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             use_year=not bool((title or "").strip()),
         )
 
-    def create_entry(
-        self,
-        project_id: str,
-        *,
-        entry_type: RegisterEntryType,
-        title: str,
-        description: str = "",
-        severity: RegisterEntrySeverity = RegisterEntrySeverity.MEDIUM,
-        status: RegisterEntryStatus = RegisterEntryStatus.OPEN,
-        owner_name: str | None = None,
-        due_date=None,
-        impact_summary: str = "",
-        response_plan: str = "",
-        code: str = "",
-    ) -> RegisterEntry:
+    def create_entry(self, command: RegisterEntryCreateCommand) -> RegisterEntry:
+        project_id = command.project_id
+        entry_type = as_register_entry_type(command.entry_type or RegisterEntryType.RISK.value)
+        title = command.title
+        description = command.description
+        severity = as_register_entry_severity(command.severity or RegisterEntrySeverity.MEDIUM.value)
+        status = as_register_entry_status(command.status or RegisterEntryStatus.OPEN.value)
+        owner_name = command.owner_name
+        due_date = command.due_date
+        impact_summary = command.impact_summary
+        response_plan = command.response_plan
+        code = command.code
         require_permission(self._user_session, "register.manage", operation_label="create register entry")
         require_project_permission(
             self._user_session,
@@ -231,22 +236,19 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             raise
         return entry
 
-    def update_entry(
-        self,
-        entry_id: str,
-        *,
-        expected_version: int | None = None,
-        entry_type: RegisterEntryType | None = None,
-        title: str | None = None,
-        description: str | None = None,
-        severity: RegisterEntrySeverity | None = None,
-        status: RegisterEntryStatus | None = None,
-        owner_name: str | None = None,
-        due_date: Any = _UNSET,
-        impact_summary: str | None = None,
-        response_plan: str | None = None,
-        code: str | None = None,
-    ) -> RegisterEntry:
+    def update_entry(self, command: RegisterEntryUpdateCommand) -> RegisterEntry:
+        entry_id = command.entry_id
+        expected_version = command.expected_version
+        entry_type = None if command.entry_type is None else as_register_entry_type(command.entry_type or RegisterEntryType.RISK.value)
+        title = command.title
+        description = command.description
+        severity = None if command.severity is None else as_register_entry_severity(command.severity or RegisterEntrySeverity.MEDIUM.value)
+        status = None if command.status is None else as_register_entry_status(command.status or RegisterEntryStatus.OPEN.value)
+        owner_name = command.owner_name
+        due_date = command.due_date
+        impact_summary = command.impact_summary
+        response_plan = command.response_plan
+        code = command.code
         require_permission(self._user_session, "register.manage", operation_label="update register entry")
         entry = self._register_repo.get(entry_id)
         if entry is None:
@@ -257,6 +259,8 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             "register.manage",
             operation_label="update register entry",
         )
+        if entry.project_id != command.project_id:
+            raise NotFoundError("Register entry not found.", code="REGISTER_ENTRY_NOT_FOUND")
         if expected_version is not None and entry.version != expected_version:
             raise ConcurrencyError(
                 "Register entry changed since you opened it. Refresh and try again.",
@@ -270,7 +274,7 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             severity=entry.severity if severity is None else severity,
             status=entry.status if status is None else status,
             owner_name=entry.owner_name if owner_name is None else owner_name,
-            due_date=entry.due_date if due_date is self._UNSET else due_date,
+            due_date=entry.due_date if due_date is self._UNSET else cast(date | None, due_date),
             impact_summary=entry.impact_summary if impact_summary is None else impact_summary,
             response_plan=entry.response_plan if response_plan is None else response_plan,
             updated_at=datetime.now(UTC),
@@ -334,9 +338,9 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             raise
         return candidate
 
-    def bulk_set_entry_status(
-        self, entry_ids: Sequence[str], status: RegisterEntryStatus
-    ) -> list[RegisterEntry]:
+    def bulk_set_entry_status(self, command: RegisterEntryBulkStatusCommand) -> list[RegisterEntry]:
+        entry_ids = command.entry_ids
+        status = as_register_entry_status(command.status or RegisterEntryStatus.OPEN.value)
         """Narrow single-field bulk update (status only) for the bulk "Change
         Property" action -- deliberately not update_entry()'s full-record
         path, which needs every other field's current value (a bulk action
@@ -403,7 +407,8 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
         return results
 
-    def delete_entry(self, entry_id: str) -> None:
+    def delete_entry(self, command: RegisterEntryDeleteCommand) -> None:
+        entry_id = command.entry_id
         require_permission(self._user_session, "register.manage", operation_label="delete register entry")
         entry = self._register_repo.get(entry_id)
         if entry is None:

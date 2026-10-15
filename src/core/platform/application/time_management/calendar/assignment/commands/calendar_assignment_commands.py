@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any, Generic, TypeVar
 
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.time_management.calendar._input import (
+    parse_date as _parse_date,
+)
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    DeptCalendarAssignCommand,
+    EmpCalendarAssignCommand,
+    ProjectCalendarAssignCommand,
+    ResourceCalendarAssignCommand,
+    SiteCalendarAssignCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.contract.port.time_management.calendar.external_assignment_port import (
@@ -104,15 +113,15 @@ class CalendarAssignmentCommandHandler(
     # --- Site ---
 
     def assign_site_calendar(
-        self,
-        site_id: str,
-        calendar_id: str,
-        *,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        is_default: bool = True,
-        priority: int = 0,
+        self, command: SiteCalendarAssignCommand
     ) -> SiteCalendarAssignment:
+        site_id = command.site_id
+        calendar_id = command.calendar_id
+        effective_from = _parse_date(command.effective_from)
+        effective_to = _parse_date(command.effective_to)
+        is_default = command.is_default
+        priority = command.priority
+
         require_permission(
             self._user_session,
             "calendar.manage",
@@ -168,15 +177,15 @@ class CalendarAssignmentCommandHandler(
     # --- Department ---
 
     def assign_department_calendar(
-        self,
-        department_id: str,
-        calendar_id: str,
-        *,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        is_default: bool = True,
-        priority: int = 0,
+        self, command: DeptCalendarAssignCommand
     ) -> DepartmentCalendarAssignment:
+        department_id = command.department_id
+        calendar_id = command.calendar_id
+        effective_from = _parse_date(command.effective_from)
+        effective_to = _parse_date(command.effective_to)
+        is_default = command.is_default
+        priority = command.priority
+
         require_permission(
             self._user_session,
             "calendar.manage",
@@ -234,15 +243,15 @@ class CalendarAssignmentCommandHandler(
     # --- Employee ---
 
     def assign_employee_calendar(
-        self,
-        employee_id: str,
-        calendar_id: str,
-        *,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        is_default: bool = True,
-        priority: int = 0,
+        self, command: EmpCalendarAssignCommand
     ) -> EmployeeCalendarAssignment:
+        employee_id = command.employee_id
+        calendar_id = command.calendar_id
+        effective_from = _parse_date(command.effective_from)
+        effective_to = _parse_date(command.effective_to)
+        is_default = command.is_default
+        priority = command.priority
+
         require_permission(
             self._user_session,
             "calendar.manage",
@@ -300,22 +309,15 @@ class CalendarAssignmentCommandHandler(
     # --- Project (PM-side, delegates to PM repo) ---
 
     def assign_project_calendar(
-        self,
-        project_id: str,
-        calendar_id: str,
-        *,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        is_default: bool = True,
-        priority: int = 0,
+        self, command: ProjectCalendarAssignCommand
     ) -> ProjectAssignmentT:
-        # Project/resource calendar assignment is a PM scheduling decision
-        # made within PM's own project-management permission model, not
-        # Platform calendar governance (the dual-permission rule applies to
-        # Site/Department/Employee overrides -- see assign_site_calendar
-        # above) -- left on PM's own "task.manage" deliberately so this
-        # doesn't regress existing PM roles that manage project schedules
-        # but hold no Platform calendar.manage grant.
+        project_id = command.project_id
+        calendar_id = command.calendar_id
+        effective_from = _parse_date(command.effective_from)
+        effective_to = _parse_date(command.effective_to)
+        is_default = command.is_default
+        priority = command.priority
+
         require_permission(
             self._user_session, "task.manage", operation_label="assign project calendar"
         )
@@ -344,17 +346,15 @@ class CalendarAssignmentCommandHandler(
     # --- Resource (PM-side, delegates to PM repo) ---
 
     def assign_resource_calendar(
-        self,
-        resource_id: str,
-        calendar_id: str,
-        *,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        is_default: bool = True,
-        priority: int = 0,
+        self, command: ResourceCalendarAssignCommand
     ) -> ResourceAssignmentT:
-        # Same rationale as assign_project_calendar above -- PM's own
-        # scheduling permission model, not Platform calendar governance.
+        resource_id = command.resource_id
+        calendar_id = command.calendar_id
+        effective_from = _parse_date(command.effective_from)
+        effective_to = _parse_date(command.effective_to)
+        is_default = command.is_default
+        priority = command.priority
+
         require_permission(
             self._user_session,
             "task.manage",

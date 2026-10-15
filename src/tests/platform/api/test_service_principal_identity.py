@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.security.identity.models.identity import (
+from src.core.platform.application.security.identity.dto.commands.service_principals import (
     ApiKeyIssueCommand,
     ServicePrincipalCreateCommand,
 )
@@ -13,10 +13,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, ValidationErr
 def test_service_principal_api_key_lifecycle_uses_canonical_authority(services):
     identity = services["service_principal_commands"]
 
-    principal = identity.create_service_principal(
-        name="Planning Integration",
-        initial_role_name="viewer",
-    )
+    principal = identity.create_service_principal(ServicePrincipalCreateCommand(name="Planning Integration", initial_role_name="viewer"))
     service_user = services["auth_queries"]._user_repo.get(principal.user_id)
 
     assert service_user is not None
@@ -25,13 +22,8 @@ def test_service_principal_api_key_lifecycle_uses_canonical_authority(services):
     assert services["tenant_context_service"].get_active_organization_id() == principal.organization_id
     assert services["auth_queries"].get_user_role_names(service_user.id) == {"viewer"}
 
-    permission_code = sorted(services["auth_queries"].get_user_permissions(service_user.id))[0]
-    issued = identity.issue_api_key(
-        principal.id,
-        name="Automation",
-        permission_scopes=(permission_code,),
-        expires_in_days=30,
-    )
+    permission_code = min(services["auth_queries"].get_user_permissions(service_user.id))
+    issued = identity.issue_api_key(ApiKeyIssueCommand(service_principal_id=principal.id, name="Automation", permission_scopes=(permission_code,), expires_in_days=30))
     assert issued.token.startswith(f"pmk_{principal.tenant_id}_")
     authenticated = services["api_key_authentication"].authenticate_api_key(issued.token)
 
@@ -71,10 +63,7 @@ def test_service_account_cannot_use_human_password_login(services):
 
 def test_worker_resolution_returns_only_active_scoped_service_identity(services):
     identity = services["service_principal_commands"]
-    principal = identity.create_service_principal(
-        name="Approved Time Worker",
-        initial_role_name="viewer",
-    )
+    principal = identity.create_service_principal(ServicePrincipalCreateCommand(name="Approved Time Worker", initial_role_name="viewer"))
 
     resolved = services["service_principal_query"].resolve_execution_principal(name="Approved Time Worker")
 
@@ -89,17 +78,10 @@ def test_worker_resolution_returns_only_active_scoped_service_identity(services)
 
 def test_api_key_permissions_cannot_exceed_service_principal(services):
     identity = services["service_principal_commands"]
-    principal = identity.create_service_principal(
-        name="Read Only Integration",
-        initial_role_name="viewer",
-    )
+    principal = identity.create_service_principal(ServicePrincipalCreateCommand(name="Read Only Integration", initial_role_name="viewer"))
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        identity.issue_api_key(
-            principal.id,
-            name="Escalated",
-            permission_scopes=("platform.admin",),
-        )
+        identity.issue_api_key(ApiKeyIssueCommand(service_principal_id=principal.id, name="Escalated", permission_scopes=("platform.admin",)))
     assert exc_info.value.code == "API_KEY_PERMISSION_CEILING_EXCEEDED"
 
 
@@ -111,9 +93,9 @@ def test_desktop_identity_adapter_exposes_management_without_secret_hash(service
     assert created.ok is True
     assert created.data is not None
 
-    permission_code = sorted(
+    permission_code = min(
         services["auth_queries"].get_user_permissions(created.data.user_id)
-    )[0]
+    )
     issued = api.issue_api_key(
         ApiKeyIssueCommand(
             service_principal_id=created.data.id,

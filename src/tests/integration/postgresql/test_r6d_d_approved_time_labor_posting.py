@@ -36,7 +36,7 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     FinancialSourceModule,
     FinancialSourceReference,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
+from src.core.modules.project_management.contracts.reads.financials.integration.models.integration_facts import (
     ApprovedTimePostingFailureQuery,
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (

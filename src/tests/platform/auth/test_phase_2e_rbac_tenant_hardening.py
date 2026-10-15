@@ -18,6 +18,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserUpdateCommand,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -285,7 +288,7 @@ class TestUserAdminTenantBoundary:
         cross = self._cross_tenant_user(services, "B")
         svc, _ = _make_auth_svc(services, role_names=["org_admin"])
         with pytest.raises(BusinessRuleError) as exc_info:
-            svc.user_administration.update_user_profile(cross.id, display_name="Hacked")
+            svc.user_administration.update_user_profile(UserUpdateCommand(user_id=cross.id, display_name="Hacked"))
         assert exc_info.value.code == "USER_CROSS_TENANT_DENIED"
 
     def test_org_admin_cannot_unlock_account_cross_tenant(self, services):
@@ -313,8 +316,7 @@ class TestUserAdminTenantBoundary:
         _register_in_tenant(session, same_user.id, active_tid)
 
         result = svc.user_administration.update_user_profile(
-            same_user.id, display_name="Updated"
-        )
+            UserUpdateCommand(user_id=same_user.id, display_name="Updated"))
         assert result.display_name == "Updated"
 
 

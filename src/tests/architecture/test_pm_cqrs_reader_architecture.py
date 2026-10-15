@@ -4,6 +4,7 @@ import ast
 import importlib
 import inspect
 from dataclasses import is_dataclass
+from enum import Enum
 from pathlib import Path
 
 from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
@@ -15,12 +16,12 @@ from src.core.modules.project_management.application.collaboration.queries.colla
 from src.core.modules.project_management.application.collaboration.utils.visibility import (
     CollaborationVisibilityPolicy,
 )
-from src.core.modules.project_management.application.financials.budgets import (
-    BudgetApprovalOutcome,
-    BudgetApprovalResult,
-)
 from src.core.modules.project_management.application.financials.budgets.commands import (
     BudgetApprovalCommands,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.responses.budget_approval import (
+    BudgetApprovalOutcome,
+    BudgetApprovalResult,
 )
 from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
     CostBreakdownEngine,
@@ -204,6 +205,8 @@ def test_reader_fact_dataclasses_are_frozen_slotted_and_contract_owned() -> None
         for name, value in vars(module).items():
             if not inspect.isclass(value) or value.__module__ != module_name:
                 continue
+            if issubclass(value, Enum):
+                continue
             checked.append(f"{module_name}.{name}")
             params = getattr(value, "__dataclass_params__", None)
             if not is_dataclass(value) or params is None or not params.frozen:
@@ -213,6 +216,18 @@ def test_reader_fact_dataclasses_are_frozen_slotted_and_contract_owned() -> None
 
     assert checked, "No contracts/reads fact dataclasses were inspected"
     assert violations == []
+
+
+def test_finance_reader_features_own_their_models() -> None:
+    root = CONTRACT_READS / "financials"
+    readers = tuple(root.rglob("reader.py"))
+    assert readers
+    assert not tuple(root.glob("*reader.py"))
+    assert not (root / "models" / "__init__.py").exists()
+    for reader in readers:
+        models = reader.parent / "models"
+        assert (models / "__init__.py").is_file(), reader
+        assert any(path.name != "__init__.py" for path in models.glob("*.py")), reader
 
 
 def test_sqlalchemy_readers_are_read_only_and_policy_free() -> None:
@@ -679,7 +694,7 @@ def test_budget_approval_uses_one_immutable_command_result_for_both_outcomes() -
 def test_guard_detectors_reject_deliberately_broken_in_memory_examples() -> None:
     bad_contract = """
 from typing import Protocol
-from src.core.modules.project_management.application.financials.dto import FinanceSnapshot
+from src.core.modules.project_management.application.financials.dto.responses.finance_snapshot import FinanceSnapshot
 class BrokenReader(Protocol):
     def read(self, *, tenant_id: str) -> FinanceSnapshot: ...
 """

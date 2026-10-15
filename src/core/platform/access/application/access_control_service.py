@@ -5,6 +5,10 @@ from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from sqlalchemy.orm import Session
 
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantRemoveCommand,
+)
 from src.core.platform.access.domain import (
     ScopedAccessGrant,
     ScopedRolePolicy,
@@ -165,14 +169,11 @@ class AccessControlService:
             )
         return grants
 
-    def assign_scope_grant(
-        self,
-        *,
-        scope_type: str,
-        scope_id: str,
-        user_id: str,
-        scope_role: str,
-    ) -> ScopedAccessGrant:
+    def assign_scope_grant(self, command: ScopedAccessGrantAssignCommand) -> ScopedAccessGrant:
+        scope_type = command.scope_type
+        scope_id = command.scope_id
+        user_id = command.user_id
+        scope_role = command.scope_role
         require_permission(self._user_session, "access.manage", operation_label="assign scoped access grant")
         tenant_id = self._require_active_tenant_id(
             operation_label="assign scoped access grant"
@@ -212,7 +213,10 @@ class AccessControlService:
         self._refresh_current_session_if_needed(normalized_user_id)
         return grant
 
-    def remove_scope_grant(self, *, scope_type: str, scope_id: str, user_id: str) -> None:
+    def remove_scope_grant(self, command: ScopedAccessGrantRemoveCommand) -> None:
+        scope_type = command.scope_type
+        scope_id = command.scope_id
+        user_id = command.user_id
         require_permission(self._user_session, "access.manage", operation_label="remove scoped access grant")
         tenant_id = self._require_active_tenant_id(
             operation_label="remove scoped access grant"

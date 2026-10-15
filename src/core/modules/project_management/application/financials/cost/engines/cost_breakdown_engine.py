@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from src.core.modules.project_management.application.financials.cost.dto import (
+from src.core.modules.project_management.application.financials.cost.dto.responses.cost_breakdown import (
     CostBreakdownRow,
 )
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (

@@ -3,11 +3,13 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 
 from src.core.platform.access import AccessControlService
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantRemoveCommand,
+)
 from src.core.platform.access.domain import ScopedAccessGrant
 from src.core.platform.api.desktop.access.models.access import (
-    ScopedAccessGrantAssignCommand,
     ScopedAccessGrantDto,
-    ScopedAccessGrantRemoveCommand,
     ScopeTargetDto,
     ScopeTypeChoiceDto,
 )
@@ -84,22 +86,13 @@ class PlatformAccessDesktopApi:
     ) -> DesktopApiResult[ScopedAccessGrantDto]:
         return execute_desktop_operation(
             lambda: self._serialize_grant(
-                self._access_service.assign_scope_grant(
-                    scope_type=command.scope_type,
-                    scope_id=command.scope_id,
-                    user_id=command.user_id,
-                    scope_role=command.scope_role,
-                )
+                self._access_service.assign_scope_grant(command)
             )
         )
 
     def remove_scope_grant(self, command: ScopedAccessGrantRemoveCommand) -> DesktopApiResult[None]:
         return execute_desktop_operation(
-            lambda: self._access_service.remove_scope_grant(
-                scope_type=command.scope_type,
-                scope_id=command.scope_id,
-                user_id=command.user_id,
-            )
+            lambda: self._access_service.remove_scope_grant(command)
         )
 
     @staticmethod

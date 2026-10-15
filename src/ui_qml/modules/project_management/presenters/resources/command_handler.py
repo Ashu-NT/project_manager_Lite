@@ -6,7 +6,7 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
 )
-from src.core.modules.project_management.application.resources.dto import (
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
     ResourceLifecycleCommand,
     ResourceUpdateCommand,

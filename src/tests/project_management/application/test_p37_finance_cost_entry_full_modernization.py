@@ -23,6 +23,9 @@ from src.core.modules.project_management.application.financials.cost.entries.eve
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryStatus,
 )
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+)
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
@@ -62,9 +65,7 @@ def _setup(services):
         code="P37-LABOR", name="P37 Labor"
     ))
     period = services["financial_period_commands"].create_period(
-        code="P37-2026-01", name="January 2026", fiscal_year=2026, period_number=1,
-        start_date=date(2026, 1, 1), end_date=date(2026, 1, 31),
-    )
+        FinancialPeriodCreateCommand(code="P37-2026-01", name="January 2026", fiscal_year=2026, period_number=1, start_date=date(2026, 1, 1).isoformat(), end_date=date(2026, 1, 31).isoformat()))
     return organization, project, cost_code, period
 
 

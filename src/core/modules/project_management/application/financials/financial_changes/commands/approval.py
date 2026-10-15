@@ -10,7 +10,7 @@ from src.core.modules.project_management.application.financials.financial_change
     FinancialChangeAuditPolicy,
     FinancialChangeValidationPolicy,
 )
-from src.core.modules.project_management.application.financials.governance.successors.dto import (
+from src.core.modules.project_management.application.financials.governance.successors.dto.responses.financial_successors import (
     ApprovedFinancialLineAdjustment,
 )
 from src.core.modules.project_management.contracts.ports.scheduling.schedule_change import (

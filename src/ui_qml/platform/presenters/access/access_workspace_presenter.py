@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
-from src.core.platform.api.desktop.access.models.access import (
+from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
 )
+from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
     DesktopApiResult,

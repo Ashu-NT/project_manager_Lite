@@ -8,6 +8,11 @@ import pytest
 from openpyxl import load_workbook
 from sqlalchemy import select
 
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineApproveCommand,
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineSubmitCommand,
+)
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
     ForecastLineSourceKind,
@@ -25,6 +30,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.forecast
 )
 from src.core.modules.project_management.infrastructure.reporting import (
     export_runtime as reporting_api,
+)
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError
 
@@ -111,13 +119,7 @@ def _approved_controls(services):
     ))
 
     services["financial_period_commands"].create_period(
-        code="D4-2026-08",
-        name="August 2026",
-        fiscal_year=2026,
-        period_number=8,
-        start_date=date(2026, 8, 1),
-        end_date=date(2026, 8, 31),
-    )
+        FinancialPeriodCreateCommand(code="D4-2026-08", name="August 2026", fiscal_year=2026, period_number=8, start_date=date(2026, 8, 1).isoformat(), end_date=date(2026, 8, 31).isoformat()))
     services['cost_entry_query']
     entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
@@ -286,13 +288,7 @@ def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services)
 def test_posted_reversal_nets_actual_without_rewriting_forecast(services) -> None:
     project, _budget, forecast, entry, _code = _approved_controls(services)
     services["financial_period_commands"].create_period(
-        code="D4-2026-09",
-        name="September 2026",
-        fiscal_year=2026,
-        period_number=9,
-        start_date=date(2026, 9, 1),
-        end_date=date(2026, 9, 30),
-    )
+        FinancialPeriodCreateCommand(code="D4-2026-09", name="September 2026", fiscal_year=2026, period_number=9, start_date=date(2026, 9, 1).isoformat(), end_date=date(2026, 9, 30).isoformat()))
     services['cost_entry_query']
     services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.reverse(
         entry.id,
@@ -509,9 +505,7 @@ def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> No
     services['task_lifecycle_commands'].create_task(
         foreign.id, "Foreign task", start_date=date(2026, 8, 3), duration_days=2,
     )
-    baseline = services['baseline_commands'].create_baseline(
-        foreign.id, "Foreign baseline", rate_as_of=date(2026, 8, 1),
-    )
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(foreign.id, "Foreign baseline", rate_as_of=date(2026, 8, 1)))
     for query in (
         services["earned_value_report"].get_earned_value,
         services["earned_value_report"].get_evm_series,
@@ -535,7 +529,7 @@ def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) 
     first = services['task_lifecycle_commands'].create_task(project.id, "Baseline task one", start_date=date(2026, 8, 3), duration_days=3)
     second = services['task_lifecycle_commands'].create_task(project.id, "Baseline task two", start_date=date(2026, 8, 6), duration_days=2)
     services['baseline_query']
-    baseline = services['baseline_commands'].create_baseline(project.id, "Cost-loaded control", rate_as_of=date(2026, 8, 1))
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Cost-loaded control", rate_as_of=date(2026, 8, 1)))
     session = services["session"]
     rows = session.execute(
         select(BaselineTaskORM).where(BaselineTaskORM.baseline_id == baseline.id)
@@ -544,8 +538,8 @@ def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) 
     for row in rows:
         row.baseline_planned_cost = Decimal(60 if row.task_id == first.id else 40)
     session.commit()
-    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
-    services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
+    services['baseline_commands'].approve_baseline(SchedulingBaselineApproveCommand(baseline.id, approved_by="admin"))
     with pytest.raises(NotFoundError):
         services['baseline_query'].list_variance_records(baseline.id, expected_project_id="other-project")
     services['task_progress_commands'].update_progress(first.id, percent_complete=50)

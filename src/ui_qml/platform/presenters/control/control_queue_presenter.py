@@ -4,15 +4,15 @@ import logging
 from datetime import datetime
 
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.approval.models.approval import (
-    ApprovalDecisionCommand,
-)
 from src.core.platform.api.desktop.history.audit.audit_enterprise import (
     PlatformEnterpriseAuditDesktopApi,
 )
 from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
     DesktopApiResult,
+)
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
 )
 from src.core.platform.domain.approval import ApprovalStatus
 from src.ui_qml.platform.view_models import (

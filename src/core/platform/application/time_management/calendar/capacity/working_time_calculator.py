@@ -144,7 +144,11 @@ class WorkingTimeCalculator:
                 overrides.append(f"EXCEPTION:{exc.exception_type}")
                 break
             elif impact == ImpactType.REDUCED_CAPACITY:
-                hours = exc.compute_hours() if exc.hours_override is not None else base_hours
+                hours = (
+                    exc.compute_hours()
+                    if exc.hours_override is not None
+                    else base_hours
+                )
                 unavailable_hours += hours
                 overrides.append(f"EXCEPTION:{exc.exception_type}")
             elif impact == ImpactType.EXTRA_CAPACITY:

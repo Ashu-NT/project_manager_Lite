@@ -4,6 +4,11 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryCreateCommand,
+    RegisterEntryDeleteCommand,
+    RegisterEntryUpdateCommand,
+)
 from src.core.modules.project_management.application.risk.event_handlers.view_invalidation import (
     REGISTER_CATEGORY,
     REGISTER_PROJECT_SCOPE_CODE,
@@ -112,11 +117,7 @@ def test_create_produces_workspace_and_project_hints_and_zero_legacy_signal(serv
     _, project = _setup(services)
     hints = _spy_hints(services)
 
-    entry = services["register_lifecycle_commands"].create_entry(
-        project.id,
-        entry_type=RegisterEntryType.RISK,
-        title="P41 risk",
-    )
+    entry = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="P41 risk"))
 
     reg_hints = _register_hints(hints)
     scope_codes = {h.scope_code for h in reg_hints}
@@ -127,14 +128,10 @@ def test_create_produces_workspace_and_project_hints_and_zero_legacy_signal(serv
 
 def test_update_produces_hints_and_true_audit_entry(services):
     _, project = _setup(services)
-    entry = services["register_lifecycle_commands"].create_entry(
-        project.id, entry_type=RegisterEntryType.ISSUE, title="P41 issue"
-    )
+    entry = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.ISSUE, title="P41 issue"))
     hints = _spy_hints(services)
 
-    updated = services["register_lifecycle_commands"].update_entry(
-        entry.id, expected_version=entry.version, status=RegisterEntryStatus.IN_PROGRESS
-    )
+    updated = services["register_lifecycle_commands"].update_entry(RegisterEntryUpdateCommand(entry.id, project_id=entry.project_id, expected_version=entry.version, status=RegisterEntryStatus.IN_PROGRESS))
 
     reg_hints = _register_hints(hints)
     assert len(reg_hints) == 2
@@ -157,12 +154,10 @@ def test_update_produces_hints_and_true_audit_entry(services):
 
 def test_delete_produces_hints(services):
     _, project = _setup(services)
-    entry = services["register_lifecycle_commands"].create_entry(
-        project.id, entry_type=RegisterEntryType.CHANGE, title="P41 change"
-    )
+    entry = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.CHANGE, title="P41 change"))
     hints = _spy_hints(services)
 
-    services["register_lifecycle_commands"].delete_entry(entry.id)
+    services["register_lifecycle_commands"].delete_entry(RegisterEntryDeleteCommand(entry.id))
 
     reg_hints = _register_hints(hints)
     assert {h.scope_code for h in reg_hints} == {
@@ -175,15 +170,11 @@ def test_delete_produces_hints(services):
 
 def test_stale_version_raises_and_produces_zero_hints_and_zero_write(services):
     _, project = _setup(services)
-    entry = services["register_lifecycle_commands"].create_entry(
-        project.id, entry_type=RegisterEntryType.RISK, title="P41 stale"
-    )
+    entry = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="P41 stale"))
     hints = _spy_hints(services)
 
     with pytest.raises(ConcurrencyError):
-        services["register_lifecycle_commands"].update_entry(
-            entry.id, expected_version=entry.version + 1, title="Should not apply"
-        )
+        services["register_lifecycle_commands"].update_entry(RegisterEntryUpdateCommand(entry.id, project_id=entry.project_id, expected_version=entry.version + 1, title="Should not apply"))
 
     assert _register_hints(hints) == []
     reloaded = services["register_query"].get_entry(entry.id)
@@ -192,15 +183,11 @@ def test_stale_version_raises_and_produces_zero_hints_and_zero_write(services):
 
 def test_duplicate_code_rejected_with_zero_hints(services):
     _, project = _setup(services)
-    services["register_lifecycle_commands"].create_entry(
-        project.id, entry_type=RegisterEntryType.RISK, title="First", code="REG-DUP"
-    )
+    services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="First", code="REG-DUP"))
     hints = _spy_hints(services)
 
     with pytest.raises(ValidationError):
-        services["register_lifecycle_commands"].create_entry(
-            project.id, entry_type=RegisterEntryType.ISSUE, title="Second", code="REG-DUP"
-        )
+        services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.ISSUE, title="Second", code="REG-DUP"))
 
     assert _register_hints(hints) == []
 
@@ -225,9 +212,7 @@ def test_audit_failure_rolls_back_the_register_mutation_permanently(services, mo
     monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(RuntimeError):
-        services["register_lifecycle_commands"].create_entry(
-            project.id, entry_type=RegisterEntryType.RISK, title="Should never persist"
-        )
+        services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="Should never persist"))
 
     assert _register_hints(hints) == []
     all_entries = services["register_query"].list_entries(project_id=project.id)
@@ -248,9 +233,7 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
     dispatcher.subscribe(RegisterEntryChanged, _raising_handler)
 
     with pytest.raises(RuntimeError):
-        services["register_lifecycle_commands"].create_entry(
-            project.id, entry_type=RegisterEntryType.RISK, title="Should never persist either"
-        )
+        services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="Should never persist either"))
 
     assert _register_hints(hints) == []
     all_entries = services["register_query"].list_entries(project_id=project.id)
@@ -264,9 +247,7 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
 
 def test_create_entry_for_unknown_project_is_rejected_with_zero_write(services):
     with pytest.raises(NotFoundError):
-        services["register_lifecycle_commands"].create_entry(
-            "not-a-real-project-id", entry_type=RegisterEntryType.RISK, title="Orphan"
-        )
+        services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand("not-a-real-project-id", entry_type=RegisterEntryType.RISK, title="Orphan"))
 
 
 # ---------------------------------------------------------------------------

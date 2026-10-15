@@ -40,16 +40,20 @@ from src.core.modules.project_management.api.desktop.resources.models.skills imp
     ResourceSkillDesktopDto,
     ResourceSkillsPageDesktopDto,
 )
-from src.core.modules.project_management.application.resources.dto import (
-    ResourceAddCertificationCommand,
-    ResourceAddSkillCommand,
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
     ResourceLifecycleCommand,
     ResourcePurgeCommand,
-    ResourceRemoveCertificationCommand,
-    ResourceRemoveSkillCommand,
-    ResourceUpdateCertificationCommand,
     ResourceUpdateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.certifications import (
+    ResourceAddCertificationCommand,
+    ResourceRemoveCertificationCommand,
+    ResourceUpdateCertificationCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.skills import (
+    ResourceAddSkillCommand,
+    ResourceRemoveSkillCommand,
     ResourceUpdateSkillCommand,
 )
 

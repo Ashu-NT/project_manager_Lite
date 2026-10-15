@@ -4,6 +4,22 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
+    PortfolioIntakeCreateCommand,
+    PortfolioIntakeUpdateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+    PortfolioDependencyRemoveCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
+    PortfolioScenarioCreateCommand,
+    PortfolioScenarioUpdateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateActivateCommand,
+    PortfolioTemplateCreateCommand,
+)
 from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
     PORTFOLIO_CATEGORY,
     PORTFOLIO_WORKSPACE_SCOPE_CODE,
@@ -120,7 +136,7 @@ def _portfolio_hints(hints):
 def test_create_intake_item_produces_one_hint_and_atomic_audit(services):
     hints = _spy_hints(services)
 
-    item = services["portfolio_intake_commands"].create_intake_item(title="P42 intake", sponsor_name="Sponsor")
+    item = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="P42 intake", sponsor_name="Sponsor"))
 
     assert len(_portfolio_hints(hints)) == 1
     assert item.status.value == "PROPOSED"
@@ -138,10 +154,10 @@ def test_create_intake_item_produces_one_hint_and_atomic_audit(services):
 
 
 def test_update_intake_item_produces_one_hint(services):
-    item = services["portfolio_intake_commands"].create_intake_item(title="P42 intake 2", sponsor_name="Sponsor")
+    item = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="P42 intake 2", sponsor_name="Sponsor"))
     hints = _spy_hints(services)
 
-    updated = services["portfolio_intake_commands"].update_intake_item(item.id, title="P42 intake 2 renamed")
+    updated = services["portfolio_intake_commands"].update_intake_item(PortfolioIntakeUpdateCommand(item.id, title="P42 intake 2 renamed"))
 
     assert len(_portfolio_hints(hints)) == 1
     assert updated.title == "P42 intake 2 renamed"
@@ -150,10 +166,10 @@ def test_update_intake_item_produces_one_hint(services):
 def test_create_and_update_scenario_produce_hints(services):
     hints = _spy_hints(services)
 
-    scenario = services["portfolio_scenario_commands"].create_scenario(name="P42 scenario")
+    scenario = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="P42 scenario"))
     assert len(_portfolio_hints(hints)) == 1
 
-    updated = services["portfolio_scenario_commands"].update_scenario(scenario.id, name="P42 scenario renamed")
+    updated = services["portfolio_scenario_commands"].update_scenario(PortfolioScenarioUpdateCommand(scenario.id, name="P42 scenario renamed"))
     assert len(_portfolio_hints(hints)) == 2
     assert updated.name == "P42 scenario renamed"
 
@@ -164,12 +180,10 @@ def test_create_and_remove_dependency_produce_hints(services):
     project_b = services['project_create'].create_project("P42 dependency B")
     hints = _spy_hints(services)
 
-    dependency = services["portfolio_dependency_commands"].create_project_dependency(
-        predecessor_project_id=project_a.id, successor_project_id=project_b.id
-    )
+    dependency = services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=project_a.id, successor_project_id=project_b.id))
     assert len(_portfolio_hints(hints)) == 1
 
-    services["portfolio_dependency_commands"].remove_project_dependency(dependency.id)
+    services["portfolio_dependency_commands"].remove_project_dependency(PortfolioDependencyRemoveCommand(dependency.id))
     assert len(_portfolio_hints(hints)) == 2
     assert services["portfolio_dependency_commands"]._dependency_repo.get(dependency.id) is None
 
@@ -178,13 +192,13 @@ def test_create_scoring_template_and_activate_produce_hints_including_deactivati
     """`activate_scoring_template` mutates TWO rows -- the newly-activated one AND the
     previously-active one -- so it must record (and stale-notify for) both real facts, not hide
     the deactivation behind a single broad event."""
-    first = services["portfolio_template_commands"].create_scoring_template(name="P42 template A", activate=True)
+    first = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="P42 template A", activate=True))
     hints = _spy_hints(services)
 
-    second = services["portfolio_template_commands"].create_scoring_template(name="P42 template B", activate=False)
+    second = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="P42 template B", activate=False))
     assert len(_portfolio_hints(hints)) == 1
 
-    activated = services["portfolio_template_commands"].activate_scoring_template(second.id)
+    activated = services["portfolio_template_commands"].activate_scoring_template(PortfolioTemplateActivateCommand(second.id))
     assert activated.is_active is True
     reloaded_first = services["portfolio_template_commands"]._scoring_template_repo.get(first.id)
     assert reloaded_first.is_active is False
@@ -205,10 +219,7 @@ def test_dependency_creation_across_organizations_is_rejected_with_zero_write(se
     hints = _spy_hints(services)
 
     with pytest.raises(ValidationError):
-        services["portfolio_dependency_commands"].create_project_dependency(
-            predecessor_project_id="not-a-real-project-id",
-            successor_project_id="also-not-a-real-project-id",
-        )
+        services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id="not-a-real-project-id", successor_project_id="also-not-a-real-project-id"))
 
     assert _portfolio_hints(hints) == []
 

@@ -13,13 +13,17 @@ from PySide6.QtQml import QQmlComponent
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.application.financials.financial_changes.dto import (
-    FinancialChangeImpactCommand,
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_draft import (
     FinancialCreateChangeCommand,
-    FinancialRemoveChangeImpactCommand,
-    FinancialSubmitChangeCommand,
     FinancialUpdateChangeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_impacts import (
+    FinancialChangeImpactCommand,
+    FinancialRemoveChangeImpactCommand,
     FinancialUpdateChangeImpactCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_submission import (
+    FinancialSubmitChangeCommand,
 )
 from src.core.modules.project_management.application.financials.financial_changes.event_handlers.view_invalidation import (
     FINANCIAL_CHANGE_BUDGET_SCOPE_CODE,

@@ -13,9 +13,12 @@ this needs the real backend event pipeline underneath."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
+)
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -138,7 +141,7 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
     assert signal_calls == ["stale"]
 
     admin_svc = services["tenant_lifecycle_commands"]
-    tenant_b = admin_svc.create_tenant(_unique_code("SCOPE-TENANT-B"), "Scope Tenant B")
+    tenant_b = admin_svc.create_tenant(TenantCreateCommand(tenant_code=_unique_code("SCOPE-TENANT-B"), display_name="Scope Tenant B"))
     services["session"].flush()
 
     from src.core.platform.domain.security.auth.session import (
@@ -200,7 +203,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     assert signal_calls == ["stale"]
 
     admin_svc = services["tenant_lifecycle_commands"]
-    tenant_b = admin_svc.create_tenant(_unique_code("SWITCH-TENANT-B"), "Switch Tenant B")
+    tenant_b = admin_svc.create_tenant(TenantCreateCommand(tenant_code=_unique_code("SWITCH-TENANT-B"), display_name="Switch Tenant B"))
     services["session"].flush()
 
     from src.core.platform.domain.security.auth.session import (
@@ -286,7 +289,7 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter_end_to_end(s
     assert any(f.tenant_id == tenant_a for f in _current_filters())
 
     admin_svc = services["tenant_lifecycle_commands"]
-    tenant_b = admin_svc.create_tenant(_unique_code("REALSWITCH-TENANT-B"), "Real Switch Tenant B")
+    tenant_b = admin_svc.create_tenant(TenantCreateCommand(tenant_code=_unique_code("REALSWITCH-TENANT-B"), display_name="Real Switch Tenant B"))
     services["session"].flush()
 
     switch_result = catalog.tenantSwitcher.switchToTenant(tenant_b.id)

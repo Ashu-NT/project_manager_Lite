@@ -11,7 +11,7 @@ from sqlalchemy import select
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
+from src.core.modules.project_management.contracts.reads.financials.integration.models.integration_facts import (
     ApprovedTimePostingFailureQuery,
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (
@@ -26,6 +26,13 @@ from src.core.modules.project_management.infrastructure.persistence.orm.labor_po
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
     RateCardLineORM,
+)
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+    FinancialPeriodTransitionCommand,
+)
+from src.core.platform.application.security.identity.dto.commands.service_principals import (
+    ServicePrincipalCreateCommand,
 )
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
@@ -50,10 +57,7 @@ def _setup(services):
         for principal in principals
     ):
         services["service_principal_commands"].create_service_principal(
-            name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
-            description="Posts approved Time facts into PM Finance labor actuals.",
-            initial_role_name="viewer",
-        )
+            ServicePrincipalCreateCommand(name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME, description="Posts approved Time facts into PM Finance labor actuals.", initial_role_name="viewer"))
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(
         "Approved Time Finance", financial_currency_code=organization.base_currency
@@ -68,9 +72,7 @@ def _setup(services):
         default_cost_code_id=cost_code.id,
     ))
     services["financial_period_commands"].create_period(
-        code="LABOR-2026-05", name="May 2026", fiscal_year=2026,
-        period_number=5, start_date=date(2026, 5, 1), end_date=date(2026, 5, 31),
-    )
+        FinancialPeriodCreateCommand(code="LABOR-2026-05", name="May 2026", fiscal_year=2026, period_number=5, start_date=date(2026, 5, 1).isoformat(), end_date=date(2026, 5, 31).isoformat()))
     resource = services["resource_master_commands"].create_resource(
         "Approved Time Engineer", hourly_rate=0, currency_code=organization.base_currency
     )
@@ -287,7 +289,7 @@ def test_closed_financial_period_keeps_approved_time_retryable_without_posting(s
     _, project, resource, _, assignment = _setup(services)
     period_queries = services["financial_period_queries"]
     financial_period = period_queries.list_periods()[0]
-    services["financial_period_commands"].close_period(financial_period.id, expected_version=financial_period.version)
+    services["financial_period_commands"].close_period(FinancialPeriodTransitionCommand(period_id=financial_period.id, expected_version=financial_period.version))
 
     services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 7), hours=Decimal(2)

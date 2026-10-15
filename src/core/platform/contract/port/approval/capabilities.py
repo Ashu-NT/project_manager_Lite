@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from src.core.platform.contract.models.approval.contracts import (
+    ApprovalDecisionInput,
+)
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 
 
@@ -14,9 +17,9 @@ class ApprovalCommands(Protocol):
         payload: dict[str, Any] | None = None,
     ) -> ApprovalRequest: ...
 
-    def approve_and_apply(self, request_id: str, note: str | None = None) -> ApprovalRequest: ...
+    def approve_and_apply(self, command: ApprovalDecisionInput) -> ApprovalRequest: ...
 
-    def reject(self, request_id: str, note: str | None = None) -> ApprovalRequest: ...
+    def reject(self, command: ApprovalDecisionInput) -> ApprovalRequest: ...
 
 
 class ApprovalQueries(Protocol):

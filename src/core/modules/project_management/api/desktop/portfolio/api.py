@@ -5,9 +5,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TypeVar
 
-from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
-    coerce_dependency_type,
-)
 from src.core.modules.project_management.api.desktop.portfolio.builders.capacity_pool_builder import (
     build_capacity_pool,
 )
@@ -78,10 +75,19 @@ from src.core.modules.project_management.application.portfolio.commands import (
     PortfolioScenarioCommandHandler,
     PortfolioTemplateCommandHandler,
 )
-from src.core.modules.project_management.application.portfolio.dto import (
-    PortfolioDependencyCreateCommand,
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
     PortfolioIntakeCreateCommand,
+    PortfolioIntakeUpdateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+    PortfolioDependencyRemoveCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
     PortfolioScenarioCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateActivateCommand,
     PortfolioTemplateCreateCommand,
 )
 from src.core.modules.project_management.application.portfolio.queries import (
@@ -340,59 +346,26 @@ class ProjectManagementPortfolioDesktopApi:
 
     def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioTemplateDesktopDto:
         return serialize_template(
-            _require(self._portfolio_template_commands).create_scoring_template(
-                name=command.name,
-                summary=command.summary,
-                strategic_weight=command.strategic_weight,
-                value_weight=command.value_weight,
-                urgency_weight=command.urgency_weight,
-                risk_weight=command.risk_weight,
-                activate=command.activate,
-            )
+            _require(self._portfolio_template_commands).create_scoring_template(command)
         )
 
-    def activate_scoring_template(self, template_id: str) -> PortfolioTemplateDesktopDto:
+    def activate_scoring_template(self, command: PortfolioTemplateActivateCommand) -> PortfolioTemplateDesktopDto:
         return serialize_template(
-            _require(self._portfolio_template_commands).activate_scoring_template(str(template_id or "").strip())
+            _require(self._portfolio_template_commands).activate_scoring_template(command)
         )
 
     def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeDesktopDto:
         return serialize_intake_item(
-            _require(self._portfolio_intake_commands).create_intake_item(
-                title=command.title,
-                sponsor_name=command.sponsor_name,
-                summary=command.summary,
-                requested_budget=command.requested_budget,
-                requested_capacity_percent=command.requested_capacity_percent,
-                target_start_date=command.target_start_date,
-                strategic_score=command.strategic_score,
-                value_score=command.value_score,
-                urgency_score=command.urgency_score,
-                risk_score=command.risk_score,
-                scoring_template_id=command.scoring_template_id,
-                status=coerce_intake_status(command.status),
-            )
+            _require(self._portfolio_intake_commands).create_intake_item(command)
         )
 
     def create_scenario(self, command: PortfolioScenarioCreateCommand) -> PortfolioScenarioDesktopDto:
         return serialize_scenario(
-            _require(self._portfolio_scenario_commands).create_scenario(
-                name=command.name,
-                budget_limit=command.budget_limit,
-                capacity_limit_percent=command.capacity_limit_percent,
-                project_ids=list(command.project_ids),
-                intake_item_ids=list(command.intake_item_ids),
-                notes=command.notes,
-            )
+            _require(self._portfolio_scenario_commands).create_scenario(command)
         )
 
     def create_project_dependency(self, command: PortfolioDependencyCreateCommand) -> PortfolioDependencyDesktopDto:
-        dependency = _require(self._portfolio_dependency_commands).create_project_dependency(
-            predecessor_project_id=command.predecessor_project_id,
-            successor_project_id=command.successor_project_id,
-            dependency_type=coerce_dependency_type(command.dependency_type),
-            summary=command.summary,
-        )
+        dependency = _require(self._portfolio_dependency_commands).create_project_dependency(command)
         normalized_summary = (command.summary or "").strip()
         for row in sorted(
             _require(self._portfolio_dependency_query).list_project_dependencies(),
@@ -408,15 +381,12 @@ class ProjectManagementPortfolioDesktopApi:
                 return serialize_dependency(row)
         raise RuntimeError("The created portfolio dependency could not be reloaded.")
 
-    def remove_project_dependency(self, dependency_id: str) -> None:
-        _require(self._portfolio_dependency_commands).remove_project_dependency(str(dependency_id or "").strip())
+    def remove_project_dependency(self, command: PortfolioDependencyRemoveCommand) -> None:
+        _require(self._portfolio_dependency_commands).remove_project_dependency(command)
 
-    def update_intake_item_status(self, item_id: str, status: str) -> PortfolioIntakeDesktopDto:
+    def update_intake_item_status(self, command: PortfolioIntakeUpdateCommand) -> PortfolioIntakeDesktopDto:
         return serialize_intake_item(
-            _require(self._portfolio_intake_commands).update_intake_item(
-                str(item_id or "").strip(),
-                status=coerce_intake_status(status),
-            )
+            _require(self._portfolio_intake_commands).update_intake_item(command)
         )
 
     def build_capacity_pool(self) -> tuple[PortfolioCapacityResourceDto, ...]:

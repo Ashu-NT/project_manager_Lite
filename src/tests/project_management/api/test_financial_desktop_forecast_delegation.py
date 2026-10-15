@@ -103,7 +103,7 @@ def test_commitment_percentage_preserves_undefined_versus_available_zero(
     commitment,
     expected,
 ):
-    from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    from src.core.modules.project_management.contracts.reads.financials.snapshot.models.snapshot_facts import (
         FinanceControlFact,
     )
 

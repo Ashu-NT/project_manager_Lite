@@ -8,7 +8,17 @@ from uuid import uuid4
 from src.core.modules.project_management.api.desktop import (
     build_project_management_projects_desktop_api,
 )
-from src.core.modules.project_management.application.projects.dto import (
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
+    FinancialCreateBudgetVersionCommand,
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
+    FinancialAddBudgetLineCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
     ProjectUpdateCommand,
 )
@@ -36,34 +46,36 @@ def _approve_budget(services, project_id: str, *amounts: str, currency: str = "G
     suffix = uuid4().hex[:8]
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
-            code=f"R42-{suffix}",
-            name=f"R4.2 {suffix}",
+            FinancialCreateCostCodeCommand(code=f"R42-{suffix}", name=f"R4.2 {suffix}")
         )
     )
     budget_query = services["budget_query"]
     budget = services["finance_governance_commands"].budget_lifecycle(
         lambda handler: handler.create_budget(
-            project_id,
-            f"Approved {suffix}",
-            currency_code=currency,
+            FinancialCreateBudgetVersionCommand(
+                project_id, f"Approved {suffix}", currency_code=currency
+            )
         )
     )
     for index, amount in enumerate(amounts, start=1):
         services["finance_governance_commands"].budget_lines(
             lambda handler, budget=budget, index=index, amount=amount: handler.add_line(
-                budget.id,
-                cost_code_id=cost_code.id,
-                description=f"Line {index}",
-                amount=Decimal(amount),
-                expected_budget_version=budget.row_version,
+                FinancialAddBudgetLineCommand(
+                    budget_id=budget.id,
+                    cost_code_id=cost_code.id,
+                    description=f"Line {index}",
+                    amount=str(Decimal(amount)),
+                    expected_parent_version=budget.row_version,
+                    currency_code=budget.currency_code,
+                )
             )
         )
         budget = budget_query.get_budget(budget.id)
     budget = services["finance_governance_commands"].budget_lifecycle(
         lambda handler: handler.submit_budget(
-            budget.id,
-            submitted_by="r42-author",
-            expected_version=budget.row_version,
+            FinancialVersionedBudgetCommand(
+                budget.id, expected_version=budget.row_version
+            )
         )
     )
     services["finance_governance_commands"].budget_approval(
@@ -306,9 +318,9 @@ def test_only_currently_approved_budget_is_projected(services) -> None:
 
     services["finance_governance_commands"].budget_lifecycle(
         lambda handler: handler.close_budget(
-            successor.id,
-            closed_by="r42-closer",
-            expected_version=successor.row_version,
+            FinancialVersionedBudgetCommand(
+                successor.id, expected_version=successor.row_version
+            )
         )
     )
     closed = _desktop_api(services).get_project(project.id)

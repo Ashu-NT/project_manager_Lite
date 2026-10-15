@@ -30,15 +30,30 @@ from typing import Any, TypeAlias
 
 _WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
 _WEEKDAY_NAMES = {
-    "MO": "Monday", "TU": "Tuesday", "WE": "Wednesday", "TH": "Thursday",
-    "FR": "Friday", "SA": "Saturday", "SU": "Sunday",
+    "MO": "Monday",
+    "TU": "Tuesday",
+    "WE": "Wednesday",
+    "TH": "Thursday",
+    "FR": "Friday",
+    "SA": "Saturday",
+    "SU": "Sunday",
 }
 _WEEKDAY_ORDER = {code: i for i, code in enumerate(_WEEKDAY_CODES)}
 _EVERY_WEEKDAY_SET = {"MO", "TU", "WE", "TH", "FR"}
 _NTH_LABELS = {1: "first", 2: "second", 3: "third", 4: "fourth", -1: "last"}
 _MONTH_NAMES = {
-    1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
-    7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December",
+    1: "January",
+    2: "February",
+    3: "March",
+    4: "April",
+    5: "May",
+    6: "June",
+    7: "July",
+    8: "August",
+    9: "September",
+    10: "October",
+    11: "November",
+    12: "December",
 }
 
 # JSON-shaped editor state exchanged with the QML recurrence builder.
@@ -64,7 +79,9 @@ def _join_names(names: list[str]) -> str:
 
 
 def _sorted_days(codes: list[str]) -> list[str]:
-    return sorted((c for c in codes if c in _WEEKDAY_ORDER), key=lambda c: _WEEKDAY_ORDER[c])
+    return sorted(
+        (c for c in codes if c in _WEEKDAY_ORDER), key=lambda c: _WEEKDAY_ORDER[c]
+    )
 
 
 def build_rrule_from_editor_state(state: EditorState) -> str:
@@ -156,12 +173,24 @@ def parse_rrule_to_editor_state(rrule: str) -> EditorState | None:
     if freq == "WEEKLY":
         if "BYMONTHDAY" in parts or "BYSETPOS" in parts or "BYDAY" not in parts:
             return None
-        days = _sorted_days([d.strip().upper() for d in parts["BYDAY"].split(",") if d.strip()])
+        days = _sorted_days(
+            [d.strip().upper() for d in parts["BYDAY"].split(",") if d.strip()]
+        )
         if not days:
             return None
         if interval == 1 and set(days) == _EVERY_WEEKDAY_SET:
-            return {**DEFAULT_EDITOR_STATE, "frequency": "EVERY_WEEKDAY", "interval": 1, "byDay": days}
-        return {**DEFAULT_EDITOR_STATE, "frequency": "WEEKLY", "interval": interval, "byDay": days}
+            return {
+                **DEFAULT_EDITOR_STATE,
+                "frequency": "EVERY_WEEKDAY",
+                "interval": 1,
+                "byDay": days,
+            }
+        return {
+            **DEFAULT_EDITOR_STATE,
+            "frequency": "WEEKLY",
+            "interval": interval,
+            "byDay": days,
+        }
 
     if freq == "MONTHLY":
         has_day_of_month = "BYMONTHDAY" in parts
@@ -172,8 +201,11 @@ def parse_rrule_to_editor_state(rrule: str) -> EditorState | None:
             except ValueError:
                 return None
             return {
-                **DEFAULT_EDITOR_STATE, "frequency": "MONTHLY", "interval": interval,
-                "monthlyMode": "DAY_OF_MONTH", "dayOfMonth": day_of_month,
+                **DEFAULT_EDITOR_STATE,
+                "frequency": "MONTHLY",
+                "interval": interval,
+                "monthlyMode": "DAY_OF_MONTH",
+                "dayOfMonth": day_of_month,
             }
         if has_nth_weekday and not has_day_of_month:
             weekday = parts["BYDAY"].strip().upper()
@@ -186,8 +218,12 @@ def parse_rrule_to_editor_state(rrule: str) -> EditorState | None:
             if nth not in _NTH_LABELS:
                 return None
             return {
-                **DEFAULT_EDITOR_STATE, "frequency": "MONTHLY", "interval": interval,
-                "monthlyMode": "NTH_WEEKDAY", "nth": nth, "nthWeekday": weekday,
+                **DEFAULT_EDITOR_STATE,
+                "frequency": "MONTHLY",
+                "interval": interval,
+                "monthlyMode": "NTH_WEEKDAY",
+                "nth": nth,
+                "nthWeekday": weekday,
             }
         return None
 

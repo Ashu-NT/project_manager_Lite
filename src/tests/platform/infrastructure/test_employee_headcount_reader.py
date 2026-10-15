@@ -14,10 +14,10 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
 )
 from src.core.platform.domain.master_data.employee import EmployeeLifecycleStatus

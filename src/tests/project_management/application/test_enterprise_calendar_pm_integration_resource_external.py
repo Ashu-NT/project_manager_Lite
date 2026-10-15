@@ -30,6 +30,9 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
     CalendarAssignmentCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    ResourceCalendarAssignCommand,
+)
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
 )
@@ -51,6 +54,12 @@ from src.core.platform.application.time_management.calendar.definitions.commands
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
+    ExceptionCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
     CalendarExceptionQueryHandler,
 )
@@ -59,6 +68,9 @@ from src.core.platform.application.time_management.calendar.definitions.queries.
 )
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -356,22 +368,10 @@ def test_external_resource_uses_pm_resource_calendar(
     db_session,
     tenant_context,
 ):
-    resource_cal = cal_commands.create_calendar(
-        code="RES-JDOE",
-        name="John Doe Resource Calendar",
-        calendar_type=CalendarType.RESOURCE.value,
-    )
-    rule_commands.save_rule(
-        resource_cal.id,
-        weekday=0,  # Monday
-        is_working_day=True,
-        start_time=time(9, 0),
-        end_time=time(15, 0),
-        break_minutes=0,
-        hours_override=6.0,
-    )
+    resource_cal = cal_commands.create_calendar(CalendarCreateCommand(code='RES-JDOE', name='John Doe Resource Calendar', calendar_type=CalendarType.RESOURCE.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=resource_cal.id, weekday=0, is_working_day=True, start_time=time(9, 0), end_time=time(15, 0), break_minutes=0, hours_override=6.0))
     _seed_resource(db_session, tenant_context, "res-jdoe")
-    assignment_commands.assign_resource_calendar("res-jdoe", resource_cal.id)
+    assignment_commands.assign_resource_calendar(ResourceCalendarAssignCommand(resource_id='res-jdoe', calendar_id=resource_cal.id))
 
     resource_repo = _make_resource_repo("res-jdoe", worker_type="EXTERNAL")
     svc = ResourceAvailabilityQueryHandler(
@@ -391,19 +391,10 @@ def test_resource_calendar_overrides_working_hours(
     db_session,
     tenant_context,
 ):
-    resource_cal = cal_commands.create_calendar(
-        code="RES-PARTTIME",
-        name="Part-time Resource",
-        calendar_type=CalendarType.RESOURCE.value,
-    )
-    rule_commands.save_rule(
-        resource_cal.id,
-        weekday=0,
-        is_working_day=True,
-        hours_override=4.0,  # Part-time: 4h instead of 8h
-    )
+    resource_cal = cal_commands.create_calendar(CalendarCreateCommand(code='RES-PARTTIME', name='Part-time Resource', calendar_type=CalendarType.RESOURCE.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=resource_cal.id, weekday=0, is_working_day=True, hours_override=4.0))
     _seed_resource(db_session, tenant_context, "res-pt")
-    assignment_commands.assign_resource_calendar("res-pt", resource_cal.id)
+    assignment_commands.assign_resource_calendar(ResourceCalendarAssignCommand(resource_id='res-pt', calendar_id=resource_cal.id))
 
     resource_repo = _make_resource_repo("res-pt", worker_type="EXTERNAL")
     svc = ResourceAvailabilityQueryHandler(
@@ -423,23 +414,11 @@ def test_resource_exception_vacation_unavailable(
     db_session,
     tenant_context,
 ):
-    resource_cal = cal_commands.create_calendar(
-        code="RES-VACATION",
-        name="Vacation Resource",
-        calendar_type=CalendarType.RESOURCE.value,
-    )
-    rule_commands.save_rule(
-        resource_cal.id, weekday=0, is_working_day=True, hours_override=8.0
-    )
+    resource_cal = cal_commands.create_calendar(CalendarCreateCommand(code='RES-VACATION', name='Vacation Resource', calendar_type=CalendarType.RESOURCE.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=resource_cal.id, weekday=0, is_working_day=True, hours_override=8.0))
     _seed_resource(db_session, tenant_context, "res-vacation")
-    assignment_commands.assign_resource_calendar("res-vacation", resource_cal.id)
-    exc_commands.add_exception(
-        resource_cal.id,
-        exception_date=date(2026, 6, 1),
-        exception_type=ExceptionType.VACATION.value,
-        name="Annual Leave",
-        impact_type=ImpactType.UNAVAILABLE.value,
-    )
+    assignment_commands.assign_resource_calendar(ResourceCalendarAssignCommand(resource_id='res-vacation', calendar_id=resource_cal.id))
+    exc_commands.add_exception(ExceptionCreateCommand(calendar_id=resource_cal.id, exception_date=date(2026, 6, 1), exception_type=ExceptionType.VACATION.value, name='Annual Leave', impact_type=ImpactType.UNAVAILABLE.value))
 
     resource_repo = _make_resource_repo("res-vacation", worker_type="EXTERNAL")
     svc = ResourceAvailabilityQueryHandler(

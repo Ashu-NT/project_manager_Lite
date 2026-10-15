@@ -23,7 +23,7 @@ from src.core.modules.project_management.api.desktop.resources.factories.resourc
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
-from src.core.modules.project_management.application.projects.dto import (
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
     ProjectResourceUpdateCommand,
 )
 from src.core.modules.project_management.application.resources.capacity.queries.availability import (
@@ -31,6 +31,9 @@ from src.core.modules.project_management.application.resources.capacity.queries.
 )
 from src.core.modules.project_management.application.resources.capacity.queries.workload import (
     ResourceWorkloadQueryHandler,
+)
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -381,11 +384,7 @@ def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
 
     scoped_user = services["user_registration"].register_user("time-scoped-manager", "StrongPass123", role_names=["viewer"])
     access.assign_scope_grant(
-        scope_type="project",
-        scope_id=project_alpha.id,
-        user_id=scoped_user.id,
-        scope_role="owner",
-    )
+        ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project_alpha.id, user_id=scoped_user.id, scope_role="owner"))
 
     login_as(services, "time-scoped-manager", "StrongPass123")
 

@@ -34,8 +34,10 @@ from src.core.modules.project_management.application.risk import RegisterQueryHa
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
 )
-from src.core.modules.project_management.application.risk.dto.register_commands import (
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryBulkStatusCommand,
     RegisterEntryCreateCommand,
+    RegisterEntryDeleteCommand,
     RegisterEntryUpdateCommand,
 )
 from src.core.modules.project_management.domain.risk.register import (
@@ -159,19 +161,7 @@ class ProjectManagementRegisterDesktopApi:
         command: RegisterEntryCreateCommand,
     ) -> RegisterEntryDesktopDto:
         commands = self._require_register_lifecycle_commands()
-        entry = commands.create_entry(
-            command.project_id,
-            entry_type=coerce_entry_type(command.entry_type),
-            title=command.title,
-            description=command.description,
-            severity=coerce_entry_severity(command.severity),
-            status=coerce_entry_status(command.status),
-            owner_name=command.owner_name,
-            due_date=command.due_date,
-            impact_summary=command.impact_summary,
-            response_plan=command.response_plan,
-            code=getattr(command, "code", ""),
-        )
+        entry = commands.create_entry(command)
         return serialize_entry(entry, project_name_by_id=self._project_name_by_id())
 
     def update_entry(
@@ -179,30 +169,17 @@ class ProjectManagementRegisterDesktopApi:
         command: RegisterEntryUpdateCommand,
     ) -> RegisterEntryDesktopDto:
         commands = self._require_register_lifecycle_commands()
-        entry = commands.update_entry(
-            command.entry_id,
-            expected_version=command.expected_version,
-            entry_type=coerce_entry_type(command.entry_type),
-            title=command.title,
-            description=command.description,
-            severity=coerce_entry_severity(command.severity),
-            status=coerce_entry_status(command.status),
-            owner_name=command.owner_name,
-            due_date=command.due_date,
-            impact_summary=command.impact_summary,
-            response_plan=command.response_plan,
-            code=getattr(command, "code", ""),
-        )
+        entry = commands.update_entry(command)
         return serialize_entry(entry, project_name_by_id=self._project_name_by_id())
 
-    def delete_entry(self, entry_id: str) -> None:
-        self._require_register_lifecycle_commands().delete_entry(entry_id)
+    def delete_entry(self, command: RegisterEntryDeleteCommand) -> None:
+        self._require_register_lifecycle_commands().delete_entry(command)
 
     def bulk_set_entry_status(
-        self, entry_ids: tuple[str, ...], status: str
+        self, command: RegisterEntryBulkStatusCommand
     ) -> tuple[RegisterEntryDesktopDto, ...]:
         commands = self._require_register_lifecycle_commands()
-        entries = commands.bulk_set_entry_status(entry_ids, coerce_entry_status(status))
+        entries = commands.bulk_set_entry_status(command)
         project_name_by_id = self._project_name_by_id()
         return tuple(serialize_entry(entry, project_name_by_id=project_name_by_id) for entry in entries)
 

@@ -5,7 +5,10 @@ from decimal import Decimal
 from sqlalchemy import and_, case, exists, func, literal, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
+    FinancePageFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
     AccountingStatusFact,
     AccountingStatusQuery,
     BillingPreparationDetailFact,
@@ -18,9 +21,6 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     BillingScheduleQuery,
     BillingSourceOptionFact,
     BillingSourceQuery,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
-    FinancePageFacts,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
     ProjectBillingExternalEventORM,

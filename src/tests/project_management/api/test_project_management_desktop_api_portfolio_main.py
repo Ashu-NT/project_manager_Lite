@@ -1,9 +1,22 @@
+
 from datetime import date
 from decimal import Decimal
-from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_portfolio_desktop_api,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
+    PortfolioIntakeCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+    PortfolioDependencyRemoveCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
+    PortfolioScenarioCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateCreateCommand,
 )
 from src.core.modules.project_management.domain.enums import (
     ProjectStatus,
@@ -52,7 +65,7 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
     assert api.list_dependency_types()[0].label == "Finish -> Start"
 
     created_template = api.create_scoring_template(
-        SimpleNamespace(
+        PortfolioTemplateCreateCommand(
             name="Balanced PMO",
             summary="Weighted intake rubric for governance.",
             strategic_weight=3,
@@ -63,7 +76,7 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
         )
     )
     created_intake = api.create_intake_item(
-        SimpleNamespace(
+        PortfolioIntakeCreateCommand(
             title="Packaging Line Expansion",
             sponsor_name="Operations Director",
             summary="Capacity uplift on the secondary line.",
@@ -79,7 +92,7 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
         )
     )
     created_scenario = api.create_scenario(
-        SimpleNamespace(
+        PortfolioScenarioCreateCommand(
             name="Q3 Balanced Plan",
             budget_limit=Decimal(500000),
             capacity_limit_percent=280.0,
@@ -89,7 +102,7 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
         )
     )
     comparison_scenario = api.create_scenario(
-        SimpleNamespace(
+        PortfolioScenarioCreateCommand(
             name="Aggressive Expansion",
             budget_limit=Decimal(650000),
             capacity_limit_percent=340.0,
@@ -104,7 +117,7 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
     evaluation = api.evaluate_scenario(created_scenario.id)
     comparison = api.compare_scenarios(created_scenario.id, comparison_scenario.id)
     dependency = api.create_project_dependency(
-        SimpleNamespace(
+        PortfolioDependencyCreateCommand(
             predecessor_project_id=project_alpha.id,
             successor_project_id=project_beta.id,
             dependency_type="FS",
@@ -121,6 +134,6 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
     assert api.list_heatmap()[0].pressure_label in {"Stable", "Watch", "Hot"}
     assert api.list_recent_actions(limit=5)[0].action_label == "Dependency created"
 
-    api.remove_project_dependency(dependency.dependency_id)
+    api.remove_project_dependency(PortfolioDependencyRemoveCommand(dependency.dependency_id))
 
     assert api.list_dependencies() == ()

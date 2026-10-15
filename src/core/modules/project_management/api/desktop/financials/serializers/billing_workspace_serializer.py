@@ -10,7 +10,7 @@ from src.core.modules.project_management.api.desktop.financials.models.billing_w
     FinancialBillingReadWorkspaceDto,
     FinancialBillingTableRecordDto,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
     BillingPreparationDetailFact,
     BillingPreparationLineFact,
     BillingPreparationSummaryFact,

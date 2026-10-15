@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
-from src.core.modules.project_management.application.financials.budgets import (
+from src.core.modules.project_management.application.financials.budgets.dto.responses.budget_approval import (
     BudgetApprovalOutcome,
     BudgetApprovalResult,
 )
@@ -20,6 +20,9 @@ from src.core.modules.project_management.domain.financials.budget import (
 )
 from src.core.modules.project_management.domain.financials.configuration import (
     CostCodePolicy,
+)
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -330,10 +333,10 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
     assert requester_row.can_reject is False
 
     with pytest.raises(BusinessRuleError) as approve_error:
-        services["approval_commands"].approve_and_apply(result.approval_request_id)
+        services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=result.approval_request_id))
     assert approve_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
     with pytest.raises(BusinessRuleError) as reject_error:
-        services["approval_commands"].reject(result.approval_request_id)
+        services["approval_commands"].reject(ApprovalDecisionCommand(request_id=result.approval_request_id))
     assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
 
     services["user_registration"].register_user(
@@ -351,8 +354,7 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
     assert reviewer_view.create_version_disabled_reason == ""
 
     services["approval_commands"].approve_and_apply(
-        result.approval_request_id, note="Approved by another principal"
-    )
+        ApprovalDecisionCommand(request_id=result.approval_request_id, note="Approved by another principal"))
     approved = budget_query.get_budget(budget.id)
     assert approved.status is BudgetStatus.APPROVED
     assert sum(
@@ -1202,7 +1204,7 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     )
     _login(services, "budget-reviewer", "StrongPass123")
     reviewer_user_id = services["user_session"].principal.user_id
-    approvals.approve_and_apply(req.id, note="Approved via governance")
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id, note="Approved via governance"))
 
     approved = budget_query.get_budget(budget.id)
     assert approved.status == BudgetStatus.APPROVED
@@ -1250,7 +1252,7 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
     )
     _login(services, "budget-reject-reviewer", "StrongPass123")
     reviewer_user_id = services["user_session"].principal.user_id
-    approvals.reject(req.id, note="Not this time")
+    approvals.reject(ApprovalDecisionCommand(request_id=req.id, note="Not this time"))
 
     rejected = budget_query.get_budget(budget.id)
     assert rejected.status == BudgetStatus.REJECTED

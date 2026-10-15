@@ -11,7 +11,7 @@ from src.core.modules.project_management.api.desktop.financials.models.rates imp
     FinancialRateTableRecordDto,
     FinancialRateWorkspaceDto,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
+from src.core.modules.project_management.contracts.reads.financials.rate_cards.models.rate_facts import (
     FinanceRateWorkspaceFacts,
 )
 

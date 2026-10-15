@@ -116,112 +116,130 @@ from src.core.modules.project_management.application.financials import (
     ProjectFinancePerformanceQuery,
     ProjectFinanceWorkspaceQuery,
 )
-from src.core.modules.project_management.application.financials.budgets.dto import (
-    FinancialAddBudgetLineCommand,
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
     FinancialCreateBudgetSuccessorCommand,
     FinancialCreateBudgetVersionCommand,
-    FinancialDeleteBudgetLineCommand,
     FinancialUpdateBudgetCommand,
-    FinancialUpdateBudgetLineCommand,
     FinancialVersionedBudgetCommand,
 )
-from src.core.modules.project_management.application.financials.configuration.dto import (
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
+    FinancialAddBudgetLineCommand,
+    FinancialDeleteBudgetLineCommand,
+    FinancialUpdateBudgetLineCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
     FinancialChangeCostCodeStatusCommand,
     FinancialCostCodeRestrictionCommand,
     FinancialCreateCostCodeCommand,
-    FinancialTransitionProfileCommand,
     FinancialUpdateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.financial_profile import (
+    FinancialTransitionProfileCommand,
     FinancialUpdateProfileCommand,
 )
-from src.core.modules.project_management.application.financials.cost.entries.dto import (
-    FinancialCreateManualActualCommand,
-    FinancialDecideActualCommand,
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_posting import (
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_review import (
+    FinancialDecideActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
 )
-from src.core.modules.project_management.application.financials.financial_changes.dto import (
-    FinancialChangeImpactCommand,
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_draft import (
     FinancialCreateChangeCommand,
-    FinancialRemoveChangeImpactCommand,
-    FinancialSubmitChangeCommand,
     FinancialUpdateChangeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_impacts import (
+    FinancialChangeImpactCommand,
+    FinancialRemoveChangeImpactCommand,
     FinancialUpdateChangeImpactCommand,
 )
-from src.core.modules.project_management.application.financials.forecasts.dto import (
-    FinancialGenerateForecastCommand,
-    FinancialVersionedForecastCommand,
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_submission import (
+    FinancialSubmitChangeCommand,
 )
-from src.core.modules.project_management.application.financials.forecasts.generation_models import (
-    ManualEtcEstimate,
-    RiskContingencyEstimate,
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_generation import (
+    FinancialGenerateForecastCommand,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
+    FinancialVersionedForecastCommand,
 )
 from src.core.modules.project_management.application.financials.governance.command_boundary import (
     FinanceGovernanceCommandBoundary,
 )
-from src.core.modules.project_management.application.financials.invoicing.dto import (
-    FinancialActivateBillingProfileCommand,
-    FinancialAddApprovedTimeBillingSourceCommand,
-    FinancialAddBillingScheduleLineCommand,
-    FinancialAddCostPlusBillingSourceCommand,
-    FinancialAddFixedPriceBillingSourceCommand,
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_preparation import (
     FinancialCreateBillingPreparationCommand,
-    FinancialCreateBillingProfileCommand,
-    FinancialMarkBillingScheduleLineReadyCommand,
-    FinancialRemoveDraftBillingLineCommand,
     FinancialVersionedBillingPreparationCommand,
 )
-from src.core.modules.project_management.application.financials.rate_cards.dto import (
-    FinancialAddRateLineCommand,
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_profile import (
+    FinancialActivateBillingProfileCommand,
+    FinancialCreateBillingProfileCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_schedule import (
+    FinancialAddBillingScheduleLineCommand,
+    FinancialMarkBillingScheduleLineReadyCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_sources import (
+    FinancialAddApprovedTimeBillingSourceCommand,
+    FinancialAddCostPlusBillingSourceCommand,
+    FinancialAddFixedPriceBillingSourceCommand,
+    FinancialRemoveDraftBillingLineCommand,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_cards import (
     FinancialCreateRateCardCommand,
     FinancialUpdateRateCardCommand,
-    FinancialUpdateRateLineCommand,
     FinancialVersionedRateCardCommand,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_lines import (
+    FinancialAddRateLineCommand,
+    FinancialUpdateRateLineCommand,
     FinancialVersionedRateLineCommand,
 )
 from src.core.modules.project_management.application.reporting import (
     ProfitabilityReportBuilder,
 )
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
-    CommercialMetricAvailability,
-    CommercialMetricUnavailableReason,
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
+    FinancePageRequest,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+from src.core.modules.project_management.contracts.reads.financials.configuration.models.setup_facts import (
+    FinanceSetupCostCodeQuery,
+    FinanceSetupRestrictionQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.financial_changes.models.change_facts import (
+    FinancialChangeImpactQuery,
+    FinancialChangeRequestQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.forecasts.models.forecast_facts import (
+    ForecastLineRequest,
+    ForecastVersionRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.integration.models.integration_facts import (
+    ApprovedTimePostingFailureQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
     AccountingStatusQuery,
     BillingPreparationLineQuery,
     BillingPreparationQuery,
     BillingScheduleQuery,
     BillingSourceQuery,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
-    FinancePageRequest,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_change_facts import (
-    FinancialChangeImpactQuery,
-    FinancialChangeRequestQuery,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
-    ForecastLineRequest,
-    ForecastVersionRequest,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
-    ApprovedTimePostingFailureQuery,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
     FinanceLookupPageFacts,
     FinanceLookupQuery,
     ManualActualCostCodeQuery,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
+from src.core.modules.project_management.contracts.reads.financials.rate_cards.models.rate_facts import (
     RateCardRequest,
     RateLineRequest,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
-    FinanceSetupCostCodeQuery,
-    FinanceSetupRestrictionQuery,
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
+    CommercialMetricAvailability,
+    CommercialMetricUnavailableReason,
 )
-from src.core.modules.project_management.contracts.reads.financials.sorting import (
+from src.core.modules.project_management.contracts.reads.financials.shared.sorting import (
     normalize_commitment_sort,
     normalize_cost_entry_sort,
 )
@@ -552,17 +570,7 @@ class ProjectManagementFinancialsDesktopApi:
     ) -> FinancialCostCodeOptionDescriptor:
         commands = self._require_finance_governance_commands()
         cost_code = commands.cost_code(
-            lambda service: service.create_cost_code(
-                code=command.code,
-                name=command.name,
-                description=command.description,
-                available_to_project_id=command.project_id,
-                parent_id=command.parent_id,
-                external_system=command.external_system,
-                external_reference=command.external_reference,
-                effective_from=command.effective_from,
-                effective_to=command.effective_to,
-            ),
+            lambda service: service.create_cost_code(command),
         )
         return FinancialCostCodeOptionDescriptor(
             value=cost_code.id,
@@ -571,46 +579,19 @@ class ProjectManagementFinancialsDesktopApi:
 
     def update_financial_profile(self, command: FinancialUpdateProfileCommand) -> None:
         self._require_finance_governance_commands().financial_profile(
-            lambda service: service.configure_profile(
-                command.project_id,
-                expected_version=command.expected_version,
-                currency_code=command.currency_code,
-                billing_method=command.billing_method,
-                budget_control_mode=command.budget_control_mode,
-                cost_code_policy=command.cost_code_policy,
-                financial_start_date=command.financial_start_date,
-                financial_end_date=command.financial_end_date,
-                is_funded=command.is_funded,
-                is_billable=command.is_billable,
-                default_cost_code_id=command.default_cost_code_id,
-            ),
+            lambda service: service.configure_profile(command),
         )
 
     def transition_financial_profile(
         self, command: FinancialTransitionProfileCommand
     ) -> None:
         self._require_finance_governance_commands().financial_profile(
-            lambda service: service.transition_profile(
-                command.project_id,
-                target=command.target_status,
-                expected_version=command.expected_version,
-            ),
+            lambda service: service.transition_profile(command),
         )
 
     def update_cost_code(self, command: FinancialUpdateCostCodeCommand) -> None:
         self._require_finance_governance_commands().cost_code(
-            lambda service: service.update_cost_code(
-                command.cost_code_id,
-                expected_version=command.expected_version,
-                code=command.code,
-                name=command.name,
-                description=command.description,
-                parent_id=command.parent_id,
-                external_system=command.external_system,
-                external_reference=command.external_reference,
-                effective_from=command.effective_from,
-                effective_to=command.effective_to,
-            )
+            lambda service: service.update_cost_code(command)
         )
 
     def change_cost_code_status(
@@ -618,7 +599,7 @@ class ProjectManagementFinancialsDesktopApi:
     ) -> None:
         def mutate(service):
             operation = service.activate_cost_code if command.activate else service.deactivate_cost_code
-            return operation(command.cost_code_id, expected_version=command.expected_version)
+            return operation(command)
 
         self._require_finance_governance_commands().cost_code(mutate)
 
@@ -626,20 +607,14 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialCostCodeRestrictionCommand
     ) -> None:
         self._require_finance_governance_commands().cost_code(
-            lambda service: service.add_project_cost_code(
-                project_id=command.project_id,
-                cost_code_id=command.cost_code_id,
-            ),
+            lambda service: service.add_project_cost_code(command),
         )
 
     def remove_cost_code_restriction(
         self, command: FinancialCostCodeRestrictionCommand
     ) -> None:
         self._require_finance_governance_commands().cost_code(
-            lambda service: service.remove_project_cost_code(
-                project_id=command.project_id,
-                cost_code_id=command.cost_code_id,
-            ),
+            lambda service: service.remove_project_cost_code(command),
         )
 
     def list_cost_entries(
@@ -968,31 +943,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialGenerateForecastCommand
     ) -> FinancialForecastMutationDto:
         result = self._require_finance_governance_commands().forecast_generation(
-            lambda service: service.generate_draft(
-                command.project_id,
-                name=command.name,
-                as_of_date=self._command_date(command.as_of_date, "Forecast as-of date"),
-                generated_by=self._forecast_actor_id(service),
-                manual_estimates=tuple(
-                    ManualEtcEstimate.for_command_item(
-                        item,
-                        amount=self._forecast_command_amount(item.amount),
-                        period_start=self._optional_command_date(item.period_start),
-                        period_end=self._optional_command_date(item.period_end),
-                    )
-                    for item in command.manual_estimates
-                ),
-                risk_contingencies=tuple(
-                    RiskContingencyEstimate.for_command_item(
-                        item,
-                        amount=self._forecast_command_amount(item.amount),
-                        period_start=self._optional_command_date(item.period_start),
-                        period_end=self._optional_command_date(item.period_end),
-                    )
-                    for item in command.risk_contingencies
-                ),
-                notes=command.notes,
-            ),
+            lambda service: service.generate_draft(command),
         )
         return self._forecast_mutation_dto(result.forecast)
 
@@ -1000,12 +951,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialVersionedForecastCommand
     ) -> FinancialForecastMutationDto:
         forecast = self._require_finance_governance_commands().forecast_lifecycle(
-            lambda service: service.submit_forecast(
-                command.forecast_id,
-                submitted_by=self._forecast_actor_id(service),
-                expected_version=command.expected_version,
-                notes=command.notes,
-            )
+            lambda service: service.submit_forecast(command)
         )
         return self._forecast_mutation_dto(forecast)
 
@@ -1013,11 +959,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialVersionedForecastCommand
     ) -> FinancialForecastMutationDto:
         result = self._require_finance_governance_commands().forecast_approval(
-            lambda service: service.request_forecast_approval(
-                command.forecast_id,
-                expected_version=command.expected_version,
-                notes=command.notes,
-            )
+            lambda service: service.request_forecast_approval(command)
         )
         return FinancialForecastMutationDto(
             forecast_id=result.forecast_id,
@@ -1090,9 +1032,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialCreateRateCardCommand
     ) -> FinancialRateMutationDto:
         card = self._require_finance_governance_commands().rate_card(
-            lambda service: service.create_rate_card(
-                name=command.name, project_id=command.project_id
-            )
+            lambda service: service.create_rate_card(command)
         )
         return FinancialRateMutationDto(rate_card_id=card.id, version=card.version)
 
@@ -1100,11 +1040,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialUpdateRateCardCommand
     ) -> FinancialRateMutationDto:
         card = self._require_finance_governance_commands().rate_card(
-            lambda service: service.update_rate_card(
-                command.rate_card_id,
-                expected_version=command.expected_version,
-                name=command.name,
-            )
+            lambda service: service.update_rate_card(command)
         )
         return FinancialRateMutationDto(rate_card_id=card.id, version=card.version)
 
@@ -1112,9 +1048,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialVersionedRateCardCommand
     ) -> FinancialRateMutationDto:
         card = self._require_finance_governance_commands().rate_card(
-            lambda service: service.deactivate_rate_card(
-                command.rate_card_id, expected_version=command.expected_version
-            )
+            lambda service: service.deactivate_rate_card(command)
         )
         return FinancialRateMutationDto(rate_card_id=card.id, version=card.version)
 
@@ -1122,25 +1056,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialAddRateLineCommand
     ) -> FinancialRateMutationDto:
         line = self._require_finance_governance_commands().rate_line(
-            lambda service: service.create_line(
-                command.rate_card_id,
-                expected_card_version=command.expected_card_version,
-                rate_type=command.rate_type,
-                unit=command.unit,
-                rate_amount=self._rate_decimal(command.rate_amount, "Rate amount"),
-                rate_currency=command.rate_currency,
-                resource_id=command.resource_id,
-                customer_party_id=command.customer_party_id,
-                contract_reference=command.contract_reference,
-                role=command.role,
-                skill_code=command.skill_code,
-                department_id=command.department_id,
-                effective_from=command.effective_from,
-                effective_to=command.effective_to,
-                overtime_multiplier=self._optional_rate_decimal(command.overtime_multiplier),
-                weekend_multiplier=self._optional_rate_decimal(command.weekend_multiplier),
-                holiday_multiplier=self._optional_rate_decimal(command.holiday_multiplier),
-            )
+            lambda service: service.create_line(command)
         )
         return FinancialRateMutationDto(
             rate_card_id=line.rate_card_id, rate_line_id=line.id, version=line.version
@@ -1150,17 +1066,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialUpdateRateLineCommand
     ) -> FinancialRateMutationDto:
         line = self._require_finance_governance_commands().rate_line(
-            lambda service: service.update_line(
-                command.rate_line_id,
-                expected_version=command.expected_version,
-                expected_card_version=command.expected_card_version,
-                rate_amount=self._rate_decimal(command.rate_amount, "Rate amount"),
-                effective_from=command.effective_from,
-                effective_to=command.effective_to,
-                overtime_multiplier=self._optional_rate_decimal(command.overtime_multiplier),
-                weekend_multiplier=self._optional_rate_decimal(command.weekend_multiplier),
-                holiday_multiplier=self._optional_rate_decimal(command.holiday_multiplier),
-            )
+            lambda service: service.update_line(command)
         )
         return FinancialRateMutationDto(
             rate_card_id=line.rate_card_id, rate_line_id=line.id, version=line.version
@@ -1170,34 +1076,13 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialVersionedRateLineCommand
     ) -> FinancialRateMutationDto:
         line = self._require_finance_governance_commands().rate_line(
-            lambda service: service.deactivate_line(
-                command.rate_line_id,
-                expected_version=command.expected_version,
-                expected_card_version=command.expected_card_version,
-            )
+            lambda service: service.deactivate_line(command)
         )
         return FinancialRateMutationDto(
             rate_card_id=line.rate_card_id, rate_line_id=line.id, version=line.version
         )
 
-    @staticmethod
-    def _rate_decimal(value: str, label: str) -> Decimal:
-        try:
-            amount = Decimal(str(value).strip())
-        except (InvalidOperation, ValueError) as exc:
-            raise ValidationError(
-                f"{label} must be a canonical decimal value.",
-                code="RATE_CARD_DECIMAL_INVALID",
-            ) from exc
-        if not amount.is_finite():
-            raise ValidationError(
-                f"{label} must be finite.", code="RATE_CARD_DECIMAL_INVALID"
-            )
-        return amount
 
-    @classmethod
-    def _optional_rate_decimal(cls, value: str | None) -> Decimal | None:
-        return None if value in (None, "") else cls._rate_decimal(value, "Rate modifier")
 
     def get_accounting_statuses(
         self,
@@ -1724,11 +1609,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialCreateBudgetVersionCommand
     ) -> FinancialBudgetMutationDto:
         budget = self._require_finance_governance_commands().budget_lifecycle(
-            lambda service: service.create_budget(
-                command.project_id,
-                command.name,
-                command.currency_code or None,
-            ),
+            lambda service: service.create_budget(command),
         )
         return self._budget_mutation_dto(budget)
 
@@ -1736,10 +1617,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialCreateBudgetSuccessorCommand
     ) -> FinancialBudgetMutationDto:
         budget = self._require_finance_governance_commands().budget_lifecycle(
-            lambda service: service.create_successor(
-                command.predecessor_budget_id,
-                name=command.name,
-            )
+            lambda service: service.create_successor(command)
         )
         return self._budget_mutation_dto(budget)
 
@@ -1747,35 +1625,20 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialUpdateBudgetCommand
     ) -> FinancialBudgetMutationDto:
         budget = self._require_finance_governance_commands().budget_lifecycle(
-            lambda service: service.update_budget_header(
-                command.budget_id,
-                name=command.name,
-                notes=command.notes,
-                expected_version=command.expected_version,
-            )
+            lambda service: service.update_budget_header(command)
         )
         return self._budget_mutation_dto(budget)
 
     def delete_budget(self, command: FinancialVersionedBudgetCommand) -> None:
         self._require_finance_governance_commands().budget_lifecycle(
-            lambda service: service.delete_budget(
-                command.budget_id, expected_version=command.expected_version
-            )
+            lambda service: service.delete_budget(command)
         )
 
     def add_budget_line(
         self, command: FinancialAddBudgetLineCommand
     ) -> FinancialBudgetLineMutationDto:
         line = self._require_finance_governance_commands().budget_lines(
-            lambda service: service.add_line(
-                command.budget_id,
-                cost_code_id=command.cost_code_id,
-                task_id=command.task_id,
-                description=command.description,
-                amount=self._decimal_command_amount(command.amount),
-                currency_code=command.currency_code,
-                expected_budget_version=command.expected_parent_version,
-            )
+            lambda service: service.add_line(command)
         )
         return self._budget_line_mutation_dto(line)
 
@@ -1783,38 +1646,20 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialUpdateBudgetLineCommand
     ) -> FinancialBudgetLineMutationDto:
         line = self._require_finance_governance_commands().budget_lines(
-            lambda service: service.update_line(
-                command.budget_line_id,
-                expected_line_version=command.expected_version,
-                expected_budget_version=command.expected_parent_version,
-                cost_code_id=command.cost_code_id,
-                task_id=command.task_id,
-                description=command.description,
-                amount=self._decimal_command_amount(command.amount),
-                currency_code=command.currency_code,
-            )
+            lambda service: service.update_line(command)
         )
         return self._budget_line_mutation_dto(line)
 
     def delete_budget_line(self, command: FinancialDeleteBudgetLineCommand) -> None:
         self._require_finance_governance_commands().budget_lines(
-            lambda service: service.delete_line(
-                command.budget_line_id,
-                expected_line_version=command.expected_version,
-                expected_budget_version=command.expected_parent_version,
-            )
+            lambda service: service.delete_line(command)
         )
 
     def submit_budget(
         self, command: FinancialVersionedBudgetCommand
     ) -> FinancialBudgetMutationDto:
         budget = self._require_finance_governance_commands().budget_lifecycle(
-            lambda service: service.submit_budget(
-                command.budget_id,
-                self._actor_id(service),
-                command.notes,
-                expected_version=command.expected_version,
-            )
+            lambda service: service.submit_budget(command)
         )
         return self._budget_mutation_dto(budget)
 
@@ -1822,11 +1667,7 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialVersionedBudgetCommand
     ) -> FinancialBudgetMutationDto:
         result = self._require_finance_governance_commands().budget_approval(
-            lambda service: service.request_budget_approval(
-                command.budget_id,
-                notes=command.notes,
-                expected_version=command.expected_version,
-            )
+            lambda service: service.request_budget_approval(command)
         )
         return FinancialBudgetMutationDto(
             budget_id=result.budget_id,
@@ -1840,66 +1681,13 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialVersionedBudgetCommand
     ) -> FinancialBudgetMutationDto:
         budget = self._require_finance_governance_commands().budget_lifecycle(
-            lambda service: service.close_budget(
-                command.budget_id,
-                self._actor_id(service),
-                command.notes,
-                expected_version=command.expected_version,
-            )
+            lambda service: service.close_budget(command)
         )
         return self._budget_mutation_dto(budget)
 
-    @staticmethod
-    def _actor_id(service) -> str:
-        actor_id = service.current_actor_user_id
-        if not actor_id:
-            raise ValidationError(
-                "An authenticated actor is required for Budget commands.",
-                code="BUDGET_ACTOR_REQUIRED",
-            )
-        return str(actor_id)
 
-    @staticmethod
-    def _decimal_command_amount(value: str) -> Decimal:
-        try:
-            amount = Decimal(str(value).strip())
-        except (InvalidOperation, ValueError) as exc:
-            raise ValidationError(
-                "Budget line amount must be a canonical decimal value.",
-                code="PROJECT_BUDGET_LINE_AMOUNT_INVALID",
-            ) from exc
-        if not amount.is_finite():
-            raise ValidationError(
-                "Budget line amount must be finite.",
-                code="PROJECT_BUDGET_LINE_AMOUNT_INVALID",
-            )
-        return amount
 
-    @staticmethod
-    def _forecast_actor_id(service) -> str:
-        actor_id = service.current_actor_user_id
-        if not actor_id:
-            raise ValidationError(
-                "An authenticated actor is required for Forecast commands.",
-                code="FORECAST_ACTOR_REQUIRED",
-            )
-        return str(actor_id)
 
-    @staticmethod
-    def _forecast_command_amount(value: str) -> Decimal:
-        try:
-            amount = Decimal(str(value).strip())
-        except (InvalidOperation, ValueError) as exc:
-            raise ValidationError(
-                "Forecast amount must be a canonical decimal value.",
-                code="PROJECT_FORECAST_AMOUNT_INVALID",
-            ) from exc
-        if not amount.is_finite():
-            raise ValidationError(
-                "Forecast amount must be finite.",
-                code="PROJECT_FORECAST_AMOUNT_INVALID",
-            )
-        return amount
 
     @staticmethod
     def _command_date(value: str, label: str) -> date:

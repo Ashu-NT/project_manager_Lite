@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from src.core.modules.project_management.application.risk import (
-    RegisterDashboardSnapshot,
     RegisterQueryHandler,
+)
+from src.core.modules.project_management.application.risk.dto.responses.register_summary import (
+    RegisterDashboardSnapshot,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 

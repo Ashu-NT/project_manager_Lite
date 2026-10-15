@@ -13,16 +13,21 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
     ResourceLoadRow,
     TaskVarianceRow,
 )
-from src.core.modules.project_management.application.financials.cost.dto import (
+from src.core.modules.project_management.application.financials.cost.dto.responses.cost_breakdown import (
     CostBreakdownRow,
     CostSourceBreakdown,
     CostSourceRow,
 )
-from src.core.modules.project_management.application.financials.earned_value.dto import (
+from src.core.modules.project_management.application.financials.earned_value.dto.responses.earned_value import (
     EarnedValueMetrics,
     EvmSeriesPoint,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineApproveCommand,
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineSubmitCommand,
+)
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.ledger_query import (
     ProjectFinanceLedgerQuery,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
@@ -84,9 +89,9 @@ def _setup_report_project(services):
     assignment = services['task_assignment_commands'].assign_resource(t1.id, res.id, allocation_percent=50.0)
     services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
 
-    baseline = services['baseline_commands'].create_baseline(pid, "Baseline Export", rate_as_of=date(2026, 1, 31))
-    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
-    services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(pid, "Baseline Export", rate_as_of=date(2026, 1, 31)))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
+    services['baseline_commands'].approve_baseline(SchedulingBaselineApproveCommand(baseline.id, approved_by="admin"))
     services['task_progress_commands'].update_progress(t1.id, percent_complete=50.0)
     return pid, baseline.id
 

@@ -7,9 +7,11 @@ import pytest
 from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
 )
-from src.core.modules.project_management.application.tasks.dto import (
-    TaskCreateCommand,
+from src.core.modules.project_management.application.tasks.dto.commands.task_hierarchy import (
     TaskWbsMoveCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
 )
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.modules.project_management.infrastructure.importers.tasks.csv.task_csv_importer import (

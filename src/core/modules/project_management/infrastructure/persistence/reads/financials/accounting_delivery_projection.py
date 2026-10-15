@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.accounting_delivery import (
+from src.core.modules.project_management.contracts.reads.financials.accounting.models.delivery import (
     AccountingDeliveryFact,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.accounting.handoff import (

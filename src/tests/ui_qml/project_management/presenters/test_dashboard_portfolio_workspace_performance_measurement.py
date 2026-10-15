@@ -7,11 +7,19 @@ import time
 from collections import Counter
 from contextlib import contextmanager
 from datetime import date, timedelta
-from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
     build_project_management_portfolio_desktop_api,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
+    PortfolioIntakeCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
+    PortfolioScenarioCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateCreateCommand,
 )
 from src.tests.project_management._sql_measurement_helpers import (
     count_calls,
@@ -97,7 +105,7 @@ def _seed_single_project_workspace(services):
         pool_service=services["portfolio_resource_pool_query"],
     )
     template = portfolio_api.create_scoring_template(
-        SimpleNamespace(
+        PortfolioTemplateCreateCommand(
             name="Workspace Performance Template",
             summary="Measurement fixture",
             strategic_weight=1,
@@ -108,7 +116,7 @@ def _seed_single_project_workspace(services):
         )
     )
     intake = portfolio_api.create_intake_item(
-        SimpleNamespace(
+        PortfolioIntakeCreateCommand(
             title="Workspace Performance Intake",
             sponsor_name="PMO",
             summary="Measurement fixture",
@@ -124,7 +132,7 @@ def _seed_single_project_workspace(services):
         )
     )
     portfolio_api.create_scenario(
-        SimpleNamespace(
+        PortfolioScenarioCreateCommand(
             name="Workspace Performance Scenario",
             budget_limit=200_000.0,
             capacity_limit_percent=200.0,

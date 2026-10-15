@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from src.core.platform.application.security.authorization.roles.dto import (
+from src.core.platform.application.security.authorization.roles._scope_delegation import (
     DEFAULT_SCOPE_DELEGATIONS,
+    _catalog_hash,
+)
+from src.core.platform.application.security.authorization.roles.dto.responses.scope_delegation import (
     ScopeDelegationPlan,
     ScopeDelegationPlanEntry,
-    _catalog_hash,
 )
 from src.core.platform.contract.repositories.security.auth import (
     RoleDelegationPolicyRepository,

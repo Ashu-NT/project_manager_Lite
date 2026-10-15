@@ -6,10 +6,19 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementPortfolioDesktopApi,
 )
-from src.core.modules.project_management.application.portfolio.dto import (
-    PortfolioDependencyCreateCommand,
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
     PortfolioIntakeCreateCommand,
+    PortfolioIntakeUpdateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+    PortfolioDependencyRemoveCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
     PortfolioScenarioCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateActivateCommand,
     PortfolioTemplateCreateCommand,
 )
 
@@ -46,7 +55,7 @@ def activate_template(
     normalized_id = (template_id or "").strip()
     if not normalized_id:
         raise ValueError("Choose a scoring template to activate.")
-    desktop_api.activate_scoring_template(normalized_id)
+    desktop_api.activate_scoring_template(PortfolioTemplateActivateCommand(normalized_id))
 
 def create_intake_item(
     desktop_api: ProjectManagementPortfolioDesktopApi,
@@ -109,7 +118,7 @@ def remove_dependency(
     normalized_id = (dependency_id or "").strip()
     if not normalized_id:
         raise ValueError("Choose a dependency to remove.")
-    desktop_api.remove_project_dependency(normalized_id)
+    desktop_api.remove_project_dependency(PortfolioDependencyRemoveCommand(normalized_id))
 
 def update_intake_item_status(
     desktop_api: ProjectManagementPortfolioDesktopApi,
@@ -119,4 +128,4 @@ def update_intake_item_status(
     normalized_id = (item_id or "").strip()
     if not normalized_id:
         raise ValueError("Choose an intake item to update.")
-    desktop_api.update_intake_item_status(normalized_id, status)
+    desktop_api.update_intake_item_status(PortfolioIntakeUpdateCommand(normalized_id, status=status))

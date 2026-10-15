@@ -3,10 +3,10 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
     FinancePageFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
+from src.core.modules.project_management.contracts.reads.financials.integration.models.integration_facts import (
     ApprovedTimePostingFailureFact,
     ApprovedTimePostingFailurePage,
     ApprovedTimePostingFailureQuery,

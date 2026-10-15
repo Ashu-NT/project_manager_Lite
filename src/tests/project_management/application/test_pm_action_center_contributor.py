@@ -8,6 +8,10 @@ from src.core.global_overview.contract.action_center import (
 from src.core.modules.project_management.application.global_overview.pm_action_center_contributor import (
     ProjectManagementActionCenterContributor,
 )
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineSubmitCommand,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus, WorkerType
 from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineStatus,
@@ -15,10 +19,10 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
 from src.core.modules.project_management.infrastructure.persistence.reads.global_overview.action_center_reader import (
     SqlAlchemyProjectManagementActionCenterReader,
 )
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
 )
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader
@@ -157,20 +161,14 @@ def test_baselines_include_only_submitted_across_accessible_projects_regardless_
         on_hold_project.id, "Seed task B", start_date=date(2026, 6, 1), duration_days=2
     )
 
-    submitted_baseline = services['baseline_commands'].create_baseline(
-        active_project.id, "Baseline A", rate_as_of=date(2026, 6, 1)
-    )
-    services['baseline_commands'].submit_baseline(submitted_baseline.id, submitted_by="admin")
+    submitted_baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(active_project.id, "Baseline A", rate_as_of=date(2026, 6, 1)))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(submitted_baseline.id, submitted_by="admin"))
 
-    draft_baseline = services['baseline_commands'].create_baseline(
-        active_project.id, "Baseline B (draft)", rate_as_of=date(2026, 6, 1)
-    )
+    draft_baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(active_project.id, "Baseline B (draft)", rate_as_of=date(2026, 6, 1)))
     assert draft_baseline.status == BaselineStatus.DRAFT
 
-    submitted_on_other_project = services['baseline_commands'].create_baseline(
-        on_hold_project.id, "Baseline C", rate_as_of=date(2026, 6, 1)
-    )
-    services['baseline_commands'].submit_baseline(submitted_on_other_project.id, submitted_by="admin")
+    submitted_on_other_project = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(on_hold_project.id, "Baseline C", rate_as_of=date(2026, 6, 1)))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(submitted_on_other_project.id, submitted_by="admin"))
 
     reader = _resource_identity_reader(services)
     contributor = _contributor(services, reader)
@@ -222,10 +220,8 @@ def test_submitted_baseline_with_authorized_reviewer_is_included(services):
     services['task_lifecycle_commands'].create_task(
         project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
     )
-    baseline = services['baseline_commands'].create_baseline(
-        project.id, "Baseline", rate_as_of=date(2026, 6, 1)
-    )
-    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Baseline", rate_as_of=date(2026, 6, 1)))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
 
     context, contributor = _reviewer_context_and_contributor(
         services,
@@ -250,10 +246,8 @@ def test_submitted_baseline_with_unauthorized_user_is_excluded(services):
     services['task_lifecycle_commands'].create_task(
         project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
     )
-    baseline = services['baseline_commands'].create_baseline(
-        project.id, "Baseline", rate_as_of=date(2026, 6, 1)
-    )
-    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Baseline", rate_as_of=date(2026, 6, 1)))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
 
     context, contributor = _reviewer_context_and_contributor(
         services, project_id=project.id, permissions=frozenset({"project.read"})
@@ -275,9 +269,7 @@ def test_non_submitted_baseline_with_authorized_reviewer_is_excluded(services):
     services['task_lifecycle_commands'].create_task(
         project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
     )
-    draft_baseline = services['baseline_commands'].create_baseline(
-        project.id, "Draft Baseline", rate_as_of=date(2026, 6, 1)
-    )
+    draft_baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Draft Baseline", rate_as_of=date(2026, 6, 1)))
     assert draft_baseline.status == BaselineStatus.DRAFT
 
     context, contributor = _reviewer_context_and_contributor(
@@ -359,10 +351,8 @@ def test_all_action_items_equals_the_sum_of_the_three_pm_categories(services):
     )
     services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=50.0)
 
-    baseline = services['baseline_commands'].create_baseline(
-        project.id, "Parity Baseline", rate_as_of=date(2026, 6, 1)
-    )
-    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Parity Baseline", rate_as_of=date(2026, 6, 1)))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
 
     assignment = services['task_assignment_commands'].assign_resource(
         services['task_lifecycle_commands'].create_task(

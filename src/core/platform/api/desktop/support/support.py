@@ -23,8 +23,11 @@ from src.core.platform.api.desktop.support.models.support import (
     SupportInstallLaunchDto,
     SupportPathsDto,
     SupportSettingsDto,
-    SupportSettingsUpdateCommand,
     SupportUpdateStatusDto,
+)
+from src.core.platform.application.support.contracts import SupportSettingsCommands
+from src.core.platform.application.support.dto.commands.settings import (
+    SupportSettingsUpdateCommand,
 )
 from src.core.platform.common.exceptions import DomainError
 from src.infra.platform.diagnostics import build_diagnostics_bundle
@@ -34,6 +37,7 @@ from src.infra.platform.operational_support import (
     get_operational_support,
 )
 from src.infra.platform.path import user_data_dir
+from src.infra.platform.support_settings import SupportSettingsStore
 from src.infra.platform.update import check_for_updates, default_update_manifest_source
 from src.infra.platform.updater import (
     download_update_installer,
@@ -48,66 +52,6 @@ _DEFAULT_SUPPORT_EMAIL = "tech_ash_673@info.tech"
 logger = logging.getLogger(__name__)
 
 
-class _SupportSettingsStore:
-    ORG_NAME = "TECHASH"
-    APP_NAME = "ProjectManagerLite"
-
-    _KEY_THEME_MODE = "ui/theme_mode"
-    _KEY_GOVERNANCE_MODE = "governance/mode"
-    _KEY_UPDATE_CHANNEL = "updates/channel"
-    _KEY_UPDATE_AUTO_CHECK = "updates/auto_check"
-    _KEY_UPDATE_MANIFEST_URL = "updates/manifest_url"
-
-    def __init__(self, settings: QSettings | None = None) -> None:
-        self._settings = settings or QSettings(self.ORG_NAME, self.APP_NAME)
-
-    def load_theme_mode(self, default_mode: str = "light") -> str:
-        default = (default_mode or "light").strip().lower()
-        if default not in {"light", "dark"}:
-            default = "light"
-        raw = str(self._settings.value(self._KEY_THEME_MODE, default)).strip().lower()
-        return raw if raw in {"light", "dark"} else default
-
-    def load_governance_mode(self, default_mode: str = "off") -> str:
-        default = (default_mode or "off").strip().lower()
-        if default not in {"off", "required"}:
-            default = "off"
-        raw = str(self._settings.value(self._KEY_GOVERNANCE_MODE, default)).strip().lower()
-        return raw if raw in {"off", "required"} else default
-
-    def load_update_channel(self, default_channel: str = "stable") -> str:
-        default = (default_channel or "stable").strip().lower()
-        if default not in {"stable", "beta"}:
-            default = "stable"
-        raw = str(self._settings.value(self._KEY_UPDATE_CHANNEL, default)).strip().lower()
-        return raw if raw in {"stable", "beta"} else default
-
-    def save_update_channel(self, channel: str) -> None:
-        normalized = (channel or "stable").strip().lower()
-        self._settings.setValue(self._KEY_UPDATE_CHANNEL, "beta" if normalized == "beta" else "stable")
-        self._settings.sync()
-
-    def load_update_auto_check(self, default_enabled: bool = False) -> bool:
-        raw = self._settings.value(self._KEY_UPDATE_AUTO_CHECK, default_enabled)
-        if isinstance(raw, bool):
-            return raw
-        return str(raw).strip().lower() in {"1", "true", "yes", "on"}
-
-    def save_update_auto_check(self, enabled: bool) -> None:
-        self._settings.setValue(self._KEY_UPDATE_AUTO_CHECK, bool(enabled))
-        self._settings.sync()
-
-    def load_update_manifest_source(self, default_source: str = "") -> str:
-        fallback = (default_source or default_update_manifest_source()).strip()
-        raw = self._settings.value(self._KEY_UPDATE_MANIFEST_URL, fallback)
-        value = str(raw or "").strip()
-        return value or fallback
-
-    def save_update_manifest_source(self, source: str) -> None:
-        self._settings.setValue(self._KEY_UPDATE_MANIFEST_URL, (source or "").strip())
-        self._settings.sync()
-
-
 class PlatformSupportDesktopApi:
     """Desktop-facing adapter for support settings, update checks, and diagnostics flows."""
 
@@ -116,8 +60,10 @@ class PlatformSupportDesktopApi:
         *,
         settings: QSettings | None = None,
         operational_support: OperationalSupport | None = None,
+        settings_commands: SupportSettingsCommands | None = None,
     ) -> None:
-        self._settings_store = _SupportSettingsStore(settings)
+        self._settings_store = SupportSettingsStore(settings)
+        self._settings_commands = settings_commands or self._settings_store
         self._operational_support = operational_support or get_operational_support()
 
     def new_incident_id(self) -> str:
@@ -143,7 +89,7 @@ class PlatformSupportDesktopApi:
         trace_id: str | None = None,
     ) -> DesktopApiResult[SupportSettingsDto]:
         try:
-            self._persist_settings(command)
+            self._settings_commands.save_settings(command)
             self._emit_event(
                 trace_id=trace_id,
                 event_type="support.update.settings_saved",
@@ -169,7 +115,7 @@ class PlatformSupportDesktopApi:
         trace_id: str | None = None,
     ) -> DesktopApiResult[SupportUpdateStatusDto]:
         try:
-            self._persist_settings(command)
+            self._settings_commands.save_settings(command)
             normalized_trace = (trace_id or self.new_incident_id()).strip()
             manifest_source = self._settings_store.load_update_manifest_source(
                 default_source=default_update_manifest_source()
@@ -456,14 +402,8 @@ class PlatformSupportDesktopApi:
             events_file_url=events_path.resolve().as_uri(),
         )
 
-    def _persist_settings(self, command: SupportSettingsUpdateCommand) -> None:
-        self._settings_store.save_update_channel(command.update_channel)
-        self._settings_store.save_update_auto_check(command.update_auto_check)
-        manifest_source = (command.update_manifest_source or "").strip() or default_update_manifest_source()
-        self._settings_store.save_update_manifest_source(manifest_source)
-
     def _load_update_result(self, command: SupportSettingsUpdateCommand):
-        self._persist_settings(command)
+        self._settings_commands.save_settings(command)
         manifest_source = self._settings_store.load_update_manifest_source(
             default_source=default_update_manifest_source()
         )

@@ -14,6 +14,11 @@ from src.core.platform.application.finance import (
     FinancialPeriodQueryHandler,
 )
 from src.core.platform.application.finance.commands import financial_period_command
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+    FinancialPeriodTransitionCommand,
+    FinancialPeriodUpdateCommand,
+)
 from src.core.platform.application.finance.queries import financial_period_query
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -121,7 +126,10 @@ def test_commands_preserve_versions_scope_audit_activity_and_commit(monkeypatch,
         period.close(actor_id="actor-a", now=datetime(2026, 1, 1, tzinfo=UTC))
     version = period.version
     repo.get.return_value = period
-    result = getattr(commands, f"{operation}_period")(period.id, expected_version=version)
+    result = getattr(commands, f"{operation}_period")(
+        FinancialPeriodUpdateCommand(period.id, version) if operation == "update"
+        else FinancialPeriodTransitionCommand(period.id, version)
+    )
     assert result.version == version + 1
     repo.lock_catalog.assert_called_once()
     repo.update.assert_called_once_with(period, expected_version=version)
@@ -141,7 +149,7 @@ def test_stale_commands_do_not_write_audit_or_commit(monkeypatch) -> None:
     commands, repo, session, _, audit, activity = _commands(monkeypatch)
     repo.get.return_value = _period()
     with pytest.raises(ConcurrencyError) as error:
-        commands.close_period(repo.get.return_value.id, expected_version=0)
+        commands.close_period(FinancialPeriodTransitionCommand(period_id=repo.get.return_value.id, expected_version=0))
     assert error.value.code == "STALE_WRITE"
     repo.update.assert_not_called()
     audit.assert_not_called()
@@ -154,7 +162,7 @@ def test_command_audit_failure_prevents_commit(monkeypatch) -> None:
     repo.get.return_value = _period()
     audit.side_effect = RuntimeError("Audit unavailable")
     with pytest.raises(RuntimeError, match="Audit unavailable"):
-        commands.close_period(repo.get.return_value.id, expected_version=1)
+        commands.close_period(FinancialPeriodTransitionCommand(period_id=repo.get.return_value.id, expected_version=1))
     session.commit.assert_not_called()
     activity.assert_not_called()
 
@@ -164,10 +172,7 @@ def test_create_duplicate_preserves_savepoint_error_translation(monkeypatch) -> 
     session.begin_nested.return_value = nullcontext()
     repo.add.side_effect = IntegrityError("insert", {}, Exception("duplicate"))
     with pytest.raises(BusinessRuleError) as error:
-        commands.create_period(
-            code="FY26-P01", name="January", fiscal_year=2026, period_number=1,
-            start_date=date(2026, 1, 1), end_date=date(2026, 1, 31),
-        )
+        commands.create_period(FinancialPeriodCreateCommand(code="FY26-P01", name="January", fiscal_year=2026, period_number=1, start_date=date(2026, 1, 1).isoformat(), end_date=date(2026, 1, 31).isoformat()))
     assert error.value.code == "FINANCIAL_PERIOD_DUPLICATE"
     session.begin_nested.assert_called_once()
     repo.lock_catalog.assert_called_once()
@@ -182,10 +187,7 @@ def test_create_keeps_catalog_savepoint_and_audit_before_commit(monkeypatch) -> 
     order.attach_mock(audit, "audit")
     order.attach_mock(activity, "activity")
     order.attach_mock(session.commit, "commit")
-    period = commands.create_period(
-        code="FY26-P01", name="January", fiscal_year=2026, period_number=1,
-        start_date=date(2026, 1, 1), end_date=date(2026, 1, 31),
-    )
+    period = commands.create_period(FinancialPeriodCreateCommand(code="FY26-P01", name="January", fiscal_year=2026, period_number=1, start_date=date(2026, 1, 1).isoformat(), end_date=date(2026, 1, 31).isoformat()))
     assert (period.tenant_id, period.organization_id) == ("tenant-a", "org-a")
     assert period.created_by == "actor-a"
     assert permission.call_args.args[1] == "finance.manage"
@@ -228,13 +230,16 @@ def test_query_catalog_validates_status_and_reports_missing_period(monkeypatch) 
 def test_commands_require_finance_manage_before_repository_access(monkeypatch, operation) -> None:
     commands, repo, session, permission, audit, activity = _commands(monkeypatch)
     permission.side_effect = BusinessRuleError("Denied", code="PERMISSION_DENIED")
-    kwargs = {
-        "code": "FY26-P01", "name": "January", "fiscal_year": 2026, "period_number": 1,
-        "start_date": date(2026, 1, 1), "end_date": date(2026, 1, 31),
-    } if operation == "create" else {"expected_version": 1}
-    args = () if operation == "create" else ("id",)
+    command = (
+        FinancialPeriodCreateCommand(
+            code="FY26-P01", name="January", fiscal_year=2026, period_number=1,
+            start_date="2026-01-01", end_date="2026-01-31",
+        ) if operation == "create"
+        else FinancialPeriodUpdateCommand("id", 1) if operation == "update"
+        else FinancialPeriodTransitionCommand("id", 1)
+    )
     with pytest.raises(BusinessRuleError, match="Denied"):
-        getattr(commands, f"{operation}_period")(*args, **kwargs)
+        getattr(commands, f"{operation}_period")(command)
     assert permission.call_args.args[1] == "finance.manage"
     assert not repo.mock_calls
     assert not session.mock_calls

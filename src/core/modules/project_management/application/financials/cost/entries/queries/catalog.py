@@ -14,7 +14,7 @@ from src.core.modules.project_management.application.financials.cost.entries.cap
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourceModule,
 )
-from src.core.modules.project_management.contracts.reads.financials.sorting import (
+from src.core.modules.project_management.contracts.reads.financials.shared.sorting import (
     normalize_cost_entry_sort,
 )
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (

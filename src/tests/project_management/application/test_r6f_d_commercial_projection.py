@@ -16,7 +16,7 @@ from src.core.modules.project_management.api.desktop.financials.serializers.bill
 from src.core.modules.project_management.application.financials.revenue.commercial_projection_query import (
     CommercialProjectionQuery,
 )
-from src.core.modules.project_management.application.financials.revenue.dto import (
+from src.core.modules.project_management.application.financials.revenue.dto.responses.commercial_projection import (
     ProjectCommercialProjection,
 )
 from src.core.modules.project_management.application.financials.revenue.profitability_calculator import (
@@ -24,10 +24,10 @@ from src.core.modules.project_management.application.financials.revenue.profitab
     ProfitabilityResult,
     ProjectProfitabilityCalculator,
 )
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
     CommercialMetricAvailability as Availability,
 )
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
     CommercialMetricUnavailableReason as Reason,
 )
 from src.core.modules.project_management.domain.financials.configuration import (

@@ -5,10 +5,25 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, time, timedelta
 from time import perf_counter
 from typing import Any, Generic, TypeVar
 
+from src.core.platform.application.time_management.calendar._input import required_date
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
+    ResolveCalendarRangeCommand,
+    ResolveContextCommand,
+    ResolveEffectiveCalendarCommand,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.resource_capacity import (
+    ResourceCapacityCommand,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.working_days import (
+    WorkingDaysCommand,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.responses.working_days import (
+    WorkingDaysResolution,
+)
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import (
     DayCapacity,
     WorkingTimeCalculator,
@@ -65,7 +80,9 @@ class EffectiveCalendarResolution:
 
     @staticmethod
     def empty() -> EffectiveCalendarResolution:
-        return EffectiveCalendarResolution(calendar_id="", calendar_name="", timezone="", source_chain=[])
+        return EffectiveCalendarResolution(
+            calendar_id="", calendar_name="", timezone="", source_chain=[]
+        )
 
 
 @dataclass
@@ -132,7 +149,9 @@ class ResolvedCalendarContext:
                     "name": e.title,
                     "impact": e.impact_type,
                 }
-                for e in sorted(recurring_events, key=lambda e: e.priority, reverse=True)
+                for e in sorted(
+                    recurring_events, key=lambda e: e.priority, reverse=True
+                )
                 if recurring_event_occurs_on(e, day.date)
             ],
         )
@@ -185,9 +204,13 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
         # Eliminates repeated DB queries when resolve_calendar_context is called
         # many times for the same calendar (e.g. during CPM forward pass).
         self._recurring_cache: dict[str, list] = {}  # cal_id → recurring events
-        self._rules_cache: dict[str, list] = {}      # cal_id → working rules
-        self._shift_pattern_cache: dict[str, Any] = {}       # shift_code → ShiftPattern | None
-        self._shift_pattern_days_cache: dict[str, list] = {}  # pattern_id → ShiftPatternDay list
+        self._rules_cache: dict[str, list] = {}  # cal_id → working rules
+        self._shift_pattern_cache: dict[
+            str, Any
+        ] = {}  # shift_code → ShiftPattern | None
+        self._shift_pattern_days_cache: dict[
+            str, list
+        ] = {}  # pattern_id → ShiftPatternDay list
 
         self._missing_rule_warning_keys: set[tuple[tuple[str, ...], int]] = set()
         self._missing_chain_warning_keys: set[tuple[str | None, ...]] = set()
@@ -212,17 +235,17 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
     # ------------------------------------------------------------------
 
     def resolve_calendar_context(
-        self,
-        *,
-        site_id: str | None = None,
-        department_id: str | None = None,
-        employee_id: str | None = None,
-        project_id: str | None = None,
-        resource_id: str | None = None,
-        worker_type: str | None = None,
-        target_date: date,
-        assigned_hours: float = 0.0,
+        self, command: ResolveContextCommand
     ) -> ResolvedCalendarContext:
+        site_id = command.site_id or None
+        department_id = command.department_id or None
+        employee_id = command.employee_id or None
+        project_id = command.project_id or None
+        resource_id = command.resource_id or None
+        worker_type = command.worker_type or None
+        target_date = required_date(command.target_date)
+        assigned_hours = command.assigned_hours
+
         started = perf_counter()
         chain = self._build_chain(
             site_id=site_id,
@@ -290,18 +313,18 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
         return result
 
     def resolve_range(
-        self,
-        *,
-        site_id: str | None = None,
-        department_id: str | None = None,
-        employee_id: str | None = None,
-        project_id: str | None = None,
-        resource_id: str | None = None,
-        worker_type: str | None = None,
-        start: date,
-        end: date,
-        assigned_hours_by_date: dict[date, float] | None = None,
+        self, command: ResolveCalendarRangeCommand
     ) -> list[ResolvedCalendarContext]:
+        site_id = command.site_id or None
+        department_id = command.department_id or None
+        employee_id = command.employee_id or None
+        project_id = command.project_id or None
+        resource_id = command.resource_id or None
+        worker_type = command.worker_type or None
+        start = required_date(command.start_date)
+        end = required_date(command.end_date)
+        assigned_hours_by_date = command.assigned_hours_by_date
+
         """
         Efficient range resolution: builds the chain once and bulk-fetches all
         calendar data before iterating. DB queries = O(chain_length), not O(days).
@@ -356,14 +379,25 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
             current = start
             while current <= end:
                 ah = (assigned_hours_by_date or {}).get(current, 0.0)
-                results.append(ResolvedCalendarContext(
-                    date=current, base_hours=0.0, available_hours=0.0,
-                    assigned_hours=ah, remaining_hours=0.0,
-                    capacity_percent=0.0, utilization_percent=0.0,
-                    status="UNAVAILABLE", source_chain=[], overrides=[],
-                    timezone="UTC", working_start=None, working_end=None,
-                    exceptions=[], recurring_events=[],
-                ))
+                results.append(
+                    ResolvedCalendarContext(
+                        date=current,
+                        base_hours=0.0,
+                        available_hours=0.0,
+                        assigned_hours=ah,
+                        remaining_hours=0.0,
+                        capacity_percent=0.0,
+                        utilization_percent=0.0,
+                        status="UNAVAILABLE",
+                        source_chain=[],
+                        overrides=[],
+                        timezone="UTC",
+                        working_start=None,
+                        working_end=None,
+                        exceptions=[],
+                        recurring_events=[],
+                    )
+                )
                 current += timedelta(days=1)
             logger.debug(
                 "Calendar range resolved without source chain organization_id=%s start=%s end=%s day_count=%s duration_ms=%.1f",
@@ -411,7 +445,11 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
             effective_rule = None
             for _label, cal_id in chain:
                 rule = next(
-                    (r for r in all_rules if r.calendar_id == cal_id and r.weekday == weekday),
+                    (
+                        r
+                        for r in all_rules
+                        if r.calendar_id == cal_id and r.weekday == weekday
+                    ),
                     None,
                 )
                 if rule is not None:
@@ -432,17 +470,21 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
                 shift_pattern_day=shift_pattern_day,
             )
 
-            results.append(ResolvedCalendarContext.from_day_capacity(
-                day,
-                source_chain=labels,
-                timezone=timezone,
-                exceptions=day_exceptions,
-                recurring_events=all_recurring,
-            ))
+            results.append(
+                ResolvedCalendarContext.from_day_capacity(
+                    day,
+                    source_chain=labels,
+                    timezone=timezone,
+                    exceptions=day_exceptions,
+                    recurring_events=all_recurring,
+                )
+            )
             current += timedelta(days=1)
 
         duration_ms = (perf_counter() - started) * 1000
-        log_method = logger.warning if duration_ms > 250 or len(results) > 5000 else logger.debug
+        log_method = (
+            logger.warning if duration_ms > 250 or len(results) > 5000 else logger.debug
+        )
         log_method(
             "Calendar range resolved organization_id=%s start=%s end=%s day_count=%s chain=%s rule_count=%s exception_count=%s recurring_count=%s duration_ms=%.1f",
             self._org_id,
@@ -456,6 +498,63 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
             duration_ms,
         )
         return results
+
+    def calculate_working_days(
+        self, command: WorkingDaysCommand
+    ) -> WorkingDaysResolution:
+        def _is_available(target_date: date) -> bool:
+            ctx = self.resolve_calendar_context(
+                ResolveContextCommand(
+                    project_id=command.project_id,
+                    resource_id=command.resource_id,
+                    target_date=target_date,
+                )
+            )
+            return ctx.available_hours > 0
+
+        def _calculate():
+            start = required_date(command.start_date)
+            working_days = max(command.working_days, 0)
+            if working_days == 0:
+                return WorkingDaysResolution(
+                    start_date=start,
+                    end_date=start,
+                    working_days=0,
+                )
+
+            # Bounded like ProjectCalendarAdapter.add_working_days: small moves
+            # fail fast, large moves are capped so bad data can't scan forever.
+            max_iterations = min(max(working_days * 7, 730), 365 * 40)
+            iterations = 0
+
+            current = start
+            while not _is_available(current) and iterations < max_iterations:
+                current += timedelta(days=1)
+                iterations += 1
+
+            remaining = working_days - 1
+            while remaining > 0 and iterations < max_iterations:
+                current += timedelta(days=1)
+                iterations += 1
+                if _is_available(current):
+                    remaining -= 1
+
+            return WorkingDaysResolution(
+                start_date=start,
+                end_date=current,
+                working_days=working_days,
+            )
+
+        return _calculate()
+
+    def calculate_resource_capacity(
+        self, command: ResourceCapacityCommand, *, calculator
+    ):
+        resource_id = command.resource_id
+        start = required_date(command.start_date)
+        end = required_date(command.end_date)
+        project_id = command.project_id or None
+        return calculator.compute(resource_id, start, end, project_id=project_id)
 
     def get_source_chain(
         self,
@@ -480,16 +579,16 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
         return [label for label, _ in chain]
 
     def resolve_effective_calendar(
-        self,
-        *,
-        site_id: str | None = None,
-        department_id: str | None = None,
-        employee_id: str | None = None,
-        project_id: str | None = None,
-        resource_id: str | None = None,
-        worker_type: str | None = None,
-        at_date: date | None = None,
+        self, command: ResolveEffectiveCalendarCommand
     ) -> EffectiveCalendarResolution:
+        site_id = command.site_id or None
+        department_id = command.department_id or None
+        employee_id = command.employee_id or None
+        project_id = command.project_id or None
+        resource_id = command.resource_id or None
+        worker_type = command.worker_type or None
+        at_date = required_date(command.at_date) if command.at_date else None
+
         """The single source of truth for "which calendar is actually in
         effect" -- the exact same chain-building `resolve_calendar_context`/
         `get_source_chain` already use (same at_date-aware assignment
@@ -518,7 +617,7 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
         )
 
     def business_today(self) -> date:
-        """"Today" in this organization's own configured business timezone
+        """ "Today" in this organization's own configured business timezone
         (its default calendar's timezone), not the server's local time.
         Date-sensitive calendar resolution (which assignment/calendar is
         "currently" effective) must use this instead of `date.today()` --
@@ -550,7 +649,9 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
             chain.append(("GLOBAL", global_cal.id))
 
         if site_id:
-            site_assignment = self._assignment_repo.get_site_assignment(site_id, at_date=at_date)
+            site_assignment = self._assignment_repo.get_site_assignment(
+                site_id, at_date=at_date
+            )
             if site_assignment:
                 cal = self._calendar_repo.get(site_assignment.calendar_id)
                 if cal and cal.is_active:
@@ -579,7 +680,9 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
                     chain.append((label, cal.id))
 
         if project_id:
-            project_assignment = self._project_assignment_repo.get(project_id, at_date=at_date)
+            project_assignment = self._project_assignment_repo.get(
+                project_id, at_date=at_date
+            )
             if project_assignment:
                 cal = self._calendar_repo.get(project_assignment.calendar_id)
                 if cal and cal.is_active:
@@ -588,7 +691,9 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
 
         is_external = worker_type == "EXTERNAL"
         if resource_id and is_external:
-            resource_assignment = self._resource_assignment_repo.get(resource_id, at_date=at_date)
+            resource_assignment = self._resource_assignment_repo.get(
+                resource_id, at_date=at_date
+            )
             if resource_assignment:
                 cal = self._calendar_repo.get(resource_assignment.calendar_id)
                 if cal and cal.is_active:
@@ -616,7 +721,11 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
         for _label, cal_id in chain:
             # Use cached rules if available — avoids N DB queries per weekday lookup
             if cal_id not in self._rules_cache:
-                logger.debug("Calendar rules cache miss calendar_id=%s weekday=%s", cal_id, weekday)
+                logger.debug(
+                    "Calendar rules cache miss calendar_id=%s weekday=%s",
+                    cal_id,
+                    weekday,
+                )
                 self._rules_cache[cal_id] = self._rule_repo.list_for_calendar(cal_id)
             rules = self._rules_cache[cal_id]
             rule = next((r for r in rules if r.weekday == weekday), None)
@@ -626,15 +735,15 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
 
     def _get_cached_shift_pattern(self, shift_code: str):
         if shift_code not in self._shift_pattern_cache:
-            self._shift_pattern_cache[shift_code] = self._shift_pattern_repo.get_by_code(
-                self._org_id, shift_code
+            self._shift_pattern_cache[shift_code] = (
+                self._shift_pattern_repo.get_by_code(self._org_id, shift_code)
             )
         return self._shift_pattern_cache[shift_code]
 
     def _get_cached_shift_pattern_days(self, pattern_id: str) -> list:
         if pattern_id not in self._shift_pattern_days_cache:
-            self._shift_pattern_days_cache[pattern_id] = self._shift_pattern_repo.list_days(
-                pattern_id
+            self._shift_pattern_days_cache[pattern_id] = (
+                self._shift_pattern_repo.list_days(pattern_id)
             )
         return self._shift_pattern_days_cache[pattern_id]
 
@@ -644,9 +753,15 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
         if rule is None or not rule.shift_code or self._shift_pattern_repo is None:
             return None
         pattern = self._get_cached_shift_pattern(rule.shift_code)
-        if pattern is None or pattern.rotation_cycle_days is None or pattern.anchor_date is None:
+        if (
+            pattern is None
+            or pattern.rotation_cycle_days is None
+            or pattern.anchor_date is None
+        ):
             return None
-        day_offset = (target_date - pattern.anchor_date).days % pattern.rotation_cycle_days
+        day_offset = (
+            target_date - pattern.anchor_date
+        ).days % pattern.rotation_cycle_days
         days = self._get_cached_shift_pattern_days(pattern.id)
         return next((d for d in days if d.day_offset == day_offset), None)
 
@@ -710,7 +825,14 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
         # (e.g. add_working_days searching backward/forward) would otherwise
         # log this once per day, flooding the log for what is a single
         # configuration gap.
-        key = (site_id, department_id, employee_id, project_id, resource_id, worker_type)
+        key = (
+            site_id,
+            department_id,
+            employee_id,
+            project_id,
+            resource_id,
+            worker_type,
+        )
         if key in self._missing_chain_warning_keys:
             return
         self._missing_chain_warning_keys.add(key)
@@ -734,4 +856,8 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
         return value[:12].upper()
 
 
-__all__ = ["EffectiveCalendarResolution", "PlatformCalendarResolver", "ResolvedCalendarContext"]
+__all__ = [
+    "EffectiveCalendarResolution",
+    "PlatformCalendarResolver",
+    "ResolvedCalendarContext",
+]

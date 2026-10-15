@@ -4,6 +4,11 @@ from datetime import date, datetime
 
 import pytest
 
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineRejectCommand,
+    SchedulingBaselineSubmitCommand,
+)
 from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineStatus,
     BaselineTask,
@@ -161,20 +166,14 @@ def test_baseline_service_uses_domain_normalization_for_create_and_reject_flow(s
     project = services['project_create'].create_project("Baseline DTO Service Proof")
     services['task_lifecycle_commands'].create_task(project.id, "First Task", start_date=date(2026, 7, 1), duration_days=2)
 
-    created = services['baseline_commands'].create_baseline(
-        project.id, "  Weekly Freeze  ", rate_as_of=date.today()
-    )
+    created = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "  Weekly Freeze  ", rate_as_of=date.today()))
     assert created.name == "Weekly Freeze"
 
-    submitted = services['baseline_commands'].submit_baseline(
-        created.id,
-        submitted_by="  alex  ",
-        notes="  Ready for approval.  ",
-    )
+    submitted = services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(created.id, submitted_by="  alex  ", notes="  Ready for approval.  "))
     assert submitted.submitted_by == "alex"
     assert submitted.notes == "Ready for approval."
 
-    rejected = services['baseline_commands'].reject_baseline(created.id, notes="  Need one more review.  ")
+    rejected = services['baseline_commands'].reject_baseline(SchedulingBaselineRejectCommand(created.id, notes="  Need one more review.  "))
     assert rejected.status == BaselineStatus.REJECTED
     assert rejected.notes == "Need one more review."
 
@@ -190,11 +189,7 @@ def test_baseline_captures_explicit_milestone_as_immutable_snapshot(services):
         duration_days=0,
         is_milestone=True,
     )
-    baseline = services['baseline_commands'].create_baseline(
-        project.id,
-        "Milestone Freeze",
-        rate_as_of=date.today(),
-    )
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Milestone Freeze", rate_as_of=date.today()))
 
     first_read = services['baseline_query'].list_baseline_tasks(
         baseline.id,

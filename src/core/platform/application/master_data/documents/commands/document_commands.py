@@ -14,10 +14,12 @@ from src.core.platform.application.master_data.documents.document_context import
     require_document_in_context,
     resolve_structure_for_context,
 )
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
-    DocumentLinkCreateCommand,
     DocumentUpdateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.commands.links import (
+    DocumentLinkCreateCommand,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,

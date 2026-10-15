@@ -37,6 +37,9 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ForecastLineSourceKind,
     ForecastLineSourceType,
 )
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
 from src.ui_qml.modules.project_management.context import (
@@ -437,7 +440,7 @@ def test_generate_draft_produces_exactly_one_planning_hint(services):
     project, code = _seed_project_and_cost_code(services)
     hints = _spy_hints(services)
 
-    from src.core.modules.project_management.application.financials.forecasts.generation_models import (
+    from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_estimates import (
         ManualEtcEstimate,
     )
 
@@ -578,7 +581,7 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     )
     _login(services, reviewer, "StrongPass123")
     hints = _spy_hints(services)
-    services["approval_commands"].approve_and_apply(request.id, note="Authorized")
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Authorized"))
 
     applied = changes.get_change(change.id)
     assert applied.status is FinancialChangeStatus.APPLIED

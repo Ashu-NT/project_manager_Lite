@@ -15,18 +15,18 @@ from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtQuick import QQuickItem
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
-    DeptCalendarAssignCommand,
-)
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    DeptCalendarAssignCommand,
 )
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,

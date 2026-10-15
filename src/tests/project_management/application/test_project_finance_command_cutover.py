@@ -9,13 +9,20 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.application.financials.cost.entries.dto import (
-    FinancialCreateManualActualCommand,
-    FinancialDecideActualCommand,
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_posting import (
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_review import (
+    FinancialDecideActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
+)
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -48,13 +55,7 @@ def _setup_project(services):
         name="Manual actuals",
     ))
     services["financial_period_commands"].create_period(
-        code="FY26-P01",
-        name="January 2026",
-        fiscal_year=2026,
-        period_number=1,
-        start_date=date(2026, 1, 1),
-        end_date=date(2026, 1, 31),
-    )
+        FinancialPeriodCreateCommand(code="FY26-P01", name="January 2026", fiscal_year=2026, period_number=1, start_date=date(2026, 1, 1).isoformat(), end_date=date(2026, 1, 31).isoformat()))
     return organization, project, task, cost_code
 
 

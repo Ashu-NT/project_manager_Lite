@@ -1,0 +1,1 @@
+"""Application tasks queries package."""

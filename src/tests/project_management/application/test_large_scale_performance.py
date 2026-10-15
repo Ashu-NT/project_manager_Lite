@@ -7,6 +7,9 @@ from datetime import date, timedelta
 
 import pytest
 
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 
 
@@ -215,7 +218,7 @@ def test_large_scale_performance_workflow(services):
     baseline = _timed(
         metrics,
         "baseline",
-        lambda: services['baseline_commands'].create_baseline(seeded.project_id, "Perf Baseline", rate_as_of=date.today()),
+        lambda: services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(seeded.project_id, "Perf Baseline", rate_as_of=date.today())),
     )
 
     report_data = _timed(

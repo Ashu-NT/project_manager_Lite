@@ -11,7 +11,7 @@ from src.core.platform.application.security.auth.session.session_utils import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.application.security.authorization.roles.dto import (
+from src.core.platform.application.security.authorization.roles.dto.responses.role_policy_reconciliation import (
     RolePolicyReconciliationPlan,
     RolePolicyReconciliationResult,
 )

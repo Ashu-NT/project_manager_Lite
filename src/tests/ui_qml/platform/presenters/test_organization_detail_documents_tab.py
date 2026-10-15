@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
     DocumentUpdateCommand,
 )

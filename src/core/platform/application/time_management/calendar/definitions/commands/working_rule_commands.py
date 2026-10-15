@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date, time
+from datetime import time
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.time_management.calendar._input import (
+    parse_time as _parse_time,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
@@ -39,24 +45,22 @@ class WorkingRuleCommandHandler:
         self._user_session = user_session
         self._on_calendar_data_changed = on_calendar_data_changed
 
-    def save_rule(
-        self,
-        calendar_id: str,
-        weekday: int,
-        *,
-        is_working_day: bool = True,
-        start_time: time | None = None,
-        end_time: time | None = None,
-        break_start_time: time | None = None,
-        break_end_time: time | None = None,
-        break_minutes: int = 0,
-        hours_override: float | None = None,
-        shift_code: str | None = None,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        priority: int = 0,
-        commit: bool = True,
-    ) -> CalendarWorkingRule:
+    def save_rule(self, command: WorkingRuleSaveCommand) -> CalendarWorkingRule:
+        calendar_id = command.calendar_id
+        weekday = command.weekday
+        is_working_day = command.is_working_day
+        start_time = _parse_time(command.start_time)
+        end_time = _parse_time(command.end_time)
+        break_start_time = _parse_time(command.break_start_time)
+        break_end_time = _parse_time(command.break_end_time)
+        break_minutes = command.break_minutes
+        hours_override = command.hours_override
+        shift_code = command.shift_code or None
+        effective_from = command.effective_from
+        effective_to = command.effective_to
+        priority = command.priority
+        commit = command.commit
+
         require_permission(
             self._user_session, "calendar.manage", operation_label="save working rule"
         )
@@ -146,13 +150,15 @@ class WorkingRuleCommandHandler:
             for day in range(7):
                 rules.append(
                     self.save_rule(
-                        calendar_id,
-                        day,
-                        is_working_day=day in wd,
-                        start_time=start_time if day in wd else None,
-                        end_time=end_time if day in wd else None,
-                        break_minutes=break_minutes if day in wd else 0,
-                        commit=False,
+                        WorkingRuleSaveCommand(
+                            calendar_id=calendar_id,
+                            weekday=day,
+                            is_working_day=day in wd,
+                            start_time=start_time if day in wd else None,
+                            end_time=end_time if day in wd else None,
+                            break_minutes=break_minutes if day in wd else 0,
+                            commit=False,
+                        )
                     )
                 )
             self._session.commit()

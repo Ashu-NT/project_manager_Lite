@@ -6,10 +6,10 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import event, text
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
     CostPhasingQuery,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.ledger_query import (
     ProjectFinanceLedgerQuery,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_performance_reader import (

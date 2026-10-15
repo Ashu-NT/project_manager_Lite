@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+from datetime import datetime
+from typing import cast
+
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.security.identity.models.identity import (
     ApiKeyCredentialDto,
-    ApiKeyIssueCommand,
     IssuedApiKeyDto,
-    ServicePrincipalCreateCommand,
     ServicePrincipalDto,
 )
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.application.security.identity import (
     ServicePrincipalCommandHandler,
     ServicePrincipalQueryHandler,
+)
+from src.core.platform.application.security.identity.dto.commands.service_principals import (
+    ApiKeyIssueCommand,
+    ServicePrincipalCreateCommand,
 )
 from src.core.platform.domain.security.identity.service_principal import (
     ApiKeyCredential,
@@ -42,11 +47,7 @@ class PlatformIdentityDesktopApi:
     ) -> DesktopApiResult[ServicePrincipalDto]:
         return execute_desktop_operation(
             lambda: self._serialize_principal(
-                self._commands.create_service_principal(
-                    name=command.name,
-                    description=command.description,
-                    initial_role_name=command.initial_role_name,
-                )
+                self._commands.create_service_principal(command)
             )
         )
 
@@ -74,12 +75,7 @@ class PlatformIdentityDesktopApi:
     def issue_api_key(self, command: ApiKeyIssueCommand) -> DesktopApiResult[IssuedApiKeyDto]:
         return execute_desktop_operation(
             lambda: self._serialize_issued(
-                self._commands.issue_api_key(
-                    command.service_principal_id,
-                    name=command.name,
-                    permission_scopes=command.permission_scopes,
-                    expires_in_days=command.expires_in_days,
-                )
+                self._commands.issue_api_key(command)
             )
         )
 
@@ -127,7 +123,7 @@ class PlatformIdentityDesktopApi:
             name=row.name,
             key_prefix=row.key_prefix,
             permission_scopes=row.permission_scopes,
-            expires_at=row.expires_at,
+            expires_at=cast(datetime, row.expires_at),
             last_used_at=row.last_used_at,
             revoked_at=row.revoked_at,
             created_at=row.created_at,

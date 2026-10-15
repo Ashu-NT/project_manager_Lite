@@ -1,0 +1,1 @@
+"""budgets application DTO package."""

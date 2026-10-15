@@ -1,4 +1,4 @@
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationUpdateCommand,
 )
 

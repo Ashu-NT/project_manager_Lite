@@ -117,7 +117,11 @@ def _application_construction_for_tree(path_label: str, tree: ast.AST) -> set[st
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
             continue
         qualified_name = application_imports.get(node.func.id)
-        if qualified_name and qualified_name not in APPLICATION_POLICY_CALLS:
+        is_dto = qualified_name and any(
+            f".dto.{kind}." in qualified_name
+            for kind in ("commands", "queries", "responses")
+        )
+        if qualified_name and qualified_name not in APPLICATION_POLICY_CALLS and not is_dto:
             violations.add(f"{path_label}:{qualified_name}")
     return violations
 
@@ -169,11 +173,13 @@ def test_desktop_adds_no_application_object_construction() -> None:
     assert _application_construction_violations() == KNOWN_APPLICATION_CONSTRUCTION
 
 
-def test_application_construction_guard_only_exempts_the_module_policy_call() -> None:
+def test_application_construction_guard_allows_payload_mapping_not_handler_construction() -> None:
     tree = ast.parse(
         "from src.core.platform.application.tenant.modules.authorization import require_module_enabled\n"
         "from src.core.modules.project_management.application.tasks.service import TaskService\n"
+        "from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import TaskCreateCommand\n"
         "require_module_enabled(catalog, 'project_management')\n"
+        "TaskCreateCommand(project_id='project', name='Task')\n"
         "TaskService()\n"
     )
     assert _application_construction_for_tree("adapter.py", tree) == {

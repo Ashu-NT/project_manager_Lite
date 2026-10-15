@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.application.financials.forecasts.dto import (
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_generation import (
     FinancialGenerateForecastCommand,
     FinancialManualEtcCommand,
     FinancialRiskContingencyCommand,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
     FinancialVersionedForecastCommand,
 )
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.approval.models.approval import (
+from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
 from src.ui_qml.modules.project_management.presenters.financials.shared.validation import (

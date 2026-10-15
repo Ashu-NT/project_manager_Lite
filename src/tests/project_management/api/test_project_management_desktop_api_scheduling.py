@@ -1,3 +1,4 @@
+
 from datetime import date, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
@@ -7,6 +8,10 @@ from src.core.modules.project_management.api.desktop import (
 )
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
+)
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineDeleteCommand,
 )
 from src.core.modules.project_management.domain.enums import (
     ProjectStatus,
@@ -78,10 +83,10 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert api.list_constraint_violations(project.id) == ()
 
     created_a = api.create_baseline(
-        SimpleNamespace(project_id=project.id, name="Original Plan")
+        SchedulingBaselineCreateCommand(project_id=project.id, name="Original Plan")
     )
     created_b = api.create_baseline(
-        SimpleNamespace(project_id=project.id, name="Weekly Freeze")
+        SchedulingBaselineCreateCommand(project_id=project.id, name="Weekly Freeze")
     )
     baseline_options = api.list_baselines(project.id)
 
@@ -98,7 +103,7 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert comparison_rows[0].task_name == "Cable Pull"
     assert comparison_rows[0].start_shift_days == 1
 
-    api.delete_baseline(created_a.value)
+    api.delete_baseline(SchedulingBaselineDeleteCommand(created_a.value))
 
     assert api.get_calendar_snapshot().holidays == ()
     assert [option.value for option in api.list_baselines(project.id)] == [created_b.value]
@@ -307,9 +312,9 @@ class _FakeBaselineService:
     def list_baselines(self, project_id: str) -> list[SimpleNamespace]:
         return list(self._baselines_by_project.get(project_id, []))
 
-    def create_baseline(
-        self, project_id: str, name: str = "Baseline", *, rate_as_of: date | None = None
-    ) -> SimpleNamespace:
+    def create_baseline(self, command: SchedulingBaselineCreateCommand) -> SimpleNamespace:
+        project_id = command.project_id
+        name = command.name
         baseline = SimpleNamespace(
             id=f"base-{self._next_id}",
             project_id=project_id,
@@ -320,7 +325,8 @@ class _FakeBaselineService:
         self._baselines_by_project.setdefault(project_id, []).append(baseline)
         return baseline
 
-    def delete_baseline(self, baseline_id: str) -> None:
+    def delete_baseline(self, command: SchedulingBaselineDeleteCommand) -> None:
+        baseline_id = command.baseline_id
         for project_id, baselines in self._baselines_by_project.items():
             self._baselines_by_project[project_id] = [b for b in baselines if b.id != baseline_id]
 

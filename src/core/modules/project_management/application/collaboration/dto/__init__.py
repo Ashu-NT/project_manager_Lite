@@ -1,0 +1,1 @@
+"""Application collaboration DTO package."""

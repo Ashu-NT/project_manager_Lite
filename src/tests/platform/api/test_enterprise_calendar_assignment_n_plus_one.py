@@ -15,14 +15,24 @@ from sqlalchemy import event
 from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
     PlatformCalendarDesktopApi,
 )
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    DeptCalendarAssignCommand,
+    EmpCalendarAssignCommand,
+    ProjectCalendarAssignCommand,
+    ResourceCalendarAssignCommand,
+    SiteCalendarAssignCommand,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
 )
 
 
@@ -88,7 +98,9 @@ def _count_calendar_selects(engine, fn):
 
 def _make_departments_against_one_shared_calendar(services, n, suffix):
     calendar = services["platform_calendar_commands"].create_calendar(
-        code=f"CAL-{suffix}", name=f"Calendar {suffix}", calendar_type="DEPARTMENT"
+        CalendarCreateCommand(
+            code=f"CAL-{suffix}", name=f"Calendar {suffix}", calendar_type="DEPARTMENT"
+        )
     )
     for i in range(n):
         dept = services["department_commands"].create_department(
@@ -97,7 +109,7 @@ def _make_departments_against_one_shared_calendar(services, n, suffix):
             )
         )
         services["calendar_assignment_commands"].assign_department_calendar(
-            dept.id, calendar.id
+            DeptCalendarAssignCommand(department_id=dept.id, calendar_id=calendar.id)
         )
     return calendar
 
@@ -187,7 +199,9 @@ def test_list_calendar_assignments_serializes_all_five_entity_types_correctly(se
     api = _build_api(services)
 
     calendar = calendar_commands.create_calendar(
-        code="CAL-ALL5", name="Shared Calendar", calendar_type="GLOBAL"
+        CalendarCreateCommand(
+            code="CAL-ALL5", name="Shared Calendar", calendar_type="GLOBAL"
+        )
     )
 
     site = services["site_commands"].create_site(
@@ -204,18 +218,28 @@ def test_list_calendar_assignments_serializes_all_five_entity_types_correctly(se
             employment_type="FULL_TIME",
         )
     )
-    project = services['project_create'].create_project(
+    project = services["project_create"].create_project(
         "P5 Project", financial_currency_code=organization.base_currency
     )
     resource = services["resource_master_commands"].create_resource(
         "P5 Resource", hourly_rate=0, currency_code=organization.base_currency
     )
 
-    assignment_commands.assign_site_calendar(site.id, calendar.id)
-    assignment_commands.assign_department_calendar(department.id, calendar.id)
-    assignment_commands.assign_employee_calendar(employee.id, calendar.id)
-    assignment_commands.assign_project_calendar(project.id, calendar.id)
-    assignment_commands.assign_resource_calendar(resource.id, calendar.id)
+    assignment_commands.assign_site_calendar(
+        SiteCalendarAssignCommand(site_id=site.id, calendar_id=calendar.id)
+    )
+    assignment_commands.assign_department_calendar(
+        DeptCalendarAssignCommand(department_id=department.id, calendar_id=calendar.id)
+    )
+    assignment_commands.assign_employee_calendar(
+        EmpCalendarAssignCommand(employee_id=employee.id, calendar_id=calendar.id)
+    )
+    assignment_commands.assign_project_calendar(
+        ProjectCalendarAssignCommand(project_id=project.id, calendar_id=calendar.id)
+    )
+    assignment_commands.assign_resource_calendar(
+        ResourceCalendarAssignCommand(resource_id=resource.id, calendar_id=calendar.id)
+    )
 
     result = api.list_calendar_assignments(calendar.id)
     assert result.ok is True, result.error
@@ -245,13 +269,15 @@ def test_single_assignment_write_paths_still_return_correct_calendar_fields(serv
     api = _build_api(services)
 
     calendar = calendar_commands.create_calendar(
-        code="CAL-WRITE", name="Write Path Calendar", calendar_type="SITE"
+        CalendarCreateCommand(
+            code="CAL-WRITE", name="Write Path Calendar", calendar_type="SITE"
+        )
     )
     site = services["site_commands"].create_site(
         SiteCreateCommand(site_code="P5-WRITE-SITE", name="Write Site")
     )
 
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
         SiteCalendarAssignCommand,
     )
 

@@ -72,16 +72,20 @@ from src.core.modules.project_management.application.resources import (
     ResourceMasterCommandHandler,
     ResourceQueryHandler,
 )
-from src.core.modules.project_management.application.resources.dto import (
-    ResourceAddCertificationCommand,
-    ResourceAddSkillCommand,
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
     ResourceLifecycleCommand,
     ResourcePurgeCommand,
-    ResourceRemoveCertificationCommand,
-    ResourceRemoveSkillCommand,
-    ResourceUpdateCertificationCommand,
     ResourceUpdateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.certifications import (
+    ResourceAddCertificationCommand,
+    ResourceRemoveCertificationCommand,
+    ResourceUpdateCertificationCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.skills import (
+    ResourceAddSkillCommand,
+    ResourceRemoveSkillCommand,
     ResourceUpdateSkillCommand,
 )
 from src.core.modules.project_management.application.resources.queries.resource_context_queries import (

@@ -13,9 +13,11 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 
-from src.core.modules.project_management.application.financials.rate_cards.dto import (
-    FinancialAddRateLineCommand,
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_cards import (
     FinancialCreateRateCardCommand,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_lines import (
+    FinancialAddRateLineCommand,
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError

@@ -3,8 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, date, datetime
-from enum import Enum
-from typing import Any, Final
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -14,6 +13,13 @@ from src.core.modules.project_management.access.scope_permissions import (
 )
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.financials.configuration._command_values import (
+    PROFILE_FIELD_UNSET as _UNSET,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.financial_profile import (
+    FinancialTransitionProfileCommand,
+    FinancialUpdateProfileCommand,
 )
 from src.core.modules.project_management.application.financials.configuration.events import (
     ProjectFinancialProfileTransitioned,
@@ -27,8 +33,6 @@ from src.core.modules.project_management.contracts.repositories.projects.project
     ProjectRepository,
 )
 from src.core.modules.project_management.domain.financials.configuration import (
-    BillingMethod,
-    BudgetControlMode,
     CostCodePolicy,
     FinancialProfileStatus,
     ProjectCostCode,
@@ -45,15 +49,6 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-
-
-class _Unset(Enum):
-    """Typed sentinel distinguishing "argument omitted" from an explicit None."""
-
-    TOKEN = 0
-
-
-_UNSET: Final = _Unset.TOKEN
 
 
 class FinancialProfileCommandHandler(ProjectManagementModuleGuardMixin):
@@ -84,21 +79,18 @@ class FinancialProfileCommandHandler(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
 
-    def configure_profile(
-        self,
-        project_id: str,
-        *,
-        expected_version: int,
-        currency_code: str | _Unset = _UNSET,
-        billing_method: BillingMethod | str | _Unset = _UNSET,
-        budget_control_mode: BudgetControlMode | str | _Unset = _UNSET,
-        cost_code_policy: CostCodePolicy | str | _Unset = _UNSET,
-        financial_start_date: date | None | _Unset = _UNSET,
-        financial_end_date: date | None | _Unset = _UNSET,
-        is_funded: bool | _Unset = _UNSET,
-        is_billable: bool | _Unset = _UNSET,
-        default_cost_code_id: str | None | _Unset = _UNSET,
-    ) -> ProjectFinancialProfile:
+    def configure_profile(self, command: FinancialUpdateProfileCommand) -> ProjectFinancialProfile:
+        project_id = command.project_id
+        expected_version = command.expected_version
+        currency_code = command.currency_code
+        billing_method = command.billing_method
+        budget_control_mode = command.budget_control_mode
+        cost_code_policy = command.cost_code_policy
+        financial_start_date = command.financial_start_date
+        financial_end_date = command.financial_end_date
+        is_funded = command.is_funded
+        is_billable = command.is_billable
+        default_cost_code_id = command.default_cost_code_id
         self._require_project(project_id, "finance.manage", "configure financial profile")
         current = self._require_profile(project_id)
         self._require_expected_version(current.version, expected_version, "Financial profile")
@@ -170,13 +162,10 @@ class FinancialProfileCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return candidate
 
-    def transition_profile(
-        self,
-        project_id: str,
-        *,
-        target: FinancialProfileStatus | str,
-        expected_version: int,
-    ) -> ProjectFinancialProfile:
+    def transition_profile(self, command: FinancialTransitionProfileCommand) -> ProjectFinancialProfile:
+        project_id = command.project_id
+        target = command.target_status
+        expected_version = command.expected_version
         self._require_project(project_id, "finance.manage", "transition financial profile")
         current = self._require_profile(project_id)
         self._require_expected_version(current.version, expected_version, "Financial profile")

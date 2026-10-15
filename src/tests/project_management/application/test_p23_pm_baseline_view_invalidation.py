@@ -16,6 +16,13 @@ from src.core.modules.project_management.application.scheduling.baselines.event_
     BASELINE_PROJECT_SCOPE_CODE,
     build_baseline_view_invalidation_handler,
 )
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineApproveCommand,
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineDeleteCommand,
+    SchedulingBaselineRejectCommand,
+    SchedulingBaselineSubmitCommand,
+)
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ExactResource, ResourceScope
@@ -190,7 +197,7 @@ def test_create_baseline_produces_exactly_one_project_baseline_hint(services):
     hints = _spy_hints(services)
 
     services['baseline_query']
-    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -201,10 +208,10 @@ def test_create_baseline_produces_exactly_one_project_baseline_hint(services):
 def test_submit_baseline_produces_exactly_one_hint(services):
     project = _project_with_tasks(services)
     services['baseline_query']
-    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
     hints = _spy_hints(services)
 
-    submitted = services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
+    submitted = services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -216,12 +223,12 @@ def test_approve_baseline_produces_exactly_one_hint_and_carries_superseded_id(se
     project = _project_with_tasks(services)
     services['baseline_query']
 
-    first = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
-    services['baseline_commands'].submit_baseline(first.id, submitted_by="admin")
-    services['baseline_commands'].approve_baseline(first.id, approved_by="admin")
+    first = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(first.id, submitted_by="admin"))
+    services['baseline_commands'].approve_baseline(SchedulingBaselineApproveCommand(first.id, approved_by="admin"))
 
-    second = services['baseline_commands'].create_baseline(project.id, "BL2", rate_as_of=date.today())
-    services['baseline_commands'].submit_baseline(second.id, submitted_by="admin")
+    second = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL2", rate_as_of=date.today()))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(second.id, submitted_by="admin"))
 
     # Subscribe directly to the post-commit bus for the typed event itself (not just the
     # ViewInvalidation hint) to prove `superseded_baseline_id` is populated correctly. Reached
@@ -234,7 +241,7 @@ def test_approve_baseline_produces_exactly_one_hint_and_carries_superseded_id(se
     )
     hints = _spy_hints(services)
 
-    services['baseline_commands'].approve_baseline(second.id, approved_by="admin")
+    services['baseline_commands'].approve_baseline(SchedulingBaselineApproveCommand(second.id, approved_by="admin"))
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -247,11 +254,11 @@ def test_approve_baseline_produces_exactly_one_hint_and_carries_superseded_id(se
 def test_reject_baseline_produces_exactly_one_hint(services):
     project = _project_with_tasks(services)
     services['baseline_query']
-    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
-    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
     hints = _spy_hints(services)
 
-    rejected = services['baseline_commands'].reject_baseline(baseline.id)
+    rejected = services['baseline_commands'].reject_baseline(SchedulingBaselineRejectCommand(baseline.id))
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -261,10 +268,10 @@ def test_reject_baseline_produces_exactly_one_hint(services):
 def test_delete_baseline_produces_exactly_one_hint(services):
     project = _project_with_tasks(services)
     baseline_service = services['baseline_query']
-    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
     hints = _spy_hints(services)
 
-    services['baseline_commands'].delete_baseline(baseline.id)
+    services['baseline_commands'].delete_baseline(SchedulingBaselineDeleteCommand(baseline.id))
 
     baseline_hints = _baseline_hints(hints)
     assert len(baseline_hints) == 1
@@ -276,11 +283,11 @@ def test_disallowed_transition_raises_and_produces_zero_hints(services):
     the `with uow:` block's rollback-on-exception behavior."""
     project = _project_with_tasks(services)
     baseline_service = services['baseline_query']
-    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
     hints = _spy_hints(services)
 
     with pytest.raises(ValidationError):
-        services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
+        services['baseline_commands'].approve_baseline(SchedulingBaselineApproveCommand(baseline.id, approved_by="admin"))
 
     assert _baseline_hints(hints) == []
     assert baseline_service._baselines.get_baseline(baseline.id).status.value == "draft"
@@ -295,9 +302,9 @@ def test_baseline_service_shared_session_survives_repeated_commits(services):
     services['baseline_query']
     session_before = services['baseline_commands']._session
 
-    baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
-    services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
-    approved = services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
+    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
+    approved = services['baseline_commands'].approve_baseline(SchedulingBaselineApproveCommand(baseline.id, approved_by="admin"))
 
     assert approved.status.value == "approved"
     assert services['baseline_commands']._session is session_before

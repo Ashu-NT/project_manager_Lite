@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from src.core.modules.project_management.application.financials.cost.dto import (
+from src.core.modules.project_management.application.financials.cost.dto.responses.labor_cost import (
     LaborAssignmentRow,
     LaborDetailsResult,
     LaborResourceRow,
@@ -24,7 +24,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.common.exceptions import BusinessRuleError
 
 if TYPE_CHECKING:
-    from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    from src.core.modules.project_management.contracts.reads.financials.snapshot.models.snapshot_facts import (
         FinanceSnapshotFacts,
         LaborAssignmentFact,
     )

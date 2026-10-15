@@ -13,6 +13,11 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_cards import (
+    FinancialCreateRateCardCommand,
+    FinancialUpdateRateCardCommand,
+    FinancialVersionedRateCardCommand,
+)
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardCreated,
     RateCardDeactivated,
@@ -72,12 +77,9 @@ class ProjectRateCardCommandHandler(ProjectManagementModuleGuardMixin):
 
     # -- Rate cards ---------------------------------------------------
 
-    def create_rate_card(
-        self,
-        *,
-        name: str,
-        project_id: str | None = None,
-    ) -> ProjectRateCard:
+    def create_rate_card(self, command: FinancialCreateRateCardCommand) -> ProjectRateCard:
+        name = command.name
+        project_id = command.project_id
         if project_id:
             self._require_project(project_id, "finance.manage", "create project rate card")
         else:
@@ -107,7 +109,9 @@ class ProjectRateCardCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return rate_card
 
-    def deactivate_rate_card(self, rate_card_id: str, *, expected_version: int) -> ProjectRateCard:
+    def deactivate_rate_card(self, command: FinancialVersionedRateCardCommand) -> ProjectRateCard:
+        rate_card_id = command.rate_card_id
+        expected_version = command.expected_version
         current = self._require_rate_card(rate_card_id)
         self._require_card_manage(current, "deactivate rate card")
         self._require_expected_version(current.version, expected_version, "Rate card")
@@ -129,13 +133,10 @@ class ProjectRateCardCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return candidate
 
-    def update_rate_card(
-        self,
-        rate_card_id: str,
-        *,
-        expected_version: int,
-        name: str,
-    ) -> ProjectRateCard:
+    def update_rate_card(self, command: FinancialUpdateRateCardCommand) -> ProjectRateCard:
+        rate_card_id = command.rate_card_id
+        expected_version = command.expected_version
+        name = command.name
         current = self._require_rate_card(rate_card_id)
         self._require_card_manage(current, "update rate card")
         self._require_expected_version(current.version, expected_version, "Rate card")

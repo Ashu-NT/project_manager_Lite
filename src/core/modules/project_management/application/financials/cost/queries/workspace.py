@@ -6,18 +6,18 @@ from typing import TYPE_CHECKING
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
     FinancePageFacts,
     FinancePageRequest,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
     FinanceLookupOptionFact,
     FinanceLookupPageFacts,
     FinanceLookupQuery,
     ManualActualCostCodeQuery,
     ManualActualDefaultsFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_planned_cost_facts import (
+from src.core.modules.project_management.contracts.reads.financials.planned_costs.models.planned_cost_facts import (
     FinancePlannedCostWorkspaceFacts,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -26,15 +26,15 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.common.exceptions import ConfigurationError, NotFoundError
 
 if TYPE_CHECKING:
-    from src.core.modules.project_management.contracts.reads.financials.finance_lookup_reader import (
-        FinanceLookupReader,
-    )
-    from src.core.modules.project_management.contracts.reads.financials.finance_planned_cost_reader import (
-        FinancePlannedCostReader,
-    )
-    from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+    from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
         FinanceLookupOptionFact,
         FinanceLookupPageFacts,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.lookups.reader import (
+        FinanceLookupReader,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.planned_costs.reader import (
+        FinancePlannedCostReader,
     )
     from src.core.platform.application.tenant.tenancy.tenant_context import (
         TenantContextService,

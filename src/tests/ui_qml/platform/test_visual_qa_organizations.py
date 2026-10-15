@@ -14,16 +14,16 @@ from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtQuick import QQuickItem
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
 from src.ui_qml.modules.project_management.context import (

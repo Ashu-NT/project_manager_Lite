@@ -18,17 +18,23 @@ operation group has a clear authorization and transaction boundary. Keep a
 thin public service facade where current callers benefit from it; do not
 introduce a command bus, one class per method, or a second composition root.
 
-**DTO ownership decision:** reuse the existing
-`src/core/platform/contract` and
-`src/core/modules/project_management/contracts` trees. Add feature-scoped
-use-case command/query/result contracts there only when an input or output is
-genuinely shared by desktop and future HTTP adapters. Keep current
-`contracts/reads` immutable reader facts/query specifications with their
-reader ports; do not clone them into an application DTO hierarchy. Keep
-desktop labels, formatting, `DesktopApiResult`, and QML view models in their
-current adapter/presentation layers. Future FastAPI request/response schemas
-belong to the HTTP adapter. The **neutral API is the application use-case
-contract**, not a renamed desktop API or a shared transport schema.
+**Current DTO ownership decision (supersedes the original contracts/use_cases
+proposal):** feature-owned application use-case inputs and outputs live under
+`application/<feature>/dto/commands/`, `dto/queries/`, and `dto/responses/`.
+Related operations share meaningful feature files; there is no flat `dto.py`
+or compatibility re-export. Finance keeps its existing subfeature ownership.
+Desktop and future HTTP adapters map their payloads into these typed inputs;
+handlers accept the inputs and return application results. Adapter-specific
+labels, formatting, `DesktopApiResult`, and QML models remain outside the
+application. Future FastAPI schemas remain adapter-owned, not core contracts.
+
+Immutable SQL Reader facts and query specifications remain in
+`contracts/reads`, alongside the Reader interfaces. Query handlers map those
+facts into application responses when the use-case shape differs; do not
+create duplicate types solely to rename the same data. A neutral cross-module
+port must not depend outward on application or adapter implementation packages.
+The **neutral API is the application use-case contract**, not a renamed desktop
+API or a shared transport schema.
 
 Pre-release permits coordinated interface cutovers and deletion of obsolete
 internal paths, but does not justify changing RBAC, tenant isolation,

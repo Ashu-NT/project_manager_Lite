@@ -9,12 +9,22 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.tasks._command_values import (
+    dependency_direction,
+)
+from src.core.modules.project_management.application.tasks._command_values import (
+    dependency_type as normalize_dependency_type,
+)
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
 )
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSynchronizer,
     emit_cascade_schedule_changed,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_dependencies import (
+    TaskDependencyCreateCommand,
+    TaskDependencyUpdateCommand,
 )
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     DependencyDiagnostic,
@@ -100,13 +110,11 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
         self._schedule_synchronizer = schedule_synchronizer
         self._uow_scope = uow_scope
 
-    def add_dependency(
-        self,
-        predecessor_id: str,
-        successor_id: str,
-        dependency_type: DependencyType = DependencyType.FINISH_TO_START,
-        lag_days: int = 0,
-    ) -> TaskDependency:
+    def add_dependency(self, command: TaskDependencyCreateCommand) -> TaskDependency:
+        predecessor_id = command.linked_task_id if dependency_direction(command.relationship_direction) == "PREDECESSOR" else command.task_id
+        successor_id = command.task_id if dependency_direction(command.relationship_direction) == "PREDECESSOR" else command.linked_task_id
+        dependency_type = normalize_dependency_type(command.dependency_type)
+        lag_days = command.lag_days
         predecessor = self._task_repo.get(predecessor_id)
         if not predecessor:
             raise NotFoundError("Predecessor task not found", code="TASK_NOT_FOUND")
@@ -387,14 +395,11 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
                 )
             uow.commit()
 
-    def update_dependency(
-        self,
-        dep_id: str,
-        *,
-        dependency_type: DependencyType | None = None,
-        lag_days: int | None = None,
-        expected_version: int | None = None,
-    ) -> TaskDependency:
+    def update_dependency(self, command: TaskDependencyUpdateCommand) -> TaskDependency:
+        dep_id = command.dependency_id.strip()
+        dependency_type = normalize_dependency_type(command.dependency_type)
+        lag_days = command.lag_days
+        expected_version = command.expected_version
         dependency = self._dependency_repo.get(dep_id)
         if not dependency:
             raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")

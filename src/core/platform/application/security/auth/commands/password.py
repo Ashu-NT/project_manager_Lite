@@ -12,6 +12,9 @@ from src.core.platform.application.security.auth.auth_transaction_scope import (
 from src.core.platform.application.security.auth.auth_validation_policy import (
     AuthValidationPolicy,
 )
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserPasswordResetCommand,
+)
 from src.core.platform.application.security.auth.queries.auth_queries import (
     AuthQueryHandler,
 )
@@ -109,7 +112,9 @@ class PasswordCommandHandler:
             change_type=PasswordChangeType.FORCE_RESET_REQUIRED,
         )
 
-    def reset_user_password(self, user_id: str, new_password: str) -> UserAccount:
+    def reset_user_password(self, command: UserPasswordResetCommand) -> UserAccount:
+        user_id = command.user_id
+        new_password = command.new_password
         require_permission(self._user_session, "auth.manage", operation_label="reset user password")
         self._target_users.require_target_user_in_active_tenant(
             user_id,

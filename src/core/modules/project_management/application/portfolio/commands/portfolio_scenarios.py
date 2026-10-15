@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from decimal import Decimal
 from typing import Any, cast
 
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.portfolio._command_values import (
+    PORTFOLIO_UNSET as _SCENARIO_UNSET,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
+    PortfolioScenarioCreateCommand,
+    PortfolioScenarioUpdateCommand,
 )
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioScenarioChanged,
@@ -30,8 +36,6 @@ from src.core.platform.common.exceptions import NotFoundError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
-_SCENARIO_UNSET = object()
-
 
 class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
     """Governed scenario writes (create/update) with project/intake scope validation."""
@@ -51,16 +55,13 @@ class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def create_scenario(
-        self,
-        *,
-        name: str,
-        budget_limit: Decimal | int | str | None = None,
-        capacity_limit_percent: float | None = None,
-        project_ids: list[str] | None = None,
-        intake_item_ids: list[str] | None = None,
-        notes: str = "",
-    ) -> PortfolioScenario:
+    def create_scenario(self, command: PortfolioScenarioCreateCommand) -> PortfolioScenario:
+        name = command.name
+        budget_limit = command.budget_limit
+        capacity_limit_percent = command.capacity_limit_percent
+        project_ids = list(command.project_ids)
+        intake_item_ids = list(command.intake_item_ids)
+        notes = command.notes
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio scenario")
         organization_id = self._policy.organization_id(operation_label="create portfolio scenario")
         scope = self._policy.scope(operation_label="create portfolio scenario")
@@ -116,17 +117,14 @@ class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
         return scenario
 
-    def update_scenario(
-        self,
-        scenario_id: str,
-        *,
-        name: str | None = None,
-        budget_limit: Decimal | int | str | None | object = _SCENARIO_UNSET,
-        capacity_limit_percent: float | str | None | object = _SCENARIO_UNSET,
-        project_ids: list[str] | None = None,
-        intake_item_ids: list[str] | None = None,
-        notes: str | None = None,
-    ) -> PortfolioScenario:
+    def update_scenario(self, command: PortfolioScenarioUpdateCommand) -> PortfolioScenario:
+        scenario_id = command.scenario_id
+        name = command.name
+        budget_limit = command.budget_limit
+        capacity_limit_percent = command.capacity_limit_percent
+        project_ids = None if command.project_ids is None else list(command.project_ids)
+        intake_item_ids = None if command.intake_item_ids is None else list(command.intake_item_ids)
+        notes = command.notes
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio scenario")
         self._policy.organization_id(operation_label="update portfolio scenario")
         scope = self._policy.scope(operation_label="update portfolio scenario")

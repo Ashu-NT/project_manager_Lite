@@ -4,7 +4,7 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementCollaborationDesktopApi,
 )
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.approval.models.approval import (
+from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
 

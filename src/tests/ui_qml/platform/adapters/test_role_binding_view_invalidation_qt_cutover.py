@@ -7,13 +7,20 @@ from datetime import UTC, datetime
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantRemoveCommand,
+)
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
 from src.core.platform.application.security.authorization.roles.event_handlers.view_invalidation import (
     ROLE_BINDING_ASSIGNMENTS_SCOPE_CODE,
     ROLE_BINDING_CATEGORY,
     build_role_binding_view_invalidation_handler,
+)
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.security.authorization.roles.events import (
@@ -221,8 +228,7 @@ def test_access_workspace_scope_grants_refresh_on_real_assign_mutation(services)
         tenant_id=_active_tenant(services),
     )
     services["access_service"].assign_scope_grant(
-        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
-    )
+        ScopedAccessGrantAssignCommand(scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"))
 
     items = catalog.adminAccessWorkspace.scopeGrants.get("items")
     assert any(item.get("id") == user.id for item in items)
@@ -243,8 +249,7 @@ def test_access_workspace_full_catalog_options_do_not_needlessly_refresh(service
     )
 
     services["access_service"].assign_scope_grant(
-        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
-    )
+        ScopedAccessGrantAssignCommand(scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"))
 
     assert full_refresh_calls == []
 
@@ -269,8 +274,7 @@ def test_no_refresh_before_commit_and_none_on_commit_failure(services, monkeypat
     monkeypatch.setattr(SqlAlchemyRoleGovernanceUnitOfWork, "commit", _fail_commit)
     with pytest.raises(RuntimeError):
         services["access_service"].assign_scope_grant(
-            scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
-        )
+            ScopedAccessGrantAssignCommand(scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"))
 
     assert refresh_calls == []
 
@@ -284,25 +288,21 @@ def test_no_invalidation_on_no_op_assign_or_revoke(services):
         tenant_id=_active_tenant(services),
     )
     services["access_service"].assign_scope_grant(
-        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
-    )
+        ScopedAccessGrantAssignCommand(scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"))
     refresh_calls = []
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
 
     # Identical already-active grant -- a true no-op.
     services["access_service"].assign_scope_grant(
-        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
-    )
+        ScopedAccessGrantAssignCommand(scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"))
     assert refresh_calls == []
 
     services["access_service"].remove_scope_grant(
-        scope_type="site", scope_id=site.id, user_id=user.id
-    )
+        ScopedAccessGrantRemoveCommand(scope_type="site", scope_id=site.id, user_id=user.id))
     refresh_calls.clear()
     with pytest.raises(NotFoundError):
         services["access_service"].remove_scope_grant(
-            scope_type="site", scope_id=site.id, user_id=user.id
-        )
+            ScopedAccessGrantRemoveCommand(scope_type="site", scope_id=site.id, user_id=user.id))
     assert refresh_calls == []
 
 
@@ -336,8 +336,7 @@ def test_non_active_organization_resource_mutation_does_not_refresh_the_active_o
     # switching. The A1-scoped adapter subscription must never fire.
     assert tenant_context_service.get_active_organization_id() == org_a1_id
     services["access_service"].assign_scope_grant(
-        scope_type="site", scope_id=site_a2.id, user_id=user.id, scope_role="editor"
-    )
+        ScopedAccessGrantAssignCommand(scope_type="site", scope_id=site_a2.id, user_id=user.id, scope_role="editor"))
     assert tenant_context_service.get_active_organization_id() == org_a1_id  # never switched
 
     assert refresh_calls == []
@@ -363,8 +362,7 @@ def test_switching_to_the_non_active_org_then_repeating_the_mutation_refreshes_e
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
 
     services["access_service"].assign_scope_grant(
-        scope_type="site", scope_id=site_a2.id, user_id=user.id, scope_role="editor"
-    )
+        ScopedAccessGrantAssignCommand(scope_type="site", scope_id=site_a2.id, user_id=user.id, scope_role="editor"))
 
     assert refresh_calls == ["refresh"]
 
@@ -568,7 +566,7 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
     assert any(f.tenant_id == tenant_a for f in _tenant_wide_filters())
 
     admin_svc = services["tenant_lifecycle_commands"]
-    tenant_b = admin_svc.create_tenant(_unique_code("P5C3-TENANT-B"), "P5C-3 Tenant B")
+    tenant_b = admin_svc.create_tenant(TenantCreateCommand(tenant_code=_unique_code("P5C3-TENANT-B"), display_name="P5C-3 Tenant B"))
     services["session"].flush()
 
     switch_result = catalog.tenantSwitcher.switchToTenant(tenant_b.id)

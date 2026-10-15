@@ -7,10 +7,10 @@ from PySide6.QtCore import QSettings
 
 import src.core.platform.api.desktop.support.support as support_module
 import src.infra.platform.diagnostics as diagnostics_module
-from src.core.platform.api.desktop.support.models.support import (
+from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
+from src.core.platform.application.support.dto.commands.settings import (
     SupportSettingsUpdateCommand,
 )
-from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
 from src.infra.platform.operational_support import OperationalSupport
 
 

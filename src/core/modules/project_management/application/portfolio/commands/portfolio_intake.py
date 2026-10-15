@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
-from decimal import Decimal
 from typing import Any, cast
 
 from sqlalchemy.exc import IntegrityError
 
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.portfolio._command_values import (
+    PORTFOLIO_UNSET as _INTAKE_UNSET,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
+    PortfolioIntakeCreateCommand,
+    PortfolioIntakeUpdateCommand,
 )
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioIntakeItemChanged,
@@ -36,8 +42,6 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
-_INTAKE_UNSET = object()
-
 
 class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
     """Governed intake writes (create/update); one UoW per operation."""
@@ -57,22 +61,19 @@ class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def create_intake_item(
-        self,
-        *,
-        title: str,
-        sponsor_name: str,
-        summary: str = "",
-        requested_budget: Decimal | int | str = Decimal(0),
-        requested_capacity_percent: float = 0.0,
-        target_start_date=None,
-        strategic_score: int = 3,
-        value_score: int = 3,
-        urgency_score: int = 3,
-        risk_score: int = 3,
-        scoring_template_id: str | None = None,
-        status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED,
-    ) -> PortfolioIntakeItem:
+    def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeItem:
+        title = command.title
+        sponsor_name = command.sponsor_name
+        summary = command.summary
+        requested_budget = command.requested_budget
+        requested_capacity_percent = command.requested_capacity_percent
+        target_start_date = command.target_start_date
+        strategic_score = command.strategic_score
+        value_score = command.value_score
+        urgency_score = command.urgency_score
+        risk_score = command.risk_score
+        scoring_template_id = command.scoring_template_id
+        status = command.status if isinstance(command.status, PortfolioIntakeStatus) else PortfolioIntakeStatus(str(command.status or PortfolioIntakeStatus.PROPOSED.value).strip().upper())
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio intake")
         organization_id = self._policy.organization_id(operation_label="create portfolio intake")
         scope = self._policy.scope(operation_label="create portfolio intake")
@@ -146,23 +147,20 @@ class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
             ) from exc
         return item
 
-    def update_intake_item(
-        self,
-        item_id: str,
-        *,
-        title: str | None = None,
-        sponsor_name: str | None = None,
-        summary: str | None = None,
-        requested_budget: Decimal | int | str | None = None,
-        requested_capacity_percent: float | str | None = None,
-        target_start_date: date | None | object = _INTAKE_UNSET,
-        strategic_score: int | str | None = None,
-        value_score: int | str | None = None,
-        urgency_score: int | str | None = None,
-        risk_score: int | str | None = None,
-        status: PortfolioIntakeStatus | str | None = None,
-        scoring_template_id: str | None = None,
-    ) -> PortfolioIntakeItem:
+    def update_intake_item(self, command: PortfolioIntakeUpdateCommand) -> PortfolioIntakeItem:
+        item_id = command.item_id
+        title = command.title
+        sponsor_name = command.sponsor_name
+        summary = command.summary
+        requested_budget = command.requested_budget
+        requested_capacity_percent = command.requested_capacity_percent
+        target_start_date = command.target_start_date
+        strategic_score = command.strategic_score
+        value_score = command.value_score
+        urgency_score = command.urgency_score
+        risk_score = command.risk_score
+        status = command.status
+        scoring_template_id = command.scoring_template_id
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio intake")
         self._policy.organization_id(operation_label="update portfolio intake")
         scope = self._policy.scope(operation_label="update portfolio intake")

@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError

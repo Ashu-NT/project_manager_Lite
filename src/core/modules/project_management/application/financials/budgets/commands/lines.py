@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from decimal import Decimal
 from enum import Enum
 from typing import Any, Final
 
@@ -13,9 +12,17 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.budgets._command_values import (
+    command_amount as _command_amount,
+)
 from src.core.modules.project_management.application.financials.budgets.budget_events import (
     BudgetLineChanged,
     BudgetLineChangeType,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
+    FinancialAddBudgetLineCommand,
+    FinancialDeleteBudgetLineCommand,
+    FinancialUpdateBudgetLineCommand,
 )
 from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
@@ -94,17 +101,14 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
         self._record_event = record_event
 
 
-    def add_line(
-        self,
-        budget_id: str,
-        *,
-        cost_code_id: str,
-        task_id: str | None = None,
-        description: str,
-        amount: Decimal,
-        currency_code: str | None = None,
-        expected_budget_version: int,
-    ) -> BudgetLine:
+    def add_line(self, command: FinancialAddBudgetLineCommand) -> BudgetLine:
+        budget_id = command.budget_id
+        cost_code_id = command.cost_code_id
+        task_id = command.task_id
+        description = command.description
+        amount = _command_amount(command.amount)
+        currency_code = command.currency_code
+        expected_budget_version = command.expected_parent_version
         require_permission(self._user_session, "budget.manage", operation_label="add project budget line")
         budget = self._require_budget(budget_id)
         require_project_permission(
@@ -157,18 +161,15 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
         return line
 
 
-    def update_line(
-        self,
-        line_id: str,
-        *,
-        expected_line_version: int,
-        expected_budget_version: int,
-        cost_code_id: str | None = None,
-        task_id: str | None | _Unset = _UNSET,
-        description: str | None = None,
-        amount: Decimal | None = None,
-        currency_code: str | None = None,
-    ) -> BudgetLine:
+    def update_line(self, command: FinancialUpdateBudgetLineCommand) -> BudgetLine:
+        line_id = command.budget_line_id
+        expected_line_version = command.expected_version
+        expected_budget_version = command.expected_parent_version
+        cost_code_id = command.cost_code_id
+        task_id = command.task_id
+        description = command.description
+        amount = _command_amount(command.amount)
+        currency_code = command.currency_code
         require_permission(
             self._user_session, "budget.manage", operation_label="update project budget line"
         )
@@ -229,9 +230,10 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
         return line
 
 
-    def delete_line(
-        self, line_id: str, *, expected_line_version: int, expected_budget_version: int
-    ) -> ProjectBudget:
+    def delete_line(self, command: FinancialDeleteBudgetLineCommand) -> ProjectBudget:
+        line_id = command.budget_line_id
+        expected_line_version = command.expected_version
+        expected_budget_version = command.expected_parent_version
         require_permission(
             self._user_session, "budget.manage", operation_label="delete project budget line"
         )

@@ -8,7 +8,7 @@ from __future__ import annotations
 import dataclasses
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )

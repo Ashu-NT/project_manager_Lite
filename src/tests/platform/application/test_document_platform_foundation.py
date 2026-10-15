@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
+    DocumentUpdateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.commands.links import (
     DocumentLinkCreateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.commands.structures import (
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
-    DocumentUpdateCommand,
 )
 from src.core.platform.common.exceptions import ValidationError
 

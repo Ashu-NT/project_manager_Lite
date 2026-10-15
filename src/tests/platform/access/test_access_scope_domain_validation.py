@@ -7,6 +7,9 @@ import pytest
 from src.core.platform.access.application.access_control_service import (
     AccessControlService,
 )
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+)
 from src.core.platform.access.domain import (
     ScopedAccessGrant,
     ScopedRolePolicy,
@@ -147,11 +150,7 @@ def test_access_service_denies_missing_scope_ownership_resolver(
 
     with pytest.raises(BusinessRuleError) as exc_info:
         service.assign_scope_grant(
-            scope_type="site",
-            scope_id="site-1",
-            user_id="user-1",
-            scope_role="viewer",
-        )
+            ScopedAccessGrantAssignCommand(scope_type="site", scope_id="site-1", user_id="user-1", scope_role="viewer"))
 
     assert exc_info.value.code == "AUTHORIZATION_SCOPE_RESOLVER_REQUIRED"
 
@@ -164,10 +163,6 @@ def test_access_service_denies_target_without_active_tenant_membership(
 
     with pytest.raises(BusinessRuleError) as exc_info:
         service.assign_scope_grant(
-            scope_type="site",
-            scope_id="site-1",
-            user_id="user-1",
-            scope_role="viewer",
-        )
+            ScopedAccessGrantAssignCommand(scope_type="site", scope_id="site-1", user_id="user-1", scope_role="viewer"))
 
     assert exc_info.value.code == "ACCESS_TARGET_TENANT_DENIED"

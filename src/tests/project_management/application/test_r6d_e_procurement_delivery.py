@@ -26,11 +26,17 @@ from src.core.modules.project_management.infrastructure.persistence.orm.cost_ent
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import (
     ProjectFinanceInboxORM,
 )
-from src.core.platform.application.master_data.party.dto import (
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+)
+from src.core.platform.application.master_data.party.dto.commands.party import (
     PartyCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
+)
+from src.core.platform.application.security.identity.dto.commands.service_principals import (
+    ServicePrincipalCreateCommand,
 )
 from src.core.platform.domain.finance import DecimalQuantityPayload, MonetaryRatePayload
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
@@ -50,10 +56,7 @@ from src.core.platform.integration import (
 
 def _setup(services):
     services["service_principal_commands"].create_service_principal(
-        name=PROCUREMENT_FINANCE_PRINCIPAL_NAME,
-        description="Projects Procurement facts into PM Finance.",
-        initial_role_name="viewer",
-    )
+        ServicePrincipalCreateCommand(name=PROCUREMENT_FINANCE_PRINCIPAL_NAME, description="Projects Procurement facts into PM Finance.", initial_role_name="viewer"))
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(
         "Procurement delivery", financial_currency_code=organization.base_currency
@@ -70,9 +73,7 @@ def _setup(services):
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="PROC-DELIVERY", name="Procurement delivery site", currency_code=organization.base_currency))
     supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="PROC-DELIVERY", party_name="Procurement supplier", roles=["SUPPLIER"]))
     services["financial_period_commands"].create_period(
-        code="PROC-2026-08", name="August 2026", fiscal_year=2026,
-        period_number=8, start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
-    )
+        FinancialPeriodCreateCommand(code="PROC-2026-08", name="August 2026", fiscal_year=2026, period_number=8, start_date=date(2026, 8, 1).isoformat(), end_date=date(2026, 8, 31).isoformat()))
     services["session"].commit()
     return organization, project, site, supplier
 

@@ -15,16 +15,19 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.budgets.approval_result import (
-    BudgetApprovalOutcome,
-    BudgetApprovalResult,
-)
 from src.core.modules.project_management.application.financials.budgets.budget_events import (
     BudgetStatusChanged,
     BudgetStatusChangeType,
     BudgetVersionCreated,
 )
-from src.core.modules.project_management.application.financials.governance.successors.dto import (
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.responses.budget_approval import (
+    BudgetApprovalOutcome,
+    BudgetApprovalResult,
+)
+from src.core.modules.project_management.application.financials.governance.successors.dto.responses.financial_successors import (
     ApprovedFinancialLineAdjustment,
     ApprovedFinancialSuccessorResult,
 )
@@ -158,15 +161,16 @@ class BudgetApprovalCommands(ProjectManagementModuleGuardMixin):
         )
 
 
-    def request_budget_approval(
-        self, budget_id: str, *, notes: str = "", expected_version: int
-    ) -> BudgetApprovalResult:
+    def request_budget_approval(self, command: FinancialVersionedBudgetCommand) -> BudgetApprovalResult:
         """Create a Platform Approval request for a submitted Budget.
 
         This command is intentionally independent of the optional governance
         policy toggle. The desktop workflow always means "request approval";
         only a Platform Approval participant may apply its decision.
         """
+        budget_id = command.budget_id
+        notes = command.notes
+        expected_version = command.expected_version
         if self._approval_commands is None:
             raise BusinessRuleError(
                 "Platform Approval is not configured for Budget decisions.",

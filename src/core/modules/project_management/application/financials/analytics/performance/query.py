@@ -13,10 +13,10 @@ from src.core.modules.project_management.contracts.ports.financials.performance_
     BaselineVarianceReadAuthority,
     EarnedValueReadAuthority,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_overview_reader import (
+from src.core.modules.project_management.contracts.reads.financials.overview.reader import (
     FinanceOverviewReader,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_performance_reader import (
+from src.core.modules.project_management.contracts.reads.financials.performance.reader import (
     FinancePerformanceReader,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (

@@ -1,8 +1,15 @@
+
 from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
+    ExceptionCreateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
@@ -107,13 +114,7 @@ def test_work_calendar_next_and_negative_day_math(services):
     # Add enterprise holiday on Monday 2023-11-06 — should now skip to Tuesday
     global_cals = cal_svc_queries.list_calendars(calendar_type="GLOBAL")
     assert global_cals, "Global enterprise calendar must exist"
-    exc_svc_commands.add_exception(
-        global_cals[0].id,
-        exception_date=date(2023, 11, 6),
-        exception_type="HOLIDAY",
-        name="Holiday Monday",
-        impact_type="UNAVAILABLE",
-    )
+    exc_svc_commands.add_exception(ExceptionCreateCommand(calendar_id=global_cals[0].id, exception_date=date(2023, 11, 6), exception_type='HOLIDAY', name='Holiday Monday', impact_type='UNAVAILABLE'))
     assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(
         2023, 11, 7
     )
@@ -123,7 +124,7 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
     services['baseline_query']
     no_task_project = services['project_create'].create_project("No Tasks Baseline", "")
     with pytest.raises(ValidationError):
-        services['baseline_commands'].create_baseline(no_task_project.id, "BL-Empty", rate_as_of=date.today())
+        services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(no_task_project.id, "BL-Empty", rate_as_of=date.today()))
 
     budget_project = services['project_create'].create_project(
         "Uncosted Baseline",
@@ -133,7 +134,7 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
     )
     pid = budget_project.id
     services['task_lifecycle_commands'].create_task(pid, "Budgeted Task", start_date=date(2023, 11, 6), duration_days=3)
-    baseline = services['baseline_commands'].create_baseline(pid, "BL-Budget", rate_as_of=date.today())
+    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(pid, "BL-Budget", rate_as_of=date.today()))
 
     evm = services["earned_value_report"].get_earned_value(
         project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30)

@@ -1,0 +1,1 @@
+"""Finance integration read contracts."""

@@ -10,23 +10,25 @@ from __future__ import annotations
 from src.core.platform.api.desktop.history.activity.activity import (
     PlatformActivityDesktopApi,
 )
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
-    DocumentStructureCreateCommand,
     DocumentUpdateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.structures import (
+    DocumentStructureCreateCommand,
+)
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationUpdateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )

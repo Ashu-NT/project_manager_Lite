@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantRemoveCommand,
+)
 from src.tests.ui_runtime_helpers import login_as
 
 
@@ -14,8 +18,7 @@ def _register_active_tenant_user(services, username: str, *, role_names: list[st
 
 def _grant(services, *, user_id: str, organization_id: str, scope_role: str = "viewer"):
     services["access_service"].assign_scope_grant(
-        scope_type="organization", scope_id=organization_id, user_id=user_id, scope_role=scope_role
-    )
+        ScopedAccessGrantAssignCommand(scope_type="organization", scope_id=organization_id, user_id=user_id, scope_role=scope_role))
 
 
 def _login_admin(services) -> None:
@@ -59,7 +62,7 @@ def test_revoked_organization_is_not_restored_on_a_new_login(services):
     assert services["tenant_context_service"].get_active_organization_id() == org_a.id
 
     _login_admin(services)
-    access.remove_scope_grant(scope_type="organization", scope_id=org_a.id, user_id=user.id)
+    access.remove_scope_grant(ScopedAccessGrantRemoveCommand(scope_type="organization", scope_id=org_a.id, user_id=user.id))
 
     login_as(services, "sec-revoke-relogin-user", "StrongPass123")
 
@@ -93,7 +96,7 @@ def test_revoked_organization_cannot_be_switched_to_manually(services):
     services["tenant_context_service"].set_active_organization(other.id)
 
     _login_admin(services)
-    access.remove_scope_grant(scope_type="organization", scope_id=org_a.id, user_id=user.id)
+    access.remove_scope_grant(ScopedAccessGrantRemoveCommand(scope_type="organization", scope_id=org_a.id, user_id=user.id))
 
     login_as(services, "sec-revoke-manual-user", "StrongPass123")
     services["tenant_context_service"].set_active_organization(other.id)
@@ -237,7 +240,7 @@ def test_revoking_a_while_retaining_b_does_not_restore_a_and_resolves_via_existi
     services["tenant_context_service"].set_active_organization(org_a.id)
 
     _login_admin(services)
-    access.remove_scope_grant(scope_type="organization", scope_id=org_a.id, user_id=user.id)
+    access.remove_scope_grant(ScopedAccessGrantRemoveCommand(scope_type="organization", scope_id=org_a.id, user_id=user.id))
 
     login_as(services, "sec-multi-revoke-user", "StrongPass123")
 
@@ -279,7 +282,7 @@ def test_tenant_membership_alone_does_not_authorize_a_specific_previously_grante
     services["tenant_context_service"].set_active_organization(org_a.id)
 
     _login_admin(services)
-    access.remove_scope_grant(scope_type="organization", scope_id=org_a.id, user_id=user.id)
+    access.remove_scope_grant(ScopedAccessGrantRemoveCommand(scope_type="organization", scope_id=org_a.id, user_id=user.id))
 
     login_as(services, "sec-membership-only-user", "StrongPass123")
 
@@ -412,8 +415,7 @@ def test_non_admin_restore_is_not_granted_the_admin_bypass(services):
 
     _login_admin(services)
     services["access_service"].remove_scope_grant(
-        scope_type="organization", scope_id=org_a.id, user_id=user.id
-    )
+        ScopedAccessGrantRemoveCommand(scope_type="organization", scope_id=org_a.id, user_id=user.id))
 
     login_as(services, "sec-non-admin-user", "StrongPass123")
 

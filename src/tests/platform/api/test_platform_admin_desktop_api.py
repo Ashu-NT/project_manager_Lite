@@ -7,21 +7,25 @@ from src.core.platform.api.desktop.master_data.documents.document import (
 from src.core.platform.api.desktop.master_data.party.party import (
     PlatformPartyDesktopApi,
 )
-from src.core.platform.api.desktop.security.auth.models.user import (
-    UserCreateCommand,
-    UserPasswordResetCommand,
-    UserUpdateCommand,
-)
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.commands.links import (
     DocumentLinkCreateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.commands.structures import (
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
 )
-from src.core.platform.application.master_data.party.dto import (
+from src.core.platform.application.master_data.party.dto.commands.party import (
     PartyCreateCommand,
     PartyUpdateCommand,
+)
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
+    UserPasswordResetCommand,
+    UserUpdateCommand,
 )
 from src.tests.auth_test_support import platform_user_api
 

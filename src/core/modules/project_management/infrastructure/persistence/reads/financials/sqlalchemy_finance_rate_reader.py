@@ -5,10 +5,10 @@ from datetime import date
 from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
     FinancePageFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
+from src.core.modules.project_management.contracts.reads.financials.rate_cards.models.rate_facts import (
     RateCardFact,
     RateCardRequest,
     RateLineFact,

@@ -5,11 +5,14 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementSchedulingDesktopApi,
 )
-from src.core.modules.project_management.application.scheduling.dto import (
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
+    SchedulingBaselineDeleteCommand,
     SchedulingBaselineRejectCommand,
     SchedulingBaselineSubmitCommand,
+)
+from src.core.modules.project_management.application.scheduling.dto.commands.working_days import (
     SchedulingWorkingDayCalculationCommand,
 )
 
@@ -38,7 +41,7 @@ def delete_baseline(
     normalized_id = (baseline_id or "").strip()
     if not normalized_id:
         raise ValueError("Select a baseline before deleting it.")
-    desktop_api.delete_baseline(normalized_id)
+    desktop_api.delete_baseline(SchedulingBaselineDeleteCommand(normalized_id))
 
 def submit_baseline(
     desktop_api: ProjectManagementSchedulingDesktopApi,

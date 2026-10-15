@@ -15,13 +15,6 @@ class SupportSettingsDto:
 
 
 @dataclass(frozen=True)
-class SupportSettingsUpdateCommand:
-    update_channel: str
-    update_auto_check: bool
-    update_manifest_source: str
-
-
-@dataclass(frozen=True)
 class SupportUpdateStatusDto:
     status_label: str
     summary: str
@@ -81,6 +74,5 @@ __all__ = [
     "SupportInstallLaunchDto",
     "SupportPathsDto",
     "SupportSettingsDto",
-    "SupportSettingsUpdateCommand",
     "SupportUpdateStatusDto",
 ]

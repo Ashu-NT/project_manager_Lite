@@ -2,7 +2,13 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -155,7 +161,7 @@ def test_approve_baseline_request_emits_project_baseline_view_invalidation(servi
     _login_as(services, "planner-baseline", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="Approval required"):
-        services['baseline_commands'].create_baseline(project.id, "Gate 1", rate_as_of=date.today())
+        services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Gate 1", rate_as_of=date.today()))
     request_id = services["approval_queries"].list_pending(project_id=project.id)[0].id
 
     class _AnyOrgFilter:
@@ -168,7 +174,7 @@ def test_approve_baseline_request_emits_project_baseline_view_invalidation(servi
     )
 
     _login_as(services, "admin", "ChangeMe123!")
-    approvals.approve_and_apply(request_id, note="Approved")
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request_id, note="Approved"))
 
     baseline_hints = [h for h in hints if h.category == BASELINE_CATEGORY]
     assert len(baseline_hints) == 1

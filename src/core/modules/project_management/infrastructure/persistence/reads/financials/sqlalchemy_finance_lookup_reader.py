@@ -5,7 +5,7 @@ from datetime import date
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
     FinanceLookupOptionFact,
     FinanceLookupPageFacts,
     FinanceLookupQuery,

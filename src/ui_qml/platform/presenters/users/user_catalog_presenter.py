@@ -5,12 +5,14 @@ from typing import Any
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.security.auth.models.user import (
     RoleDto,
-    UserCreateCommand,
     UserDto,
+)
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
-from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
     option_item,

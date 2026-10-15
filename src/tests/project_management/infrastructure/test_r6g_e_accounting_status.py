@@ -11,10 +11,10 @@ from src.core.modules.project_management.api.desktop.financials.serializers.acco
 from src.core.modules.project_management.application.financials.accounting.status_capabilities import (
     with_accounting_capabilities,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.accounting_delivery import (
+from src.core.modules.project_management.contracts.reads.financials.accounting.models.delivery import (
     AccountingDeliveryFact,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
     AccountingStatusQuery,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.accounting.handoff import (

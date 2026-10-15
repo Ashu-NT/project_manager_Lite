@@ -22,6 +22,9 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.approval import ApprovalStatus
 
@@ -113,9 +116,9 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
     approvals = services["approval_commands"]
 
     with pytest.raises(NotFoundError, match="Approval request not found"):
-        approvals.approve_and_apply(request.id, note="Should not be reachable from Org A2")
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Should not be reachable from Org A2"))
     with pytest.raises(NotFoundError, match="Approval request not found"):
-        approvals.reject(request.id, note="Should not be reachable from Org A2")
+        approvals.reject(ApprovalDecisionCommand(request_id=request.id, note="Should not be reachable from Org A2"))
 
     # Switch back to Org A1 (the same coarse-grained `settings.manage` capability every actor in
     # this test already exercised) to read the request's true, unaffected state.
@@ -183,13 +186,13 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
     services["user_session"].set_active_organization_id(org_a2.id)
     approvals = services["approval_commands"]
     with pytest.raises(NotFoundError, match="Approval request not found"):
-        approvals.approve_and_apply(request.id)
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
 
     _login(services, "admin", "ChangeMe123!")
     services["tenant_context_service"].set_active_organization(org_a1.id)
     _login(services, approver_username, "StrongPass123")
     services["user_session"].set_active_organization_id(org_a1.id)
 
-    decided = approvals.approve_and_apply(request.id, note="Approved from the matching org")
+    decided = approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Approved from the matching org"))
     assert decided.status == ApprovalStatus.APPROVED
     assert decided.decided_by_username == approver_username

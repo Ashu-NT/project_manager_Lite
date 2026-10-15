@@ -14,6 +14,9 @@ from src.core.modules.project_management.application.scheduling.leveling.resourc
     ResourceLevelingPlanner,
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 
 
@@ -89,7 +92,7 @@ class TestGovernanceParity:
         assert {m["task_id"] for m in req.payload["moves"]} == {m.task_id for m in proposal.moves}
 
         _login_eligible_reviewer(services)
-        approvals.approve_and_apply(req.id)
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id))
 
         assert services['task_detail_query'].get_task(moved_task_id).resource_leveling_not_before == expected_start
         assert services['task_detail_query'].get_task(moved_task_id).start_date == expected_start
@@ -136,7 +139,7 @@ class TestGovernanceParity:
 
         _login_eligible_reviewer(services)
         with pytest.raises(ConcurrencyError):
-            approvals.approve_and_apply(req.id)
+            approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id))
 
         # The admin's direct edit must survive -- the stale pending
         # request must not silently overwrite it.

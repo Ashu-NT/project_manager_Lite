@@ -12,8 +12,10 @@ from src.core.platform.api.desktop.master_data.documents.models.document import 
     DocumentStructureDto,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.links import (
     DocumentLinkCreateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.commands.structures import (
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
 )

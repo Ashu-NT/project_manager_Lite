@@ -11,6 +11,9 @@ import pytest
 from sqlalchemy import select
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
+)
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.domain.security.auth.events import (
     AuthenticationFailureRecorded,
@@ -471,8 +474,7 @@ def test_account_security_and_authorization_context_targets_never_cross_fire(ser
 
 def test_account_security_invalidation_is_tenant_scoped_not_cross_tenant(services):
     other_tenant = services["tenant_lifecycle_commands"].create_tenant(
-        _unique("p46b-other-tenant"), "Other Tenant"
-    )
+        TenantCreateCommand(tenant_code=_unique("p46b-other-tenant"), display_name="Other Tenant"))
 
     catalog = _catalog(services)
     tenant_id = _tenant_id(services)

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )

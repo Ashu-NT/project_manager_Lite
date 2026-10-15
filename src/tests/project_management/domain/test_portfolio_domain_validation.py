@@ -12,6 +12,21 @@ from src.core.modules.project_management.application.portfolio.commands import (
     PortfolioScenarioCommandHandler,
     PortfolioTemplateCommandHandler,
 )
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
+    PortfolioIntakeCreateCommand,
+    PortfolioIntakeUpdateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
+    PortfolioScenarioCreateCommand,
+    PortfolioScenarioUpdateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateActivateCommand,
+    PortfolioTemplateCreateCommand,
+)
 from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
     PortfolioPolicy,
 )
@@ -435,39 +450,10 @@ def test_portfolio_dependency_entity_normalizes_local_fields():
 def test_portfolio_intake_service_update_validates_final_state(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
 
-    created = service.intake.create_intake_item(
-        title="  ERP Modernization  ",
-        sponsor_name="  PMO  ",
-        requested_budget=1200.0,
-        target_start_date=date(2026, 11, 1),
-        strategic_score=4,
-        value_score=3,
-        urgency_score=2,
-        risk_score=1,
-    )
-    risk_template = service.templates.create_scoring_template(
-        name="  Risk First  ",
-        strategic_weight=1,
-        value_weight=1,
-        urgency_weight=1,
-        risk_weight=4,
-        activate=False,
-    )
+    created = service.intake.create_intake_item(PortfolioIntakeCreateCommand(title="  ERP Modernization  ", sponsor_name="  PMO  ", requested_budget=1200.0, target_start_date=date(2026, 11, 1), strategic_score=4, value_score=3, urgency_score=2, risk_score=1))
+    risk_template = service.templates.create_scoring_template(PortfolioTemplateCreateCommand(name="  Risk First  ", strategic_weight=1, value_weight=1, urgency_weight=1, risk_weight=4, activate=False))
 
-    updated = service.intake.update_intake_item(
-        created.id,
-        title="  ERP Modernization Phase 2  ",
-        sponsor_name="  Strategy Office  ",
-        summary="  Expand to regional rollout.  ",
-        requested_budget="2500",
-        requested_capacity_percent="42",
-        strategic_score="5",
-        value_score="4",
-        urgency_score="3",
-        risk_score="2",
-        scoring_template_id=risk_template.id,
-        status="approved",
-    )
+    updated = service.intake.update_intake_item(PortfolioIntakeUpdateCommand(created.id, title="  ERP Modernization Phase 2  ", sponsor_name="  Strategy Office  ", summary="  Expand to regional rollout.  ", requested_budget="2500", requested_capacity_percent="42", strategic_score="5", value_score="4", urgency_score="3", risk_score="2", scoring_template_id=risk_template.id, status="approved"))
 
     assert updated.title == "ERP Modernization Phase 2"
     assert updated.sponsor_name == "Strategy Office"
@@ -481,15 +467,15 @@ def test_portfolio_intake_service_update_validates_final_state(monkeypatch: pyte
     assert updated.version == 2
     assert updated.target_start_date == date(2026, 11, 1)
 
-    cleared = service.intake.update_intake_item(created.id, target_start_date=None)
+    cleared = service.intake.update_intake_item(PortfolioIntakeUpdateCommand(created.id, target_start_date=None))
     assert cleared.target_start_date is None
 
     with pytest.raises(ValidationError) as exc:
-        service.intake.update_intake_item(created.id, title=" ")
+        service.intake.update_intake_item(PortfolioIntakeUpdateCommand(created.id, title=" "))
     assert exc.value.code == "PORTFOLIO_INTAKE_TITLE_REQUIRED"
 
     with pytest.raises(TypeError):
-        service.intake.update_intake_item(created.id, unknown_field="ignored")
+        service.intake.update_intake_item(PortfolioIntakeUpdateCommand(created.id, unknown_field="ignored"))
 
 
 def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
@@ -497,31 +483,15 @@ def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
 ):
     service = _make_service(monkeypatch, project_ids=["proj-1", "proj-2"])
 
-    intake = service.intake.create_intake_item(
-        title="Portfolio Intake",
-        sponsor_name="PMO",
-    )
-    scenario = service.scenarios.create_scenario(
-        name="  Selective Plan  ",
-        budget_limit="900",
-        capacity_limit_percent="70",
-        project_ids=[" proj-2 ", "proj-1", "proj-1"],
-        intake_item_ids=[f" {intake.id} ", intake.id],
-        notes="  Focus on delivery confidence.  ",
-    )
+    intake = service.intake.create_intake_item(PortfolioIntakeCreateCommand(title="Portfolio Intake", sponsor_name="PMO"))
+    scenario = service.scenarios.create_scenario(PortfolioScenarioCreateCommand(name="  Selective Plan  ", budget_limit="900", capacity_limit_percent="70", project_ids=[" proj-2 ", "proj-1", "proj-1"], intake_item_ids=[f" {intake.id} ", intake.id], notes="  Focus on delivery confidence.  "))
 
     assert scenario.name == "Selective Plan"
     assert scenario.project_ids == ["proj-1", "proj-2"]
     assert scenario.intake_item_ids == [intake.id]
     assert scenario.notes == "Focus on delivery confidence."
 
-    updated = service.scenarios.update_scenario(
-        scenario.id,
-        budget_limit=None,
-        capacity_limit_percent="55",
-        project_ids=[" proj-2 ", "proj-2"],
-        notes="  Rephase into a single wave.  ",
-    )
+    updated = service.scenarios.update_scenario(PortfolioScenarioUpdateCommand(scenario.id, budget_limit=None, capacity_limit_percent="55", project_ids=[" proj-2 ", "proj-2"], notes="  Rephase into a single wave.  "))
 
     assert updated.budget_limit is None
     assert updated.capacity_limit_percent == pytest.approx(55.0)
@@ -529,11 +499,11 @@ def test_portfolio_scenario_service_normalizes_ids_and_enforces_scope(
     assert updated.notes == "Rephase into a single wave."
 
     with pytest.raises(ValidationError) as exc:
-        service.scenarios.update_scenario(scenario.id, project_ids=["proj-unknown"])
+        service.scenarios.update_scenario(PortfolioScenarioUpdateCommand(scenario.id, project_ids=["proj-unknown"]))
     assert exc.value.code == "PORTFOLIO_PROJECT_SCOPE_INVALID"
 
     with pytest.raises(TypeError):
-        service.scenarios.update_scenario(scenario.id, unknown_field="ignored")
+        service.scenarios.update_scenario(PortfolioScenarioUpdateCommand(scenario.id, unknown_field="ignored"))
 
 
 def test_portfolio_dependency_service_keeps_scope_and_duplicate_rules_in_service(
@@ -541,12 +511,7 @@ def test_portfolio_dependency_service_keeps_scope_and_duplicate_rules_in_service
 ):
     service = _make_service(monkeypatch, project_ids=["proj-1", "proj-2"])
 
-    created = service.dependencies.create_project_dependency(
-        predecessor_project_id="  proj-1  ",
-        successor_project_id="  proj-2  ",
-        dependency_type="fs",
-        summary="  Alpha gates Beta launch.  ",
-    )
+    created = service.dependencies.create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id="  proj-1  ", successor_project_id="  proj-2  ", dependency_type="fs", summary="  Alpha gates Beta launch.  "))
 
     assert created.predecessor_project_id == "proj-1"
     assert created.successor_project_id == "proj-2"
@@ -554,18 +519,11 @@ def test_portfolio_dependency_service_keeps_scope_and_duplicate_rules_in_service
     assert created.summary == "Alpha gates Beta launch."
 
     with pytest.raises(ValidationError) as exc_duplicate:
-        service.dependencies.create_project_dependency(
-            predecessor_project_id="proj-1",
-            successor_project_id="proj-2",
-            dependency_type="FS",
-        )
+        service.dependencies.create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id="proj-1", successor_project_id="proj-2", dependency_type="FS"))
     assert exc_duplicate.value.code == "PORTFOLIO_DEPENDENCY_DUPLICATE"
 
     with pytest.raises(ValidationError) as exc_scope:
-        service.dependencies.create_project_dependency(
-            predecessor_project_id="proj-1",
-            successor_project_id="proj-9",
-        )
+        service.dependencies.create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id="proj-1", successor_project_id="proj-9"))
     assert exc_scope.value.code == "PORTFOLIO_DEPENDENCY_PROJECT_REQUIRED"
 
 
@@ -574,34 +532,20 @@ def test_portfolio_template_service_keeps_duplicate_check_in_service(
 ):
     service = _make_service(monkeypatch)
 
-    created = service.templates.create_scoring_template(
-        name="  Value First  ",
-        summary="  Push value ahead of urgency.  ",
-        strategic_weight=1,
-        value_weight=5,
-        urgency_weight=1,
-        risk_weight=0,
-        activate=True,
-    )
+    created = service.templates.create_scoring_template(PortfolioTemplateCreateCommand(name="  Value First  ", summary="  Push value ahead of urgency.  ", strategic_weight=1, value_weight=5, urgency_weight=1, risk_weight=0, activate=True))
 
     assert created.name == "Value First"
     assert created.organization_id == "org-1"
     assert created.is_active is True
 
-    activated = service.templates.activate_scoring_template(created.id)
+    activated = service.templates.activate_scoring_template(PortfolioTemplateActivateCommand(created.id))
     assert activated.id == created.id
     assert activated.is_active is True
 
     with pytest.raises(ValidationError) as exc_duplicate:
-        service.templates.create_scoring_template(name="value first")
+        service.templates.create_scoring_template(PortfolioTemplateCreateCommand(name="value first"))
     assert exc_duplicate.value.code == "PORTFOLIO_TEMPLATE_DUPLICATE"
 
     with pytest.raises(ValidationError) as exc_mix:
-        service.templates.create_scoring_template(
-            name="Zero Delivery Mix",
-            strategic_weight=0,
-            value_weight=0,
-            urgency_weight=0,
-            risk_weight=4,
-        )
+        service.templates.create_scoring_template(PortfolioTemplateCreateCommand(name="Zero Delivery Mix", strategic_weight=0, value_weight=0, urgency_weight=0, risk_weight=4))
     assert exc_mix.value.code == "PORTFOLIO_TEMPLATE_EMPTY"

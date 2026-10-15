@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+)
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
 from src.ui_qml.modules.project_management.context import (
@@ -130,7 +133,7 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_access_
     user = services["user_registration"].register_user(
         "rescope-revoke-user", "StrongPass123", role_names=["viewer", "project_manager"], tenant_id=tenant_id
     )
-    access.assign_scope_grant(scope_type="organization", scope_id=org.id, user_id=user.id, scope_role="viewer")
+    access.assign_scope_grant(ScopedAccessGrantAssignCommand(scope_type="organization", scope_id=org.id, user_id=user.id, scope_role="viewer"))
 
     login_as(services, "rescope-revoke-user", "StrongPass123")
     services["tenant_context_service"].set_active_organization(org.id)

@@ -3,7 +3,7 @@
 import ast
 from pathlib import Path
 
-from src.core.platform.application.platform_runtime.dto import (
+from src.core.platform.application.platform_runtime.dto.responses.module_runtime import (
     RuntimeEntitlementFact,
     RuntimeModuleFact,
 )
@@ -139,39 +139,40 @@ def test_pm_command_dtos_live_in_feature_application_packages() -> None:
     )
     assert not legacy, legacy
     application = SRC_ROOT / "modules/project_management/application"
-    for relative_path in (
-        "collaboration/dto.py",
-        "portfolio/dto.py",
-        "projects/dto.py",
-        "resources/dto.py",
-        "risk/dto/register_commands.py",
-        "scheduling/dto.py",
-        "tasks/dto.py",
-        "timesheets/dto.py",
-        "financials/invoicing/dto.py",
-        "financials/budgets/dto.py",
-        "financials/financial_changes/dto.py",
-        "financials/configuration/dto.py",
-        "financials/cost/entries/dto.py",
-        "financials/forecasts/dto.py",
-        "financials/rate_cards/dto.py",
-    ):
-        assert (application / relative_path).is_file(), relative_path
+    _assert_feature_dto_packages(application)
     assert not any((SRC_ROOT / "modules/project_management/contracts/use_cases").rglob("*.py"))
 
 
 def test_platform_command_dtos_live_in_feature_application_packages() -> None:
     application = SRC_ROOT / "platform/application"
-    for feature in ("site", "documents", "party", "department", "employee", "org"):
-        assert (application / "master_data" / feature / "dto.py").is_file(), feature
-    assert (application / "platform_runtime/dto.py").is_file()
+    _assert_feature_dto_packages(application)
+    _assert_feature_dto_packages(SRC_ROOT / "platform/access/application")
     assert not any((SRC_ROOT / "platform/contract/use_cases").rglob("*.py"))
+
+
+def _assert_feature_dto_packages(application: Path) -> None:
+    assert not tuple(application.rglob("dto.py"))
+    packages = tuple(path for path in application.rglob("dto") if path.is_dir())
+    assert packages
+    for package in packages:
+        assert (package / "__init__.py").is_file(), package
+        assert not tuple(path for path in package.glob("*.py") if path.name != "__init__.py"), package
+        for path in package.rglob("*.py"):
+            if path.name == "__init__.py":
+                assert not any(isinstance(node, (ast.Import, ast.ImportFrom)) for node in ast.parse(path.read_text(encoding="utf-8-sig")).body), path
+                continue
+            assert path.relative_to(package).parts[0] in {"commands", "queries", "responses"}, path
+            tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    imported = node.module or ""
+                    assert not any(part in imported.split(".") for part in ("api", "infrastructure", "ui_qml")), path
 
 
 def test_register_dashboard_snapshot_exposes_scalar_risk_facts() -> None:
     from dataclasses import fields
 
-    from src.core.modules.project_management.application.risk import (
+    from src.core.modules.project_management.application.risk.dto.responses.register_summary import (
         RegisterDashboardSnapshot,
     )
 

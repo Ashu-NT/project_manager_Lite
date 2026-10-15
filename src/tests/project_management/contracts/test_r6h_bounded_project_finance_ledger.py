@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import event
 
-from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.ledger_query import (
     ProjectFinanceLedgerQuery,
 )
 from src.tests.project_management.contracts.test_project_finance_canonical_read_models import (

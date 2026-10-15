@@ -5,6 +5,9 @@ import json
 import pytest
 from sqlalchemy import func, select
 
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
+)
 from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
@@ -111,10 +114,7 @@ def test_tenant_onboarding_rolls_back_user_and_membership_when_audit_fails(
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(RuntimeError, match="tenant security audit unavailable"):
-        services["user_registration"].onboard_tenant_user(
-            username="atomic-onboarding-target",
-            raw_password=_PASSWORD,
-        )
+        services["user_registration"].onboard_tenant_user(UserCreateCommand(username="atomic-onboarding-target", password=_PASSWORD))
 
     assert (
         services["auth_queries"]._user_repo.get_by_username(

@@ -17,6 +17,13 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
     ProjectBaselineRejected,
     ProjectBaselineSubmitted,
 )
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineApproveCommand,
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineDeleteCommand,
+    SchedulingBaselineRejectCommand,
+    SchedulingBaselineSubmitCommand,
+)
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import (
     SchedulingEngine,
 )
@@ -111,13 +118,10 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
             operation_label=operation_label
         )
 
-    def create_baseline(
-        self,
-        project_id: str,
-        name: str = "Baseline",
-        *,
-        rate_as_of: date,
-    ) -> ProjectBaseline:
+    def create_baseline(self, command: SchedulingBaselineCreateCommand) -> ProjectBaseline:
+        project_id = command.project_id
+        name = command.name
+        rate_as_of = command.rate_as_of
         governed = (
             self._approval_commands is not None
             and is_governance_required("baseline.create")
@@ -286,7 +290,8 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
 
 
 
-    def delete_baseline(self, baseline_id: str) -> None:
+    def delete_baseline(self, command: SchedulingBaselineDeleteCommand) -> None:
+        baseline_id = command.baseline_id
         require_permission(self._user_session, "baseline.manage", operation_label="delete baseline")
         baseline = self._baselines.get_baseline(baseline_id)
         if not baseline:
@@ -325,12 +330,10 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
 
     # ── lifecycle: submit / approve / reject ────────────────────────────────
 
-    def submit_baseline(
-        self,
-        baseline_id: str,
-        submitted_by: str,
-        notes: str = "",
-    ) -> ProjectBaseline:
+    def submit_baseline(self, command: SchedulingBaselineSubmitCommand) -> ProjectBaseline:
+        baseline_id = command.baseline_id
+        submitted_by = command.submitted_by
+        notes = command.notes
         """Transition baseline from DRAFT → SUBMITTED for approval routing."""
         require_permission(
             self._user_session, "baseline.manage", operation_label="submit baseline"
@@ -372,12 +375,10 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
         return baseline
 
-    def approve_baseline(
-        self,
-        baseline_id: str,
-        approved_by: str,
-        notes: str = "",
-    ) -> ProjectBaseline:
+    def approve_baseline(self, command: SchedulingBaselineApproveCommand) -> ProjectBaseline:
+        baseline_id = command.baseline_id
+        approved_by = command.approved_by
+        notes = command.notes
         """
         Transition baseline from SUBMITTED → APPROVED.
 
@@ -450,11 +451,9 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
 
         return baseline
 
-    def reject_baseline(
-        self,
-        baseline_id: str,
-        notes: str = "",
-    ) -> ProjectBaseline:
+    def reject_baseline(self, command: SchedulingBaselineRejectCommand) -> ProjectBaseline:
+        baseline_id = command.baseline_id
+        notes = command.notes
         """Transition baseline from SUBMITTED → REJECTED."""
         require_permission(
             self._user_session, "baseline.approve", operation_label="reject baseline"

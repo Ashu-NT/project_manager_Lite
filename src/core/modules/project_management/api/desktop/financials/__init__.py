@@ -39,64 +39,47 @@ from src.core.modules.project_management.api.desktop.financials.models import (
     FinancialRateTableRecordDto,
     FinancialRateWorkspaceDto,
 )
-from src.core.modules.project_management.application.financials.budgets.dto import (
-    FinancialAddBudgetLineCommand,
-    FinancialCreateBudgetSuccessorCommand,
-    FinancialCreateBudgetVersionCommand,
-    FinancialDeleteBudgetLineCommand,
-    FinancialUpdateBudgetCommand,
-    FinancialUpdateBudgetLineCommand,
-    FinancialVersionedBudgetCommand,
-)
-from src.core.modules.project_management.application.financials.configuration.dto import (
-    FinancialChangeCostCodeStatusCommand,
-    FinancialCostCodeRestrictionCommand,
-    FinancialCreateCostCodeCommand,
-    FinancialTransitionProfileCommand,
-    FinancialUpdateCostCodeCommand,
-    FinancialUpdateProfileCommand,
-)
-from src.core.modules.project_management.application.financials.cost.entries.dto import (
-    FinancialCreateManualActualCommand,
-    FinancialDecideActualCommand,
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_posting import (
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_review import (
+    FinancialDecideActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
 )
-from src.core.modules.project_management.application.financials.financial_changes.dto import (
-    FinancialChangeImpactCommand,
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_draft import (
     FinancialCreateChangeCommand,
-    FinancialRemoveChangeImpactCommand,
-    FinancialSubmitChangeCommand,
     FinancialUpdateChangeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_impacts import (
+    FinancialChangeImpactCommand,
+    FinancialRemoveChangeImpactCommand,
     FinancialUpdateChangeImpactCommand,
 )
-from src.core.modules.project_management.application.financials.forecasts.dto import (
-    FinancialGenerateForecastCommand,
-    FinancialManualEtcCommand,
-    FinancialRiskContingencyCommand,
-    FinancialVersionedForecastCommand,
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_submission import (
+    FinancialSubmitChangeCommand,
 )
-from src.core.modules.project_management.application.financials.invoicing.dto import (
-    FinancialActivateBillingProfileCommand,
-    FinancialAddApprovedTimeBillingSourceCommand,
-    FinancialAddBillingScheduleLineCommand,
-    FinancialAddCostPlusBillingSourceCommand,
-    FinancialAddFixedPriceBillingSourceCommand,
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_preparation import (
     FinancialCreateBillingPreparationCommand,
-    FinancialCreateBillingProfileCommand,
-    FinancialMarkBillingScheduleLineReadyCommand,
-    FinancialRemoveDraftBillingLineCommand,
     FinancialVersionedBillingPreparationCommand,
 )
-from src.core.modules.project_management.application.financials.rate_cards.dto import (
-    FinancialAddRateLineCommand,
-    FinancialCreateRateCardCommand,
-    FinancialUpdateRateCardCommand,
-    FinancialUpdateRateLineCommand,
-    FinancialVersionedRateCardCommand,
-    FinancialVersionedRateLineCommand,
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_profile import (
+    FinancialActivateBillingProfileCommand,
+    FinancialCreateBillingProfileCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_schedule import (
+    FinancialAddBillingScheduleLineCommand,
+    FinancialMarkBillingScheduleLineReadyCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_sources import (
+    FinancialAddApprovedTimeBillingSourceCommand,
+    FinancialAddCostPlusBillingSourceCommand,
+    FinancialAddFixedPriceBillingSourceCommand,
+    FinancialRemoveDraftBillingLineCommand,
 )
 
 __all__ = [
@@ -105,10 +88,8 @@ __all__ = [
     "FinancialActivateBillingProfileCommand",
     "FinancialAddApprovedTimeBillingSourceCommand",
     "FinancialAddBillingScheduleLineCommand",
-    "FinancialAddBudgetLineCommand",
     "FinancialAddCostPlusBillingSourceCommand",
     "FinancialAddFixedPriceBillingSourceCommand",
-    "FinancialAddRateLineCommand",
     "FinancialBaselineVersionDto",
     "FinancialBillingPreparationDto",
     "FinancialBillingPreparationLineDto",
@@ -118,7 +99,6 @@ __all__ = [
     "FinancialBillingSourcePageDto",
     "FinancialBudgetLineMutationDto",
     "FinancialBudgetMutationDto",
-    "FinancialChangeCostCodeStatusCommand",
     "FinancialChangeImpactCommand",
     "FinancialChangeMutationDto",
     "FinancialCommercialProjectionDto",
@@ -127,26 +107,18 @@ __all__ = [
     "FinancialConfigurationRecordDto",
     "FinancialConfigurationWorkspaceDto",
     "FinancialCostCodeOptionDescriptor",
-    "FinancialCostCodeRestrictionCommand",
     "FinancialCostEntryApprovalDto",
     "FinancialCostEntryDto",
     "FinancialCostEntryPageDto",
     "FinancialCreateBillingPreparationCommand",
     "FinancialCreateBillingProfileCommand",
-    "FinancialCreateBudgetSuccessorCommand",
-    "FinancialCreateBudgetVersionCommand",
     "FinancialCreateChangeCommand",
-    "FinancialCreateCostCodeCommand",
     "FinancialCreateManualActualCommand",
-    "FinancialCreateRateCardCommand",
     "FinancialDecideActualCommand",
-    "FinancialDeleteBudgetLineCommand",
     "FinancialForecastMutationDto",
-    "FinancialGenerateForecastCommand",
     "FinancialLookupOptionDto",
     "FinancialLookupPageDto",
     "FinancialManualActualOptionsDto",
-    "FinancialManualEtcCommand",
     "FinancialMarkBillingScheduleLineReadyCommand",
     "FinancialPeriodRowDto",
     "FinancialPostActualCommand",
@@ -158,24 +130,12 @@ __all__ = [
     "FinancialRemoveChangeImpactCommand",
     "FinancialRemoveDraftBillingLineCommand",
     "FinancialReverseActualCommand",
-    "FinancialRiskContingencyCommand",
     "FinancialSubmitChangeCommand",
-    "FinancialTransitionProfileCommand",
     "FinancialUpdateActualDraftCommand",
-    "FinancialUpdateBudgetCommand",
-    "FinancialUpdateBudgetLineCommand",
     "FinancialUpdateChangeCommand",
     "FinancialUpdateChangeImpactCommand",
-    "FinancialUpdateCostCodeCommand",
-    "FinancialUpdateProfileCommand",
-    "FinancialUpdateRateCardCommand",
-    "FinancialUpdateRateLineCommand",
     "FinancialVersionedActualCommand",
     "FinancialVersionedBillingPreparationCommand",
-    "FinancialVersionedBudgetCommand",
-    "FinancialVersionedForecastCommand",
-    "FinancialVersionedRateCardCommand",
-    "FinancialVersionedRateLineCommand",
     "ProjectManagementFinancialsDesktopApi",
     "build_project_management_financials_desktop_api",
 ]

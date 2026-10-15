@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
     CommercialMetricAvailability,
     CommercialMetricUnavailableReason,
 )

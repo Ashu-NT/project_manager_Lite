@@ -7,6 +7,10 @@ from sqlalchemy.exc import IntegrityError
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateActivateCommand,
+    PortfolioTemplateCreateCommand,
+)
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioScoringTemplateChangeType,
 )
@@ -54,17 +58,14 @@ class PortfolioTemplateCommandHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def create_scoring_template(
-        self,
-        *,
-        name: str,
-        summary: str = "",
-        strategic_weight: int = 3,
-        value_weight: int = 2,
-        urgency_weight: int = 2,
-        risk_weight: int = 1,
-        activate: bool = False,
-    ) -> PortfolioScoringTemplate:
+    def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioScoringTemplate:
+        name = command.name
+        summary = command.summary
+        strategic_weight = command.strategic_weight
+        value_weight = command.value_weight
+        urgency_weight = command.urgency_weight
+        risk_weight = command.risk_weight
+        activate = command.activate
         require_permission(self._user_session, "portfolio.manage", operation_label="create scoring template")
         organization_id = self._policy.organization_id(operation_label="create scoring template")
         try:
@@ -126,7 +127,8 @@ class PortfolioTemplateCommandHandler(ProjectManagementModuleGuardMixin):
             ) from exc
         return template
 
-    def activate_scoring_template(self, template_id: str) -> PortfolioScoringTemplate:
+    def activate_scoring_template(self, command: PortfolioTemplateActivateCommand) -> PortfolioScoringTemplate:
+        template_id = command.template_id
         require_permission(self._user_session, "portfolio.manage", operation_label="activate scoring template")
         self._policy.organization_id(operation_label="activate scoring template")
         template = self._scoring_template_repo.get(template_id)

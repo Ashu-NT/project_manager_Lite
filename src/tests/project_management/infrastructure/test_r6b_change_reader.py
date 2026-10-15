@@ -12,7 +12,7 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_change_facts import (
+from src.core.modules.project_management.contracts.reads.financials.financial_changes.models.change_facts import (
     FinancialChangeImpactQuery,
     FinancialChangeRequestQuery,
 )

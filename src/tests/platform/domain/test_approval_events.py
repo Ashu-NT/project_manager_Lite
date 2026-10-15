@@ -19,6 +19,12 @@ from src.core.modules.project_management.application.financials.invoicing.billin
     BillingPreparationStatusChanged,
     BillingPreparationStatusChangeType,
 )
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.approval import (
     ApprovalApproved,
@@ -371,9 +377,7 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
         code=_unique("EVT-BILL-CC"), name="Events billing cost code"
     ))
     services["financial_period_commands"].create_period(
-        code=_unique("EVT-FY26"), name="Events period", fiscal_year=2026, period_number=8,
-        start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
-    )
+        FinancialPeriodCreateCommand(code=_unique("EVT-FY26"), name="Events period", fiscal_year=2026, period_number=8, start_date=date(2026, 8, 1).isoformat(), end_date=date(2026, 8, 31).isoformat()))
     profile = services['financial_configuration_query'].get_profile(project.id)
     services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id, expected_version=profile.version, default_cost_code_id=cost_code.id,
@@ -434,7 +438,7 @@ def test_approve_and_apply_records_exactly_one_approval_approved(services, sessi
     approvals = services["approval_commands"]
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
-    decided = approvals.approve_and_apply(request.id, note="Approved")
+    decided = approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Approved"))
 
     # Filtered by type: approval also records BudgetStatusChanged via
     # `ApprovalHandlerResult.domain_events`.
@@ -471,7 +475,7 @@ def test_apply_handler_failure_emits_zero_approval_approved(services, session, m
     services["approval_participants"].apply_handlers["budget.approve"] = (_failing_handler, saved[1])
     try:
         with pytest.raises(RuntimeError, match="simulated apply participant failure"):
-            approvals.approve_and_apply(request.id, note="Should not apply")
+            approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Should not apply"))
     finally:
         services["approval_participants"].apply_handlers["budget.approve"] = saved
 
@@ -488,11 +492,11 @@ def test_approve_already_decided_request_emits_zero_new_events(services, session
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     approvals = services["approval_commands"]
-    approvals.approve_and_apply(request.id, note="First decision")
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="First decision"))
 
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
     with pytest.raises(BusinessRuleError) as exc_info:
-        approvals.approve_and_apply(request.id, note="Second decision")
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Second decision"))
 
     assert exc_info.value.code == "APPROVAL_ALREADY_DECIDED"
     assert recorded == []
@@ -509,7 +513,7 @@ def test_reject_records_exactly_one_approval_rejected(services, session, monkeyp
     approvals = services["approval_commands"]
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
-    decided = approvals.reject(request.id, note="Rejected")
+    decided = approvals.reject(ApprovalDecisionCommand(request_id=request.id, note="Rejected"))
 
     # Filtered by type: rejection also records BudgetStatusChanged (see approve test above).
     rejected_events = [e for e in recorded if isinstance(e, ApprovalRejected)]
@@ -542,7 +546,7 @@ def test_reject_handler_failure_emits_zero_approval_rejected(services, session, 
     services["approval_participants"].reject_handlers["budget.approve"] = (_failing_reject_handler, saved[1])
     try:
         with pytest.raises(RuntimeError, match="simulated reject participant failure"):
-            approvals.reject(request.id, note="Should not reject")
+            approvals.reject(ApprovalDecisionCommand(request_id=request.id, note="Should not reject"))
     finally:
         services["approval_participants"].reject_handlers["budget.approve"] = saved
 
@@ -556,11 +560,11 @@ def test_reject_already_decided_request_emits_zero_new_events(services, session,
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     approvals = services["approval_commands"]
-    approvals.reject(request.id, note="First decision")
+    approvals.reject(ApprovalDecisionCommand(request_id=request.id, note="First decision"))
 
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
     with pytest.raises(BusinessRuleError) as exc_info:
-        approvals.reject(request.id, note="Second decision")
+        approvals.reject(ApprovalDecisionCommand(request_id=request.id, note="Second decision"))
 
     assert exc_info.value.code == "APPROVAL_ALREADY_DECIDED"
     assert recorded == []
@@ -645,7 +649,7 @@ def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(
     bus.subscribe(ApprovalApproved, lambda e, c: healthy_seen.append(e))
 
     # Must not raise -- ISOLATE_AND_CONTINUE swallows the failing handler's exception.
-    decided = approvals.approve_and_apply(request.id, note="Approved despite a broken subscriber")
+    decided = approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Approved despite a broken subscriber"))
 
     assert len(healthy_seen) == 1
     assert decided.status == ApprovalStatus.APPROVED
@@ -716,9 +720,9 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
     with pytest.raises(NotFoundError):
-        approvals.approve_and_apply(request.id)
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
     with pytest.raises(NotFoundError):
-        approvals.reject(request.id)
+        approvals.reject(ApprovalDecisionCommand(request_id=request.id))
 
     assert recorded == []
     assert approved_seen == []
@@ -826,9 +830,9 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     )
 
     with pytest.raises(NotFoundError):
-        approvals_b.approve_and_apply(request.id)
+        approvals_b.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
     with pytest.raises(NotFoundError):
-        approvals_b.reject(request.id)
+        approvals_b.reject(ApprovalDecisionCommand(request_id=request.id))
 
     assert approved_seen == []
     assert rejected_seen == []
@@ -855,7 +859,7 @@ def test_approve_and_apply_records_approval_approved_before_the_target_event(
     approvals = services["approval_commands"]
     recorded = _spy_recorded_events(approvals._uow_factory, monkeypatch)
 
-    approvals.approve_and_apply(request.id, note="Approved")
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Approved"))
 
     assert len(recorded) >= 1
     assert isinstance(recorded[0], ApprovalApproved)

@@ -17,6 +17,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
+)
 from src.core.platform.common.exceptions import OperationNotPermittedError
 from src.core.platform.domain.history.platform_events.platform_event import (
     PlatformEvent,
@@ -70,8 +73,7 @@ def _make_svc_with_events(
 def test_create_tenant_emits_event_low_severity(services):
     svc, event_repo = _make_svc_with_events(services)
     tenant = svc.tenant_lifecycle_commands.create_tenant(
-        "P2C-CREATE1", "Create Emission Test"
-    )
+        TenantCreateCommand(tenant_code="P2C-CREATE1", display_name="Create Emission Test"))
     services["session"].flush()
 
     events = event_repo.list_for_tenant(tenant.id)
@@ -88,8 +90,7 @@ def test_create_tenant_emits_event_low_severity(services):
 def test_suspend_tenant_emits_event_medium_severity(services):
     svc, event_repo = _make_svc_with_events(services)
     tenant = svc.tenant_lifecycle_commands.create_tenant(
-        "P2C-SUSP1", "Suspend Emission Test"
-    )
+        TenantCreateCommand(tenant_code="P2C-SUSP1", display_name="Suspend Emission Test"))
     services["session"].flush()
 
     svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
@@ -108,8 +109,7 @@ def test_suspend_tenant_emits_event_medium_severity(services):
 def test_archive_tenant_emits_event_high_severity_with_old_status(services):
     svc, event_repo = _make_svc_with_events(services)
     tenant = svc.tenant_lifecycle_commands.create_tenant(
-        "P2C-ARCH1", "Archive Emission Test"
-    )
+        TenantCreateCommand(tenant_code="P2C-ARCH1", display_name="Archive Emission Test"))
     services["session"].flush()
     svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
     services["session"].flush()
@@ -129,8 +129,7 @@ def test_archive_tenant_emits_event_high_severity_with_old_status(services):
 def test_restore_tenant_emits_event_medium_severity(services):
     svc, event_repo = _make_svc_with_events(services)
     tenant = svc.tenant_lifecycle_commands.create_tenant(
-        "P2C-REST1", "Restore Emission Test"
-    )
+        TenantCreateCommand(tenant_code="P2C-REST1", display_name="Restore Emission Test"))
     services["session"].flush()
     svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
     services["session"].flush()
@@ -181,14 +180,12 @@ def test_platform_event_repo_delete_raises(services):
 def test_list_for_tenant_scoped_to_tenant(services):
     svc_a, event_repo = _make_svc_with_events(services)
     tenant_a = svc_a.tenant_lifecycle_commands.create_tenant(
-        "P2C-SCOPE-A", "Scope Tenant A"
-    )
+        TenantCreateCommand(tenant_code="P2C-SCOPE-A", display_name="Scope Tenant A"))
     services["session"].flush()
 
     svc_b, _ = _make_svc_with_events(services)
     tenant_b = svc_b.tenant_lifecycle_commands.create_tenant(
-        "P2C-SCOPE-B", "Scope Tenant B"
-    )
+        TenantCreateCommand(tenant_code="P2C-SCOPE-B", display_name="Scope Tenant B"))
     services["session"].flush()
 
     events_a = event_repo.list_for_tenant(tenant_a.id)
@@ -206,11 +203,9 @@ def test_list_for_tenant_scoped_to_tenant(services):
 def test_list_for_resource_filters_correctly(services):
     svc, event_repo = _make_svc_with_events(services)
     tenant_x = svc.tenant_lifecycle_commands.create_tenant(
-        "P2C-RES-X", "Resource Filter X"
-    )
+        TenantCreateCommand(tenant_code="P2C-RES-X", display_name="Resource Filter X"))
     tenant_y = svc.tenant_lifecycle_commands.create_tenant(
-        "P2C-RES-Y", "Resource Filter Y"
-    )
+        TenantCreateCommand(tenant_code="P2C-RES-Y", display_name="Resource Filter Y"))
     services["session"].flush()
 
     events_x = event_repo.list_for_resource(tenant_x.id, "tenant", tenant_x.id)

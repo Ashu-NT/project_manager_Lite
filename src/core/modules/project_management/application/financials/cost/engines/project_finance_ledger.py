@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.application.financials.cost.dto import (
+from src.core.modules.project_management.application.financials.cost.dto.responses.finance_ledger import (
     ProjectFinanceLedgerRow,
 )
 from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_currency,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.snapshot_facts import (
     FinanceSnapshotFacts,
 )
 

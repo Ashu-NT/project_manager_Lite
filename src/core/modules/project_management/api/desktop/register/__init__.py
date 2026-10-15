@@ -16,20 +16,14 @@ from src.core.modules.project_management.api.desktop.register.models.options imp
     RegisterEntryTypeDescriptor,
     RegisterProjectOptionDescriptor,
 )
-from src.core.modules.project_management.application.risk.dto.register_commands import (
-    RegisterEntryCreateCommand,
-    RegisterEntryUpdateCommand,
-)
 
 __all__ = [
     "ProjectManagementRegisterDesktopApi",
     "RegisterCatalogPageDesktopDto",
-    "RegisterEntryCreateCommand",
     "RegisterEntryDesktopDto",
     "RegisterEntrySeverityDescriptor",
     "RegisterEntryStatusDescriptor",
     "RegisterEntryTypeDescriptor",
-    "RegisterEntryUpdateCommand",
     "RegisterProjectOptionDescriptor",
     "build_project_management_register_desktop_api",
 ]

@@ -1,8 +1,13 @@
+
 from datetime import date
-from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_register_desktop_api,
+)
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryCreateCommand,
+    RegisterEntryDeleteCommand,
+    RegisterEntryUpdateCommand,
 )
 from src.core.modules.project_management.domain.enums import (
     ProjectStatus,
@@ -42,7 +47,7 @@ def test_project_management_register_desktop_api_mutates_register_entries() -> N
     assert api.list_severities()[0].label == "Low"
 
     created = api.create_entry(
-        SimpleNamespace(
+        RegisterEntryCreateCommand(
             project_id=project_alpha.id,
             entry_type="RISK",
             title="Critical supplier dependency",
@@ -56,7 +61,7 @@ def test_project_management_register_desktop_api_mutates_register_entries() -> N
         )
     )
     api.create_entry(
-        SimpleNamespace(
+        RegisterEntryCreateCommand(
             project_id=project_beta.id,
             entry_type="ISSUE",
             title="Permit handoff blocked",
@@ -77,7 +82,7 @@ def test_project_management_register_desktop_api_mutates_register_entries() -> N
     assert listed[0].is_overdue is True
 
     updated = api.update_entry(
-        SimpleNamespace(
+        RegisterEntryUpdateCommand(
             entry_id=created.id,
             project_id=project_alpha.id,
             entry_type="RISK",
@@ -97,7 +102,7 @@ def test_project_management_register_desktop_api_mutates_register_entries() -> N
     assert updated.status == "MITIGATED"
     assert api.list_entries(project_id=project_beta.id)[0].project_name == "Warehouse Retrofit"
 
-    api.delete_entry(created.id)
+    api.delete_entry(RegisterEntryDeleteCommand(created.id))
 
     assert {entry.id for entry in api.list_entries()} == {"reg-2"}
 
@@ -178,21 +183,18 @@ class _FakeRegisterService:
         ]
         return sorted(entries, key=lambda entry: entry.triage_key(date.today()))
 
-    def create_entry(
-        self,
-        project_id: str,
-        *,
-        entry_type: RegisterEntryType,
-        title: str,
-        description: str = "",
-        severity: RegisterEntrySeverity = RegisterEntrySeverity.MEDIUM,
-        status: RegisterEntryStatus = RegisterEntryStatus.OPEN,
-        owner_name: str | None = None,
-        due_date: date | None = None,
-        impact_summary: str = "",
-        response_plan: str = "",
-        code: str = "",
-    ) -> RegisterEntry:
+    def create_entry(self, command: RegisterEntryCreateCommand) -> RegisterEntry:
+        project_id = command.project_id
+        entry_type = command.entry_type
+        title = command.title
+        description = command.description
+        severity = command.severity
+        status = command.status
+        owner_name = command.owner_name
+        due_date = command.due_date
+        impact_summary = command.impact_summary
+        response_plan = command.response_plan
+        code = command.code
         entry = RegisterEntry(
             id=f"reg-{self._next_id}",
             project_id=project_id,
@@ -212,22 +214,18 @@ class _FakeRegisterService:
         self._entries[entry.id] = entry
         return entry
 
-    def update_entry(
-        self,
-        entry_id: str,
-        *,
-        expected_version: int | None = None,
-        entry_type: RegisterEntryType | None = None,
-        title: str | None = None,
-        description: str | None = None,
-        severity: RegisterEntrySeverity | None = None,
-        status: RegisterEntryStatus | None = None,
-        owner_name: str | None = None,
-        due_date: date | None = None,
-        impact_summary: str | None = None,
-        response_plan: str | None = None,
-        code: str | None = None,
-    ) -> RegisterEntry:
+    def update_entry(self, command: RegisterEntryUpdateCommand) -> RegisterEntry:
+        entry_id = command.entry_id
+        entry_type = command.entry_type
+        title = command.title
+        description = command.description
+        severity = command.severity
+        status = command.status
+        owner_name = command.owner_name
+        due_date = command.due_date
+        impact_summary = command.impact_summary
+        response_plan = command.response_plan
+        code = command.code
         entry = self._entries[entry_id]
         if code is not None and code.strip():
             entry.code = code
@@ -251,7 +249,8 @@ class _FakeRegisterService:
         entry.version += 1
         return entry
 
-    def delete_entry(self, entry_id: str) -> None:
+    def delete_entry(self, command: RegisterEntryDeleteCommand) -> None:
+        entry_id = command.entry_id
         del self._entries[entry_id]
 
     def get_entry(self, entry_id: str) -> RegisterEntry:

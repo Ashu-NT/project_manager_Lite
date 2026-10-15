@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
+)
 from src.core.platform.application.tenant.tenancy.queries.admin import (
     TenantAdminQueryHandler,
 )
@@ -121,7 +124,9 @@ class TenantLifecycleCommandHandler:
     # Read operations
     # ------------------------------------------------------------------
 
-    def create_tenant(self, tenant_code: str, display_name: str) -> Tenant:
+    def create_tenant(self, command: TenantCreateCommand) -> Tenant:
+        tenant_code = command.tenant_code
+        display_name = command.display_name
         require_permission(
             self._user_session,
             "platform.admin",

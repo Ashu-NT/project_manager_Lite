@@ -29,6 +29,12 @@ from src.core.modules.project_management.application.tasks.commands.hierarchy_su
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
+    TaskAssignmentAllocationCommand,
+    TaskAssignmentCreateCommand,
+    TaskAssignmentHoursCommand,
+    TaskAssignmentPlannedHoursCommand,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskAssignmentChanged,
     TaskAssignmentChangeType,
@@ -276,7 +282,9 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
             resource_breakdown=tuple(rows),
         )
 
-    def set_assignment_hours(self, assignment_id: str, hours_logged: Decimal) -> TaskAssignment:
+    def set_assignment_hours(self, command: TaskAssignmentHoursCommand) -> TaskAssignment:
+        assignment_id = command.assignment_id
+        hours_logged = command.hours_logged
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
@@ -325,13 +333,10 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
         return updated
 
-    def set_assignment_allocation(
-        self,
-        assignment_id: str,
-        allocation_percent: float,
-        *,
-        expected_version: int,
-    ) -> TaskAssignment:
+    def set_assignment_allocation(self, command: TaskAssignmentAllocationCommand) -> TaskAssignment:
+        assignment_id = command.assignment_id
+        allocation_percent = command.allocation_percent
+        expected_version = command.expected_version
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
@@ -386,14 +391,11 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
 
         return updated
 
-    def update_assignment_planned_hours(
-        self,
-        assignment_id: str,
-        *,
-        allocated_planned_hours: Decimal,
-        expected_assignment_version: int,
-        expected_project_resource_version: int,
-    ) -> TaskAssignment:
+    def update_assignment_planned_hours(self, command: TaskAssignmentPlannedHoursCommand) -> TaskAssignment:
+        assignment_id = command.assignment_id
+        allocated_planned_hours = command.allocated_planned_hours
+        expected_assignment_version = command.expected_assignment_version
+        expected_project_resource_version = command.expected_project_resource_version
         """Distributes a ProjectResource.planned_hours envelope across task assignments."""
         if not self._project_resource_repo:
             raise BusinessRuleError(
@@ -567,14 +569,11 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
                 project_resource=project_resource,
             )
 
-    def assign_project_resource(
-        self,
-        task_id: str,
-        project_resource_id: str,
-        allocation_percent: float,
-        *,
-        allocated_planned_hours: Decimal = Decimal(0),
-    ) -> TaskAssignment:
+    def assign_project_resource(self, command: TaskAssignmentCreateCommand) -> TaskAssignment:
+        task_id = command.task_id
+        project_resource_id = command.project_resource_id
+        allocation_percent = command.allocation_percent
+        allocated_planned_hours = command.allocated_planned_hours
         with self._uow_scope.create() as uow:
             project_resource = uow.project_resources.get(project_resource_id)
             if not project_resource:

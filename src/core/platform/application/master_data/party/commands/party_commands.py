@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.application.master_data.party.dto import (
+from src.core.platform.application.master_data.party.dto.commands.party import (
     PartyCreateCommand,
     PartyUpdateCommand,
 )

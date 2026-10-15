@@ -5,11 +5,15 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.application.financials.cost.entries.dto import (
-    FinancialCreateManualActualCommand,
-    FinancialDecideActualCommand,
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_posting import (
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_review import (
+    FinancialDecideActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
 )

@@ -13,11 +13,13 @@ from src.core.modules.project_management.api.desktop.projects.models import (
     ProjectResourceUsageDesktopDto,
     ProjectStatusDescriptor,
 )
-from src.core.modules.project_management.application.projects.dto import (
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
     ProjectResourceAssignCommand,
     ProjectResourceUpdateCommand,
-    ProjectUpdateCommand,
 )
 
 __all__ = [

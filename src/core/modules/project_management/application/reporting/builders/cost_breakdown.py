@@ -11,7 +11,7 @@ from datetime import date
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.cost.dto import (
+from src.core.modules.project_management.application.financials.cost.dto.responses.cost_breakdown import (
     CostBreakdownRow,
     CostSourceBreakdown,
 )

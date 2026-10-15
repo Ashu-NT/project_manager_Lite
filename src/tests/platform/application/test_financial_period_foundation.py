@@ -6,12 +6,12 @@ from datetime import UTC, date, datetime
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.finance.models import (
+from src.core.platform.application.finance import FinancialPeriodQueryHandler
+from src.core.platform.application.finance.dto.commands.financial_periods import (
     FinancialPeriodCreateCommand,
     FinancialPeriodTransitionCommand,
     FinancialPeriodUpdateCommand,
 )
-from src.core.platform.application.finance import FinancialPeriodQueryHandler
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -23,14 +23,7 @@ from src.tests.ui_runtime_helpers import login_as, register_and_login
 
 
 def _create_period(service, *, code: str = "FY26-P01", period_number: int = 1):
-    return service.create_period(
-        code=code,
-        name=f"Fiscal 2026 period {period_number}",
-        fiscal_year=2026,
-        period_number=period_number,
-        start_date=date(2026, period_number, 1),
-        end_date=date(2026, period_number, 28),
-    )
+    return service.create_period(FinancialPeriodCreateCommand(code=code, name=f"Fiscal 2026 period {period_number}", fiscal_year=2026, period_number=period_number, start_date=date(2026, period_number, 1).isoformat(), end_date=date(2026, period_number, 28).isoformat()))
 
 
 def test_financial_period_domain_enforces_range_metadata_and_one_way_lifecycle() -> None:
@@ -80,39 +73,23 @@ def test_financial_period_handlers_enforce_overlap_concurrency_audit_and_posting
 
     assert queries.require_open_period_for_date(date(2026, 1, 10)).id == period.id
     with pytest.raises(BusinessRuleError) as overlap:
-        commands.create_period(
-            code="FY26-P01B",
-            name="Overlapping period",
-            fiscal_year=2026,
-            period_number=2,
-            start_date=date(2026, 1, 15),
-            end_date=date(2026, 2, 15),
-        )
+        commands.create_period(FinancialPeriodCreateCommand(code="FY26-P01B", name="Overlapping period", fiscal_year=2026, period_number=2, start_date=date(2026, 1, 15).isoformat(), end_date=date(2026, 2, 15).isoformat()))
     assert overlap.value.code == "FINANCIAL_PERIOD_OVERLAP"
 
-    updated = commands.update_period(
-        period.id,
-        expected_version=period.version,
-        name="January close cycle",
-        end_date=date(2026, 1, 31),
-    )
+    updated = commands.update_period(FinancialPeriodUpdateCommand(period_id=period.id, expected_version=period.version, name="January close cycle", end_date=date(2026, 1, 31).isoformat()))
     assert updated.version == 2
     with pytest.raises(ConcurrencyError) as stale:
-        commands.update_period(
-            period.id,
-            expected_version=1,
-            name="Stale change",
-        )
+        commands.update_period(FinancialPeriodUpdateCommand(period_id=period.id, expected_version=1, name="Stale change"))
     assert stale.value.code == "STALE_WRITE"
 
-    closed = commands.close_period(period.id, expected_version=updated.version)
+    closed = commands.close_period(FinancialPeriodTransitionCommand(period_id=period.id, expected_version=updated.version))
     assert closed.status == FinancialPeriodStatus.CLOSED
     assert closed.version == 3
     with pytest.raises(BusinessRuleError) as blocked:
         queries.require_open_period_for_date(date(2026, 1, 10))
     assert blocked.value.code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
 
-    locked = commands.lock_period(period.id, expected_version=closed.version)
+    locked = commands.lock_period(FinancialPeriodTransitionCommand(period_id=period.id, expected_version=closed.version))
     assert locked.status == FinancialPeriodStatus.LOCKED
     assert locked.version == 4
     assert not hasattr(commands, "reopen_period")
@@ -147,7 +124,7 @@ def test_financial_period_repository_isolates_active_organization(services) -> N
         with pytest.raises(NotFoundError):
             queries.get_period(first.id)
         with pytest.raises(NotFoundError):
-            commands.close_period(first.id, expected_version=first.version)
+            commands.close_period(FinancialPeriodTransitionCommand(period_id=first.id, expected_version=first.version))
         with pytest.raises(BusinessRuleError) as missing:
             queries.require_open_period_for_integration(date(2026, 1, 10))
         assert missing.value.code == "FINANCIAL_PERIOD_NOT_CONFIGURED"
@@ -262,11 +239,11 @@ def test_trusted_period_query_bypasses_read_permission_not_posting_policy(servic
     with pytest.raises(BusinessRuleError) as missing:
         queries.require_open_period_for_integration(date(2026, 2, 10))
     assert missing.value.code == "FINANCIAL_PERIOD_NOT_CONFIGURED"
-    closed = commands.close_period(period.id, expected_version=period.version)
+    closed = commands.close_period(FinancialPeriodTransitionCommand(period_id=period.id, expected_version=period.version))
     with pytest.raises(BusinessRuleError) as blocked:
         queries.require_open_period_for_integration(date(2026, 1, 10))
     assert blocked.value.code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
-    commands.lock_period(period.id, expected_version=closed.version)
+    commands.lock_period(FinancialPeriodTransitionCommand(period_id=period.id, expected_version=closed.version))
     with pytest.raises(BusinessRuleError) as locked:
         queries.require_open_period_for_integration(date(2026, 1, 10))
     assert locked.value.code == "FINANCIAL_PERIOD_POSTING_BLOCKED"

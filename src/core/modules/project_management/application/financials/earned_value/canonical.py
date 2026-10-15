@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from src.core.modules.project_management.application.financials.earned_value.dto import (
+from src.core.modules.project_management.application.financials.earned_value.dto.responses.earned_value import (
     EarnedValueMetrics,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+from src.core.modules.project_management.contracts.reads.financials.earned_value.models.series_facts import (
     EvmBaselineTaskFact,
 )
 

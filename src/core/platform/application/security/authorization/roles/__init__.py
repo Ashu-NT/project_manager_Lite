@@ -1,3 +1,6 @@
+from src.core.platform.application.security.authorization.roles._scope_delegation import (
+    DEFAULT_SCOPE_DELEGATIONS,
+)
 from src.core.platform.application.security.authorization.roles.canonical_role_resolver import (
     CanonicalRoleResolver,
     EffectiveRoleAuthority,
@@ -15,11 +18,12 @@ from src.core.platform.application.security.authorization.roles.commands.scope_d
 from src.core.platform.application.security.authorization.roles.commands.tenant_role_commands import (
     TenantRoleCommandHandler,
 )
-from src.core.platform.application.security.authorization.roles.dto import (
-    DEFAULT_SCOPE_DELEGATIONS,
+from src.core.platform.application.security.authorization.roles.dto.responses.role_policy_reconciliation import (
     RolePermissionChange,
     RolePolicyReconciliationPlan,
     RolePolicyReconciliationResult,
+)
+from src.core.platform.application.security.authorization.roles.dto.responses.scope_delegation import (
     ScopeDelegationApplyResult,
     ScopeDelegationPlan,
     ScopeDelegationPlanEntry,

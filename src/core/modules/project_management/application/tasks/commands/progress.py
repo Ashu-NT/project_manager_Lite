@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
@@ -11,11 +11,18 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.tasks._command_values import (
+    task_status,
+)
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
 )
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskBulkStatusCommand,
+    TaskProgressCommand,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskProgressChanged,
@@ -60,16 +67,10 @@ class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
         self._validation_policy = validation_policy
         self._uow_scope = uow_scope
 
-    def set_status(self, task_id: str, status: TaskStatus) -> None:
-        self.set_tasks_status((task_id,), status)
-
-    def set_tasks_status(
-        self,
-        task_ids: tuple[str, ...],
-        status: TaskStatus,
-        *,
-        reopen_percent_complete: float | None = None,
-    ) -> list[Task]:
+    def set_tasks_status(self, command: TaskBulkStatusCommand) -> list[Task]:
+        task_ids = command.task_ids
+        status = task_status(command.status)
+        reopen_percent_complete = command.reopen_percent_complete
         require_permission(self._user_session, "task.manage", operation_label="set task status")
         normalized_ids = tuple(
             task_id
@@ -154,15 +155,13 @@ class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
         return candidates
 
-    def update_progress(
-        self,
-        task_id: str,
-        percent_complete: float | None = None,
-        actual_start: date | None = None,
-        actual_end: date | None = None,
-        status: TaskStatus | None = None,
-        expected_version: int | None = None,
-    ) -> Task:
+    def update_progress(self, command: TaskProgressCommand) -> Task:
+        task_id = command.task_id
+        percent_complete = command.percent_complete
+        actual_start = command.actual_start
+        actual_end = command.actual_end
+        status = task_status(command.status) if command.status is not None else None
+        expected_version = command.expected_version
         require_permission(self._user_session, "task.manage", operation_label="update task progress")
         task = self._task_repo.get(task_id)
         if not task:

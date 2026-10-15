@@ -5,9 +5,25 @@ from decimal import Decimal
 
 import pytest
 
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
+    PortfolioIntakeCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+    PortfolioDependencyRemoveCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
+    PortfolioScenarioCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
     TaskCommentORM,
+)
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
@@ -102,11 +118,7 @@ def test_project_memberships_restrict_project_and_task_queries(services):
     viewer = services["user_registration"].register_user("scoped-viewer", "StrongPass123", role_names=["viewer"])
 
     access.assign_scope_grant(
-        scope_type="project",
-        scope_id=project_alpha.id,
-        user_id=viewer.id,
-        scope_role="viewer",
-    )
+        ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project_alpha.id, user_id=viewer.id, scope_role="viewer"))
 
     login_as(services, "scoped-viewer", "StrongPass123")
 
@@ -132,17 +144,9 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
     beta_viewer = services["user_registration"].register_user("collab-beta-viewer", "StrongPass123", role_names=["viewer"])
 
     access.assign_scope_grant(
-        scope_type="project",
-        scope_id=project_alpha.id,
-        user_id=viewer.id,
-        scope_role="viewer",
-    )
+        ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project_alpha.id, user_id=viewer.id, scope_role="viewer"))
     access.assign_scope_grant(
-        scope_type="project",
-        scope_id=project_beta.id,
-        user_id=beta_viewer.id,
-        scope_role="viewer",
-    )
+        ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project_beta.id, user_id=beta_viewer.id, scope_role="viewer"))
     services["collaboration_comment_commands"].post_comment(task_id=task_alpha.id, body="Please review @collab-viewer")
     services["collaboration_comment_commands"].post_comment(task_id=task_alpha.id, body="Second note for @collab-viewer")
     services["collaboration_comment_commands"].post_comment(task_id=task_alpha.id, body="Final follow-up @collab-viewer")
@@ -196,11 +200,7 @@ def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(se
         role_names=["viewer"],
     )
     access.assign_scope_grant(
-        scope_type="project",
-        scope_id=project.id,
-        user_id=viewer.id,
-        scope_role="viewer",
-    )
+        ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project.id, user_id=viewer.id, scope_role="viewer"))
     now = datetime.now(UTC)
     services["session"].add_all(
         [
@@ -257,11 +257,7 @@ def test_collaboration_recent_activity_filters_project_scope(services):
     viewer = services["user_registration"].register_user("notify-viewer", "StrongPass123", role_names=["viewer"])
 
     access.assign_scope_grant(
-        scope_type="project",
-        scope_id=project_alpha.id,
-        user_id=viewer.id,
-        scope_role="viewer",
-    )
+        ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project_alpha.id, user_id=viewer.id, scope_role="viewer"))
     services["collaboration_comment_commands"].post_comment(task_id=task_alpha.id, body="Visible activity")
     services["collaboration_comment_commands"].post_comment(task_id=task_beta.id, body="Hidden activity")
 
@@ -300,23 +296,8 @@ def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
     services["resource_master_commands"].create_resource("Portfolio Analyst", hourly_rate=100.0, capacity_percent=50.0)
     project = services['project_create'].create_project("Portfolio Project")
     _approve_project_budget(services, project.id, "500")
-    intake = services["portfolio_intake_commands"].create_intake_item(
-        title="New Initiative",
-        sponsor_name="PMO",
-        requested_budget=600.0,
-        requested_capacity_percent=70.0,
-        strategic_score=5,
-        value_score=4,
-        urgency_score=4,
-        risk_score=2,
-    )
-    scenario = services["portfolio_scenario_commands"].create_scenario(
-        name="Tight Plan",
-        budget_limit=1_000.0,
-        capacity_limit_percent=60.0,
-        project_ids=[project.id],
-        intake_item_ids=[intake.id],
-    )
+    intake = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="New Initiative", sponsor_name="PMO", requested_budget=600.0, requested_capacity_percent=70.0, strategic_score=5, value_score=4, urgency_score=4, risk_score=2))
+    scenario = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Tight Plan", budget_limit=1_000.0, capacity_limit_percent=60.0, project_ids=[project.id], intake_item_ids=[intake.id]))
 
     result = services["portfolio_scenario_query"].evaluate_scenario(scenario.id)
 
@@ -336,28 +317,13 @@ def test_portfolio_scoring_templates_drive_new_intake_scores(services):
     default_template = services["portfolio_template_query"].get_active_scoring_template()
     assert default_template.name == "Balanced PMO"
 
-    template = services["portfolio_template_commands"].create_scoring_template(
-        name="Value First",
-        summary="Pushes business value above urgency.",
-        strategic_weight=1,
-        value_weight=5,
-        urgency_weight=1,
-        risk_weight=0,
-        activate=True,
-    )
+    template = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Value First", summary="Pushes business value above urgency.", strategic_weight=1, value_weight=5, urgency_weight=1, risk_weight=0, activate=True))
 
     active_template = services["portfolio_template_query"].get_active_scoring_template()
     assert active_template.id == template.id
     assert active_template.is_active is True
 
-    intake = services["portfolio_intake_commands"].create_intake_item(
-        title="Template Driven Intake",
-        sponsor_name="PMO",
-        strategic_score=2,
-        value_score=5,
-        urgency_score=1,
-        risk_score=4,
-    )
+    intake = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="Template Driven Intake", sponsor_name="PMO", strategic_score=2, value_score=5, urgency_score=1, risk_score=4))
 
     assert intake.scoring_template_id == template.id
     assert intake.scoring_template_name == "Value First"
@@ -370,40 +336,10 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
     project_beta = services['project_create'].create_project("Portfolio Beta")
     _approve_project_budget(services, project_alpha.id, "400")
     _approve_project_budget(services, project_beta.id, "700")
-    intake_keep = services["portfolio_intake_commands"].create_intake_item(
-        title="Legacy Intake",
-        sponsor_name="PMO",
-        requested_budget=200.0,
-        requested_capacity_percent=30.0,
-        strategic_score=4,
-        value_score=3,
-        urgency_score=3,
-        risk_score=2,
-    )
-    intake_expand = services["portfolio_intake_commands"].create_intake_item(
-        title="Expansion Intake",
-        sponsor_name="PMO",
-        requested_budget=150.0,
-        requested_capacity_percent=10.0,
-        strategic_score=5,
-        value_score=4,
-        urgency_score=4,
-        risk_score=1,
-    )
-    baseline = services["portfolio_scenario_commands"].create_scenario(
-        name="Baseline Scenario",
-        budget_limit=900.0,
-        capacity_limit_percent=60.0,
-        project_ids=[project_alpha.id],
-        intake_item_ids=[intake_keep.id],
-    )
-    candidate = services["portfolio_scenario_commands"].create_scenario(
-        name="Expansion Scenario",
-        budget_limit=1_400.0,
-        capacity_limit_percent=90.0,
-        project_ids=[project_alpha.id, project_beta.id],
-        intake_item_ids=[intake_expand.id],
-    )
+    intake_keep = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="Legacy Intake", sponsor_name="PMO", requested_budget=200.0, requested_capacity_percent=30.0, strategic_score=4, value_score=3, urgency_score=3, risk_score=2))
+    intake_expand = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="Expansion Intake", sponsor_name="PMO", requested_budget=150.0, requested_capacity_percent=10.0, strategic_score=5, value_score=4, urgency_score=4, risk_score=1))
+    baseline = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Baseline Scenario", budget_limit=900.0, capacity_limit_percent=60.0, project_ids=[project_alpha.id], intake_item_ids=[intake_keep.id]))
+    candidate = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Expansion Scenario", budget_limit=1_400.0, capacity_limit_percent=90.0, project_ids=[project_alpha.id, project_beta.id], intake_item_ids=[intake_expand.id]))
 
     comparison = services["portfolio_scenario_query"].compare_scenarios(baseline.id, candidate.id)
 
@@ -460,12 +396,7 @@ def test_portfolio_project_dependencies_track_cross_project_links(services):
     predecessor = services['project_create'].create_project("Dependency Program Alpha")
     successor = services['project_create'].create_project("Dependency Program Beta")
 
-    dependency = services["portfolio_dependency_commands"].create_project_dependency(
-        predecessor_project_id=predecessor.id,
-        successor_project_id=successor.id,
-        dependency_type=DependencyType.FINISH_TO_START,
-        summary="Beta depends on Alpha handover.",
-    )
+    dependency = services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=predecessor.id, successor_project_id=successor.id, dependency_type=DependencyType.FINISH_TO_START, summary="Beta depends on Alpha handover."))
 
     rows = services["portfolio_dependency_query"].list_project_dependencies()
 
@@ -477,6 +408,6 @@ def test_portfolio_project_dependencies_track_cross_project_links(services):
     assert rows[0].summary == "Beta depends on Alpha handover."
     assert rows[0].pressure_label in {"Stable", "Watch", "Hot", "Needs Schedule"}
 
-    services["portfolio_dependency_commands"].remove_project_dependency(dependency.id)
+    services["portfolio_dependency_commands"].remove_project_dependency(PortfolioDependencyRemoveCommand(dependency.id))
     assert services["portfolio_dependency_query"].list_project_dependencies() == []
 

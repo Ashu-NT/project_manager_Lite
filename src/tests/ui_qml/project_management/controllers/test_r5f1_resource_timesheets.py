@@ -9,10 +9,10 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetScope,
 )
 from src.core.modules.project_management.domain.enums import ResourceKind, WorkerType
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
 )
 from src.core.platform.common.exceptions import (

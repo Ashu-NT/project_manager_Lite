@@ -4,6 +4,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserPasswordResetCommand,
+    UserUpdateCommand,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.security.auth import (
     UserSessionContext,
@@ -166,7 +170,7 @@ def test_register_user_rolls_back_when_role_is_invalid(services):
 def test_admin_can_reset_other_user_password(services):
     user = services["user_registration"].register_user("reset-target", "StrongPass123")
 
-    services["password_commands"].reset_user_password(user.id, "NewStrongPass123")
+    services["password_commands"].reset_user_password(UserPasswordResetCommand(user_id=user.id, new_password="NewStrongPass123"))
 
     authenticated = services["authentication"].authenticate("reset-target", "NewStrongPass123")
     assert authenticated.id == user.id
@@ -183,12 +187,7 @@ def test_admin_can_edit_user_profile_without_touching_password(services):
         email="old@example.com",
     )
 
-    updated = services["user_administration_commands"].update_user_profile(
-        user.id,
-        username="profile-target-updated",
-        display_name="New Name",
-        email="new@example.com",
-    )
+    updated = services["user_administration_commands"].update_user_profile(UserUpdateCommand(user_id=user.id, username="profile-target-updated", display_name="New Name", email="new@example.com"))
 
     assert updated.username == "profile-target-updated"
     assert updated.display_name == "New Name"
@@ -264,7 +263,7 @@ def test_edit_user_profile_rejects_duplicate_username(services):
     target = services["user_registration"].register_user("profile-beta", "StrongPass123")
 
     with pytest.raises(ValidationError, match="Username already exists"):
-        services["user_administration_commands"].update_user_profile(target.id, username="profile-alpha")
+        services["user_administration_commands"].update_user_profile(UserUpdateCommand(user_id=target.id, username="profile-alpha"))
 
 
 def test_auth_service_persists_sessions_and_supports_single_session_revocation(services):

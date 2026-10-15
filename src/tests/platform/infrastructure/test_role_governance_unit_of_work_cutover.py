@@ -8,10 +8,14 @@ from datetime import UTC
 
 import pytest
 
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantRemoveCommand,
+)
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError
@@ -588,12 +592,10 @@ def test_access_facade_does_not_own_a_competing_transaction(services):
     )
 
     grant = services["access_service"].assign_scope_grant(
-        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="manager"
-    )
+        ScopedAccessGrantAssignCommand(scope_type="site", scope_id=site.id, user_id=user.id, scope_role="manager"))
     assert grant.scope_id == site.id
     services["access_service"].remove_scope_grant(
-        scope_type="site", scope_id=site.id, user_id=user.id
-    )
+        ScopedAccessGrantRemoveCommand(scope_type="site", scope_id=site.id, user_id=user.id))
     assert services["access_service"].list_scope_grants("site", site.id) == []
 
 

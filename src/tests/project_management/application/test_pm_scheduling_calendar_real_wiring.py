@@ -293,7 +293,7 @@ def test_get_calendar_snapshot_falls_back_to_default_when_no_id_given(desktop_ap
 
 
 def test_calculate_working_days_uses_real_calendar(desktop_api):
-    from src.core.modules.project_management.application.scheduling.dto import (
+    from src.core.modules.project_management.application.scheduling.dto.commands.working_days import (
         SchedulingWorkingDayCalculationCommand,
     )
 

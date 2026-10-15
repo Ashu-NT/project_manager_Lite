@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -13,6 +13,13 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.application.time_management.calendar._input import (
+    parse_date as _parse_date,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
+    CalendarUpdateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
@@ -81,23 +88,21 @@ class PlatformCalendarCommandHandler:
             operation_label="calendar access",
         )
 
-    def create_calendar(
-        self,
-        *,
-        code: str,
-        name: str,
-        calendar_type: str,
-        timezone: str = "UTC",
-        description: str | None = None,
-        base_calendar_id: str | None = None,
-        scope_type: str | None = None,
-        scope_id: str | None = None,
-        locale: str | None = None,
-        is_default: bool = False,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        priority: int = 0,
-    ) -> PlatformCalendar:
+    def create_calendar(self, command: CalendarCreateCommand) -> PlatformCalendar:
+        code = command.code
+        name = command.name
+        calendar_type = command.calendar_type
+        timezone = command.timezone or "UTC"
+        description = command.description or None
+        base_calendar_id = command.base_calendar_id or None
+        scope_type = command.scope_type or None
+        scope_id = command.scope_id or None
+        locale = command.locale or None
+        is_default = command.is_default
+        effective_from = _parse_date(command.effective_from)
+        effective_to = _parse_date(command.effective_to)
+        priority = command.priority
+
         require_permission(
             self._user_session, "calendar.manage", operation_label="create calendar"
         )
@@ -145,19 +150,7 @@ class PlatformCalendarCommandHandler:
         self._session.commit()
         return cal
 
-    def update_calendar(
-        self,
-        calendar_id: str,
-        *,
-        name: str | None = None,
-        description: str | None = None,
-        timezone: str | None = None,
-        locale: str | None = None,
-        is_active: bool | None = None,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        priority: int | None = None,
-    ) -> PlatformCalendar:
+    def update_calendar(self, command: CalendarUpdateCommand) -> PlatformCalendar:
         """Profile fields only -- `is_default` is never settable through this
         generic update. Changing which calendar is the organization's
         default is an explicit, atomic operation (see
@@ -165,6 +158,16 @@ class PlatformCalendarCommandHandler:
         previous default in the same transaction; a free-standing boolean
         field on a generic update could otherwise leave an organization with
         zero or two defaults."""
+        calendar_id = command.calendar_id
+        name = command.name or None
+        description = command.description or None
+        timezone = command.timezone or None
+        locale = command.locale or None
+        is_active = command.is_active
+        effective_from = _parse_date(command.effective_from)
+        effective_to = _parse_date(command.effective_to)
+        priority = command.priority
+
         require_permission(
             self._user_session, "calendar.manage", operation_label="update calendar"
         )

@@ -11,6 +11,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
 from src.core.modules.project_management.infrastructure.persistence.reads.collaboration import (
     SqlAlchemyCollaborationWorkspaceReader,
 )
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+)
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.tests.project_management._test_repository_tenant_hardening_helpers import (
     _seed_priority_pm_rows,
@@ -127,11 +130,7 @@ def test_workspace_queries_keep_scoped_project_names(services) -> None:
     beta_task = services['task_lifecycle_commands'].create_task(beta.id, "Hidden task")
     viewer = services["user_registration"].register_user("phase3d-viewer", "StrongPass123", role_names=["viewer"])
     access.assign_scope_grant(
-        scope_type="project",
-        scope_id=alpha.id,
-        user_id=viewer.id,
-        scope_role="viewer",
-    )
+        ScopedAccessGrantAssignCommand(scope_type="project", scope_id=alpha.id, user_id=viewer.id, scope_role="viewer"))
     services["collaboration_comment_commands"].post_comment(task_id=alpha_task.id, body="Visible @phase3d-viewer")
     services["collaboration_comment_commands"].post_comment(task_id=beta_task.id, body="Hidden update")
 

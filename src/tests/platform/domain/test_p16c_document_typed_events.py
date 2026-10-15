@@ -6,11 +6,13 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
+    DocumentUpdateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.commands.structures import (
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
-    DocumentUpdateCommand,
 )
 from src.core.platform.common.exceptions import (
     ConcurrencyError,

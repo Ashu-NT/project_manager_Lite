@@ -7,14 +7,17 @@ resolution + linkable-user options for the link selector)."""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
+)
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
@@ -99,9 +102,7 @@ def test_resolve_linked_user_returns_identity_and_status(services) -> None:
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EWM-D3", name="Link Dept"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-LINK-1", full_name="Linked Employee", department_id=department.id))
     user = services["user_registration"].onboard_tenant_user(
-        username="ewm-link-user", raw_password="StrongPass123!", display_name="Link User",
-        email="ewm-link-user@example.com",
-    )
+        UserCreateCommand(username="ewm-link-user", password="StrongPass123!", display_name="Link User", email="ewm-link-user@example.com"))
     services["employee_commands"].link_employee_user_account(employee.id, user.id)
 
     registry = build_desktop_api_registry(services)
@@ -127,11 +128,9 @@ def test_linkable_user_options_excludes_already_linked_and_service_accounts(serv
     employee_one = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-LO-1", full_name="Linkable Employee One", department_id=department.id))
     employee_two = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EWM-LO-2", full_name="Linkable Employee Two", department_id=department.id))
     linked_user = services["user_registration"].onboard_tenant_user(
-        username="ewm-already-linked", raw_password="StrongPass123!", display_name="Already Linked",
-    )
+        UserCreateCommand(username="ewm-already-linked", password="StrongPass123!", display_name="Already Linked"))
     unlinked_user = services["user_registration"].onboard_tenant_user(
-        username="ewm-unlinked", raw_password="StrongPass123!", display_name="Unlinked User",
-    )
+        UserCreateCommand(username="ewm-unlinked", password="StrongPass123!", display_name="Unlinked User"))
     services["employee_commands"].link_employee_user_account(employee_one.id, linked_user.id)
 
     registry = build_desktop_api_registry(services)

@@ -22,6 +22,9 @@ from src.core.modules.project_management.application.financials.budgets.event_ha
     build_budget_view_invalidation_handler,
 )
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
@@ -535,7 +538,7 @@ def test_governed_approval_participant_emits_the_same_typed_status_fact(
     _login(services, "p38b-budget-reviewer", "StrongPass123")
 
     hints = _spy_hints(services)
-    approvals.approve_and_apply(request_id)
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request_id))
 
     approved_hints = _budget_hints(hints)
     assert len(approved_hints) == 2
@@ -625,7 +628,7 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
     _login(services, "p38b-fc-reviewer", "StrongPass123")
 
     hints = _spy_hints(services)
-    services["approval_commands"].approve_and_apply(request_id)
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request_id))
 
     budget_hints = _budget_hints(hints)
     assert len(budget_hints) == 2

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from src.core.platform.application.security.authorization.roles._scope_delegation import (
+    DEFAULT_SCOPE_DELEGATIONS,
+)
 from src.core.platform.application.security.authorization.roles.commands.role_governance import (
     RoleGovernanceCommandHandler,
 )
-from src.core.platform.application.security.authorization.roles.dto import (
-    DEFAULT_SCOPE_DELEGATIONS,
+from src.core.platform.application.security.authorization.roles.dto.responses.scope_delegation import (
     ScopeDelegationApplyResult,
     ScopeDelegationPlanEntry,
 )

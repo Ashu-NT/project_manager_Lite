@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )

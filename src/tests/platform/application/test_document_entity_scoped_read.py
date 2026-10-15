@@ -6,10 +6,12 @@ future approved entity) builds on."""
 
 from __future__ import annotations
 
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
-    DocumentLinkCreateCommand,
     DocumentUpdateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.commands.links import (
+    DocumentLinkCreateCommand,
 )
 
 

@@ -10,7 +10,7 @@ from datetime import date
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.cost.dto import (
+from src.core.modules.project_management.application.financials.cost.dto.responses.labor_cost import (
     LaborDetailsResult,
     LaborResourceRow,
 )
@@ -20,7 +20,7 @@ from src.core.modules.project_management.application.financials.cost.engines.lab
 from src.core.modules.project_management.application.reporting.builders.access import (
     ReportingAccessPolicy,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
+from src.core.modules.project_management.contracts.reads.financials.snapshot.reader import (
     FinanceSnapshotReader,
 )
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (

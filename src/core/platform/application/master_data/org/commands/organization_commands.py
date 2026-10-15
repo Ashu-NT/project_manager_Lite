@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationUpdateCommand,
 )
 from src.core.platform.application.master_data.org.organization_context import (

@@ -6,11 +6,14 @@ from sqlalchemy import event, update
 from src.core.platform.api.desktop.history.activity.activity import (
     PlatformActivityDesktopApi,
 )
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
+)
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.read.history.activity_actor_reader import (
@@ -31,17 +34,13 @@ def _scope(services):
 def test_activity_actor_projection_is_scoped_typed_and_batched(services, session):
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="R7G-ACTOR", name="History Actors"))
     human = services["user_registration"].onboard_tenant_user(
-        username="r7g-human", raw_password="StrongPass123!", display_name="Visible Human"
-    )
+        UserCreateCommand(username="r7g-human", password="StrongPass123!", display_name="Visible Human"))
     disabled = services["user_registration"].onboard_tenant_user(
-        username="r7g-disabled", raw_password="StrongPass123!"
-    )
+        UserCreateCommand(username="r7g-disabled", password="StrongPass123!"))
     service = services["user_registration"].onboard_tenant_user(
-        username="r7g-service", raw_password="StrongPass123!"
-    )
+        UserCreateCommand(username="r7g-service", password="StrongPass123!"))
     removed = services["user_registration"].onboard_tenant_user(
-        username="r7g-removed", raw_password="StrongPass123!"
-    )
+        UserCreateCommand(username="r7g-removed", password="StrongPass123!"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="R7G-EMP", full_name="Employee Identity", department_id=department.id))
     services["employee_commands"].link_employee_user_account(employee.id, human.id)
     services["user_administration_commands"].set_user_active(disabled.id, False)

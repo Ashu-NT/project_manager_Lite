@@ -6,11 +6,14 @@ from src.core.modules.project_management.api.desktop.projects.api import (
     ProjectManagementProjectsDesktopApi,
 )
 from src.core.modules.project_management.domain.enums import WorkerType
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
+)
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
 )
 from src.core.platform.common.exceptions import ValidationError
 
@@ -64,8 +67,7 @@ def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -
 
 def test_project_manager_rejects_unregistered_user(services) -> None:
     user = services["user_registration"].onboard_tenant_user(
-        username="pm-no-resource", raw_password="StrongPass123!"
-    )
+        UserCreateCommand(username="pm-no-resource", password="StrongPass123!"))
     with pytest.raises(ValidationError) as error:
         services['project_create'].create_project(
             "Unregistered Manager", manager_user_id=user.id

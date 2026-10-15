@@ -5,6 +5,9 @@ from decimal import Decimal
 
 import pytest
 
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -64,7 +67,7 @@ def test_cost_entry_requester_can_lack_approve_and_admin_can_approve(services, m
 
     _login(services, "admin", "ChangeMe123!")
     _become_independent_admin_decider(services)
-    approvals.approve_and_apply(req.id, note="Approved")
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id, note="Approved"))
 
     updated = services['cost_entry_query'].get_entry(item.id)
     assert updated.status.value == "approved"
@@ -91,7 +94,7 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     assert req.requested_by_username == "planner-dep"
     _login(services, "admin", "ChangeMe123!")
     _become_independent_admin_decider(services)
-    approvals.approve_and_apply(req.id)
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id))
 
     deps = services['task_dependency_query'].list_dependencies_for_task(b.id)
     assert len(deps) == 1
@@ -149,7 +152,7 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     _become_independent_admin_decider(services)
 
     with pytest.raises(RuntimeError, match="simulated decision persistence failure"):
-        approvals.approve_and_apply(request.id, note="Should roll back")
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Should roll back"))
 
     services["session"].expire_all()
     unchanged = services['cost_entry_query'].get_entry(item.id)
@@ -192,7 +195,7 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
     _become_independent_admin_decider(services)
 
     with pytest.raises(RuntimeError, match="simulated audit failure"):
-        approvals.approve_and_apply(request.id, note="Should roll back")
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Should roll back"))
 
     services["session"].expire_all()
     unchanged = services['cost_entry_query'].get_entry(item.id)
@@ -212,7 +215,7 @@ def test_same_user_cannot_approve_own_request(services, monkeypatch):
         payload={"entry_id": "entry-1"},
     )
     with pytest.raises(BusinessRuleError, match="cannot approve or reject your own"):
-        approvals.approve_and_apply(request.id)
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
 
 
 def test_list_requests_accepts_string_status_value_from_ui(services, monkeypatch):

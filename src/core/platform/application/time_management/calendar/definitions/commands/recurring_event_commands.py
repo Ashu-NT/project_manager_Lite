@@ -4,13 +4,24 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import date, time
-from typing import Any
+from datetime import time
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.time_management.calendar._input import (
+    parse_date as _parse_date,
+)
+from src.core.platform.application.time_management.calendar._input import (
+    parse_time as _parse_time,
+)
+from src.core.platform.application.time_management.calendar._input import required_date
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.recurring_events import (
+    RecurringEventCreateCommand,
+    RecurringEventUpdateCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
@@ -53,22 +64,22 @@ class RecurringEventCommandHandler:
         self._on_calendar_data_changed = on_calendar_data_changed
 
     def add_recurring_event(
-        self,
-        calendar_id: str,
-        *,
-        title: str,
-        event_type: str,
-        recurrence_rule: str,
-        start_time: time,
-        end_time: time,
-        impact_type: str,
-        effective_from: date,
-        scope_type: str | None = None,
-        scope_id: str | None = None,
-        capacity_impact_percent: float | None = None,
-        effective_to: date | None = None,
-        priority: int = 0,
+        self, command: RecurringEventCreateCommand
     ) -> CalendarRecurringEvent:
+        calendar_id = command.calendar_id
+        title = command.title
+        event_type = command.event_type
+        recurrence_rule = command.recurrence_rule
+        start_time = cast(time, _parse_time(command.start_time))
+        end_time = cast(time, _parse_time(command.end_time))
+        impact_type = command.impact_type
+        effective_from = required_date(command.effective_from)
+        scope_type = command.scope_type or None
+        scope_id = command.scope_id or None
+        capacity_impact_percent = command.capacity_impact_percent
+        effective_to = _parse_date(command.effective_to)
+        priority = command.priority
+
         require_permission(
             self._user_session, "calendar.manage", operation_label="add recurring event"
         )
@@ -96,21 +107,21 @@ class RecurringEventCommandHandler:
         return event
 
     def update_recurring_event(
-        self,
-        event_id: str,
-        *,
-        title: str | None = None,
-        event_type: str | None = None,
-        recurrence_rule: str | None = None,
-        start_time: time | None = None,
-        end_time: time | None = None,
-        impact_type: str | None = None,
-        capacity_impact_percent: float | None = None,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        is_active: bool | None = None,
-        priority: int | None = None,
+        self, command: RecurringEventUpdateCommand
     ) -> CalendarRecurringEvent:
+        event_id = command.event_id
+        title = command.title or None
+        event_type = command.event_type or None
+        recurrence_rule = command.recurrence_rule or None
+        start_time = _parse_time(command.start_time)
+        end_time = _parse_time(command.end_time)
+        impact_type = command.impact_type or None
+        capacity_impact_percent = command.capacity_impact_percent
+        effective_from = _parse_date(command.effective_from)
+        effective_to = _parse_date(command.effective_to)
+        is_active = command.is_active
+        priority = command.priority
+
         require_permission(
             self._user_session,
             "calendar.manage",

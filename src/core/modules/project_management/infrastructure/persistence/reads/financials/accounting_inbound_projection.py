@@ -6,7 +6,7 @@ from sqlalchemy import and_, case, cast, func, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.accounting_delivery import (
+from src.core.modules.project_management.contracts.reads.financials.accounting.models.delivery import (
     AccountingDeliveryFact,
 )
 from src.core.modules.project_management.domain.financials.accounting.outcome_policy import (

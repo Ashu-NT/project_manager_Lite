@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import MetaData, Table, event, insert, select, text, update
 from sqlalchemy.exc import DBAPIError
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
     AccountingStatusQuery,
     BillingPreparationLineQuery,
     BillingPreparationQuery,
@@ -27,7 +27,7 @@ def test_commercial_query_uses_runtime_rls_and_rejects_scope_spoofing(postgres_t
     from src.core.modules.project_management.application.financials.revenue.commercial_projection_query import (
         CommercialProjectionQuery,
     )
-    from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+    from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
         CommercialMetricAvailability,
     )
     from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (

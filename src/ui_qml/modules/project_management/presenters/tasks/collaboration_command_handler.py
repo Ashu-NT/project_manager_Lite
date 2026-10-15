@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.application.collaboration.dto import (
+from src.core.modules.project_management.application.collaboration.dto.commands.comment_reactions import (
+    TaskCollaborationReactionCommand,
+)
+from src.core.modules.project_management.application.collaboration.dto.commands.task_comments import (
     TaskCollaborationDeleteCommand,
     TaskCollaborationEditCommand,
     TaskCollaborationPostCommand,
-    TaskCollaborationReactionCommand,
 )
 
 from .validation import coerce_string_list, require_text

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
     PerformanceReportDefinitionFact,
     PerformanceReportsFacts,
 )
@@ -17,7 +17,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 
 if TYPE_CHECKING:
-    from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+    from src.core.modules.project_management.contracts.reads.financials.overview.models.overview_facts import (
         FinanceOverviewFacts,
     )
     from src.core.platform.domain.security.auth.session import UserSessionContext

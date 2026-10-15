@@ -34,10 +34,6 @@ from src.core.modules.project_management.api.desktop.timesheets.models.workspace
     TimesheetResourcePageDesktopDto,
     TimesheetWorkspaceAccessDesktopDto,
 )
-from src.core.modules.project_management.application.timesheets.dto import (
-    TimesheetEntryCreateCommand,
-    TimesheetEntryUpdateCommand,
-)
 
 __all__ = [
     "ProjectManagementTimesheetsDesktopApi",
@@ -47,9 +43,7 @@ __all__ = [
     "ResourceTimesheetPeriodDesktopDto",
     "TimesheetAssignmentOptionDescriptor",
     "TimesheetAssignmentSnapshotDesktopDto",
-    "TimesheetEntryCreateCommand",
     "TimesheetEntryDesktopDto",
-    "TimesheetEntryUpdateCommand",
     "TimesheetOptionDescriptor",
     "TimesheetPeriodOptionDescriptor",
     "TimesheetPeriodSummaryDesktopDto",

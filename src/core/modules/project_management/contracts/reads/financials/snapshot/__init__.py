@@ -1,0 +1,1 @@
+"""Finance snapshot read contracts."""

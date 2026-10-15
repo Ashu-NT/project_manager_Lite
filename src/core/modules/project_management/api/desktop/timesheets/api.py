@@ -72,7 +72,7 @@ from src.core.modules.project_management.application.timesheets import (
     TimesheetWorkspaceCommandHandler,
     TimesheetWorkspaceQueryHandler,
 )
-from src.core.modules.project_management.application.timesheets.dto import (
+from src.core.modules.project_management.application.timesheets.dto.commands.time_entries import (
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
 )
@@ -274,15 +274,7 @@ class ProjectManagementTimesheetsDesktopApi:
         resource_id: str | None,
         period_start: date,
     ) -> TimesheetEntryDesktopDto:
-        entry = _connected(self._workspace_commands).add_timesheet_entry(
-            str(command.assignment_id or "").strip(),
-            scope=scope,
-            resource_id=resource_id,
-            period_start=period_start,
-            entry_date=command.entry_date,
-            hours=float(command.hours),
-            note=command.note,
-        )
+        entry = _connected(self._workspace_commands).add_timesheet_entry(command, scope=scope, resource_id=resource_id, period_start=period_start)
         return serialize_entry(entry, str(command.assignment_id or "").strip())
 
     def update_resource_time_entry(
@@ -293,16 +285,7 @@ class ProjectManagementTimesheetsDesktopApi:
         resource_id: str | None,
         period_start: date,
     ) -> TimesheetEntryDesktopDto:
-        entry = _connected(self._workspace_commands).update_timesheet_entry(
-            str(command.entry_id or "").strip(),
-            scope=scope,
-            resource_id=resource_id,
-            period_start=period_start,
-            expected_version=command.expected_version,
-            entry_date=command.entry_date,
-            hours=command.hours,
-            note=command.note,
-        )
+        entry = _connected(self._workspace_commands).update_timesheet_entry(command, scope=scope, resource_id=resource_id, period_start=period_start)
         return serialize_entry(
             entry, str(getattr(entry, "assignment_id", "") or entry.work_allocation_id)
         )
@@ -425,12 +408,7 @@ class ProjectManagementTimesheetsDesktopApi:
         command: TimesheetEntryCreateCommand,
     ) -> TimesheetEntryDesktopDto:
         self._require_pm_module("add time entry")
-        entry = _connected(self._time_entry_commands).add_time_entry(
-            str(command.assignment_id or "").strip(),
-            entry_date=command.entry_date,
-            hours=float(command.hours),
-            note=command.note,
-        )
+        entry = _connected(self._workspace_commands).add_timesheet_entry(command)
         return serialize_entry(entry, str(command.assignment_id or "").strip())
 
     def update_time_entry(
@@ -438,13 +416,7 @@ class ProjectManagementTimesheetsDesktopApi:
         command: TimesheetEntryUpdateCommand,
     ) -> TimesheetEntryDesktopDto:
         self._require_pm_module("update time entry")
-        entry = _connected(self._time_entry_commands).update_time_entry(
-            str(command.entry_id or "").strip(),
-            expected_version=command.expected_version,
-            entry_date=command.entry_date,
-            hours=command.hours,
-            note=command.note,
-        )
+        entry = _connected(self._workspace_commands).update_timesheet_entry(command)
         return serialize_entry(
             entry,
             str(

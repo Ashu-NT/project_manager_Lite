@@ -22,7 +22,7 @@ from src.core.modules.project_management.application.financials.cost.engines.lab
 from src.core.modules.project_management.application.financials.cost.engines.project_finance_ledger import (
     build_project_finance_ledger_rows,
 )
-from src.core.modules.project_management.application.financials.dto import (
+from src.core.modules.project_management.application.financials.dto.responses.finance_snapshot import (
     FinancePeriodRow,
     FinanceReconciliation,
     FinanceSnapshot,
@@ -30,27 +30,27 @@ from src.core.modules.project_management.application.financials.dto import (
 from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_currency,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_overview_reader import (
-    FinanceOverviewReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_performance_reader import (
-    FinancePerformanceReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
-    FinanceSnapshotReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+from src.core.modules.project_management.contracts.reads.financials.overview.models.overview_facts import (
     FinanceOverviewFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+from src.core.modules.project_management.contracts.reads.financials.overview.reader import (
+    FinanceOverviewReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
     CostPhasingQuery,
     CostPhasingSeriesAvailabilityFact,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+from src.core.modules.project_management.contracts.reads.financials.performance.reader import (
+    FinancePerformanceReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.ledger_query import (
+    ProjectFinanceLedgerQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.snapshot_facts import (
     FinanceSnapshotFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
-    ProjectFinanceLedgerQuery,
+from src.core.modules.project_management.contracts.reads.financials.snapshot.reader import (
+    FinanceSnapshotReader,
 )
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,

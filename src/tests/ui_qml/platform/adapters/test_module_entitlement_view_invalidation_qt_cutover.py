@@ -14,13 +14,16 @@ import inspect
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
 )
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     MODULE_ENTITLEMENT_CATEGORY,
     MODULE_ENTITLEMENTS_SCOPE_CODE,
     build_module_entitlement_view_invalidation_handler,
+)
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.tenant.modules.events import (
@@ -381,7 +384,7 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
     assert any(f.tenant_id == tenant_a and f.organization_id == org_a1.id for f in _current_filters())
 
     admin_svc = services["tenant_lifecycle_commands"]
-    tenant_b = admin_svc.create_tenant(_unique_code("QTCUT-TENANT-B"), "Qt Cutover Tenant B")
+    tenant_b = admin_svc.create_tenant(TenantCreateCommand(tenant_code=_unique_code("QTCUT-TENANT-B"), display_name="Qt Cutover Tenant B"))
     services["session"].flush()
 
     switch_result = catalog.tenantSwitcher.switchToTenant(tenant_b.id)

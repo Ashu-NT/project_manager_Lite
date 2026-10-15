@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
-from src.core.modules.project_management.application.financials.forecasts import (
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_estimates import (
     ManualEtcEstimate,
     RiskContingencyEstimate,
 )

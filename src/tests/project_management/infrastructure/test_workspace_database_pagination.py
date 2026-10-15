@@ -10,6 +10,9 @@ from src.core.modules.project_management.api.desktop.projects.factories.projects
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
     ProjectStatus,
@@ -21,13 +24,13 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
 
@@ -573,29 +576,9 @@ def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
 def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -> None:
     project = services['project_create'].create_project("Register Database Paging")
     register_query = services["register_query"]
-    critical_risk = services["register_lifecycle_commands"].create_entry(
-        project.id,
-        entry_type=RegisterEntryType.RISK,
-        title="Critical supplier delay",
-        severity=RegisterEntrySeverity.CRITICAL,
-        status=RegisterEntryStatus.OPEN,
-        due_date=date(2026, 5, 1),
-    )
-    issue = services["register_lifecycle_commands"].create_entry(
-        project.id,
-        entry_type=RegisterEntryType.ISSUE,
-        title="Permit issue",
-        severity=RegisterEntrySeverity.HIGH,
-        status=RegisterEntryStatus.IN_PROGRESS,
-        due_date=date(2026, 5, 3),
-    )
-    change = services["register_lifecycle_commands"].create_entry(
-        project.id,
-        entry_type=RegisterEntryType.CHANGE,
-        title="Approved scope change",
-        severity=RegisterEntrySeverity.MEDIUM,
-        status=RegisterEntryStatus.CLOSED,
-    )
+    critical_risk = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="Critical supplier delay", severity=RegisterEntrySeverity.CRITICAL, status=RegisterEntryStatus.OPEN, due_date=date(2026, 5, 1)))
+    issue = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.ISSUE, title="Permit issue", severity=RegisterEntrySeverity.HIGH, status=RegisterEntryStatus.IN_PROGRESS, due_date=date(2026, 5, 3)))
+    change = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.CHANGE, title="Approved scope change", severity=RegisterEntrySeverity.MEDIUM, status=RegisterEntryStatus.CLOSED))
 
     first_page = register_query.query_catalog_page(
         project_id=project.id,
@@ -638,24 +621,9 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
 def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
     project = services['project_create'].create_project("Register Sort Project")
     register_query = services["register_query"]
-    alpha = services["register_lifecycle_commands"].create_entry(
-        project.id,
-        entry_type=RegisterEntryType.RISK,
-        title="Alpha Register Entry",
-        severity=RegisterEntrySeverity.LOW,
-    )
-    beta = services["register_lifecycle_commands"].create_entry(
-        project.id,
-        entry_type=RegisterEntryType.ISSUE,
-        title="Beta Register Entry",
-        severity=RegisterEntrySeverity.MEDIUM,
-    )
-    gamma = services["register_lifecycle_commands"].create_entry(
-        project.id,
-        entry_type=RegisterEntryType.CHANGE,
-        title="Gamma Register Entry",
-        severity=RegisterEntrySeverity.HIGH,
-    )
+    alpha = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="Alpha Register Entry", severity=RegisterEntrySeverity.LOW))
+    beta = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.ISSUE, title="Beta Register Entry", severity=RegisterEntrySeverity.MEDIUM))
+    gamma = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.CHANGE, title="Gamma Register Entry", severity=RegisterEntrySeverity.HIGH))
 
     ascending_first = register_query.query_catalog_page(
         project_id=project.id,

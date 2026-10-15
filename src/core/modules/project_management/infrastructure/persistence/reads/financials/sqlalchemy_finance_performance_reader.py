@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
     CostPhasingFacts,
     CostPhasingPeriodFact,
     CostPhasingQuery,

@@ -8,6 +8,9 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
+)
 from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
     TENANT_MEMBERSHIP_CATEGORY,
     TENANT_MEMBERSHIPS_SCOPE_CODE,
@@ -187,7 +190,7 @@ def test_adapter_only_reacts_to_the_currently_active_tenant(services):
     assert signal_calls == ["stale"]
 
     admin_svc = services["tenant_lifecycle_commands"]
-    tenant_b = admin_svc.create_tenant(_unique_code("P5D3-TENANT-B"), "P5D-3 Tenant B")
+    tenant_b = admin_svc.create_tenant(TenantCreateCommand(tenant_code=_unique_code("P5D3-TENANT-B"), display_name="P5D-3 Tenant B"))
     services["session"].flush()
     services["user_session"].set_principal(admin_principal)
     actor_b = _switch_session_to_tenant_admin(services, suffix="scope-b-actor", tenant_id=tenant_b.id)
@@ -223,7 +226,7 @@ def test_adapter_follows_a_tenant_switch_with_no_stale_or_duplicate_subscription
     assert signal_calls == ["stale"]
 
     admin_svc = services["tenant_lifecycle_commands"]
-    tenant_b = admin_svc.create_tenant(_unique_code("P5D3-SWITCH-TENANT-B"), "P5D-3 Switch Tenant B")
+    tenant_b = admin_svc.create_tenant(TenantCreateCommand(tenant_code=_unique_code("P5D3-SWITCH-TENANT-B"), display_name="P5D-3 Switch Tenant B"))
     services["session"].flush()
     services["user_session"].set_principal(admin_principal)
     actor_b = _switch_session_to_tenant_admin(services, suffix="switch-b-actor", tenant_id=tenant_b.id)
@@ -268,7 +271,7 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter(services):
     assert any(f.tenant_id == tenant_a for f in _current_filters())
 
     admin_svc = services["tenant_lifecycle_commands"]
-    tenant_b = admin_svc.create_tenant(_unique_code("P5D3-REALSWITCH-TENANT-B"), "P5D-3 Real Switch Tenant B")
+    tenant_b = admin_svc.create_tenant(TenantCreateCommand(tenant_code=_unique_code("P5D3-REALSWITCH-TENANT-B"), display_name="P5D-3 Real Switch Tenant B"))
     services["session"].flush()
 
     switch_result = catalog.tenantSwitcher.switchToTenant(tenant_b.id)

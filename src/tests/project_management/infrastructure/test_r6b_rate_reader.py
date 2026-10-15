@@ -12,7 +12,7 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
+from src.core.modules.project_management.contracts.reads.financials.rate_cards.models.rate_facts import (
     RateCardRequest,
     RateLineRequest,
 )

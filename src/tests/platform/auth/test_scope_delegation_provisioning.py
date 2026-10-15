@@ -11,9 +11,11 @@ from __future__ import annotations
 import pytest
 
 from src.core.platform.application.security.authorization.roles import (
-    DEFAULT_SCOPE_DELEGATIONS,
     ScopeDelegationProvisioningCommandHandler,
     ScopeDelegationProvisioningQueryHandler,
+)
+from src.core.platform.application.security.authorization.roles._scope_delegation import (
+    DEFAULT_SCOPE_DELEGATIONS,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (

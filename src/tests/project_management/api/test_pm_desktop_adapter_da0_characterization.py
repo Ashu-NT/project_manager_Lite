@@ -50,8 +50,11 @@ from src.core.modules.project_management.api.desktop.tasks.services.access_resol
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     ResourceLoadRow,
 )
-from src.core.modules.project_management.application.resources.dto import (
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
 )
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceAssignmentFact,
@@ -320,12 +323,7 @@ def test_da1_task_service_lists_authorized_resource_assignments(services) -> Non
         name="DA1 Planner",
         role="Planner",
     )
-    task = services['task_lifecycle_commands'].create_task(
-        project.id,
-        "DA1 Planning Task",
-        start_date=date(2026, 8, 10),
-        duration_days=2,
-    )
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="DA1 Planning Task", start_date=date(2026, 8, 10), duration_days=2))
     assignment = services['task_assignment_commands'].assign_resource(
         task.id,
         resource.id,

@@ -1,9 +1,22 @@
 from datetime import date
 from decimal import Decimal
-from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
+    TaskAssignmentAllocationCommand,
+    TaskAssignmentCreateCommand,
+    TaskAssignmentHoursCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_dependencies import (
+    TaskDependencyCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskBulkStatusCommand,
 )
 from src.core.modules.project_management.domain.enums import (
     TaskStatus,
@@ -23,32 +36,16 @@ def test_project_management_tasks_desktop_api_supports_bulk_status_and_delete() 
         description="Replace switchgear and commission the new line.",
     )
     task_service = _FakeTaskService()
-    task_a = task_service.create_task(
-        project_id=project.id,
-        name="Cable Pull",
-        description="Primary feeder cable installation.",
-        start_date=date(2026, 5, 3),
-        duration_days=4,
-        priority=80,
-        deadline=date(2026, 5, 8),
-    )
-    task_b = task_service.create_task(
-        project_id=project.id,
-        name="Punchlist Closeout",
-        description="Commissioning closeout walkdown.",
-        start_date=date(2026, 5, 8),
-        duration_days=2,
-        priority=60,
-        deadline=date(2026, 5, 10),
-    )
-    task_service.set_status(task_b.id, TaskStatus.DONE)
+    task_a = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Cable Pull", description="Primary feeder cable installation.", start_date=date(2026, 5, 3), duration_days=4, priority=80, deadline=date(2026, 5, 8)))
+    task_b = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Punchlist Closeout", description="Commissioning closeout walkdown.", start_date=date(2026, 5, 8), duration_days=2, priority=60, deadline=date(2026, 5, 10)))
+    task_service.set_tasks_status(TaskBulkStatusCommand((task_b.id,), TaskStatus.DONE))
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
         task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service, task_assignment_commands=task_service,
     )
 
     changed = api.apply_bulk_status(
-        SimpleNamespace(
+        TaskBulkStatusCommand(
             task_ids=(task_a.id, task_b.id, task_a.id, "missing"),
             status="IN_PROGRESS",
             reopen_percent_complete=50.0,
@@ -75,24 +72,8 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
     resource_service = _FakeResourceService()
     project_resource_query = _FakeProjectResourceQueryHandler()
     task_service = _FakeTaskService()
-    task_a = task_service.create_task(
-        project_id=project.id,
-        name="Cable Pull",
-        description="Primary feeder cable installation.",
-        start_date=date(2026, 5, 3),
-        duration_days=4,
-        priority=80,
-        deadline=date(2026, 5, 8),
-    )
-    task_b = task_service.create_task(
-        project_id=project.id,
-        name="Punchlist Closeout",
-        description="Commissioning closeout walkdown.",
-        start_date=date(2026, 5, 8),
-        duration_days=2,
-        priority=60,
-        deadline=date(2026, 5, 10),
-    )
+    task_a = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Cable Pull", description="Primary feeder cable installation.", start_date=date(2026, 5, 3), duration_days=4, priority=80, deadline=date(2026, 5, 8)))
+    task_b = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Punchlist Closeout", description="Commissioning closeout walkdown.", start_date=date(2026, 5, 8), duration_days=2, priority=60, deadline=date(2026, 5, 10)))
     resource = resource_service.create_resource(
         name="Alex Taylor",
         role="Planner",
@@ -118,7 +99,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
     assert [item.value for item in api.list_dependency_types()] == ["FS", "FF", "SS", "SF"]
 
     assignment = api.create_assignment(
-        SimpleNamespace(
+        TaskAssignmentCreateCommand(
             task_id=task_a.id,
             project_resource_id=project_resource.id,
             allocation_percent=55.0,
@@ -130,7 +111,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
     assert api.list_assignments(task_a.id)[0].allocation_percent == 55.0
 
     updated_assignment = api.update_assignment_allocation(
-        SimpleNamespace(
+        TaskAssignmentAllocationCommand(
             assignment_id=assignment.id,
             allocation_percent=72.5,
             expected_version=assignment.version,
@@ -140,7 +121,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
     assert updated_assignment.allocation_percent == 72.5
 
     hours_assignment = api.set_assignment_hours(
-        SimpleNamespace(
+        TaskAssignmentHoursCommand(
             assignment_id=assignment.id,
             hours_logged=Decimal(16),
         )
@@ -149,7 +130,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
     assert hours_assignment.hours_logged == "16"
 
     dependency = api.create_dependency(
-        SimpleNamespace(
+        TaskDependencyCreateCommand(
             task_id=task_a.id,
             linked_task_id=task_b.id,
             relationship_direction="SUCCESSOR",
@@ -189,15 +170,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
     resource_service = _FakeResourceService()
     project_resource_query = _FakeProjectResourceQueryHandler()
     task_service = _FakeTaskService()
-    task = task_service.create_task(
-        project_id=project.id,
-        name="Cable Pull",
-        description="Primary feeder cable installation.",
-        start_date=date(2026, 5, 3),
-        duration_days=4,
-        priority=80,
-        deadline=date(2026, 5, 8),
-    )
+    task = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Cable Pull", description="Primary feeder cable installation.", start_date=date(2026, 5, 3), duration_days=4, priority=80, deadline=date(2026, 5, 8)))
     resource = resource_service.create_resource(
         name="Alex Taylor",
         role="Planner",
@@ -211,11 +184,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
         currency_code="EUR",
     )
     task_service.register_project_resource(project_resource.id, resource.id)
-    task_service.assign_project_resource(
-        task_id=task.id,
-        project_resource_id=project_resource.id,
-        allocation_percent=55.0,
-    )
+    task_service.assign_project_resource(TaskAssignmentCreateCommand(task_id=task.id, project_resource_id=project_resource.id, allocation_percent=55.0))
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
         task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service, task_assignment_commands=task_service,

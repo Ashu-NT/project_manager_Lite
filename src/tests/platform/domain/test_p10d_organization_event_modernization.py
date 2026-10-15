@@ -27,7 +27,7 @@ from src.core.platform.application.master_data.org import (
     OrganizationCommandHandler,
     OrganizationLifecycleCommandHandler,
 )
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationUpdateCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError

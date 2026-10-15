@@ -20,6 +20,9 @@ from src.core.platform.application.security.auth.commands.federated_identity imp
     normalize_identity_provider,
     validate_federated_identity,
 )
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
+)
 from src.core.platform.application.security.auth.queries.auth_queries import (
     AuthQueryHandler,
 )
@@ -458,15 +461,12 @@ class UserRegistrationHandler:
             account_type=account_type,
         )
 
-    def onboard_tenant_user(
-        self,
-        *,
-        username: str,
-        raw_password: str,
-        display_name: str | None = None,
-        email: str | None = None,
-        is_active: bool = True,
-    ) -> UserAccount:
+    def onboard_tenant_user(self, command: UserCreateCommand) -> UserAccount:
+        username = command.username
+        raw_password = command.password
+        display_name = command.display_name
+        email = command.email
+        is_active = command.is_active
         require_permission(
             self._user_session,
             "auth.manage",

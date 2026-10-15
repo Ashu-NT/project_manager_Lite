@@ -44,11 +44,13 @@ def _require(handler: _HandlerT | None) -> _HandlerT:
             "Project management collaboration desktop API is not connected."
         )
     return handler
-from src.core.modules.project_management.application.collaboration.dto import (
+from src.core.modules.project_management.application.collaboration.dto.commands.comment_reactions import (
+    TaskCollaborationReactionCommand,
+)
+from src.core.modules.project_management.application.collaboration.dto.commands.task_comments import (
     TaskCollaborationDeleteCommand,
     TaskCollaborationEditCommand,
     TaskCollaborationPostCommand,
-    TaskCollaborationReactionCommand,
 )
 
 
@@ -304,14 +306,7 @@ class ProjectManagementCollaborationDesktopApi:
         normalized_task_id = (command.task_id or "").strip()
         if not normalized_task_id:
             raise ValidationError("Task ID is required to post a collaboration update.", code="TASK_ID_REQUIRED")
-        comment = _require(self._comment_commands).post_comment(
-            task_id=normalized_task_id,
-            body=command.body,
-            attachments=command.attachments,
-            linked_document_ids=command.linked_document_ids,
-            parent_comment_id=getattr(command, "parent_comment_id", None),
-            submission_id=command.submission_id,
-        )
+        comment = _require(self._comment_commands).post_comment(command)
         linked_documents = _require(self._document_query).list_comment_documents_for_ids(
             normalized_task_id, (comment.id,)
         ).get(comment.id, ())
@@ -324,11 +319,7 @@ class ProjectManagementCollaborationDesktopApi:
         normalized_comment_id = (command.comment_id or "").strip()
         if not normalized_comment_id:
             raise ValidationError("Comment ID is required to edit a collaboration update.", code="COMMENT_ID_REQUIRED")
-        comment = _require(self._comment_commands).edit_comment(
-            normalized_comment_id,
-            command.body,
-            expected_revision=command.expected_revision,
-        )
+        comment = _require(self._comment_commands).edit_comment(command)
         linked_documents = _require(self._document_query).list_comment_documents_for_ids(
             comment.task_id, (comment.id,)
         ).get(comment.id, ())
@@ -341,11 +332,7 @@ class ProjectManagementCollaborationDesktopApi:
         normalized_comment_id = (command.comment_id or "").strip()
         if not normalized_comment_id:
             raise ValidationError("Comment ID is required to delete a collaboration update.", code="COMMENT_ID_REQUIRED")
-        comment = _require(self._comment_commands).delete_comment(
-            normalized_comment_id,
-            expected_revision=command.expected_revision,
-            reason=command.reason,
-        )
+        comment = _require(self._comment_commands).delete_comment(command)
         linked_documents = _require(self._document_query).list_comment_documents_for_ids(
             comment.task_id, (comment.id,)
         ).get(comment.id, ())
@@ -358,7 +345,7 @@ class ProjectManagementCollaborationDesktopApi:
         normalized_comment_id = (command.comment_id or "").strip()
         if not normalized_comment_id:
             raise ValidationError("Comment ID is required to react to a collaboration update.", code="COMMENT_ID_REQUIRED")
-        comment = _require(self._comment_engagement).react_to_comment(normalized_comment_id, command.emoji)
+        comment = _require(self._comment_engagement).react_to_comment(command)
         linked_documents = _require(self._document_query).list_comment_documents_for_ids(
             comment.task_id, (comment.id,)
         ).get(comment.id, ())
@@ -371,7 +358,7 @@ class ProjectManagementCollaborationDesktopApi:
         normalized_comment_id = (command.comment_id or "").strip()
         if not normalized_comment_id:
             raise ValidationError("Comment ID is required to remove a reaction.", code="COMMENT_ID_REQUIRED")
-        comment = _require(self._comment_engagement).remove_reaction(normalized_comment_id, command.emoji)
+        comment = _require(self._comment_engagement).remove_reaction(command)
         linked_documents = _require(self._document_query).list_comment_documents_for_ids(
             comment.task_id, (comment.id,)
         ).get(comment.id, ())

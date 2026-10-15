@@ -4,7 +4,7 @@ src/core/platform/api/desktop/security/auth/user.py).
 """
 from __future__ import annotations
 
-from src.core.platform.api.desktop.security.auth.models.user import (
+from src.core.platform.application.security.auth.dto.commands.users import (
     UserCreateCommand,
     UserPasswordResetCommand,
 )

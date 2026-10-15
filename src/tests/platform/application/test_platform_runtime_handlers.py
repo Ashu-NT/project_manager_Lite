@@ -13,7 +13,7 @@ from src.core.platform.application.master_data.org.commands import (
 from src.core.platform.application.master_data.org.commands.organization_provisioning import (
     OrganizationProvisioningCommandHandler,
 )
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
 )
 from src.core.platform.application.platform_runtime import PlatformRuntimeQueryHandler

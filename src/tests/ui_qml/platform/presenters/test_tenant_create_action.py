@@ -3,10 +3,10 @@ mirroring the existing Organizations "Create Organization" flow."""
 
 from __future__ import annotations
 
-from src.core.platform.api.desktop.tenant.tenancy.models.tenant import (
+from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
     TenantCreateCommand,
 )
-from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.ui_qml.platform.presenters.tenant_management.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )

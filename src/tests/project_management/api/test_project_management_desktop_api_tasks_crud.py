@@ -6,6 +6,13 @@ import pytest
 from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+    TaskUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskProgressCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.tests.project_management.api._fake_task_service import _FakeTaskService
 from src.tests.project_management.api._project_resource_fakes import (
@@ -60,7 +67,7 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     )
 
     created = api.create_task(
-        SimpleNamespace(
+        TaskCreateCommand(
             project_id=project.id,
             name="Cable Pull",
             description="Primary feeder cable installation.",
@@ -81,7 +88,7 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     assert listed[0].end_date == date(2026, 5, 6)
 
     updated = api.update_task(
-        SimpleNamespace(
+        TaskUpdateCommand(
             task_id=created.id,
             expected_version=task_service.get_task(created.id).version,
             name="Cable Pull Rev A",
@@ -99,7 +106,7 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     assert updated.deadline == date(2026, 5, 10)
 
     progressed = api.update_progress(
-        SimpleNamespace(
+        TaskProgressCommand(
             task_id=created.id,
             expected_version=task_service.get_task(created.id).version,
             percent_complete=65.0,
@@ -131,7 +138,7 @@ def test_project_management_tasks_desktop_api_threads_is_milestone() -> None:
     )
 
     created = api.create_task(
-        SimpleNamespace(
+        TaskCreateCommand(
             project_id=project.id,
             name="Handover",
             description="",
@@ -148,7 +155,7 @@ def test_project_management_tasks_desktop_api_threads_is_milestone() -> None:
     assert task_service.get_task(created.id).duration_days == 0
 
     updated = api.update_task(
-        SimpleNamespace(
+        TaskUpdateCommand(
             task_id=created.id,
             expected_version=task_service.get_task(created.id).version,
             name="Handover",
@@ -180,15 +187,7 @@ def test_project_management_tasks_desktop_api_uses_task_scoped_project_query() -
     )
     project.organization_id = "org-test"
     task_service = _FakeTaskService()
-    task = task_service.create_task(
-        project_id=project.id,
-        name="Cable Pull",
-        description="Primary feeder cable installation.",
-        start_date=date(2026, 5, 3),
-        duration_days=4,
-        priority=80,
-        deadline=date(2026, 5, 8),
-    )
+    task = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Cable Pull", description="Primary feeder cable installation.", start_date=date(2026, 5, 3), duration_days=4, priority=80, deadline=date(2026, 5, 8)))
     api = build_project_management_tasks_desktop_api(
         project_service=_TaskScopedProjectService([project]),
         task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service, task_assignment_commands=task_service,

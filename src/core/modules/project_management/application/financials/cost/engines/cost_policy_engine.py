@@ -5,12 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from src.core.modules.project_management.application.financials.cost.dto import (
+from src.core.modules.project_management.application.financials.cost.dto.responses.cost_breakdown import (
     CostSourceBreakdown,
     CostSourceRow,
+)
+from src.core.modules.project_management.application.financials.cost.dto.responses.labor_cost import (
     LaborDetailsResult,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.snapshot_facts import (
     FinanceSnapshotFacts,
 )
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (

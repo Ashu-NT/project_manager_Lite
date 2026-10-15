@@ -12,14 +12,14 @@ from src.core.modules.project_management.api.desktop.resources.serializers.resou
     serialize_resource,
 )
 from src.core.modules.project_management.domain.enums import WorkerType
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )
-from src.core.platform.application.master_data.party.dto import (
+from src.core.platform.application.master_data.party.dto.commands.party import (
     PartyCreateCommand,
 )
 from src.core.platform.common.exceptions import ValidationError

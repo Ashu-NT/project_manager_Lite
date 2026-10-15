@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.application.financials.budgets import (
-    BudgetApprovalOutcome,
-    BudgetApprovalResult,
-)
-from src.core.modules.project_management.application.financials.budgets.dto import (
-    FinancialAddBudgetLineCommand,
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
     FinancialCreateBudgetVersionCommand,
     FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
+    FinancialAddBudgetLineCommand,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.responses.budget_approval import (
+    BudgetApprovalOutcome,
+    BudgetApprovalResult,
 )
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 
@@ -23,11 +24,11 @@ class _BudgetLifecycleCommands:
     def __init__(self, calls) -> None:
         self.calls = calls
 
-    def create_budget(self, *args, **kwargs):
-        self.calls.append(("create_budget", args, kwargs))
+    def create_budget(self, command: FinancialCreateBudgetVersionCommand):
+        self.calls.append(("create_budget", (command,), {}))
         return SimpleNamespace(
             id="budget-1",
-            project_id=args[0],
+            project_id=command.project_id,
             status=BudgetStatus.DRAFT,
             row_version=1,
         )
@@ -37,23 +38,23 @@ class _BudgetLineCommands:
     def __init__(self, calls) -> None:
         self.calls = calls
 
-    def add_line(self, *args, **kwargs):
-        self.calls.append(("add_line", args, kwargs))
-        return SimpleNamespace(id="line-1", budget_id=args[0], row_version=1)
+    def add_line(self, command: FinancialAddBudgetLineCommand):
+        self.calls.append(("add_line", (command,), {}))
+        return SimpleNamespace(id="line-1", budget_id=command.budget_id, row_version=1)
 
 
 class _BudgetApprovalCommands:
     def __init__(self, calls) -> None:
         self.calls = calls
 
-    def request_budget_approval(self, *args, **kwargs):
-        self.calls.append(("request_budget_approval", args, kwargs))
+    def request_budget_approval(self, command: FinancialVersionedBudgetCommand):
+        self.calls.append(("request_budget_approval", (command,), {}))
         return BudgetApprovalResult(
             outcome=BudgetApprovalOutcome.PENDING_APPROVAL,
-            budget_id=args[0],
+            budget_id=command.budget_id,
             project_id="project-1",
             budget_status=BudgetStatus.SUBMITTED,
-            row_version=kwargs["expected_version"],
+            row_version=command.expected_version,
             approval_request_id="approval-1",
         )
 
@@ -113,9 +114,10 @@ def test_typed_budget_commands_route_through_governance_boundary() -> None:
     assert requested.approval_request_id == "approval-1"
     assert boundary.command_count == 3
     create_call = next(call for call in boundary.calls if call[0] == "create_budget")
-    assert create_call[1][0] == "project-1"
+    assert create_call[1][0].project_id == "project-1"
     add_call = next(call for call in boundary.calls if call[0] == "add_line")
-    assert add_call[2]["amount"] == Decimal("1250.50")
+    assert add_call[1][0].amount == "1250.50"
+    assert add_call[2] == {}
     assert any(call[0] == "request_budget_approval" for call in boundary.calls)
 
 

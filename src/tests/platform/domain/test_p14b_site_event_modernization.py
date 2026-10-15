@@ -10,7 +10,7 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )

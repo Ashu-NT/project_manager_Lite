@@ -1,0 +1,1 @@
+"""Finance shared read contracts."""

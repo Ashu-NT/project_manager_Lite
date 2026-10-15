@@ -10,15 +10,15 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
-    DeptCalendarAssignCommand,
-    SiteCalendarAssignCommand,
-)
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    DeptCalendarAssignCommand,
+    SiteCalendarAssignCommand,
 )
 from src.ui_qml.platform.controllers.calendars.context import (
     department_calendar_summary,

@@ -6,10 +6,16 @@ from datetime import UTC
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.application.approval.event_handlers.view_invalidation import (
     APPROVAL_CATEGORY,
     APPROVAL_REQUESTS_SCOPE_CODE,
     build_approval_view_invalidation_handler,
+)
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.approval import (
@@ -312,7 +318,7 @@ def test_approve_and_apply_refreshes_control_workspace_exactly_once_no_legacy_si
     refresh_calls.clear()
     _login_as_scoped_approver(services)
 
-    decided = services["approval_commands"].approve_and_apply(request.id, note="Approved")
+    decided = services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Approved"))
 
     assert decided.status == ApprovalStatus.APPROVED
     assert refresh_calls == ["approvals"]
@@ -329,7 +335,7 @@ def test_reject_refreshes_control_workspace_exactly_once(services, session):
     refresh_calls.clear()
     _login_as_scoped_approver(services)
 
-    decided = services["approval_commands"].reject(request.id, note="Rejected")
+    decided = services["approval_commands"].reject(ApprovalDecisionCommand(request_id=request.id, note="Rejected"))
 
     assert decided.status == ApprovalStatus.REJECTED
     assert refresh_calls == ["approvals"]
@@ -556,7 +562,7 @@ def test_full_switch_sequence_a1_a2_b1_a1_ends_with_exactly_one_live_subscriptio
     org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique("VI-SEQ-A2"), display_name="Sequence Org A2"
     )
-    tenant_b = tenant_admin.create_tenant(_unique("VI-SEQ-TENANT-B"), "Sequence Tenant B")
+    tenant_b = tenant_admin.create_tenant(TenantCreateCommand(tenant_code=_unique("VI-SEQ-TENANT-B"), display_name="Sequence Tenant B"))
 
     adapter = ApprovalViewInvalidationAdapter(channel=channel, tenant_id=tenant_a, organization_id=org_a1.id)
     baseline_subscription_count = len(channel._subscriptions)
@@ -626,7 +632,7 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
     assert any(f.tenant_id == tenant_a and f.organization_id == org_a1.id for f in _current_filters())
 
     admin_svc = services["tenant_lifecycle_commands"]
-    tenant_b = admin_svc.create_tenant(_unique("VI-TENANT-B"), "View Invalidation Tenant B")
+    tenant_b = admin_svc.create_tenant(TenantCreateCommand(tenant_code=_unique("VI-TENANT-B"), display_name="View Invalidation Tenant B"))
     services["session"].flush()
 
     switch_result = catalog.tenantSwitcher.switchToTenant(tenant_b.id)
@@ -671,7 +677,7 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
     services["user_session"].set_active_organization_id(org_a2.id)
     approvals = services["approval_commands"]
     with pytest.raises(NotFoundError):
-        approvals.approve_and_apply(request.id)
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
     assert refresh_calls == []
 
     _login(services, "admin", "ChangeMe123!")
@@ -680,7 +686,7 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
     _login(services, approver_username, "StrongPass123")
     services["user_session"].set_active_organization_id(org_a1.id)
 
-    decided = approvals.approve_and_apply(request.id, note="Approved from the matching org")
+    decided = approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Approved from the matching org"))
     assert decided.status == ApprovalStatus.APPROVED
     assert refresh_calls == ["approvals"]
 
@@ -814,7 +820,7 @@ def test_apply_handler_failure_produces_zero_ui_refresh(services, session):
     services["approval_participants"].apply_handlers["budget.approve"] = (_failing_handler, saved[1])
     try:
         with pytest.raises(RuntimeError):
-            approvals.approve_and_apply(request.id)
+            approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
     finally:
         services["approval_participants"].apply_handlers["budget.approve"] = saved
 
@@ -842,7 +848,7 @@ def test_reject_handler_failure_produces_zero_ui_refresh(services, session):
     services["approval_participants"].reject_handlers["budget.approve"] = (_failing_reject_handler, saved[1])
     try:
         with pytest.raises(RuntimeError):
-            approvals.reject(request.id)
+            approvals.reject(ApprovalDecisionCommand(request_id=request.id))
     finally:
         services["approval_participants"].reject_handlers["budget.approve"] = saved
 

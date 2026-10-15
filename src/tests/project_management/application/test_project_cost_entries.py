@@ -25,6 +25,13 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryKind,
     ProjectCostEntryStatus,
 )
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+    FinancialPeriodTransitionCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
@@ -68,13 +75,7 @@ def _create_project_finance_setup(services):
         name="Actual labor",
     ))
     period = services["financial_period_commands"].create_period(
-        code="FY26-P01",
-        name="January 2026",
-        fiscal_year=2026,
-        period_number=1,
-        start_date=date(2026, 1, 1),
-        end_date=date(2026, 1, 31),
-    )
+        FinancialPeriodCreateCommand(code="FY26-P01", name="January 2026", fiscal_year=2026, period_number=1, start_date=date(2026, 1, 1).isoformat(), end_date=date(2026, 1, 31).isoformat()))
     return organization, project, cost_code, period
 
 
@@ -357,9 +358,7 @@ def test_posting_rejects_closed_period(services) -> None:
     services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
     approved = services['cost_entry_query'].get_entry(draft.id)
     services["financial_period_commands"].close_period(
-        period.id,
-        expected_version=period.version,
-    )
+        FinancialPeriodTransitionCommand(period_id=period.id, expected_version=period.version))
     with pytest.raises(BusinessRuleError) as blocked:
         services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
             approved.id,
@@ -391,7 +390,7 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     _login(services, "admin", "ChangeMe123!")
     _become_independent_decider(services, role="approver")
     approver_id = services["user_session"].principal.user_id
-    services["approval_commands"].approve_and_apply(request.id, note="Approved actual")
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Approved actual"))
     approved = services['cost_entry_query'].get_entry(submitted.id)
     assert approved.status == ProjectCostEntryStatus.APPROVED
     assert approved.approved_by == approver_id

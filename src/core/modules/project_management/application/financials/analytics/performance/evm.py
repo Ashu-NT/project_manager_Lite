@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
     PerformanceEvmFact,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from src.core.modules.project_management.contracts.ports.financials.performance_authorities import (
         EarnedValueReadAuthority,
     )
-    from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+    from src.core.modules.project_management.contracts.reads.financials.overview.models.overview_facts import (
         FinanceOverviewFacts,
     )
 

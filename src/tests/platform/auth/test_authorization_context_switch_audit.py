@@ -7,12 +7,18 @@ import pytest
 from sqlalchemy import func, select
 
 from src.core.platform.access.authorization import require_scope_permission
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
 )
 from src.core.platform.application.tenant.tenancy.context_policy import (
     SaaSTenantContextPolicy,
+)
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import (
@@ -210,9 +216,7 @@ def test_tenant_switch_success_is_audited_and_idempotent(services) -> None:
     assert current is not None
     old_tenant_id = current.active_tenant_id
     target = tenant_admin.create_tenant(
-        "AUDIT-SWITCH",
-        "Audited Switch Tenant",
-    )
+        TenantCreateCommand(tenant_code="AUDIT-SWITCH", display_name="Audited Switch Tenant"))
 
     tenant_context.switch_to_tenant(target.id)
 
@@ -281,9 +285,7 @@ def test_context_audit_failure_rolls_back_persisted_session_and_principal(
     tenant_admin = services["tenant_lifecycle_commands"]
     user_session = services["user_session"]
     target = tenant_admin.create_tenant(
-        "AUDIT-ROLLBACK",
-        "Audit Rollback Tenant",
-    )
+        TenantCreateCommand(tenant_code="AUDIT-ROLLBACK", display_name="Audit Rollback Tenant"))
     user = services["authentication"].authenticate("admin", "ChangeMe123!")
     session_id = user.active_session_id
     assert session_id is not None
@@ -331,13 +333,9 @@ def test_tenant_switch_denial_is_durable_and_preserves_reason(services) -> None:
     tenant_context = services["tenant_context_service"]
     user_session = services["user_session"]
     target = tenant_admin.create_tenant(
-        "ZZZ-AUDIT-DENIED",
-        "Denied Switch Tenant",
-    )
+        TenantCreateCommand(tenant_code="ZZZ-AUDIT-DENIED", display_name="Denied Switch Tenant"))
     user = services["user_registration"].onboard_tenant_user(
-        username="context-denied-user",
-        raw_password="StrongPass123!",
-    )
+        UserCreateCommand(username="context-denied-user", password="StrongPass123!"))
     user_session.set_principal(services["principal_builder"].build(user))
     current_tenant_id = user_session.active_tenant_id()
     membership_ids = services["role_assignment_commands"]._user_tenant_repo.list_tenant_ids_for_user(user.id)
@@ -370,9 +368,7 @@ def test_saas_switch_requires_audited_committer(services) -> None:
     tenant_admin = services["tenant_lifecycle_commands"]
     user_session = services["user_session"]
     target = tenant_admin.create_tenant(
-        "AUDIT-REQUIRED",
-        "Audit Required Tenant",
-    )
+        TenantCreateCommand(tenant_code="AUDIT-REQUIRED", display_name="Audit Required Tenant"))
     previous = user_session.principal
     tenant_context._context_policy = SaaSTenantContextPolicy()
     tenant_context.set_context_switch_committer(None)

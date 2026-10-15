@@ -7,6 +7,9 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
+    PortfolioScenarioCreateCommand,
+)
 from src.tests.project_management._sql_measurement_helpers import (
     count_calls,
     measure_sql,
@@ -59,20 +62,8 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
         project_ids.append(project.id)
 
     split = max(1, (project_count + 1) // 2)
-    base = scenario_commands.create_scenario(
-        name="Phase 3C Base",
-        budget_limit=1_000_000.0,
-        capacity_limit_percent=10_000.0,
-        project_ids=project_ids[:split],
-        intake_item_ids=[],
-    )
-    candidate = scenario_commands.create_scenario(
-        name="Phase 3C Candidate",
-        budget_limit=1_000_000.0,
-        capacity_limit_percent=10_000.0,
-        project_ids=project_ids,
-        intake_item_ids=[],
-    )
+    base = scenario_commands.create_scenario(PortfolioScenarioCreateCommand(name="Phase 3C Base", budget_limit=1_000_000.0, capacity_limit_percent=10_000.0, project_ids=project_ids[:split], intake_item_ids=[]))
+    candidate = scenario_commands.create_scenario(PortfolioScenarioCreateCommand(name="Phase 3C Candidate", budget_limit=1_000_000.0, capacity_limit_percent=10_000.0, project_ids=project_ids, intake_item_ids=[]))
     return base.id, candidate.id
 
 

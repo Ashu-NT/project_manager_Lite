@@ -17,7 +17,7 @@ from src.core.platform.application.master_data.party import (
     PartyCommandHandler,
     PartyQueryHandler,
 )
-from src.core.platform.application.master_data.party.dto import (
+from src.core.platform.application.master_data.party.dto.commands.party import (
     PartyCreateCommand,
     PartyUpdateCommand,
 )

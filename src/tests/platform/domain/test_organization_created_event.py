@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
 )
 from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (

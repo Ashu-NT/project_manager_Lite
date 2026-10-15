@@ -17,6 +17,11 @@ from src.core.modules.project_management.application.collaboration.collaboration
     TaskCommentChanged,
     TaskCommentChangeType,
 )
+from src.core.modules.project_management.application.collaboration.dto.commands.task_comments import (
+    TaskCollaborationDeleteCommand,
+    TaskCollaborationEditCommand,
+    TaskCollaborationPostCommand,
+)
 from src.core.modules.project_management.application.collaboration.utils.visibility import (
     CollaborationVisibilityPolicy,
     new_collaboration_context,
@@ -123,16 +128,13 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                     logger.exception("Failed to compensate uncommitted task comment attachments")
             raise
 
-    def post_comment(
-        self,
-        *,
-        task_id: str,
-        body: str,
-        attachments: Iterable[str] | None = None,
-        linked_document_ids: Iterable[str] | None = None,
-        parent_comment_id: str | None = None,
-        submission_id: str | None = None,
-    ) -> TaskComment:
+    def post_comment(self, command: TaskCollaborationPostCommand) -> TaskComment:
+        task_id = command.task_id.strip()
+        body = command.body
+        attachments = command.attachments
+        linked_document_ids = command.linked_document_ids
+        parent_comment_id = command.parent_comment_id
+        submission_id = command.submission_id
         task = self._policy.require_task(task_id)
         require_permission(
             self._user_session,
@@ -345,13 +347,10 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                 code="STALE_WRITE",
             )
 
-    def edit_comment(
-        self,
-        comment_id: str,
-        body: str,
-        *,
-        expected_revision: int | None = None,
-    ) -> TaskComment:
+    def edit_comment(self, command: TaskCollaborationEditCommand) -> TaskComment:
+        comment_id = command.comment_id.strip()
+        body = command.body
+        expected_revision = command.expected_revision
         comment = self._comment_repo.get(comment_id)
         if comment is None:
             raise NotFoundError(
@@ -445,13 +444,10 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
         return comment
 
-    def delete_comment(
-        self,
-        comment_id: str,
-        *,
-        expected_revision: int | None = None,
-        reason: str | None = None,
-    ) -> TaskComment:
+    def delete_comment(self, command: TaskCollaborationDeleteCommand) -> TaskComment:
+        comment_id = command.comment_id.strip()
+        expected_revision = command.expected_revision
+        reason = command.reason
         comment = self._comment_repo.get(comment_id)
         if comment is None:
             raise NotFoundError(

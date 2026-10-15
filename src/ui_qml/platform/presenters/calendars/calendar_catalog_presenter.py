@@ -146,7 +146,7 @@ class PlatformCalendarCatalogPresenter:
                 ok=False,
                 error=DesktopApiError(code="validation", message="Working days must be >= 0.", category="validation"),
             )
-        from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+        from src.core.platform.application.time_management.calendar.capacity.dto.queries.working_days import (
             WorkingDaysCommand,
         )
         return self._platform_calendar_api.calculate_working_days(

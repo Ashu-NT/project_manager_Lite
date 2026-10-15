@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
-
 from src.core.platform.api.desktop.finance.models import (
-    FinancialPeriodCreateCommand,
     FinancialPeriodDto,
-    FinancialPeriodTransitionCommand,
-    FinancialPeriodUpdateCommand,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
@@ -14,23 +9,11 @@ from src.core.platform.application.finance import (
     FinancialPeriodCommandHandler,
     FinancialPeriodQueryHandler,
 )
-from src.core.platform.common.exceptions import ValidationError
-
-
-def _parse_required_date(value: str, *, field_name: str) -> date:
-    try:
-        return date.fromisoformat(str(value or "").strip())
-    except ValueError as exc:
-        raise ValidationError(
-            f"{field_name} must be a valid ISO date.",
-            code="FINANCIAL_PERIOD_DATE_INVALID",
-        ) from exc
-
-
-def _parse_optional_date(value: str | None, *, field_name: str) -> date | None:
-    if value is None:
-        return None
-    return _parse_required_date(value, field_name=field_name)
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+    FinancialPeriodTransitionCommand,
+    FinancialPeriodUpdateCommand,
+)
 
 
 class FinancialPeriodDesktopApi:
@@ -74,20 +57,7 @@ class FinancialPeriodDesktopApi:
     ) -> DesktopApiResult[FinancialPeriodDto]:
         return execute_desktop_operation(
             lambda: self._serialize(
-                self._financial_period_commands.create_period(
-                    code=command.code,
-                    name=command.name,
-                    fiscal_year=command.fiscal_year,
-                    period_number=command.period_number,
-                    start_date=_parse_required_date(
-                        command.start_date,
-                        field_name="Start date",
-                    ),
-                    end_date=_parse_required_date(
-                        command.end_date,
-                        field_name="End date",
-                    ),
-                )
+                self._financial_period_commands.create_period(command)
             )
         )
 
@@ -97,22 +67,7 @@ class FinancialPeriodDesktopApi:
     ) -> DesktopApiResult[FinancialPeriodDto]:
         return execute_desktop_operation(
             lambda: self._serialize(
-                self._financial_period_commands.update_period(
-                    command.period_id,
-                    expected_version=command.expected_version,
-                    code=command.code,
-                    name=command.name,
-                    fiscal_year=command.fiscal_year,
-                    period_number=command.period_number,
-                    start_date=_parse_optional_date(
-                        command.start_date,
-                        field_name="Start date",
-                    ),
-                    end_date=_parse_optional_date(
-                        command.end_date,
-                        field_name="End date",
-                    ),
-                )
+                self._financial_period_commands.update_period(command)
             )
         )
 
@@ -122,10 +77,7 @@ class FinancialPeriodDesktopApi:
     ) -> DesktopApiResult[FinancialPeriodDto]:
         return execute_desktop_operation(
             lambda: self._serialize(
-                self._financial_period_commands.close_period(
-                    command.period_id,
-                    expected_version=command.expected_version,
-                )
+                self._financial_period_commands.close_period(command)
             )
         )
 
@@ -135,10 +87,7 @@ class FinancialPeriodDesktopApi:
     ) -> DesktopApiResult[FinancialPeriodDto]:
         return execute_desktop_operation(
             lambda: self._serialize(
-                self._financial_period_commands.lock_period(
-                    command.period_id,
-                    expected_version=command.expected_version,
-                )
+                self._financial_period_commands.lock_period(command)
             )
         )
 

@@ -3,6 +3,10 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateActivateCommand,
+    PortfolioTemplateCreateCommand,
+)
 from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
     PORTFOLIO_CATEGORY,
 )
@@ -44,7 +48,7 @@ def _portfolio_hints(hints):
 def test_existing_template_read_performs_zero_writes_zero_audit_zero_events(services):
     # Pre-seed for real, through the canonical command path, so "already bootstrapped" reflects
     # genuine prior state rather than a fixture shortcut.
-    services["portfolio_template_commands"].create_scoring_template(name="P42-FIX pre-seed", activate=True)
+    services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="P42-FIX pre-seed", activate=True))
 
     from sqlalchemy import select
 
@@ -179,7 +183,7 @@ def test_scoring_templates_with_bootstrap_recovers_cleanly_when_commit_loses_the
         SqlAlchemyPortfolioUnitOfWork,
     )
 
-    seeded = services["portfolio_template_commands"].create_scoring_template(name="Already Won The Race", activate=True)
+    seeded = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Already Won The Race", activate=True))
     baseline_ids = sorted(t.id for t in services["portfolio_template_commands"]._scoring_template_repo.list())
     hints = _spy_hints(services)
 
@@ -220,8 +224,8 @@ def test_explicit_activate_conflict_maps_integrity_error_to_concurrency_error(se
         SqlAlchemyPortfolioUnitOfWork,
     )
 
-    first = services["portfolio_template_commands"].create_scoring_template(name="Alpha", activate=True)
-    second = services["portfolio_template_commands"].create_scoring_template(name="Beta", activate=False)
+    first = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Alpha", activate=True))
+    second = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Beta", activate=False))
 
     def _raise_integrity_error(self):
         raise IntegrityError("UPDATE", {}, Exception("UNIQUE constraint failed"))
@@ -229,7 +233,7 @@ def test_explicit_activate_conflict_maps_integrity_error_to_concurrency_error(se
     monkeypatch.setattr(SqlAlchemyPortfolioUnitOfWork, "commit", _raise_integrity_error)
 
     with pytest.raises(ConcurrencyError):
-        services["portfolio_template_commands"].activate_scoring_template(second.id)
+        services["portfolio_template_commands"].activate_scoring_template(PortfolioTemplateActivateCommand(second.id))
 
     monkeypatch.undo()
     final_active = [t for t in services["portfolio_template_commands"]._scoring_template_repo.list() if t.is_active]
@@ -246,7 +250,7 @@ def test_explicit_create_with_activate_conflict_maps_integrity_error_to_concurre
         SqlAlchemyPortfolioUnitOfWork,
     )
 
-    services["portfolio_template_commands"].create_scoring_template(name="Alpha", activate=True)
+    services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Alpha", activate=True))
     before = sorted(t.id for t in services["portfolio_template_commands"]._scoring_template_repo.list())
 
     def _raise_integrity_error(self):
@@ -255,7 +259,7 @@ def test_explicit_create_with_activate_conflict_maps_integrity_error_to_concurre
     monkeypatch.setattr(SqlAlchemyPortfolioUnitOfWork, "commit", _raise_integrity_error)
 
     with pytest.raises(ConcurrencyError):
-        services["portfolio_template_commands"].create_scoring_template(name="Gamma", activate=True)
+        services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Gamma", activate=True))
 
     monkeypatch.undo()
     after = sorted(t.id for t in services["portfolio_template_commands"]._scoring_template_repo.list())

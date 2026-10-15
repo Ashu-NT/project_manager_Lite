@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import Row, func, select
 from sqlalchemy.orm import Session, aliased
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.snapshot_facts import (
     ApprovedForecastFact,
     CostAggregateFact,
     FinanceControlFact,

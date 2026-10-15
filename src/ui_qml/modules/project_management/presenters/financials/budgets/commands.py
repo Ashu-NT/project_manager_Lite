@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.application.financials.budgets.dto import (
-    FinancialAddBudgetLineCommand,
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
     FinancialCreateBudgetSuccessorCommand,
     FinancialCreateBudgetVersionCommand,
-    FinancialDeleteBudgetLineCommand,
     FinancialUpdateBudgetCommand,
-    FinancialUpdateBudgetLineCommand,
     FinancialVersionedBudgetCommand,
 )
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
+    FinancialAddBudgetLineCommand,
+    FinancialDeleteBudgetLineCommand,
+    FinancialUpdateBudgetLineCommand,
+)
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.approval.models.approval import (
+from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
 

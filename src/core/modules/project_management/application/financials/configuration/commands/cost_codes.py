@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Final
 
@@ -14,6 +14,12 @@ from src.core.modules.project_management.access.scope_permissions import (
 )
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
+    FinancialCreateCostCodeCommand,
+    FinancialUpdateCostCodeCommand,
 )
 from src.core.modules.project_management.application.financials.configuration.events import (
     CostCodeActivated,
@@ -91,19 +97,16 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
 
-    def create_cost_code(
-        self,
-        *,
-        code: str,
-        name: str,
-        available_to_project_id: str | None = None,
-        description: str = "",
-        parent_id: str | None = None,
-        external_system: str | None = None,
-        external_reference: str | None = None,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-    ) -> ProjectCostCode:
+    def create_cost_code(self, command: FinancialCreateCostCodeCommand) -> ProjectCostCode:
+        code = command.code
+        name = command.name
+        available_to_project_id = command.project_id
+        description = command.description
+        parent_id = command.parent_id
+        external_system = command.external_system
+        external_reference = command.external_reference
+        effective_from = command.effective_from
+        effective_to = command.effective_to
         require_permission(
             self._user_session,
             "finance.manage",
@@ -170,20 +173,17 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         self._flush(duplicate_message=duplicate_message)
         return cost_code
 
-    def update_cost_code(
-        self,
-        cost_code_id: str,
-        *,
-        expected_version: int,
-        code: str | _Unset = _UNSET,
-        name: str | _Unset = _UNSET,
-        description: str | _Unset = _UNSET,
-        parent_id: str | None | _Unset = _UNSET,
-        external_system: str | None | _Unset = _UNSET,
-        external_reference: str | None | _Unset = _UNSET,
-        effective_from: date | None | _Unset = _UNSET,
-        effective_to: date | None | _Unset = _UNSET,
-    ) -> ProjectCostCode:
+    def update_cost_code(self, command: FinancialUpdateCostCodeCommand) -> ProjectCostCode:
+        cost_code_id = command.cost_code_id
+        expected_version = command.expected_version
+        code = command.code
+        name = command.name
+        description = command.description
+        parent_id = command.parent_id
+        external_system = command.external_system
+        external_reference = command.external_reference
+        effective_from = command.effective_from
+        effective_to = command.effective_to
         require_permission(
             self._user_session,
             "finance.manage",
@@ -233,12 +233,9 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return candidate
 
-    def deactivate_cost_code(
-        self,
-        cost_code_id: str,
-        *,
-        expected_version: int,
-    ) -> ProjectCostCode:
+    def deactivate_cost_code(self, command: FinancialChangeCostCodeStatusCommand) -> ProjectCostCode:
+        cost_code_id = command.cost_code_id
+        expected_version = command.expected_version
         require_permission(
             self._user_session,
             "finance.manage",
@@ -280,12 +277,9 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return candidate
 
-    def activate_cost_code(
-        self,
-        cost_code_id: str,
-        *,
-        expected_version: int,
-    ) -> ProjectCostCode:
+    def activate_cost_code(self, command: FinancialChangeCostCodeStatusCommand) -> ProjectCostCode:
+        cost_code_id = command.cost_code_id
+        expected_version = command.expected_version
         require_permission(
             self._user_session,
             "finance.manage",
@@ -315,12 +309,9 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return candidate
 
-    def add_project_cost_code(
-        self,
-        *,
-        project_id: str,
-        cost_code_id: str,
-    ) -> ProjectCostCodeRestriction:
+    def add_project_cost_code(self, command: FinancialCostCodeRestrictionCommand) -> ProjectCostCodeRestriction:
+        project_id = command.project_id
+        cost_code_id = command.cost_code_id
         self._require_project(project_id, "finance.manage", "restrict project cost codes")
         existing = {
             row.cost_code_id: row
@@ -352,7 +343,9 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return restriction
 
-    def remove_project_cost_code(self, *, project_id: str, cost_code_id: str) -> bool:
+    def remove_project_cost_code(self, command: FinancialCostCodeRestrictionCommand) -> bool:
+        project_id = command.project_id
+        cost_code_id = command.cost_code_id
         self._require_project(
             project_id,
             "finance.manage",

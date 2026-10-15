@@ -9,6 +9,9 @@ from sqlalchemy.orm import sessionmaker
 from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
     CalendarAssignmentCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    SiteCalendarAssignCommand,
+)
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
 )
@@ -18,8 +21,15 @@ from src.core.platform.application.time_management.calendar.commands.platform_ca
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
+    CalendarUpdateCommand,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -300,10 +310,12 @@ def test_get_default_calendar_returns_canonical_global(
     cal_queries, cal_commands, org_id
 ):
     cal_commands.create_calendar(
-        code="SITE-FIRST",
-        name="Site First",
-        calendar_type=CalendarType.SITE.value,
-        is_default=True,
+        CalendarCreateCommand(
+            code="SITE-FIRST",
+            name="Site First",
+            calendar_type=CalendarType.SITE.value,
+            is_default=True,
+        )
     )
     global_calendar = cal_commands.ensure_global_calendar(org_id)
 
@@ -319,10 +331,12 @@ def test_get_default_calendar_fails_when_global_is_missing(cal_queries, cal_comm
 
 def test_create_site_calendar(cal_commands, org_id):
     cal = cal_commands.create_calendar(
-        code="SITE-HH",
-        name="Hamburg Site",
-        calendar_type=CalendarType.SITE.value,
-        timezone="Europe/Berlin",
+        CalendarCreateCommand(
+            code="SITE-HH",
+            name="Hamburg Site",
+            calendar_type=CalendarType.SITE.value,
+            timezone="Europe/Berlin",
+        )
     )
     assert cal.code == "SITE-HH"
     assert cal.calendar_type == CalendarType.SITE.value
@@ -331,24 +345,30 @@ def test_create_site_calendar(cal_commands, org_id):
 
 def test_create_calendar_duplicate_code_raises(cal_commands, org_id):
     cal_commands.create_calendar(
-        code="DUPE", name="First", calendar_type=CalendarType.DEPARTMENT.value
+        CalendarCreateCommand(
+            code="DUPE", name="First", calendar_type=CalendarType.DEPARTMENT.value
+        )
     )
     with pytest.raises(ValidationError, match="already exists"):
         cal_commands.create_calendar(
-            code="DUPE", name="Second", calendar_type=CalendarType.DEPARTMENT.value
+            CalendarCreateCommand(
+                code="DUPE", name="Second", calendar_type=CalendarType.DEPARTMENT.value
+            )
         )
 
 
 def test_create_calendar_invalid_type_raises(cal_commands):
     with pytest.raises(ValidationError, match="Invalid calendar_type"):
         cal_commands.create_calendar(
-            code="BAD", name="Bad", calendar_type="NONEXISTENT"
+            CalendarCreateCommand(code="BAD", name="Bad", calendar_type="NONEXISTENT")
         )
 
 
 def test_update_calendar(cal_commands, global_cal):
     updated = cal_commands.update_calendar(
-        global_cal.id, name="Global (Updated)", timezone="Europe/Berlin"
+        CalendarUpdateCommand(
+            calendar_id=global_cal.id, name="Global (Updated)", timezone="Europe/Berlin"
+        )
     )
     assert updated.name == "Global (Updated)"
     assert updated.timezone == "Europe/Berlin"
@@ -357,7 +377,9 @@ def test_update_calendar(cal_commands, global_cal):
 
 def test_delete_calendar_not_assigned(cal_queries, cal_commands, org_id):
     cal = cal_commands.create_calendar(
-        code="TODELETE", name="Temp", calendar_type=CalendarType.PROJECT.value
+        CalendarCreateCommand(
+            code="TODELETE", name="Temp", calendar_type=CalendarType.PROJECT.value
+        )
     )
     cal_commands.delete_calendar(cal.id)
     with pytest.raises(NotFoundError):
@@ -373,9 +395,15 @@ def test_delete_calendar_blocked_if_assigned(
     # it has any assignments. This test exercises the separate
     # assignment-count guard, so it needs a non-default calendar.
     cal = cal_commands.create_calendar(
-        code="ASSIGNED", name="Assigned Calendar", calendar_type=CalendarType.SITE.value
+        CalendarCreateCommand(
+            code="ASSIGNED",
+            name="Assigned Calendar",
+            calendar_type=CalendarType.SITE.value,
+        )
     )
-    assignment_commands.assign_site_calendar("site-x", cal.id)
+    assignment_commands.assign_site_calendar(
+        SiteCalendarAssignCommand(site_id="site-x", calendar_id=cal.id)
+    )
     with pytest.raises(BusinessRuleError, match="assigned"):
         cal_commands.delete_calendar(cal.id)
 
@@ -387,12 +415,16 @@ def test_delete_calendar_blocked_if_default(cal_commands, global_cal):
 
 def test_deactivate_calendar_blocked_if_default(cal_commands, global_cal):
     with pytest.raises(BusinessRuleError, match="default"):
-        cal_commands.update_calendar(global_cal.id, is_active=False)
+        cal_commands.update_calendar(
+            CalendarUpdateCommand(calendar_id=global_cal.id, is_active=False)
+        )
 
 
 def test_list_calendars_filtered_by_type(cal_queries, cal_commands, global_cal, org_id):
     cal_commands.create_calendar(
-        code="SITE-A", name="Site A", calendar_type=CalendarType.SITE.value
+        CalendarCreateCommand(
+            code="SITE-A", name="Site A", calendar_type=CalendarType.SITE.value
+        )
     )
     global_cals = cal_queries.list_calendars(calendar_type=CalendarType.GLOBAL.value)
     assert all(c.calendar_type == CalendarType.GLOBAL.value for c in global_cals)
@@ -421,28 +453,36 @@ def test_working_rule_seed_standard_week(rule_commands, global_cal):
 def test_working_rule_start_before_end_enforced(rule_commands, global_cal):
     with pytest.raises(ValidationError, match="before end_time"):
         rule_commands.save_rule(
-            global_cal.id,
-            weekday=0,
-            is_working_day=True,
-            start_time=time(17, 0),
-            end_time=time(8, 0),
+            WorkingRuleSaveCommand(
+                calendar_id=global_cal.id,
+                weekday=0,
+                is_working_day=True,
+                start_time=time(17, 0),
+                end_time=time(8, 0),
+            )
         )
 
 
 def test_working_rule_non_working_day_zero_hours(rule_commands, global_cal):
-    rule = rule_commands.save_rule(global_cal.id, weekday=6, is_working_day=False)
+    rule = rule_commands.save_rule(
+        WorkingRuleSaveCommand(
+            calendar_id=global_cal.id, weekday=6, is_working_day=False
+        )
+    )
     assert rule.compute_hours() == 0.0
 
 
 def test_working_rule_hours_override(rule_commands, global_cal):
     rule = rule_commands.save_rule(
-        global_cal.id,
-        weekday=0,
-        is_working_day=True,
-        start_time=time(8, 0),
-        end_time=time(17, 0),
-        break_minutes=60,
-        hours_override=6.0,
+        WorkingRuleSaveCommand(
+            calendar_id=global_cal.id,
+            weekday=0,
+            is_working_day=True,
+            start_time=time(8, 0),
+            end_time=time(17, 0),
+            break_minutes=60,
+            hours_override=6.0,
+        )
     )
     assert rule.compute_hours() == 6.0
 
@@ -451,17 +491,19 @@ def test_working_rule_save_normalizes_dto_inputs(
     rule_queries, rule_commands, global_cal
 ):
     rule = rule_commands.save_rule(
-        f"  {global_cal.id}  ",
-        weekday="1",
-        is_working_day=True,
-        start_time=time(8, 0),
-        end_time=time(17, 0),
-        break_minutes="45",
-        hours_override="7.25",
-        shift_code="  day  ",
-        effective_from=date(2026, 1, 1),
-        effective_to=date(2026, 12, 31),
-        priority="2",
+        WorkingRuleSaveCommand(
+            calendar_id=f"  {global_cal.id}  ",
+            weekday="1",
+            is_working_day=True,
+            start_time=time(8, 0),
+            end_time=time(17, 0),
+            break_minutes="45",
+            hours_override="7.25",
+            shift_code="  day  ",
+            effective_from=date(2026, 1, 1),
+            effective_to=date(2026, 12, 31),
+            priority="2",
+        )
     )
 
     assert rule.calendar_id == global_cal.id

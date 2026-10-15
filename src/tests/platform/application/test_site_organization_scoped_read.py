@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError

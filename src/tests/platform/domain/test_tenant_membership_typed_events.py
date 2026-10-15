@@ -8,6 +8,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
@@ -454,8 +457,7 @@ def test_cross_tenant_actor_cannot_mutate_another_tenants_membership(services):
 
     admin_svc = services["tenant_lifecycle_commands"]
     other_tenant = admin_svc.create_tenant(
-        _unique_code("P5D2-OTHER"), "P5D-2 Other Tenant"
-    )
+        TenantCreateCommand(tenant_code=_unique_code("P5D2-OTHER"), display_name="P5D-2 Other Tenant"))
     services["session"].flush()
     other_username = _unique_code("p5d2-other-tenant-actor")
     services["user_registration"].register_user(

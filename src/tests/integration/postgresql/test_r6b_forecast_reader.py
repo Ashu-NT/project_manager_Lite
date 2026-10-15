@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import event, text
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
+from src.core.modules.project_management.contracts.reads.financials.forecasts.models.forecast_facts import (
     ForecastLineRequest,
     ForecastVersionRequest,
 )

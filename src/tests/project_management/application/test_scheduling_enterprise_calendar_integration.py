@@ -27,6 +27,9 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
     CalendarAssignmentCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    ProjectCalendarAssignCommand,
+)
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
 )
@@ -42,8 +45,14 @@ from src.core.platform.application.time_management.calendar.commands.platform_ca
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -274,7 +283,7 @@ def test_bound_project_calendar_is_working_day_uses_enterprise(
     global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-bind-test")
-    assignment_commands.assign_project_calendar("proj-bind-test", global_cal.id)
+    assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-bind-test', calendar_id=global_cal.id))
     bound = BoundProjectCalendar(adapter, "proj-bind-test")
 
     # 2026-06-01 is Monday — should be working per global Mon-Fri rules
@@ -287,7 +296,7 @@ def test_bound_project_calendar_add_working_days(
     global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-add-test")
-    assignment_commands.assign_project_calendar("proj-add-test", global_cal.id)
+    assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-add-test', calendar_id=global_cal.id))
     bound = BoundProjectCalendar(adapter, "proj-add-test")
 
     # Start Monday 2026-06-01, add 5 working days → Friday 2026-06-05
@@ -299,7 +308,7 @@ def test_bound_project_calendar_working_days_between(
     global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-between-test")
-    assignment_commands.assign_project_calendar("proj-between-test", global_cal.id)
+    assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-between-test', calendar_id=global_cal.id))
     bound = BoundProjectCalendar(adapter, "proj-between-test")
 
     # Mon-Fri: 5 working days
@@ -311,7 +320,7 @@ def test_bound_project_calendar_next_working_day(
     global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-next-test")
-    assignment_commands.assign_project_calendar("proj-next-test", global_cal.id)
+    assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-next-test', calendar_id=global_cal.id))
     bound = BoundProjectCalendar(adapter, "proj-next-test")
 
     # Saturday → next working day is Monday
@@ -346,7 +355,7 @@ def test_bind_for_project_returns_bound_when_assigned(
     global_cal, adapter, assignment_commands, db_session, tenant_context
 ):
     _seed_project(db_session, tenant_context, "proj-assigned")
-    assignment_commands.assign_project_calendar("proj-assigned", global_cal.id)
+    assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-assigned', calendar_id=global_cal.id))
     bound = adapter.bind_for_project("proj-assigned")
     assert bound is not None
     assert isinstance(bound, BoundProjectCalendar)
@@ -362,20 +371,10 @@ def test_project_calendar_overrides_weekend_via_bound(
     db_session,
     tenant_context,
 ):
-    project_cal = cal_commands.create_calendar(
-        code="PRJ-SAT",
-        name="Weekend Project",
-        calendar_type=CalendarType.PROJECT.value,
-    )
-    rule_commands.save_rule(
-        project_cal.id,
-        weekday=5,  # Saturday
-        is_working_day=True,
-        start_time=time(8, 0),
-        end_time=time(14, 0),
-    )
+    project_cal = cal_commands.create_calendar(CalendarCreateCommand(code='PRJ-SAT', name='Weekend Project', calendar_type=CalendarType.PROJECT.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=project_cal.id, weekday=5, is_working_day=True, start_time=time(8, 0), end_time=time(14, 0)))
     _seed_project(db_session, tenant_context, "proj-sat")
-    assignment_commands.assign_project_calendar("proj-sat", project_cal.id)
+    assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-sat', calendar_id=project_cal.id))
 
     bound = adapter.bind_for_project("proj-sat")
     assert bound is not None
@@ -431,7 +430,7 @@ def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
     )
 
     _seed_project(db_session, tenant_context, "proj-enterprise-cal")
-    assignment_commands.assign_project_calendar("proj-enterprise-cal", global_cal.id)
+    assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-enterprise-cal', calendar_id=global_cal.id))
 
     mock_cal = MagicMock(spec=CalendarProtocol)
     engine = SchedulingEngine(

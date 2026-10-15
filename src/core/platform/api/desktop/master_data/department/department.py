@@ -17,7 +17,7 @@ from src.core.platform.application.master_data.department import (
     DepartmentCommandHandler,
     DepartmentQueryHandler,
 )
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )

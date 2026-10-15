@@ -2,7 +2,7 @@ from dataclasses import fields
 from datetime import date
 from decimal import Decimal
 
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
     CommercialMetricAvailability,
 )
 from src.core.modules.project_management.gateway.billing.accounting_billing import (

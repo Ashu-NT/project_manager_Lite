@@ -18,7 +18,13 @@ from src.core.modules.project_management.api.desktop.financials.models.performan
 from src.core.modules.project_management.application.financials.analytics.performance.query import (
     ProjectFinancePerformanceQuery,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
+from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
     CostPhasingFacts,
     CostPhasingPeriodFact,
     CostPhasingQuery,
@@ -333,11 +339,9 @@ def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) ->
         "R6E Decimal EVM reader", financial_currency_code="XAF"
     )
     services['task_lifecycle_commands'].create_task(
-        project.id, "Draft baseline task", start_date=date(2026, 1, 1), duration_days=2
+        TaskCreateCommand(project.id, "Draft baseline task", start_date=date(2026, 1, 1), duration_days=2)
     )
-    services['baseline_commands'].create_baseline(
-        project.id, "Draft EVM baseline", rate_as_of=date(2026, 1, 1)
-    )
+    services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Draft EVM baseline", rate_as_of=date(2026, 1, 1)))
 
     with _statement_count(session) as statements:
         result = services["earned_value_report"].get_earned_value(
@@ -355,14 +359,14 @@ def test_variance_reader_is_bounded_without_per_task_queries(services, session) 
     )
     for number in range(8):
         services['task_lifecycle_commands'].create_task(
+            TaskCreateCommand(
             project.id,
             f"Variance task {number}",
             start_date=date(2026, 1, 1),
             duration_days=2,
+            )
         )
-    services['baseline_commands'].create_baseline(
-        project.id, "Variance baseline", rate_as_of=date(2026, 1, 1)
-    )
+    services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Variance baseline", rate_as_of=date(2026, 1, 1)))
 
     with _statement_count(session) as statements:
         facts = services["finance_performance_query"].get_variance(

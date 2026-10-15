@@ -12,6 +12,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
+    ResolveCalendarRangeCommand,
+    ResolveContextCommand,
+)
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
 )
@@ -26,6 +30,13 @@ from src.core.platform.application.time_management.calendar.definitions.commands
 )
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.shift_patterns import (
+    ShiftPatternCreateCommand,
+    ShiftPatternDaySetCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
 )
 from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
     ShiftPatternQueryHandler,
@@ -226,23 +237,43 @@ def rotating_global_calendar(
     global_cal = cal_commands.ensure_global_calendar(org_id)
     for weekday in range(7):
         rule_commands.save_rule(
-            global_cal.id,
-            weekday=weekday,
-            is_working_day=True,
-            shift_code="ROT-A",
+            WorkingRuleSaveCommand(
+                calendar_id=global_cal.id,
+                weekday=weekday,
+                is_working_day=True,
+                shift_code="ROT-A",
+            )
         )
 
     pattern = shift_pattern_commands.create_shift_pattern(
-        code="ROT-A",
-        name="2-on 2-off Rotation",
-        pattern_type=PatternType.ROTATING.value,
-        rotation_cycle_days=4,
-        anchor_date=date(2026, 6, 1),
+        ShiftPatternCreateCommand(
+            code="ROT-A",
+            name="2-on 2-off Rotation",
+            pattern_type=PatternType.ROTATING.value,
+            rotation_cycle_days=4,
+            anchor_date=date(2026, 6, 1),
+        )
     )
-    shift_pattern_commands.set_day(pattern.id, 0, is_working_day=True, hours=12.0)
-    shift_pattern_commands.set_day(pattern.id, 1, is_working_day=True, hours=12.0)
-    shift_pattern_commands.set_day(pattern.id, 2, is_working_day=False)
-    shift_pattern_commands.set_day(pattern.id, 3, is_working_day=False)
+    shift_pattern_commands.set_day(
+        ShiftPatternDaySetCommand(
+            pattern_id=pattern.id, day_offset=0, is_working_day=True, hours=12.0
+        )
+    )
+    shift_pattern_commands.set_day(
+        ShiftPatternDaySetCommand(
+            pattern_id=pattern.id, day_offset=1, is_working_day=True, hours=12.0
+        )
+    )
+    shift_pattern_commands.set_day(
+        ShiftPatternDaySetCommand(
+            pattern_id=pattern.id, day_offset=2, is_working_day=False
+        )
+    )
+    shift_pattern_commands.set_day(
+        ShiftPatternDaySetCommand(
+            pattern_id=pattern.id, day_offset=3, is_working_day=False
+        )
+    )
 
     return global_cal
 
@@ -252,24 +283,34 @@ def test_shift_pattern_overrides_weekday_rule_single_day(
 ):
     # Anchor Monday 2026-06-01 = offset 0 = 12h working, overriding the
     # weekday rule (which would otherwise use the default 8h fallback).
-    ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 1))
+    ctx = resolver.resolve_calendar_context(
+        ResolveContextCommand(target_date=date(2026, 6, 1))
+    )
     assert ctx.available_hours == 12.0
 
     # 2026-06-03 (Wednesday) = offset 2 = day off, even though it's a
     # normal weekday with a shift_code-bearing working rule.
-    ctx_off = resolver.resolve_calendar_context(target_date=date(2026, 6, 3))
+    ctx_off = resolver.resolve_calendar_context(
+        ResolveContextCommand(target_date=date(2026, 6, 3))
+    )
     assert ctx_off.available_hours == 0.0
 
     # 2026-06-05 (Friday) = (June5 - June1).days % 4 = 0 = 12h working —
     # proves the rotation, not the weekday, determines the schedule.
-    ctx_friday = resolver.resolve_calendar_context(target_date=date(2026, 6, 5))
+    ctx_friday = resolver.resolve_calendar_context(
+        ResolveContextCommand(target_date=date(2026, 6, 5))
+    )
     assert ctx_friday.available_hours == 12.0
 
 
 def test_shift_pattern_overrides_weekday_rule_in_bulk_range(
     resolver, rotating_global_calendar
 ):
-    results = resolver.resolve_range(start=date(2026, 6, 1), end=date(2026, 6, 5))
+    results = resolver.resolve_range(
+        ResolveCalendarRangeCommand(
+            start_date=date(2026, 6, 1), end_date=date(2026, 6, 5)
+        )
+    )
     available_by_date = {r.date: r.available_hours for r in results}
     assert available_by_date[date(2026, 6, 1)] == 12.0  # Mon, offset 0
     assert available_by_date[date(2026, 6, 2)] == 12.0  # Tue, offset 1
@@ -289,10 +330,6 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
 ):
     from unittest.mock import MagicMock
 
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
-        ShiftPatternCreateCommand,
-        ShiftPatternDaySetCommand,
-    )
     from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
         PlatformCalendarDesktopApi,
     )
@@ -310,6 +347,10 @@ def test_desktop_api_can_set_and_delete_shift_pattern_days(
     )
     from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
         PlatformCalendarCommandHandler,
+    )
+    from src.core.platform.application.time_management.calendar.definitions.dto.commands.shift_patterns import (
+        ShiftPatternCreateCommand,
+        ShiftPatternDaySetCommand,
     )
     from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
         PlatformCalendarQueryHandler,

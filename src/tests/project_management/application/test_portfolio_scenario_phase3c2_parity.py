@@ -5,6 +5,12 @@ from decimal import Decimal
 
 import pytest
 
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
+    PortfolioIntakeCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
+    PortfolioScenarioCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
     SqlAlchemyPortfolioScenarioReader,
 )
@@ -125,30 +131,9 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
         allocation=50.0,
     )
 
-    intake = services["portfolio_intake_commands"].create_intake_item(
-        title="Intake",
-        sponsor_name="PMO",
-        requested_budget=200.0,
-        requested_capacity_percent=30.0,
-        strategic_score=5,
-        value_score=4,
-        urgency_score=3,
-        risk_score=2,
-    )
-    base = services["portfolio_scenario_commands"].create_scenario(
-        name="Base",
-        budget_limit=500.0,
-        capacity_limit_percent=None,
-        project_ids=[alpha.id],
-        intake_item_ids=[intake.id],
-    )
-    candidate = services["portfolio_scenario_commands"].create_scenario(
-        name="Candidate",
-        budget_limit=2_000.0,
-        capacity_limit_percent=250.0,
-        project_ids=[alpha.id, beta.id],
-        intake_item_ids=[],
-    )
+    intake = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="Intake", sponsor_name="PMO", requested_budget=200.0, requested_capacity_percent=30.0, strategic_score=5, value_score=4, urgency_score=3, risk_score=2))
+    base = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Base", budget_limit=500.0, capacity_limit_percent=None, project_ids=[alpha.id], intake_item_ids=[intake.id]))
+    candidate = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Candidate", budget_limit=2_000.0, capacity_limit_percent=250.0, project_ids=[alpha.id, beta.id], intake_item_ids=[]))
 
     base_result = services["portfolio_scenario_query"].evaluate_scenario(base.id)
     comparison = services["portfolio_scenario_query"].compare_scenarios(base.id, candidate.id)
@@ -175,12 +160,8 @@ def test_scenario_comparison_reads_one_fact_graph(services, monkeypatch) -> None
     project = services['project_create'].create_project(
         "Single", financial_currency_code="EUR"
     )
-    base = services["portfolio_scenario_commands"].create_scenario(name="Base", project_ids=[project.id], intake_item_ids=[])
-    candidate = services["portfolio_scenario_commands"].create_scenario(
-        name="Candidate",
-        project_ids=[project.id],
-        intake_item_ids=[],
-    )
+    base = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Base", project_ids=[project.id], intake_item_ids=[]))
+    candidate = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Candidate", project_ids=[project.id], intake_item_ids=[]))
     calls = 0
     original = services["portfolio_scenario_query"]._scenario_reader.read_facts
 

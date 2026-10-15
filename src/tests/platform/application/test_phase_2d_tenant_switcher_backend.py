@@ -17,6 +17,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -111,11 +114,9 @@ def _add_org(services, *, tenant_id: str, code: str, name: str) -> Organization:
 def test_list_accessible_tenants_returns_user_memberships(services):
     admin_svc = tenant_admin_operations(services)
     t1 = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-USR1A", "User1 Tenant A"
-    )
+        TenantCreateCommand(tenant_code="P2D-USR1A", display_name="User1 Tenant A"))
     t2 = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-USR1B", "User1 Tenant B"
-    )
+        TenantCreateCommand(tenant_code="P2D-USR1B", display_name="User1 Tenant B"))
     services["session"].flush()
 
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-accessible-user1")
@@ -139,11 +140,9 @@ def test_list_accessible_tenants_returns_user_memberships(services):
 def test_list_accessible_tenants_inactive_membership_excluded(services):
     admin_svc = tenant_admin_operations(services)
     t_active = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-MEMB-ACT", "Member Active"
-    )
+        TenantCreateCommand(tenant_code="P2D-MEMB-ACT", display_name="Member Active"))
     t_inactive = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-MEMB-INACT", "Member Inactive"
-    )
+        TenantCreateCommand(tenant_code="P2D-MEMB-INACT", display_name="Member Inactive"))
     services["session"].flush()
 
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-membership-excl")
@@ -170,8 +169,7 @@ def test_list_accessible_tenants_inactive_membership_excluded(services):
 def test_list_accessible_tenants_suspended_tenant_excluded(services):
     admin_svc = tenant_admin_operations(services)
     t_susp = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-SUSP-EXCL", "Suspend Excl"
-    )
+        TenantCreateCommand(tenant_code="P2D-SUSP-EXCL", display_name="Suspend Excl"))
     services["session"].flush()
 
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-susp-excl-user")
@@ -190,8 +188,7 @@ def test_list_accessible_tenants_suspended_tenant_excluded(services):
 def test_list_accessible_tenants_archived_tenant_excluded(services):
     admin_svc = tenant_admin_operations(services)
     t_arch = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-ARCH-EXCL", "Archive Excl"
-    )
+        TenantCreateCommand(tenant_code="P2D-ARCH-EXCL", display_name="Archive Excl"))
     services["session"].flush()
 
     svc, _, ctx = _make_regular_user_svc(services, username="p2d-arch-excl-user")
@@ -223,8 +220,7 @@ def test_switch_to_tenant_clears_previous_organization(services):
     )
 
     new_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-SWITCH-CLR", "Switch Clear Test"
-    )
+        TenantCreateCommand(tenant_code="P2D-SWITCH-CLR", display_name="Switch Clear Test"))
     services["session"].flush()
 
     tenant_context.switch_to_tenant(new_tenant.id)
@@ -243,8 +239,7 @@ def test_switch_to_tenant_auto_selects_single_org(services):
     admin_svc = tenant_admin_operations(services)
 
     new_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-AUTOSEL", "Auto Select Tenant"
-    )
+        TenantCreateCommand(tenant_code="P2D-AUTOSEL", display_name="Auto Select Tenant"))
     services["session"].flush()
     the_org = _add_org(
         services,
@@ -268,8 +263,7 @@ def test_switch_to_tenant_leaves_org_none_if_no_orgs(services):
     admin_svc = tenant_admin_operations(services)
 
     new_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-NOORG", "No Org Tenant"
-    )
+        TenantCreateCommand(tenant_code="P2D-NOORG", display_name="No Org Tenant"))
     services["session"].flush()
 
     tenant_context.switch_to_tenant(new_tenant.id)
@@ -282,8 +276,7 @@ def test_switch_to_tenant_leaves_org_none_if_multiple_orgs(services):
     admin_svc = tenant_admin_operations(services)
 
     new_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-MULTORG", "Multi Org Tenant"
-    )
+        TenantCreateCommand(tenant_code="P2D-MULTORG", display_name="Multi Org Tenant"))
     services["session"].flush()
     _add_org(
         services, tenant_id=new_tenant.id, code="P2D-MULT-ORG1", name="Multi Org 1"
@@ -305,8 +298,7 @@ def test_switch_to_tenant_leaves_org_none_if_multiple_orgs(services):
 def test_switch_to_tenant_without_membership_denied(services):
     admin_svc = tenant_admin_operations(services)
     locked_tenant = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-LOCKED", "Locked Tenant"
-    )
+        TenantCreateCommand(tenant_code="P2D-LOCKED", display_name="Locked Tenant"))
     services["session"].flush()
 
     _, context_svc, _ = _make_regular_user_svc(services, username="p2d-no-access-user")
@@ -324,11 +316,9 @@ def test_switch_to_tenant_without_membership_denied(services):
 def test_platform_admin_list_accessible_tenants_returns_all(services):
     admin_svc = tenant_admin_operations(services)
     t1 = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-ADMIN-ALL1", "Admin All 1"
-    )
+        TenantCreateCommand(tenant_code="P2D-ADMIN-ALL1", display_name="Admin All 1"))
     t2 = admin_svc.tenant_lifecycle_commands.create_tenant(
-        "P2D-ADMIN-ALL2", "Admin All 2"
-    )
+        TenantCreateCommand(tenant_code="P2D-ADMIN-ALL2", display_name="Admin All 2"))
     admin_svc.tenant_lifecycle_commands.suspend_tenant(t2.id)
     services["session"].flush()
 

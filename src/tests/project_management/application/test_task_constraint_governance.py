@@ -7,6 +7,9 @@ from datetime import date
 import pytest
 
 from src.core.modules.project_management.domain.enums import ConstraintType
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -171,7 +174,7 @@ class TestGovernanceParity:
         assert req.payload["expected_version"] == task.version
 
         _login_eligible_reviewer(services)
-        approvals.approve_and_apply(req.id)
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id))
 
         assert services['task_detail_query'].get_task(task.id).constraint_type is ConstraintType.MUST_START_ON
 
@@ -221,7 +224,7 @@ class TestGovernanceParity:
 
         _login_eligible_reviewer(services)
         with pytest.raises(ConcurrencyError):
-            approvals.approve_and_apply(req.id)
+            approvals.approve_and_apply(ApprovalDecisionCommand(request_id=req.id))
 
         # The admin's direct edit must survive -- the stale pending
         # request must not silently overwrite it.

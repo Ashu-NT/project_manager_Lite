@@ -8,6 +8,9 @@ import pytest
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_PERMISSIONS,
 )
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
@@ -366,8 +369,8 @@ def test_report_view_alone_gets_redacted_baseline_comparison_not_a_denial(servic
     report.view alone with no redaction."""
     project_id = _seed_labor_finance_project(services)
     services['baseline_query']
-    baseline_1 = services['baseline_commands'].create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
-    baseline_2 = services['baseline_commands'].create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
+    baseline_1 = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project_id, "BL1", rate_as_of=date(2026, 1, 5)))
+    baseline_2 = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project_id, "BL2", rate_as_of=date(2026, 1, 5)))
     _register_and_login(services, "report-only-baseline", role_names=["viewer"])
 
     comparison = services["baseline_compare_report"].compare_baselines(
@@ -390,8 +393,8 @@ def test_finance_read_allows_baseline_comparison_cost_detail(services):
     baseline comparison to be visible."""
     project_id = _seed_labor_finance_project(services)
     services['baseline_query']
-    baseline_1 = services['baseline_commands'].create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
-    baseline_2 = services['baseline_commands'].create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
+    baseline_1 = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project_id, "BL1", rate_as_of=date(2026, 1, 5)))
+    baseline_2 = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project_id, "BL2", rate_as_of=date(2026, 1, 5)))
     _register_and_login(services, "finance-reader-baseline", role_names=["project_manager"])
 
     comparison = services["baseline_compare_report"].compare_baselines(

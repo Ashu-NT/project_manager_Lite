@@ -8,6 +8,9 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+)
 from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
     PortfolioIntakeItemORM,
@@ -293,11 +296,7 @@ def test_top_at_risk_projects_is_independent_of_heatmap_page_size(services) -> N
 def test_dependencies_page_paginates_and_total_is_authoritative(services) -> None:
     projects = _seed_projects_with_financial_profile(services, 6)
     for predecessor, successor in zip(projects, projects[1:]):
-        services["portfolio_dependency_commands"].create_project_dependency(
-            predecessor_project_id=predecessor.id,
-            successor_project_id=successor.id,
-            summary="chain",
-        )
+        services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=predecessor.id, successor_project_id=successor.id, summary="chain"))
 
     total_deps = len(projects) - 1
     page1 = services["portfolio_dependency_query"].list_project_dependencies_page(page=1, page_size=2)
@@ -311,16 +310,8 @@ def test_dependencies_page_paginates_and_total_is_authoritative(services) -> Non
 
 def test_dependencies_page_search_filters_before_pagination(services) -> None:
     projects = _seed_projects_with_financial_profile(services, 3)
-    services["portfolio_dependency_commands"].create_project_dependency(
-        predecessor_project_id=projects[0].id,
-        successor_project_id=projects[1].id,
-        summary="uniquely-searchable-token",
-    )
-    services["portfolio_dependency_commands"].create_project_dependency(
-        predecessor_project_id=projects[1].id,
-        successor_project_id=projects[2].id,
-        summary="unrelated",
-    )
+    services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=projects[0].id, successor_project_id=projects[1].id, summary="uniquely-searchable-token"))
+    services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=projects[1].id, successor_project_id=projects[2].id, summary="unrelated"))
 
     result = services["portfolio_dependency_query"].list_project_dependencies_page(search_text="uniquely-searchable-token", page=1, page_size=10)
 
@@ -330,14 +321,8 @@ def test_dependencies_page_search_filters_before_pagination(services) -> None:
 
 def test_dependencies_page_rejects_pressure_as_a_sortable_key(services) -> None:
     projects = _seed_projects_with_financial_profile(services, 3)
-    services["portfolio_dependency_commands"].create_project_dependency(
-        predecessor_project_id=projects[0].id,
-        successor_project_id=projects[1].id,
-    )
-    services["portfolio_dependency_commands"].create_project_dependency(
-        predecessor_project_id=projects[1].id,
-        successor_project_id=projects[2].id,
-    )
+    services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=projects[0].id, successor_project_id=projects[1].id))
+    services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=projects[1].id, successor_project_id=projects[2].id))
 
     page = services["portfolio_dependency_query"].list_project_dependencies_page(sort_key="pressureLabel", sort_direction="desc", page=1, page_size=10)
     # Falls back to the default (updatedAt) rather than raising or silently
@@ -392,11 +377,7 @@ def test_desktop_api_dependencies_page_serializes_project_labels(services) -> No
     )
 
     projects = _seed_projects_with_financial_profile(services, 2)
-    services["portfolio_dependency_commands"].create_project_dependency(
-        predecessor_project_id=projects[0].id,
-        successor_project_id=projects[1].id,
-        summary="api-level check",
-    )
+    services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=projects[0].id, successor_project_id=projects[1].id, summary="api-level check"))
     api = build_project_management_portfolio_desktop_api(
         portfolio_executive_query=services["portfolio_executive_query"],
         portfolio_dependency_query=services["portfolio_dependency_query"],

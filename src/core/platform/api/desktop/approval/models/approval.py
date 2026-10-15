@@ -27,9 +27,3 @@ class ApprovalRequestDto:
     context_label: str = ""
     display_label: str = ""
     can_decide: bool = False
-
-
-@dataclass(frozen=True)
-class ApprovalDecisionCommand:
-    request_id: str
-    note: str | None = None

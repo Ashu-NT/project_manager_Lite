@@ -5,11 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationUpdateCommand,
 )
 from src.core.platform.application.master_data.site import SiteCommandHandler
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )

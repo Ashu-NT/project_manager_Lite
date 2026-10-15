@@ -48,7 +48,7 @@ def test_source_analytics_exposure_is_actual_plus_commitment_not_forecast():
     from src.core.modules.project_management.application.financials.analytics.costs.source_breakdown import (
         build_source_analytics,
     )
-    from src.core.modules.project_management.application.financials.cost.dto import (
+    from src.core.modules.project_management.application.financials.cost.dto.responses.cost_breakdown import (
         CostSourceRow,
     )
 
@@ -65,10 +65,10 @@ def test_source_analytics_exposure_is_actual_plus_commitment_not_forecast():
 def test_zero_budget_requires_approved_identity_for_headroom_and_availability(budget_id, expected):
     from datetime import date
 
-    from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+    from src.core.modules.project_management.contracts.reads.financials.overview.models.overview_facts import (
         FinanceOverviewFacts,
     )
-    from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    from src.core.modules.project_management.contracts.reads.financials.snapshot.models.snapshot_facts import (
         FinanceControlFact,
     )
 

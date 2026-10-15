@@ -8,6 +8,11 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
+    SchedulingBaselineApproveCommand,
+    SchedulingBaselineCreateCommand,
+    SchedulingBaselineSubmitCommand,
+)
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
@@ -157,9 +162,9 @@ class TestBaselineComparison:
         project = services['project_create'].create_project("Schedule Impact Baseline", "")
         task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         sched.recalculate_project_schedule(project.id)
-        baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
-        services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
-        services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
+        baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
+        services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
+        services['baseline_commands'].approve_baseline(SchedulingBaselineApproveCommand(baseline.id, approved_by="admin"))
 
         # Slip the task's own start so its current finish diverges from
         # the just-approved baseline snapshot.
@@ -188,7 +193,7 @@ class TestBaselineComparison:
         services['baseline_query']
         project = services['project_create'].create_project("Baseline Task Snapshot", "")
         task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
-        baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+        baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
 
         baseline_task = services['baseline_query'].get_baseline_task(baseline.id, task.id)
 
@@ -200,7 +205,7 @@ class TestBaselineComparison:
         services['baseline_query']
         project = services['project_create'].create_project("Baseline Task Snapshot Missing", "")
         services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
-        baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
+        baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
 
         assert services['baseline_query'].get_baseline_task(baseline.id, "does-not-exist") is None
 

@@ -6,12 +6,15 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
     CommercialMetricAvailability,
 )
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillingExternalEventType,
     BillingPreparationStatus,
+)
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.tests.project_management.application.test_p39_finance_billing_full_modernization import (
@@ -41,7 +44,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     original = _submitted_preparation(services, project, schedule)
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
     with pytest.raises(BusinessRuleError):
-        services["approval_commands"].approve_and_apply(request.id)
+        services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
     services["user_registration"].register_user(
         "golden-independent-reviewer", "StrongPass123", role_names=["approver"]
     )
@@ -50,8 +53,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
         request = services["approval_queries"].list_pending(project_id=project.id)[0]
         _login(services, "golden-independent-reviewer", "StrongPass123")
         services["approval_commands"].approve_and_apply(
-            request.id, note="Independent review"
-        )
+            ApprovalDecisionCommand(request_id=request.id, note="Independent review"))
         _login(services, "admin", "ChangeMe123!")
         value = services['billing_preparation_query'].get_preparation(preparation_id)
         assert value.status is BillingPreparationStatus.APPROVED

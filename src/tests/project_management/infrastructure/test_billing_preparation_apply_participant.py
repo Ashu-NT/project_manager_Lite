@@ -29,6 +29,9 @@ from src.core.modules.project_management.infrastructure.approval.billing_prepara
 from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.billing_preparation import (
     build_billing_preparation_approval_deps,
 )
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.infra.persistence.orm.base import Base
 
@@ -57,13 +60,7 @@ def _setup_billable_project(services, *, suffix: str):
         code=f"BILL-APPROVAL-{suffix}", name="Billing approval cost code"
     ))
     services["financial_period_commands"].create_period(
-        code=f"FY26-BILLAPR-{suffix}",
-        name=f"August 2026 Approval {suffix}",
-        fiscal_year=2026,
-        period_number=8,
-        start_date=date(2026, 8, 1),
-        end_date=date(2026, 8, 31),
-    )
+        FinancialPeriodCreateCommand(code=f"FY26-BILLAPR-{suffix}", name=f"August 2026 Approval {suffix}", fiscal_year=2026, period_number=8, start_date=date(2026, 8, 1).isoformat(), end_date=date(2026, 8, 31).isoformat()))
     profile = services["financial_configuration_query"].get_profile(project.id)
     boundary.financial_profile(lambda commands: commands.configure_profile(
         project.id,

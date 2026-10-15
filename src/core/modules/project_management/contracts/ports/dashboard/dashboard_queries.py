@@ -8,10 +8,10 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
     ProjectKPI,
     ResourceLoadRow,
 )
-from src.core.modules.project_management.application.financials.cost.dto import (
+from src.core.modules.project_management.application.financials.cost.dto.responses.cost_breakdown import (
     CostSourceBreakdown,
 )
-from src.core.modules.project_management.application.financials.earned_value.dto import (
+from src.core.modules.project_management.application.financials.earned_value.dto.responses.earned_value import (
     EarnedValueMetrics,
 )
 from src.core.modules.project_management.application.scheduling.models.cpm import (

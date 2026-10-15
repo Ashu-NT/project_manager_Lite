@@ -308,7 +308,7 @@ def _effective_calendar_summary(
     if controller._platform_calendar_api is None:
         return _empty_calendar_summary()
 
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
         ResolveEffectiveCalendarCommand,
     )
 
@@ -448,7 +448,7 @@ def calendar_month_context(
     timezone_name = _calendar_timezone(controller, calendar_id)
     today_iso = business_today(timezone_name).isoformat()
 
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
         ResolveCalendarRangeCommand,
     )
 

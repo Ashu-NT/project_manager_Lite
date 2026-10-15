@@ -3,11 +3,8 @@ from __future__ import annotations
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.security.auth.models.user import (
     RoleDto,
-    UserCreateCommand,
     UserDto,
-    UserPasswordResetCommand,
     UserRollupSummaryDto,
-    UserUpdateCommand,
 )
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.application.security.auth import (
@@ -17,6 +14,11 @@ from src.core.platform.application.security.auth import (
     UserAdministrationCommandHandler,
     UserDirectoryQueryHandler,
     UserRegistrationHandler,
+)
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
+    UserPasswordResetCommand,
+    UserUpdateCommand,
 )
 from src.core.platform.application.security.authorization.roles.commands import (
     RoleAssignmentHandler,
@@ -75,25 +77,14 @@ class PlatformUserDesktopApi:
     def create_user(self, command: UserCreateCommand) -> DesktopApiResult[UserDto]:
         return execute_desktop_operation(
             lambda: self._serialize_user(
-                self._registration.onboard_tenant_user(
-                    username=command.username,
-                    raw_password=command.password,
-                    display_name=command.display_name,
-                    email=command.email,
-                    is_active=command.is_active,
-                )
+                self._registration.onboard_tenant_user(command)
             )
         )
 
     def update_user(self, command: UserUpdateCommand) -> DesktopApiResult[UserDto]:
         return execute_desktop_operation(
             lambda: self._serialize_user(
-                self._user_administration.update_user_profile(
-                    command.user_id,
-                    username=command.username,
-                    display_name=command.display_name,
-                    email=command.email,
-                )
+                self._user_administration.update_user_profile(command)
             )
         )
 
@@ -190,7 +181,7 @@ class PlatformUserDesktopApi:
 
     def _reset_password_and_get_user(self, command: UserPasswordResetCommand) -> UserDto:
         return self._serialize_user(
-            self._passwords.reset_user_password(command.user_id, command.new_password)
+            self._passwords.reset_user_password(command)
         )
 
 

@@ -10,6 +10,22 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
+    PortfolioIntakeCreateCommand,
+    PortfolioIntakeUpdateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+    PortfolioDependencyRemoveCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
+    PortfolioScenarioCreateCommand,
+    PortfolioScenarioUpdateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateActivateCommand,
+    PortfolioTemplateCreateCommand,
+)
 from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
     new_portfolio_context,
 )
@@ -68,11 +84,7 @@ def _dependency_case(services):
 
     def invoke():
         counter["n"] += 1
-        return services["portfolio_dependency_commands"].create_project_dependency(
-            predecessor_project_id=project_a.id,
-            successor_project_id=project_b.id,
-            summary=f"link-{counter['n']}",
-        )
+        return services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=project_a.id, successor_project_id=project_b.id, summary=f"link-{counter['n']}"))
 
     return (
         invoke,
@@ -87,10 +99,7 @@ def _intake_case(services):
 
     def invoke():
         counter["n"] += 1
-        return services["portfolio_intake_commands"].create_intake_item(
-            title=f"Intake {counter['n']}",
-            sponsor_name="Sponsor",
-        )
+        return services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title=f"Intake {counter['n']}", sponsor_name="Sponsor"))
 
     return (
         invoke,
@@ -105,7 +114,7 @@ def _scenario_case(services):
 
     def invoke():
         counter["n"] += 1
-        return services["portfolio_scenario_commands"].create_scenario(name=f"Scenario {counter['n']}")
+        return services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name=f"Scenario {counter['n']}"))
 
     return (
         invoke,
@@ -128,7 +137,7 @@ def _template_case(services):
 
     def invoke():
         counter["n"] += 1
-        return services["portfolio_template_commands"].create_scoring_template(name=f"Template {counter['n']}")
+        return services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name=f"Template {counter['n']}"))
 
     return (
         invoke,
@@ -277,8 +286,8 @@ def test_activate_scoring_template_rolls_back_both_writes_on_repository_failure(
     both genuinely atomic. Forcing the SECOND write (the target) to fail must roll back the FIRST
     (the deactivation) too -- proving real cross-sub-aggregate-row atomicity, not two independent
     commits that merely happen to run in sequence."""
-    first = services["portfolio_template_commands"].create_scoring_template(name="Rollback Template A", activate=True)
-    second = services["portfolio_template_commands"].create_scoring_template(name="Rollback Template B", activate=False)
+    first = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Rollback Template A", activate=True))
+    second = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Rollback Template B", activate=False))
     original_update = SqlAlchemyPortfolioScoringTemplateRepository.update
 
     def _boom_for_second(self, obj, *args, **kwargs):
@@ -289,7 +298,7 @@ def test_activate_scoring_template_rolls_back_both_writes_on_repository_failure(
     monkeypatch.setattr(SqlAlchemyPortfolioScoringTemplateRepository, "update", _boom_for_second)
 
     with pytest.raises(_Boom):
-        services["portfolio_template_commands"].activate_scoring_template(second.id)
+        services["portfolio_template_commands"].activate_scoring_template(PortfolioTemplateActivateCommand(second.id))
 
     monkeypatch.undo()
     reloaded_first = services["portfolio_template_commands"]._scoring_template_repo.get(first.id)
@@ -299,27 +308,27 @@ def test_activate_scoring_template_rolls_back_both_writes_on_repository_failure(
 
 
 def test_activate_scoring_template_rolls_back_on_audit_failure(services, monkeypatch):
-    first = services["portfolio_template_commands"].create_scoring_template(name="Rollback Template C", activate=True)
-    second = services["portfolio_template_commands"].create_scoring_template(name="Rollback Template D", activate=False)
+    first = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Rollback Template C", activate=True))
+    second = services["portfolio_template_commands"].create_scoring_template(PortfolioTemplateCreateCommand(name="Rollback Template D", activate=False))
     monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(_Boom):
-        services["portfolio_template_commands"].activate_scoring_template(second.id)
+        services["portfolio_template_commands"].activate_scoring_template(PortfolioTemplateActivateCommand(second.id))
 
     monkeypatch.undo()
     reloaded_first = services["portfolio_template_commands"]._scoring_template_repo.get(first.id)
     assert reloaded_first.is_active is True
 
-    activated = services["portfolio_template_commands"].activate_scoring_template(second.id)
+    activated = services["portfolio_template_commands"].activate_scoring_template(PortfolioTemplateActivateCommand(second.id))
     assert activated.is_active is True
 
 
 def test_update_intake_item_rolls_back_on_repository_failure(services, monkeypatch):
-    item = services["portfolio_intake_commands"].create_intake_item(title="Rollback Intake", sponsor_name="Sponsor")
+    item = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="Rollback Intake", sponsor_name="Sponsor"))
     monkeypatch.setattr(SqlAlchemyPortfolioIntakeRepository, "update", _boom)
 
     with pytest.raises(_Boom):
-        services["portfolio_intake_commands"].update_intake_item(item.id, title="Changed Title")
+        services["portfolio_intake_commands"].update_intake_item(PortfolioIntakeUpdateCommand(item.id, title="Changed Title"))
 
     monkeypatch.undo()
     reloaded = services["portfolio_intake_commands"]._intake_repo.get(item.id)
@@ -327,11 +336,11 @@ def test_update_intake_item_rolls_back_on_repository_failure(services, monkeypat
 
 
 def test_update_scenario_rolls_back_on_repository_failure(services, monkeypatch):
-    scenario = services["portfolio_scenario_commands"].create_scenario(name="Rollback Scenario")
+    scenario = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Rollback Scenario"))
     monkeypatch.setattr(SqlAlchemyPortfolioScenarioRepository, "update", _boom)
 
     with pytest.raises(_Boom):
-        services["portfolio_scenario_commands"].update_scenario(scenario.id, name="Changed Name")
+        services["portfolio_scenario_commands"].update_scenario(PortfolioScenarioUpdateCommand(scenario.id, name="Changed Name"))
 
     monkeypatch.undo()
     reloaded = services["portfolio_scenario_commands"]._scenario_repo.get(scenario.id)
@@ -342,14 +351,11 @@ def test_remove_project_dependency_rolls_back_on_repository_failure(services, mo
     services['project_query']
     project_a = services['project_create'].create_project("Remove Dependency Project A")
     project_b = services['project_create'].create_project("Remove Dependency Project B")
-    dependency = services["portfolio_dependency_commands"].create_project_dependency(
-        predecessor_project_id=project_a.id,
-        successor_project_id=project_b.id,
-    )
+    dependency = services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=project_a.id, successor_project_id=project_b.id))
     monkeypatch.setattr(SqlAlchemyPortfolioProjectDependencyRepository, "delete", _boom)
 
     with pytest.raises(_Boom):
-        services["portfolio_dependency_commands"].remove_project_dependency(dependency.id)
+        services["portfolio_dependency_commands"].remove_project_dependency(PortfolioDependencyRemoveCommand(dependency.id))
 
     monkeypatch.undo()
     assert services["portfolio_dependency_commands"]._dependency_repo.get(dependency.id) is not None

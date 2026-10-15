@@ -186,7 +186,7 @@ def test_recurring_inspector_opens_after_switching_tabs_away_from_month(qapp, se
         assert calendars_result.ok and calendars_result.data
         calendar_id = calendars_result.data[0].id
 
-        from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+        from src.core.platform.application.time_management.calendar.definitions.dto.commands.recurring_events import (
             RecurringEventCreateCommand,
         )
 

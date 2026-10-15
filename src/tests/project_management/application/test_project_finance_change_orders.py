@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
     FinanceLookupQuery,
 )
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
@@ -22,6 +22,9 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ForecastLineSourceKind,
     ForecastLineSourceType,
     ForecastStatus,
+)
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -476,8 +479,7 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
     _login_eligible_reviewer(services)
     reviewer_id = services["user_session"].principal.user_id
     services["approval_commands"].approve_and_apply(
-        request.id, note="Authorized change"
-    )
+        ApprovalDecisionCommand(request_id=request.id, note="Authorized change"))
 
     applied = services['financial_change_query'].get_change(change.id)
     assert applied.status is FinancialChangeStatus.APPLIED
@@ -532,10 +534,10 @@ def test_financial_change_requester_cannot_decide_own_request(
     approval = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     with pytest.raises(BusinessRuleError) as approve_error:
-        services["approval_commands"].approve_and_apply(approval.id)
+        services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=approval.id))
     assert approve_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
     with pytest.raises(BusinessRuleError) as reject_error:
-        services["approval_commands"].reject(approval.id)
+        services["approval_commands"].reject(ApprovalDecisionCommand(request_id=approval.id))
     assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
     assert services['financial_change_query'].get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
 
@@ -640,7 +642,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
 
     _login_eligible_reviewer(services)
     with pytest.raises(ConcurrencyError) as exc_info:
-        services["approval_commands"].approve_and_apply(approval.id)
+        services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=approval.id))
 
     expected_code = (
         "FINANCIAL_CHANGE_BUDGET_BASE_STALE"
@@ -703,7 +705,7 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
 
     _login_eligible_reviewer(services)
-    services["approval_commands"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
 
     applied = services['financial_change_query'].get_change(change.id)
     scheduled = services['task_detail_query'].get_task(task.id)
@@ -877,7 +879,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         ),
     )
     with pytest.raises(RuntimeError, match="audit unavailable"):
-        services["approval_commands"].approve_and_apply(request.id)
+        services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
 
     assert services['financial_change_query'].get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
     assert services['budget_query'].get_budget(budget.id).status is BudgetStatus.APPROVED

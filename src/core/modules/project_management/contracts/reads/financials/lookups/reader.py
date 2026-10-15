@@ -1,0 +1,145 @@
+from __future__ import annotations
+
+from typing import Protocol
+
+from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
+    FinanceLookupOptionFact,
+    FinanceLookupPageFacts,
+    FinanceLookupQuery,
+    ManualActualCostCodeQuery,
+    ManualActualDefaultsFacts,
+)
+
+
+class FinanceLookupReader(Protocol):
+    def search_projects(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        allowed_project_ids: tuple[str, ...] | None,
+        require_active_finance_profile: bool,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_project_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        allowed_project_ids: tuple[str, ...] | None,
+        require_active_finance_profile: bool,
+    ) -> FinanceLookupOptionFact | None: ...
+
+    def search_tasks(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_task_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        task_id: str,
+    ) -> FinanceLookupOptionFact | None: ...
+
+    def search_eligible_risks(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_eligible_risk_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        risk_id: str,
+    ) -> FinanceLookupOptionFact | None: ...
+
+    def search_cost_codes(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        request: ManualActualCostCodeQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_cost_code_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        cost_code_id: str,
+        effective_on,
+    ) -> FinanceLookupOptionFact | None: ...
+
+    def search_change_target_lines(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_change_target_line_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        line_id: str,
+    ) -> FinanceLookupOptionFact | None: ...
+
+    def get_manual_actual_defaults(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+    ) -> ManualActualDefaultsFacts | None: ...
+
+    def search_rate_resources(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_resource_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+    ) -> FinanceLookupOptionFact | None: ...
+
+    def search_rate_departments(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+
+__all__ = ["FinanceLookupReader"]

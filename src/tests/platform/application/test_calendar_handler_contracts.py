@@ -27,6 +27,9 @@ from src.core.platform.application.time_management.calendar.definitions.commands
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
     CalendarExceptionQueryHandler,
 )
@@ -163,7 +166,11 @@ def _working_rule_commands():
 
 def test_staged_rule_write_flushes_without_committing_or_invalidating():
     handler, session, rules, invalidated = _working_rule_commands()
-    saved = handler.save_rule("calendar", 0, hours_override=8, commit=False)
+    saved = handler.save_rule(
+        WorkingRuleSaveCommand(
+            calendar_id="calendar", weekday=0, hours_override=8, commit=False
+        )
+    )
     rules.save.assert_called_once_with(saved)
     session.flush.assert_called_once_with()
     session.commit.assert_not_called()
@@ -199,7 +206,9 @@ def test_failed_rule_commit_does_not_invalidate_resolver():
     handler, session, _, invalidated = _working_rule_commands()
     session.commit.side_effect = RuntimeError("commit failed")
     with pytest.raises(RuntimeError, match="commit failed"):
-        handler.save_rule("calendar", 0, hours_override=8)
+        handler.save_rule(
+            WorkingRuleSaveCommand(calendar_id="calendar", weekday=0, hours_override=8)
+        )
     invalidated.assert_not_called()
 
 

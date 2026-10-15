@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 import pytest
 from sqlalchemy import event, text
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
     FinanceLookupQuery,
     ManualActualCostCodeQuery,
 )

@@ -11,7 +11,7 @@ import pytest
 from src.core.platform.application.master_data.org.commands import (
     organization_provisioning as organization_provisioning_module,
 )
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError

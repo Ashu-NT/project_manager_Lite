@@ -6,11 +6,13 @@ from src.core.platform.api.desktop.approval._approval_labels import (
     approval_module_label,
 )
 from src.core.platform.api.desktop.approval.models.approval import (
-    ApprovalDecisionCommand,
     ApprovalRequestDto,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.contract.port.approval.capabilities import (
     ApprovalCommands,
     ApprovalQueries,
@@ -57,14 +59,14 @@ class PlatformApprovalDesktopApi:
     ) -> DesktopApiResult[ApprovalRequestDto]:
         return execute_desktop_operation(
             lambda: self._serialize_request(
-                self._approval_commands.approve_and_apply(command.request_id, note=command.note)
+                self._approval_commands.approve_and_apply(command)
             )
         )
 
     def reject(self, command: ApprovalDecisionCommand) -> DesktopApiResult[ApprovalRequestDto]:
         return execute_desktop_operation(
             lambda: self._serialize_request(
-                self._approval_commands.reject(command.request_id, note=command.note)
+                self._approval_commands.reject(command)
             )
         )
 

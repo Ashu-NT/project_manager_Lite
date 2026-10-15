@@ -3,20 +3,26 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from src.core.modules.project_management.application.financials.invoicing.dto import (
-    FinancialActivateBillingProfileCommand,
-    FinancialAddApprovedTimeBillingSourceCommand,
-    FinancialAddBillingScheduleLineCommand,
-    FinancialAddCostPlusBillingSourceCommand,
-    FinancialAddFixedPriceBillingSourceCommand,
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_preparation import (
     FinancialCreateBillingPreparationCommand,
-    FinancialCreateBillingProfileCommand,
-    FinancialMarkBillingScheduleLineReadyCommand,
-    FinancialRemoveDraftBillingLineCommand,
     FinancialVersionedBillingPreparationCommand,
 )
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_profile import (
+    FinancialActivateBillingProfileCommand,
+    FinancialCreateBillingProfileCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_schedule import (
+    FinancialAddBillingScheduleLineCommand,
+    FinancialMarkBillingScheduleLineReadyCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_sources import (
+    FinancialAddApprovedTimeBillingSourceCommand,
+    FinancialAddCostPlusBillingSourceCommand,
+    FinancialAddFixedPriceBillingSourceCommand,
+    FinancialRemoveDraftBillingLineCommand,
+)
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.core.platform.api.desktop.approval.models.approval import (
+from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
 from src.ui_qml.modules.project_management.presenters.financials.shared.validation import (

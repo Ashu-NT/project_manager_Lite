@@ -6,10 +6,6 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
-    ResolveCalendarRangeCommand,
-    WorkingDaysCommand,
-)
 from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
     PlatformCalendarDesktopApi,
 )
@@ -19,6 +15,12 @@ from src.core.platform.application.time_management.calendar.assignment.commands.
 )
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
+    ResolveCalendarRangeCommand,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.working_days import (
+    WorkingDaysCommand,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,

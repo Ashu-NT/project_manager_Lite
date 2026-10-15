@@ -15,6 +15,9 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
+)
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
     RoleBindingORM,
     RoleORM,
@@ -519,11 +522,7 @@ def test_service_platform_operator_path_matches_list_all_semantics(services):
 
     baseline = services["user_directory_query"].get_user_rollup_summary()
     services["user_registration"].onboard_tenant_user(
-        username="rollup-service-user-1",
-        raw_password="StrongPass123!",
-        display_name="Rollup Service User",
-        is_active=True,
-    )
+        UserCreateCommand(username="rollup-service-user-1", password="StrongPass123!", display_name="Rollup Service User", is_active=True))
 
     updated = services["user_directory_query"].get_user_rollup_summary()
     assert updated.total == baseline.total + 1
@@ -682,11 +681,9 @@ def test_parity_with_list_users_platform_operator(services):
     services["auth"]
 
     services["user_registration"].onboard_tenant_user(
-        username="parity-user-1", raw_password="StrongPass123!", display_name="Parity One", is_active=True
-    )
+        UserCreateCommand(username="parity-user-1", password="StrongPass123!", display_name="Parity One", is_active=True))
     services["user_registration"].onboard_tenant_user(
-        username="parity-user-2", raw_password="StrongPass123!", display_name="Parity Two", is_active=False
-    )
+        UserCreateCommand(username="parity-user-2", password="StrongPass123!", display_name="Parity Two", is_active=False))
 
     expected_users = services["user_directory_query"].list_users()
     expected_total = len(expected_users)
@@ -763,11 +760,7 @@ def test_overview_path_never_calls_canonical_platform_authority_or_list_all_perm
     services["auth"]
     for i in range(15):
         services["user_registration"].onboard_tenant_user(
-            username=f"guardrail-user-{i}",
-            raw_password="StrongPass123!",
-            display_name=f"Guardrail User {i}",
-            is_active=(i % 2 == 0),
-        )
+            UserCreateCommand(username=f"guardrail-user-{i}", password="StrongPass123!", display_name=f"Guardrail User {i}", is_active=(i % 2 == 0)))
 
     counts = {"canonical_platform_authority": 0, "permission_list_all": 0}
     real_canonical = AuthQueryHandler.canonical_platform_authority
@@ -803,11 +796,7 @@ def test_admin_overview_user_metrics_match_rollup_not_full_list(services):
     services["auth"]
     for i in range(10):
         services["user_registration"].onboard_tenant_user(
-            username=f"overview-user-{i}",
-            raw_password="StrongPass123!",
-            display_name=f"Overview User {i}",
-            is_active=(i % 2 == 0),
-        )
+            UserCreateCommand(username=f"overview-user-{i}", password="StrongPass123!", display_name=f"Overview User {i}", is_active=(i % 2 == 0)))
 
     expected = services["user_directory_query"].get_user_rollup_summary()
 

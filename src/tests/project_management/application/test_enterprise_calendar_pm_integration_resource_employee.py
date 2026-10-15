@@ -30,6 +30,10 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
     CalendarAssignmentCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    EmpCalendarAssignCommand,
+    ResourceCalendarAssignCommand,
+)
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
 )
@@ -51,6 +55,15 @@ from src.core.platform.application.time_management.calendar.definitions.commands
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
+    ExceptionCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.recurring_events import (
+    RecurringEventCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
     CalendarExceptionQueryHandler,
 )
@@ -59,6 +72,9 @@ from src.core.platform.application.time_management.calendar.definitions.queries.
 )
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -409,19 +425,10 @@ def test_employee_backed_resource_inherits_employee_calendar(
     db_session,
     tenant_context,
 ):
-    emp_cal = cal_commands.create_calendar(
-        code="EMP-SMITH",
-        name="John Smith Employee Calendar",
-        calendar_type=CalendarType.EMPLOYEE.value,
-    )
-    rule_commands.save_rule(
-        emp_cal.id,
-        weekday=0,
-        is_working_day=True,
-        hours_override=7.5,
-    )
+    emp_cal = cal_commands.create_calendar(CalendarCreateCommand(code='EMP-SMITH', name='John Smith Employee Calendar', calendar_type=CalendarType.EMPLOYEE.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=emp_cal.id, weekday=0, is_working_day=True, hours_override=7.5))
     _seed_employee(db_session, tenant_context, "emp-smith")
-    assignment_commands.assign_employee_calendar("emp-smith", emp_cal.id)
+    assignment_commands.assign_employee_calendar(EmpCalendarAssignCommand(employee_id='emp-smith', calendar_id=emp_cal.id))
 
     resource_repo = _make_resource_repo(
         "res-smith", worker_type="EMPLOYEE", employee_id="emp-smith"
@@ -444,23 +451,11 @@ def test_employee_vacation_blocks_pm_resource(
     db_session,
     tenant_context,
 ):
-    emp_cal = cal_commands.create_calendar(
-        code="EMP-JONES",
-        name="Jones Employee Calendar",
-        calendar_type=CalendarType.EMPLOYEE.value,
-    )
-    rule_commands.save_rule(
-        emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0
-    )
+    emp_cal = cal_commands.create_calendar(CalendarCreateCommand(code='EMP-JONES', name='Jones Employee Calendar', calendar_type=CalendarType.EMPLOYEE.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0))
     _seed_employee(db_session, tenant_context, "emp-jones")
-    assignment_commands.assign_employee_calendar("emp-jones", emp_cal.id)
-    exc_commands.add_exception(
-        emp_cal.id,
-        exception_date=date(2026, 6, 1),
-        exception_type=ExceptionType.VACATION.value,
-        name="Annual Leave",
-        impact_type=ImpactType.UNAVAILABLE.value,
-    )
+    assignment_commands.assign_employee_calendar(EmpCalendarAssignCommand(employee_id='emp-jones', calendar_id=emp_cal.id))
+    exc_commands.add_exception(ExceptionCreateCommand(calendar_id=emp_cal.id, exception_date=date(2026, 6, 1), exception_type=ExceptionType.VACATION.value, name='Annual Leave', impact_type=ImpactType.UNAVAILABLE.value))
 
     resource_repo = _make_resource_repo(
         "res-jones", worker_type="EMPLOYEE", employee_id="emp-jones"
@@ -482,26 +477,11 @@ def test_employee_training_reduces_pm_resource_capacity(
     db_session,
     tenant_context,
 ):
-    emp_cal = cal_commands.create_calendar(
-        code="EMP-TRAINING",
-        name="Training Employee Calendar",
-        calendar_type=CalendarType.EMPLOYEE.value,
-    )
-    rule_commands.save_rule(
-        emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0
-    )
+    emp_cal = cal_commands.create_calendar(CalendarCreateCommand(code='EMP-TRAINING', name='Training Employee Calendar', calendar_type=CalendarType.EMPLOYEE.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0))
     _seed_employee(db_session, tenant_context, "emp-trainer")
-    assignment_commands.assign_employee_calendar("emp-trainer", emp_cal.id)
-    recurring_commands.add_recurring_event(
-        emp_cal.id,
-        title="Weekly Safety Training",
-        event_type=RecurringEventType.TRAINING.value,
-        recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
-        start_time=time(14, 0),
-        end_time=time(16, 0),
-        impact_type=ImpactType.UNAVAILABLE.value,
-        effective_from=date(2026, 1, 1),
-    )
+    assignment_commands.assign_employee_calendar(EmpCalendarAssignCommand(employee_id='emp-trainer', calendar_id=emp_cal.id))
+    recurring_commands.add_recurring_event(RecurringEventCreateCommand(calendar_id=emp_cal.id, title='Weekly Safety Training', event_type=RecurringEventType.TRAINING.value, recurrence_rule='FREQ=WEEKLY;BYDAY=MO', start_time=time(14, 0), end_time=time(16, 0), impact_type=ImpactType.UNAVAILABLE.value, effective_from=date(2026, 1, 1)))
 
     resource_repo = _make_resource_repo(
         "res-trainer", worker_type="EMPLOYEE", employee_id="emp-trainer"
@@ -526,28 +506,16 @@ def test_employee_backed_resource_does_not_duplicate_employee_rules(
     An employee-backed resource should inherit employee calendar.
     PM resource calendar assignment should NOT be consulted for employee-backed resources.
     """
-    emp_cal = cal_commands.create_calendar(
-        code="EMP-NODUPE",
-        name="No Dupe Employee",
-        calendar_type=CalendarType.EMPLOYEE.value,
-    )
-    rule_commands.save_rule(
-        emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0
-    )
+    emp_cal = cal_commands.create_calendar(CalendarCreateCommand(code='EMP-NODUPE', name='No Dupe Employee', calendar_type=CalendarType.EMPLOYEE.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0))
     _seed_employee(db_session, tenant_context, "emp-nodupe")
-    assignment_commands.assign_employee_calendar("emp-nodupe", emp_cal.id)
+    assignment_commands.assign_employee_calendar(EmpCalendarAssignCommand(employee_id='emp-nodupe', calendar_id=emp_cal.id))
 
     # Also assign a resource calendar with different hours — should NOT be used
-    res_cal = cal_commands.create_calendar(
-        code="RES-NODUPE",
-        name="No Dupe Resource",
-        calendar_type=CalendarType.RESOURCE.value,
-    )
-    rule_commands.save_rule(
-        res_cal.id, weekday=0, is_working_day=True, hours_override=4.0
-    )
+    res_cal = cal_commands.create_calendar(CalendarCreateCommand(code='RES-NODUPE', name='No Dupe Resource', calendar_type=CalendarType.RESOURCE.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=res_cal.id, weekday=0, is_working_day=True, hours_override=4.0))
     _seed_resource(db_session, tenant_context, "res-nodupe")
-    assignment_commands.assign_resource_calendar("res-nodupe", res_cal.id)
+    assignment_commands.assign_resource_calendar(ResourceCalendarAssignCommand(resource_id='res-nodupe', calendar_id=res_cal.id))
 
     # Resource is EMPLOYEE-backed → should use employee calendar (8h), not resource calendar (4h)
     resource_repo = _make_resource_repo(
@@ -563,30 +531,15 @@ def test_employee_backed_resource_does_not_duplicate_employee_rules(
 def test_resource_calendar_assignment_service_uses_dto_validation_and_normalization(
     cal_commands, assignment_commands, db_session, tenant_context
 ):
-    res_cal = cal_commands.create_calendar(
-        code="RES-NORMALIZED",
-        name="Normalized Resource Calendar",
-        calendar_type=CalendarType.RESOURCE.value,
-    )
+    res_cal = cal_commands.create_calendar(CalendarCreateCommand(code='RES-NORMALIZED', name='Normalized Resource Calendar', calendar_type=CalendarType.RESOURCE.value))
     _seed_resource(db_session, tenant_context, "res-normalized")
 
-    assignment = assignment_commands.assign_resource_calendar(
-        "  res-normalized  ",
-        f"  {res_cal.id}  ",
-        effective_from=date(2026, 1, 1),
-        effective_to=date(2026, 12, 31),
-        priority="3",
-    )
+    assignment = assignment_commands.assign_resource_calendar(ResourceCalendarAssignCommand(resource_id='  res-normalized  ', calendar_id=f'  {res_cal.id}  ', effective_from=date(2026, 1, 1), effective_to=date(2026, 12, 31), priority='3'))
 
     assert assignment.resource_id == "res-normalized"
     assert assignment.calendar_id == res_cal.id
     assert assignment.priority == 3
 
     with pytest.raises(ValidationError) as exc:
-        assignment_commands.assign_resource_calendar(
-            "res-normalized",
-            res_cal.id,
-            effective_from=date(2026, 12, 31),
-            effective_to=date(2026, 1, 1),
-        )
+        assignment_commands.assign_resource_calendar(ResourceCalendarAssignCommand(resource_id='res-normalized', calendar_id=res_cal.id, effective_from=date(2026, 12, 31), effective_to=date(2026, 1, 1)))
     assert exc.value.code == "RESOURCE_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID"

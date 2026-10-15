@@ -22,7 +22,7 @@ from src.core.modules.project_management.application.financials.invoicing.event_
     BILLING_COMMERCIAL_SCOPE_CODE,
     build_billing_view_invalidation_handler,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
     BillingSourceQuery,
 )
 from src.core.modules.project_management.domain.financials.billing_preparation import (
@@ -37,6 +37,12 @@ from src.core.modules.project_management.domain.financials.billing_profile impor
 )
 from src.core.modules.project_management.domain.financials.configuration import (
     BillingMethod,
+)
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -90,9 +96,7 @@ def _setup_billable_project(services):
         code=_unique("P39-CC"), name="P39 Billing cost code"
     ))
     services["financial_period_commands"].create_period(
-        code=_unique("P39-FY26"), name="August 2026", fiscal_year=2026, period_number=8,
-        start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
-    )
+        FinancialPeriodCreateCommand(code=_unique("P39-FY26"), name="August 2026", fiscal_year=2026, period_number=8, start_date=date(2026, 8, 1).isoformat(), end_date=date(2026, 8, 31).isoformat()))
     profile = services['financial_configuration_query'].get_profile(project.id)
     services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id, expected_version=profile.version, default_cost_code_id=cost_code.id,
@@ -400,7 +404,7 @@ def test_governed_approval_produces_status_changed_approved(services):
     _login(services, reviewer, "StrongPass123")
 
     hints = _spy_hints(services)
-    services["approval_commands"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
 
     approved = services['billing_preparation_query'].get_preparation(submitted.id)
     assert approved.status == BillingPreparationStatus.APPROVED
@@ -419,7 +423,7 @@ def test_governed_rejection_produces_status_changed_rejected(services):
     _login(services, reviewer, "StrongPass123")
 
     hints = _spy_hints(services)
-    services["approval_commands"].reject(request.id, note="Not this time")
+    services["approval_commands"].reject(ApprovalDecisionCommand(request_id=request.id, note="Not this time"))
 
     rejected = services['billing_preparation_query'].get_preparation(submitted.id)
     assert rejected.status == BillingPreparationStatus.REJECTED
@@ -445,7 +449,7 @@ def test_rejected_preparation_releases_source_for_new_draft(services):
     assert reviewer_view is not None
     assert reviewer_view.can_approve is True
     assert reviewer_view.can_reject is True
-    services["approval_commands"].reject(request.id, note="Revise the claim")
+    services["approval_commands"].reject(ApprovalDecisionCommand(request_id=request.id, note="Revise the claim"))
 
     _login(services, "admin", "ChangeMe123!")
     services['billing_preparation_query']
@@ -592,7 +596,7 @@ def test_request_delivery_produces_status_changed_delivery_pending(accounting_se
     reviewer = _unique("p39-delivery-reviewer")
     services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
-    services["approval_commands"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
     _login(services, "admin", "ChangeMe123!")
 
     services['billing_preparation_query']
@@ -629,7 +633,7 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(account
     reviewer = _unique("correction-reviewer")
     services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
-    services["approval_commands"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
     _login(services, "admin", "ChangeMe123!")
     approved = services['billing_preparation_query'].get_preparation(parent.id)
     services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(parent.id, expected_row_version=approved.row_version))
@@ -672,7 +676,7 @@ def test_external_outcome_replay_produces_zero_hints(accounting_services, accoun
     reviewer = _unique("p39-replay-reviewer")
     services["user_registration"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
-    services["approval_commands"].approve_and_apply(request.id)
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
     _login(services, "admin", "ChangeMe123!")
 
     services['billing_preparation_query']

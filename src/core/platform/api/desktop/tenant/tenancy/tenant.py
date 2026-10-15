@@ -9,7 +9,6 @@ from src.core.platform.api.desktop.support._support import (
     serialize_organization,
 )
 from src.core.platform.api.desktop.tenant.tenancy.models.tenant import (
-    TenantCreateCommand,
     TenantDto,
     TenantInvitationDto,
 )
@@ -18,6 +17,9 @@ from src.core.platform.application.tenant.tenancy.commands.invitations import (
 )
 from src.core.platform.application.tenant.tenancy.commands.tenant_lifecycle import (
     TenantLifecycleCommandHandler,
+)
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
 )
 from src.core.platform.application.tenant.tenancy.queries.admin import (
     TenantAdminQueryHandler,
@@ -98,10 +100,7 @@ class PlatformTenantDesktopApi:
     ) -> DesktopApiResult[TenantDto]:
         return execute_desktop_operation(
             lambda: self._serialize_tenant(
-                self._tenant_lifecycle_commands.create_tenant(
-                    command.tenant_code,
-                    command.display_name,
-                )
+                self._tenant_lifecycle_commands.create_tenant(command)
             )
         )
 

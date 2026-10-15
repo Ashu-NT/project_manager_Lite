@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 def build_calendar_create_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
         CalendarCreateCommand,
     )
     return CalendarCreateCommand(
@@ -16,7 +16,7 @@ def build_calendar_create_command(payload: dict):
 
 
 def build_calendar_update_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
         CalendarUpdateCommand,
     )
     is_active = payload.get("isActive")
@@ -32,7 +32,7 @@ def build_calendar_update_command(payload: dict):
 
 
 def build_exception_create_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
         ExceptionCreateCommand,
     )
     return ExceptionCreateCommand(
@@ -47,7 +47,7 @@ def build_exception_create_command(payload: dict):
 
 
 def build_exception_update_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
         ExceptionUpdateCommand,
     )
     priority = payload.get("priority")
@@ -64,7 +64,7 @@ def build_exception_update_command(payload: dict):
 
 
 def build_recurring_event_create_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.definitions.dto.commands.recurring_events import (
         RecurringEventCreateCommand,
     )
     return RecurringEventCreateCommand(
@@ -82,7 +82,7 @@ def build_recurring_event_create_command(payload: dict):
 
 
 def build_recurring_event_update_command(payload: dict):
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.definitions.dto.commands.recurring_events import (
         RecurringEventUpdateCommand,
     )
     is_active = payload.get("isActive")
@@ -106,7 +106,7 @@ def build_recurring_event_update_command(payload: dict):
 def dispatch_calendar_assign(controller, payload: dict, entity_type: str):
     if controller._platform_calendar_api is None:
         return None
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
         DeptCalendarAssignCommand,
         EmpCalendarAssignCommand,
         ProjectCalendarAssignCommand,

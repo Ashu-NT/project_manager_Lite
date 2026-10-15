@@ -10,6 +10,10 @@ bulk status change was silently broken before this."""
 
 from __future__ import annotations
 
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryBulkStatusCommand,
+    RegisterEntryCreateCommand,
+)
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
@@ -43,9 +47,7 @@ def test_bulk_set_entry_status_updates_every_entry_in_one_transaction(services) 
     register_query = services["register_query"]
     register_commands = services["register_lifecycle_commands"]
     entries = [
-        register_commands.create_entry(
-            project.id, entry_type=RegisterEntryType.RISK, title=f"Bulk risk {i}"
-        )
+        register_commands.create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title=f"Bulk risk {i}"))
         for i in range(3)
     ]
     entry_ids = [e.id for e in entries]
@@ -53,7 +55,7 @@ def test_bulk_set_entry_status_updates_every_entry_in_one_transaction(services) 
 
     counts, restore = _count_uow_creations(SqlAlchemyRegisterUnitOfWorkFactory)
     try:
-        results = register_commands.bulk_set_entry_status(entry_ids, RegisterEntryStatus.CLOSED)
+        results = register_commands.bulk_set_entry_status(RegisterEntryBulkStatusCommand(tuple(entry_ids), RegisterEntryStatus.CLOSED))
     finally:
         restore()
 

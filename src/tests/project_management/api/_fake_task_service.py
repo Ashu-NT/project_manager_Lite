@@ -1,5 +1,33 @@
 from datetime import date, timedelta
 
+from src.core.modules.project_management.application.tasks._command_values import (
+    constraint_type as constraint_type_value,
+)
+from src.core.modules.project_management.application.tasks._command_values import (
+    task_status,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
+    TaskAssignmentAllocationCommand,
+    TaskAssignmentCreateCommand,
+    TaskAssignmentHoursCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_constraints import (
+    TaskConstraintUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_dependencies import (
+    TaskDependencyCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_hierarchy import (
+    TaskWbsMoveCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+    TaskUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskBulkStatusCommand,
+    TaskProgressCommand,
+)
 from src.core.modules.project_management.domain.enums import (
     DependencyType,
     TaskStatus,
@@ -25,24 +53,21 @@ class _FakeTaskService:
     def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
         self._project_resource_lookup[project_resource_id] = resource_id
 
-    def create_task(
-        self,
-        *,
-        project_id: str,
-        name: str,
-        code: str = "",
-        description: str = "",
-        start_date: date | None = None,
-        duration_days: int | None = None,
-        priority: int = 0,
-        deadline: date | None = None,
-        parent_task_id: str | None = None,
-        wbs_code: str = "",
-        sort_order: int | None = None,
-        is_milestone: bool = False,
-        constraint_type=None,
-        constraint_date: date | None = None,
-    ) -> Task:
+    def create_task(self, command: TaskCreateCommand) -> Task:
+        project_id = command.project_id
+        name = command.name
+        code = command.code
+        description = command.description
+        start_date = command.start_date
+        duration_days = command.duration_days
+        priority = command.priority if command.priority is not None else 0
+        deadline = command.deadline
+        parent_task_id = command.parent_task_id
+        wbs_code = command.wbs_code
+        sort_order = command.sort_order
+        is_milestone = command.is_milestone
+        constraint_type = constraint_type_value(command.constraint_type)
+        constraint_date = command.constraint_date
         resolved_sort_order = (
             sort_order
             if sort_order is not None
@@ -75,17 +100,15 @@ class _FakeTaskService:
         )
         self._next_id += 1
         self._tasks[task.id] = task
+        self.set_tasks_status(TaskBulkStatusCommand((task.id,), command.status))
         return task
 
-    def move_task(
-        self,
-        task_id: str,
-        *,
-        parent_task_id: str | None,
-        wbs_code: str | None = None,
-        sort_order: int | None = None,
-        expected_version: int | None = None,
-    ) -> Task:
+    def move_task(self, command: TaskWbsMoveCommand) -> Task:
+        task_id = command.task_id
+        parent_task_id = command.parent_task_id
+        wbs_code = command.wbs_code
+        sort_order = command.sort_order
+        expected_version = command.expected_version
         task = self._tasks[task_id]
         if expected_version is not None and task.version != expected_version:
             raise ValueError("Task version is stale.")
@@ -125,14 +148,11 @@ class _FakeTaskService:
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
         return self._assignments.get(assignment_id)
 
-    def assign_project_resource(
-        self,
-        *,
-        task_id: str,
-        project_resource_id: str,
-        allocation_percent: float,
-        allocated_planned_hours=None,
-    ) -> TaskAssignment:
+    def assign_project_resource(self, command: TaskAssignmentCreateCommand) -> TaskAssignment:
+        task_id = command.task_id
+        project_resource_id = command.project_resource_id
+        allocation_percent = command.allocation_percent
+        allocated_planned_hours = command.allocated_planned_hours
         resource_id = self._project_resource_lookup.get(project_resource_id, project_resource_id)
         assignment = self.create_assignment(
             task_id=task_id,
@@ -144,16 +164,19 @@ class _FakeTaskService:
             assignment.allocated_planned_hours = allocated_planned_hours
         return assignment
 
-    def set_assignment_allocation(
-        self, *, assignment_id: str, allocation_percent: float, expected_version: int | None = None
-    ) -> TaskAssignment:
+    def set_assignment_allocation(self, command: TaskAssignmentAllocationCommand) -> TaskAssignment:
+        assignment_id = command.assignment_id
+        allocation_percent = command.allocation_percent
+        expected_version = command.expected_version
         assignment = self._assignments[assignment_id]
         assignment.allocation_percent = allocation_percent
         if expected_version is not None:
             assignment.version = expected_version + 1
         return assignment
 
-    def set_assignment_hours(self, *, assignment_id: str, hours_logged: float) -> TaskAssignment:
+    def set_assignment_hours(self, command: TaskAssignmentHoursCommand) -> TaskAssignment:
+        assignment_id = command.assignment_id
+        hours_logged = command.hours_logged
         assignment = self._assignments[assignment_id]
         assignment.hours_logged = hours_logged
         return assignment
@@ -161,14 +184,11 @@ class _FakeTaskService:
     def unassign_resource(self, assignment_id: str) -> None:
         del self._assignments[assignment_id]
 
-    def add_dependency(
-        self,
-        *,
-        predecessor_id: str,
-        successor_id: str,
-        dependency_type: DependencyType,
-        lag_days: int = 0,
-    ) -> TaskDependency:
+    def add_dependency(self, command: TaskDependencyCreateCommand) -> TaskDependency:
+        predecessor_id = command.linked_task_id if command.relationship_direction.strip().upper() == "PREDECESSOR" else command.task_id
+        successor_id = command.task_id if command.relationship_direction.strip().upper() == "PREDECESSOR" else command.linked_task_id
+        dependency_type = DependencyType(command.dependency_type)
+        lag_days = command.lag_days
         dependency = TaskDependency(
             id=f"dep-{len(self._dependencies) + 1}",
             predecessor_task_id=predecessor_id,
@@ -188,22 +208,21 @@ class _FakeTaskService:
     def remove_dependency(self, dependency_id: str) -> None:
         del self._dependencies[dependency_id]
 
-    def update_task(
-        self,
-        task_id: str,
-        *,
-        expected_version: int | None = None,
-        name: str | None = None,
-        code: str | None = None,
-        description: str | None = None,
-        status: TaskStatus | None = None,
-        start_date: date | None = None,
-        duration_days: int | None = None,
-        priority: int | None = None,
-        deadline: date | None = None,
-        is_milestone: bool | None = None,
-    ) -> Task:
+    def update_task(self, command: TaskUpdateCommand) -> Task:
+        task_id = command.task_id
+        expected_version = command.expected_version
+        name = command.name
+        code = command.code
+        description = command.description
+        status = task_status(command.status)
+        start_date = command.start_date
+        duration_days = command.duration_days
+        priority = command.priority
+        deadline = command.deadline
+        is_milestone = command.is_milestone
         task = self._tasks[task_id]
+        if expected_version is not None:
+            assert task.version == expected_version
         if name is not None:
             task.name = name
         if code is not None and code:
@@ -211,7 +230,7 @@ class _FakeTaskService:
         if description is not None:
             task.description = description
         if status is not None:
-            task.status = status
+            self.set_tasks_status(TaskBulkStatusCommand((task.id,), status.value))
         if start_date is not None:
             task.start_date = start_date
         if duration_days is not None:
@@ -228,14 +247,11 @@ class _FakeTaskService:
         task.version += 1
         return task
 
-    def update_task_scheduling_constraint(
-        self,
-        task_id: str,
-        *,
-        constraint_type=None,
-        constraint_date: date | None = None,
-        expected_version: int | None = None,
-    ) -> Task:
+    def update_task_scheduling_constraint(self, command: TaskConstraintUpdateCommand) -> Task:
+        task_id = command.task_id
+        constraint_type = constraint_type_value(command.constraint_type)
+        constraint_date = command.constraint_date
+        expected_version = command.expected_version
         task = self._tasks[task_id]
         if expected_version is not None and task.version != expected_version:
             from src.core.platform.common.exceptions import ConcurrencyError
@@ -253,18 +269,15 @@ class _FakeTaskService:
         self._tasks[task_id] = updated
         return updated
 
-    def set_status(self, task_id: str, status: TaskStatus) -> None:
+    def _set_status(self, task_id: str, status: TaskStatus) -> None:
         task = self._tasks[task_id]
         task.status = status
         task.version += 1
 
-    def set_tasks_status(
-        self,
-        task_ids: tuple[str, ...],
-        status: TaskStatus,
-        *,
-        reopen_percent_complete: float | None = None,
-    ) -> list[Task]:
+    def set_tasks_status(self, command: TaskBulkStatusCommand) -> list[Task]:
+        task_ids = command.task_ids
+        status = task_status(command.status)
+        reopen_percent_complete = command.reopen_percent_complete
         changed: list[Task] = []
         for task_id in task_ids:
             task = self._tasks.get(task_id)
@@ -274,21 +287,20 @@ class _FakeTaskService:
                 continue
             if reopen_percent_complete is not None and status == TaskStatus.IN_PROGRESS:
                 task.percent_complete = reopen_percent_complete
-            self.set_status(task_id, status)
+            self._set_status(task_id, status)
             changed.append(task)
         return changed
 
-    def update_progress(
-        self,
-        task_id: str,
-        *,
-        percent_complete: float | None = None,
-        actual_start: date | None = None,
-        actual_end: date | None = None,
-        status: TaskStatus | None = None,
-        expected_version: int | None = None,
-    ) -> Task:
+    def update_progress(self, command: TaskProgressCommand) -> Task:
+        task_id = command.task_id
+        percent_complete = command.percent_complete
+        actual_start = command.actual_start
+        actual_end = command.actual_end
+        status = task_status(command.status) if command.status is not None else None
+        expected_version = command.expected_version
         task = self._tasks[task_id]
+        if expected_version is not None:
+            assert task.version == expected_version
         if percent_complete is not None:
             task.percent_complete = percent_complete
         if actual_start is not None:

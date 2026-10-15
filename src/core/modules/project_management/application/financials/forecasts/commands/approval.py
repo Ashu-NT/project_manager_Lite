@@ -15,14 +15,17 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.forecasts.approval_result import (
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
+    FinancialVersionedForecastCommand,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.responses.forecast_approval import (
     ForecastApprovalRequestResult,
 )
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastVersionChanged,
     ForecastVersionChangeType,
 )
-from src.core.modules.project_management.application.financials.governance.successors.dto import (
+from src.core.modules.project_management.application.financials.governance.successors.dto.responses.financial_successors import (
     ApprovedFinancialLineAdjustment,
     ApprovedFinancialSuccessorResult,
 )
@@ -133,9 +136,10 @@ class ForecastApprovalCommands(ProjectManagementModuleGuardMixin):
         )
 
 
-    def request_forecast_approval(
-        self, forecast_id: str, *, expected_version: int, notes: str = ""
-    ) -> ForecastApprovalRequestResult:
+    def request_forecast_approval(self, command: FinancialVersionedForecastCommand) -> ForecastApprovalRequestResult:
+        forecast_id = command.forecast_id
+        expected_version = command.expected_version
+        notes = command.notes
         if self._approval_commands is None:
             raise BusinessRuleError(
                 "Platform Approval is not configured for Forecast decisions.",

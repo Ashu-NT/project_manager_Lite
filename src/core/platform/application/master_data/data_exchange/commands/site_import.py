@@ -13,7 +13,7 @@ from src.core.platform.application.master_data.site import (
     SiteCommandHandler,
     SiteQueryHandler,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )

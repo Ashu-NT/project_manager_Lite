@@ -6,6 +6,10 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
+    PortfolioDependencyCreateCommand,
+    PortfolioDependencyRemoveCommand,
+)
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioProjectDependencyChanged,
     PortfolioProjectDependencyChangeType,
@@ -21,7 +25,6 @@ from src.core.modules.project_management.contracts.repositories.portfolio.portfo
 from src.core.modules.project_management.contracts.uow.portfolio.portfolio_unit_of_work import (
     PortfolioUnitOfWorkFactory,
 )
-from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioProjectDependency,
 )
@@ -51,14 +54,11 @@ class PortfolioDependencyCommandHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def create_project_dependency(
-        self,
-        *,
-        predecessor_project_id: str,
-        successor_project_id: str,
-        dependency_type: DependencyType | str = DependencyType.FINISH_TO_START,
-        summary: str = "",
-    ) -> PortfolioProjectDependency:
+    def create_project_dependency(self, command: PortfolioDependencyCreateCommand) -> PortfolioProjectDependency:
+        predecessor_project_id = command.predecessor_project_id
+        successor_project_id = command.successor_project_id
+        dependency_type = command.dependency_type
+        summary = command.summary
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio dependency")
         accessible_projects = {project.id: project for project in self._policy.accessible_projects()}
         dependency = PortfolioProjectDependency.create(
@@ -143,7 +143,8 @@ class PortfolioDependencyCommandHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
         return dependency
 
-    def remove_project_dependency(self, dependency_id: str) -> None:
+    def remove_project_dependency(self, command: PortfolioDependencyRemoveCommand) -> None:
+        dependency_id = command.dependency_id
         require_permission(self._user_session, "portfolio.manage", operation_label="remove portfolio dependency")
         self._policy.organization_id(
             operation_label="remove portfolio dependency"

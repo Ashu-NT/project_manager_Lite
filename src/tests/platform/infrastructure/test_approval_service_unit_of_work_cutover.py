@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.approval import ApprovalStatus
 from src.core.platform.infrastructure.persistence.uow.approval.approval_unit_of_work import (
@@ -102,8 +105,8 @@ def test_two_independent_approve_and_apply_calls_use_genuinely_different_session
 
     monkeypatch.setattr(type(approvals._uow_factory), "create", _spy_create)
 
-    approvals.approve_and_apply(request_a.id)
-    approvals.approve_and_apply(request_b.id)
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request_a.id))
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request_b.id))
 
     assert len(created_sessions) == 2
     assert created_sessions[0] is not created_sessions[1]
@@ -138,7 +141,7 @@ def test_approve_and_apply_shares_one_session_across_approvals_repo_and_particip
 
     monkeypatch.setattr(type(approvals._uow_factory), "create", _spy_create)
 
-    approvals.approve_and_apply(request.id)
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
 
     assert seen["uow_session"] is seen["approvals_repo_session"]
     assert seen["uow_session"] is seen["audit_session"]
@@ -174,7 +177,7 @@ def test_commit_failure_rolls_back_approval_decision_and_module_mutation_togethe
     monkeypatch.setattr(SqlAlchemyPlatformUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
-        approvals.approve_and_apply(request.id)
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
 
     uow = captured_uow["uow"]
     assert uow._committed is False, "commit() failing must never mark the UoW committed"
@@ -267,7 +270,7 @@ def test_shared_legacy_session_is_not_touched_by_approval_mutation(services, ses
     approvals = services["approval_commands"]
     session.commit()  # settle any pending state from setup before observing
 
-    approvals.approve_and_apply(request.id)
+    approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
 
     # The shared session must not have picked up an implicit transaction as a side effect of
     # the approval mutation, which ran entirely on its own fresh UoW Session.
@@ -282,7 +285,7 @@ def test_apply_handler_missing_does_not_open_or_leak_a_session(services, session
     saved = services["approval_participants"].apply_handlers.pop("budget.approve")
     try:
         with pytest.raises(BusinessRuleError, match="No apply handler registered"):
-            approvals.approve_and_apply(request.id)
+            approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request.id))
     finally:
         services["approval_participants"].apply_handlers["budget.approve"] = saved
 

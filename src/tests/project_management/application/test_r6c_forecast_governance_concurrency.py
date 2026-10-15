@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from src.core.modules.project_management.application.financials.forecasts import (
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_estimates import (
     ManualEtcEstimate,
 )
 from src.core.modules.project_management.domain.financials.forecast import (

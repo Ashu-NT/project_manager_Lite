@@ -20,6 +20,12 @@ from src.core.modules.project_management.application.financials.budgets.budget_e
     BudgetStatusChangeType,
     BudgetVersionCreated,
 )
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
+    FinancialCreateBudgetSuccessorCommand,
+    FinancialCreateBudgetVersionCommand,
+    FinancialUpdateBudgetCommand,
+    FinancialVersionedBudgetCommand,
+)
 from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
 )
@@ -45,6 +51,7 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
+    ValidationError,
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
@@ -66,6 +73,15 @@ _REVISION_CONSTRAINT = "uq_pf_budget_project_revision"
 
 class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
     """Version lifecycle and header commands."""
+
+    def _command_actor_id(self) -> str:
+        actor_id = self.current_actor_user_id
+        if not actor_id:
+            raise ValidationError(
+                "An authenticated actor is required for Budget commands.",
+                code="BUDGET_ACTOR_REQUIRED",
+            )
+        return str(actor_id)
 
     def __init__(
         self,
@@ -93,9 +109,10 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         self._record_event = record_event
 
 
-    def create_budget(
-        self, project_id: str, name: str, currency_code: str | None = None
-    ) -> ProjectBudget:
+    def create_budget(self, command: FinancialCreateBudgetVersionCommand) -> ProjectBudget:
+        project_id = command.project_id
+        name = command.name
+        currency_code = command.currency_code or None
         require_permission(self._user_session, "budget.manage", operation_label="create project budget")
         require_project_permission(
             self._user_session, project_id, "budget.manage", operation_label="create project budget"
@@ -156,13 +173,15 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         return budget
 
 
-    def create_successor(self, budget_id: str, *, name: str) -> ProjectBudget:
+    def create_successor(self, command: FinancialCreateBudgetSuccessorCommand) -> ProjectBudget:
         """Create a mutable draft copied from an approved budget revision.
 
         The predecessor remains immutable. Revision assignment, currency, and
         line cloning are server-owned so the desktop cannot manufacture
         financial lineage or silently omit approved dimensions.
         """
+        budget_id = command.predecessor_budget_id
+        name = command.name
         require_permission(
             self._user_session,
             "budget.manage",
@@ -235,9 +254,11 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         return successor
 
 
-    def submit_budget(
-        self, budget_id: str, submitted_by: str, notes: str = "", *, expected_version: int
-    ) -> ProjectBudget:
+    def submit_budget(self, command: FinancialVersionedBudgetCommand) -> ProjectBudget:
+        budget_id = command.budget_id
+        submitted_by = self._command_actor_id()
+        notes = command.notes
+        expected_version = command.expected_version
         require_permission(self._user_session, "budget.manage", operation_label="submit project budget")
         budget = self._require_budget(budget_id)
         require_project_permission(
@@ -266,9 +287,11 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         return budget
 
 
-    def close_budget(
-        self, budget_id: str, closed_by: str, notes: str = "", *, expected_version: int
-    ) -> ProjectBudget:
+    def close_budget(self, command: FinancialVersionedBudgetCommand) -> ProjectBudget:
+        budget_id = command.budget_id
+        closed_by = self._command_actor_id()
+        notes = command.notes
+        expected_version = command.expected_version
         require_permission(self._user_session, "budget.approve", operation_label="close project budget")
         budget = self._require_budget(budget_id)
         require_project_permission(
@@ -294,11 +317,13 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         return budget
 
 
-    def update_budget_header(
-        self, budget_id: str, *, name: str | None = None, notes: str | None = None, expected_version: int
-    ) -> ProjectBudget:
+    def update_budget_header(self, command: FinancialUpdateBudgetCommand) -> ProjectBudget:
         # currency_code is deliberately not a parameter here — a budget's
         # currency is immutable after creation once lines may exist in it.
+        budget_id = command.budget_id
+        name = command.name
+        notes = command.notes
+        expected_version = command.expected_version
         require_permission(self._user_session, "budget.manage", operation_label="update project budget")
         budget = self._require_budget(budget_id)
         require_project_permission(
@@ -327,7 +352,9 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         return budget
 
 
-    def delete_budget(self, budget_id: str, *, expected_version: int) -> ProjectBudget:
+    def delete_budget(self, command: FinancialVersionedBudgetCommand) -> ProjectBudget:
+        budget_id = command.budget_id
+        expected_version = command.expected_version
         require_permission(self._user_session, "budget.manage", operation_label="delete project budget")
         budget = self._require_budget(budget_id)
         require_project_permission(

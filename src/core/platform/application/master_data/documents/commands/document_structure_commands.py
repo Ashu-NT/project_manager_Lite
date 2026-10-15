@@ -12,7 +12,7 @@ from src.core.platform.application.master_data.documents.document_context import
     active_organization,
     resolve_structure_for_context,
 )
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.structures import (
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
 )

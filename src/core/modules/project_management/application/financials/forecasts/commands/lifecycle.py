@@ -14,6 +14,9 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
+    FinancialVersionedForecastCommand,
+)
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastVersionChanged,
     ForecastVersionChangeType,
@@ -41,6 +44,7 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
+    ValidationError,
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
@@ -60,6 +64,15 @@ _UNSET: Final = _Unset.TOKEN
 
 class ForecastLifecycleCommands(ProjectManagementModuleGuardMixin):
     """Version lifecycle and header commands."""
+
+    def _command_actor_id(self) -> str:
+        actor_id = self.current_actor_user_id
+        if not actor_id:
+            raise ValidationError(
+                "An authenticated actor is required for Forecast commands.",
+                code="FORECAST_ACTOR_REQUIRED",
+            )
+        return str(actor_id)
 
     def __init__(
         self,
@@ -156,14 +169,11 @@ class ForecastLifecycleCommands(ProjectManagementModuleGuardMixin):
         return forecast
 
 
-    def submit_forecast(
-        self,
-        forecast_id: str,
-        *,
-        submitted_by: str,
-        expected_version: int,
-        notes: str = "",
-    ) -> ProjectForecast:
+    def submit_forecast(self, command: FinancialVersionedForecastCommand) -> ProjectForecast:
+        forecast_id = command.forecast_id
+        submitted_by = self._command_actor_id()
+        expected_version = command.expected_version
+        notes = command.notes
         forecast = self._require_mutable_forecast(
             forecast_id, expected_version, "submit project forecast"
         )

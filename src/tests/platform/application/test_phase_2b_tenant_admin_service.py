@@ -29,6 +29,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
 )
@@ -147,8 +150,7 @@ def test_tenant_create_with_explicit_status():
 def test_admin_can_create_tenant(services):
     svc = tenant_admin_operations(services)
     tenant = svc.tenant_lifecycle_commands.create_tenant(
-        "P2B-NEW1", "Phase 2B Tenant 1"
-    )
+        TenantCreateCommand(tenant_code="P2B-NEW1", display_name="Phase 2B Tenant 1"))
     assert tenant.id is not None
     assert tenant.tenant_code == "P2B-NEW1"
     assert tenant.tenant_status == TENANT_STATUS_ACTIVE
@@ -159,29 +161,28 @@ def test_tenant_admin_role_cannot_create_tenant(services):
     svc = _make_tenant_admin_svc(services)
     with pytest.raises(BusinessRuleError) as exc:
         svc.tenant_lifecycle_commands.create_tenant(
-            "P2B-TADMIN", "Tenant Admin Created"
-        )
+            TenantCreateCommand(tenant_code="P2B-TADMIN", display_name="Tenant Admin Created"))
     assert exc.value.code == "PERMISSION_DENIED"
 
 
 def test_viewer_cannot_create_tenant(services):
     svc = _make_viewer_svc(services)
     with pytest.raises(BusinessRuleError) as exc:
-        svc.tenant_lifecycle_commands.create_tenant("P2B-DENIED", "Should Fail")
+        svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-DENIED", display_name="Should Fail"))
     assert exc.value.code == "PERMISSION_DENIED"
 
 
 def test_create_tenant_code_uniqueness(services):
     svc = tenant_admin_operations(services)
-    svc.tenant_lifecycle_commands.create_tenant("P2B-UNIQ", "First")
+    svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-UNIQ", display_name="First"))
     with pytest.raises(BusinessRuleError) as exc:
-        svc.tenant_lifecycle_commands.create_tenant("P2B-UNIQ", "Second")
+        svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-UNIQ", display_name="Second"))
     assert exc.value.code == "TENANT_CODE_CONFLICT"
 
 
 def test_create_tenant_code_normalized_to_uppercase(services):
     svc = tenant_admin_operations(services)
-    tenant = svc.tenant_lifecycle_commands.create_tenant("p2b-lower", "Lower Code")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="p2b-lower", display_name="Lower Code"))
     assert tenant.tenant_code == "P2B-LOWER"
 
 
@@ -189,8 +190,7 @@ def test_create_tenant_does_not_seed_platform_operator_membership(services):
     svc = tenant_admin_operations(services)
     actor_id = services["user_session"].principal.user_id
     tenant = svc.tenant_lifecycle_commands.create_tenant(
-        "P2B-NO-SEED", "No Implicit Membership"
-    )
+        TenantCreateCommand(tenant_code="P2B-NO-SEED", display_name="No Implicit Membership"))
 
     assert (
         services["role_assignment_commands"]._user_tenant_repo.is_active_member(
@@ -208,7 +208,7 @@ def test_create_tenant_does_not_seed_platform_operator_membership(services):
 
 def test_suspend_active_tenant(services):
     svc = tenant_admin_operations(services)
-    tenant = svc.tenant_lifecycle_commands.create_tenant("P2B-SUSP1", "Suspend Test 1")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-SUSP1", display_name="Suspend Test 1"))
     result = svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
     assert result.tenant_status == TENANT_STATUS_SUSPENDED
     assert result.is_active is False
@@ -216,7 +216,7 @@ def test_suspend_active_tenant(services):
 
 def test_cannot_suspend_already_suspended(services):
     svc = tenant_admin_operations(services)
-    tenant = svc.tenant_lifecycle_commands.create_tenant("P2B-SUSP2", "Suspend Test 2")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-SUSP2", display_name="Suspend Test 2"))
     svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
     with pytest.raises(BusinessRuleError) as exc:
         svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
@@ -225,7 +225,7 @@ def test_cannot_suspend_already_suspended(services):
 
 def test_cannot_suspend_archived_tenant(services):
     svc = tenant_admin_operations(services)
-    tenant = svc.tenant_lifecycle_commands.create_tenant("P2B-SUSP3", "Suspend Test 3")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-SUSP3", display_name="Suspend Test 3"))
     svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
     with pytest.raises(BusinessRuleError) as exc:
         svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
@@ -251,7 +251,7 @@ def test_suspend_self_lockout_guard(services):
 
 def test_archive_active_tenant(services):
     svc = tenant_admin_operations(services)
-    tenant = svc.tenant_lifecycle_commands.create_tenant("P2B-ARCH1", "Archive Test 1")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-ARCH1", display_name="Archive Test 1"))
     result = svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
     assert result.tenant_status == TENANT_STATUS_ARCHIVED
     assert result.is_active is False
@@ -259,7 +259,7 @@ def test_archive_active_tenant(services):
 
 def test_archive_suspended_tenant(services):
     svc = tenant_admin_operations(services)
-    tenant = svc.tenant_lifecycle_commands.create_tenant("P2B-ARCH2", "Archive Test 2")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-ARCH2", display_name="Archive Test 2"))
     svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
     result = svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
     assert result.tenant_status == TENANT_STATUS_ARCHIVED
@@ -267,7 +267,7 @@ def test_archive_suspended_tenant(services):
 
 def test_cannot_archive_already_archived(services):
     svc = tenant_admin_operations(services)
-    tenant = svc.tenant_lifecycle_commands.create_tenant("P2B-ARCH3", "Archive Test 3")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-ARCH3", display_name="Archive Test 3"))
     svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
     with pytest.raises(BusinessRuleError) as exc:
         svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
@@ -290,7 +290,7 @@ def test_archive_self_lockout_guard(services):
 
 def test_admin_can_restore_archived_tenant(services):
     svc = tenant_admin_operations(services)
-    tenant = svc.tenant_lifecycle_commands.create_tenant("P2B-REST1", "Restore Test 1")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-REST1", display_name="Restore Test 1"))
     svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
     result = svc.tenant_lifecycle_commands.restore_tenant(tenant.id)
     assert result.tenant_status == TENANT_STATUS_ACTIVE
@@ -300,8 +300,7 @@ def test_admin_can_restore_archived_tenant(services):
 def test_tenant_admin_cannot_restore(services):
     svc_admin = tenant_admin_operations(services)
     tenant = svc_admin.tenant_lifecycle_commands.create_tenant(
-        "P2B-REST2", "Restore Test 2"
-    )
+        TenantCreateCommand(tenant_code="P2B-REST2", display_name="Restore Test 2"))
     svc_admin.tenant_lifecycle_commands.archive_tenant(tenant.id)
 
     svc_tadmin = _make_tenant_admin_svc(services)
@@ -312,7 +311,7 @@ def test_tenant_admin_cannot_restore(services):
 
 def test_restore_fails_if_not_archived(services):
     svc = tenant_admin_operations(services)
-    tenant = svc.tenant_lifecycle_commands.create_tenant("P2B-REST3", "Restore Test 3")
+    tenant = svc.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-REST3", display_name="Restore Test 3"))
     with pytest.raises(BusinessRuleError) as exc:
         svc.tenant_lifecycle_commands.restore_tenant(tenant.id)
     assert exc.value.code == "TENANT_NOT_ARCHIVED"
@@ -327,8 +326,7 @@ def test_suspended_tenant_cannot_be_selected(services):
     svc = tenant_admin_operations(services)
     tenant_context = services["tenant_context_service"]
     tenant = svc.tenant_lifecycle_commands.create_tenant(
-        "P2B-SELSUSP", "Select Suspend Test"
-    )
+        TenantCreateCommand(tenant_code="P2B-SELSUSP", display_name="Select Suspend Test"))
     svc.tenant_lifecycle_commands.suspend_tenant(tenant.id)
 
     with pytest.raises(BusinessRuleError) as exc:
@@ -340,8 +338,7 @@ def test_archived_tenant_cannot_be_selected(services):
     svc = tenant_admin_operations(services)
     tenant_context = services["tenant_context_service"]
     tenant = svc.tenant_lifecycle_commands.create_tenant(
-        "P2B-SELARCH", "Select Archive Test"
-    )
+        TenantCreateCommand(tenant_code="P2B-SELARCH", display_name="Select Archive Test"))
     svc.tenant_lifecycle_commands.archive_tenant(tenant.id)
 
     with pytest.raises(BusinessRuleError) as exc:
@@ -356,8 +353,8 @@ def test_archived_tenant_cannot_be_selected(services):
 
 def test_tenant_admin_cannot_list_tenants(services):
     svc_admin = tenant_admin_operations(services)
-    svc_admin.tenant_lifecycle_commands.create_tenant("P2B-LIST1", "List Test 1")
-    svc_admin.tenant_lifecycle_commands.create_tenant("P2B-LIST2", "List Test 2")
+    svc_admin.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-LIST1", display_name="List Test 1"))
+    svc_admin.tenant_lifecycle_commands.create_tenant(TenantCreateCommand(tenant_code="P2B-LIST2", display_name="List Test 2"))
 
     svc_tadmin = _make_tenant_admin_svc(services)
     with pytest.raises(BusinessRuleError) as exc:

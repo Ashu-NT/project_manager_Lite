@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import date, time
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -13,6 +12,17 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.application.time_management.calendar._input import (
+    parse_date as _parse_date,
+)
+from src.core.platform.application.time_management.calendar._input import (
+    parse_time as _parse_time,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.shift_patterns import (
+    ShiftPatternCreateCommand,
+    ShiftPatternDaySetCommand,
+    ShiftPatternUpdateCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
@@ -55,17 +65,15 @@ class ShiftPatternCommandHandler:
             operation_label="shift pattern access",
         )
 
-    def create_shift_pattern(
-        self,
-        *,
-        code: str,
-        name: str,
-        pattern_type: str,
-        timezone: str = "UTC",
-        description: str | None = None,
-        rotation_cycle_days: int | None = None,
-        anchor_date: date | None = None,
-    ) -> ShiftPattern:
+    def create_shift_pattern(self, command: ShiftPatternCreateCommand) -> ShiftPattern:
+        code = command.code
+        name = command.name
+        pattern_type = command.pattern_type
+        timezone = command.timezone or "UTC"
+        description = command.description or None
+        rotation_cycle_days = command.rotation_cycle_days
+        anchor_date = _parse_date(command.anchor_date)
+
         require_permission(
             self._user_session,
             "calendar.manage",
@@ -92,18 +100,16 @@ class ShiftPatternCommandHandler:
         self._invalidate_resolver_cache()
         return pattern
 
-    def update_shift_pattern(
-        self,
-        pattern_id: str,
-        *,
-        name: str | None = None,
-        description: str | None = None,
-        pattern_type: str | None = None,
-        timezone: str | None = None,
-        rotation_cycle_days: int | None = None,
-        anchor_date: date | None = None,
-        is_active: bool | None = None,
-    ) -> ShiftPattern:
+    def update_shift_pattern(self, command: ShiftPatternUpdateCommand) -> ShiftPattern:
+        pattern_id = command.pattern_id
+        name = command.name or None
+        description = command.description or None
+        pattern_type = command.pattern_type or None
+        timezone = command.timezone or None
+        rotation_cycle_days = command.rotation_cycle_days
+        anchor_date = _parse_date(command.anchor_date) if command.anchor_date else None
+        is_active = command.is_active
+
         require_permission(
             self._user_session,
             "calendar.manage",
@@ -142,18 +148,16 @@ class ShiftPatternCommandHandler:
         self._session.commit()
         self._invalidate_resolver_cache()
 
-    def set_day(
-        self,
-        pattern_id: str,
-        day_offset: int,
-        *,
-        is_working_day: bool = True,
-        start_time: time | None = None,
-        end_time: time | None = None,
-        break_minutes: int = 0,
-        hours: float | None = None,
-        shift_label: str | None = None,
-    ) -> ShiftPatternDay:
+    def set_day(self, command: ShiftPatternDaySetCommand) -> ShiftPatternDay:
+        pattern_id = command.pattern_id
+        day_offset = command.day_offset
+        is_working_day = command.is_working_day
+        start_time = _parse_time(command.start_time)
+        end_time = _parse_time(command.end_time)
+        break_minutes = command.break_minutes
+        hours = command.hours
+        shift_label = command.shift_label or None
+
         require_permission(
             self._user_session,
             "calendar.manage",

@@ -29,6 +29,10 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
     CalendarAssignmentCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    DeptCalendarAssignCommand,
+    SiteCalendarAssignCommand,
+)
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
 )
@@ -58,6 +62,9 @@ from src.core.platform.application.time_management.calendar.definitions.queries.
 )
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -435,18 +442,10 @@ def test_resolver_source_chain_correct(
     )
     db_session.commit()
 
-    site_cal = cal_commands.create_calendar(
-        code="SITE-CHAIN",
-        name="Site Chain",
-        calendar_type=CalendarType.SITE.value,
-    )
-    dept_cal = cal_commands.create_calendar(
-        code="DEPT-CHAIN",
-        name="Dept Chain",
-        calendar_type=CalendarType.DEPARTMENT.value,
-    )
-    assignment_commands.assign_site_calendar("site-chain", site_cal.id)
-    assignment_commands.assign_department_calendar("dept-chain", dept_cal.id)
+    site_cal = cal_commands.create_calendar(CalendarCreateCommand(code='SITE-CHAIN', name='Site Chain', calendar_type=CalendarType.SITE.value))
+    dept_cal = cal_commands.create_calendar(CalendarCreateCommand(code='DEPT-CHAIN', name='Dept Chain', calendar_type=CalendarType.DEPARTMENT.value))
+    assignment_commands.assign_site_calendar(SiteCalendarAssignCommand(site_id='site-chain', calendar_id=site_cal.id))
+    assignment_commands.assign_department_calendar(DeptCalendarAssignCommand(department_id='dept-chain', calendar_id=dept_cal.id))
 
     chain = resolver.get_source_chain(
         site_id="site-chain",

@@ -20,6 +20,9 @@ from src.core.platform.application.tenant.tenancy import (
     TenantMembershipQueryHandler,
     hash_invitation_token,
 )
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -385,7 +388,7 @@ def test_membership_lifecycle_preserves_account_and_revokes_roles_in_order(tenan
 
 def test_admin_lifecycle_permissions_events_and_self_lockout(tenancy):
     commands = tenancy.admin.tenant_lifecycle_commands
-    tenant = commands.create_tenant("NEW-TENANT", "New Tenant")
+    tenant = commands.create_tenant(TenantCreateCommand(tenant_code="NEW-TENANT", display_name="New Tenant"))
     assert commands.suspend_tenant(tenant.id).tenant_status == "suspended"
     assert commands.archive_tenant(tenant.id).tenant_status == "archived"
     assert commands.restore_tenant(tenant.id).tenant_status == "active"
@@ -403,7 +406,7 @@ def test_admin_lifecycle_permissions_events_and_self_lockout(tenancy):
     assert lockout.value.code == "TENANT_SELF_LOCKOUT"
     tenancy.user_session.set_principal(_principal("recipient"))
     with pytest.raises(BusinessRuleError):
-        commands.create_tenant("DENIED", "Denied")
+        commands.create_tenant(TenantCreateCommand(tenant_code="DENIED", display_name="Denied"))
     with pytest.raises(BusinessRuleError):
         tenancy.admin.tenant_admin_queries.list_tenants()
 

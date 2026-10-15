@@ -17,6 +17,10 @@ from src.core.platform.application.security.identity.credential_policy import (
     hash_api_key,
     record_service_principal_audit,
 )
+from src.core.platform.application.security.identity.dto.commands.service_principals import (
+    ApiKeyIssueCommand,
+    ServicePrincipalCreateCommand,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -73,13 +77,10 @@ class ServicePrincipalCommandHandler:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
-    def create_service_principal(
-        self,
-        *,
-        name: str,
-        description: str = "",
-        initial_role_name: str = "viewer",
-    ) -> ServicePrincipal:
+    def create_service_principal(self, command: ServicePrincipalCreateCommand) -> ServicePrincipal:
+        name = command.name
+        description = command.description
+        initial_role_name = command.initial_role_name
         self._require_admin("create a service principal", include_role_assignment=True)
         ctx = self._tenant_context_service.require_organization_context(
             operation_label="create a service principal"
@@ -164,14 +165,11 @@ class ServicePrincipalCommandHandler:
             raise
         return principal
 
-    def issue_api_key(
-        self,
-        principal_id: str,
-        *,
-        name: str,
-        permission_scopes: tuple[str, ...],
-        expires_in_days: int = 90,
-    ) -> IssuedApiKey:
+    def issue_api_key(self, command: ApiKeyIssueCommand) -> IssuedApiKey:
+        principal_id = command.service_principal_id
+        name = command.name
+        permission_scopes = command.permission_scopes
+        expires_in_days = command.expires_in_days
         self._require_admin("issue a service-principal API key")
         principal = self._require_active_principal(principal_id)
         actor = self._require_actor()

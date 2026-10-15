@@ -1,0 +1,1 @@
+"""configuration application DTO package."""

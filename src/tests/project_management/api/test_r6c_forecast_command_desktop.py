@@ -7,10 +7,15 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.application.financials.forecasts.dto import (
+from src.core.modules.project_management.application.financials.forecasts.commands.generation import (
+    ForecastGenerationCommands,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_generation import (
     FinancialGenerateForecastCommand,
     FinancialManualEtcCommand,
     FinancialRiskContingencyCommand,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
     FinancialVersionedForecastCommand,
 )
 from src.core.platform.common.exceptions import ValidationError
@@ -28,12 +33,12 @@ class _ForecastActor:
 
 
 class _GenerationCommands(_ForecastActor):
-    def generate_draft(self, project_id, **kwargs):
-        self.calls["generated"] = (project_id, kwargs)
+    def generate_draft(self, command: FinancialGenerateForecastCommand):
+        self.calls["generated"] = command
         return SimpleNamespace(
             forecast=SimpleNamespace(
                 id="forecast-1",
-                project_id=project_id,
+                project_id=command.project_id,
                 status=SimpleNamespace(value="draft"),
                 row_version=1,
             )
@@ -41,10 +46,10 @@ class _GenerationCommands(_ForecastActor):
 
 
 class _LifecycleCommands(_ForecastActor):
-    def submit_forecast(self, forecast_id, **kwargs):
-        self.calls["versioned"] = ("submit", forecast_id, kwargs)
+    def submit_forecast(self, command: FinancialVersionedForecastCommand):
+        self.calls["versioned"] = ("submit", command)
         return SimpleNamespace(
-            id=forecast_id,
+            id=command.forecast_id,
             project_id="project-1",
             status=SimpleNamespace(value="submitted"),
             row_version=4,
@@ -52,10 +57,10 @@ class _LifecycleCommands(_ForecastActor):
 
 
 class _ApprovalCommands(_ForecastActor):
-    def request_forecast_approval(self, forecast_id, **kwargs):
-        self.calls["versioned"] = ("request", forecast_id, kwargs)
+    def request_forecast_approval(self, command: FinancialVersionedForecastCommand):
+        self.calls["versioned"] = ("request", command)
         return SimpleNamespace(
-            forecast_id=forecast_id,
+            forecast_id=command.forecast_id,
             project_id="project-1",
             forecast_status=SimpleNamespace(value="submitted"),
             row_version=4,
@@ -91,7 +96,7 @@ class _Boundary:
         return command(self.approval)
 
 
-def test_generate_forecast_maps_typed_decimal_and_dates_to_boundary() -> None:
+def test_generate_forecast_passes_command_unchanged_to_boundary() -> None:
     boundary = _Boundary()
     api = ProjectManagementFinancialsDesktopApi(finance_governance_commands=boundary)
 
@@ -118,11 +123,11 @@ def test_generate_forecast_maps_typed_decimal_and_dates_to_boundary() -> None:
         )
     )
 
-    project_id, values = boundary.generated
-    assert project_id == "project-1"
-    assert str(values["manual_estimates"][0].amount) == "1250.50"
-    assert str(values["risk_contingencies"][0].amount) == "400.00"
-    assert values["generated_by"] == "actor-1"
+    command = boundary.generated
+    assert command.project_id == "project-1"
+    assert command.manual_estimates[0].amount == "1250.50"
+    assert command.risk_contingencies[0].amount == "400.00"
+    assert command.as_of_date == "2026-09-01"
     assert result.forecast_id == "forecast-1"
 
 
@@ -134,19 +139,13 @@ def test_submit_and_request_approval_preserve_expected_version() -> None:
     )
 
     submitted = api.submit_forecast(command)
-    assert boundary.versioned == (
-        "submit",
-        "forecast-1",
-        {"submitted_by": "actor-1", "expected_version": 3, "notes": "Ready"},
-    )
+    assert boundary.versioned == ("submit", command)
+    assert boundary.versioned[1] is command
     assert submitted.status == "submitted"
 
     requested = api.request_forecast_approval(command)
-    assert boundary.versioned == (
-        "request",
-        "forecast-1",
-        {"expected_version": 3, "notes": "Ready"},
-    )
+    assert boundary.versioned == ("request", command)
+    assert boundary.versioned[1] is command
     assert requested.approval_request_id == "approval-1"
 
 
@@ -155,7 +154,8 @@ def test_generate_forecast_rejects_non_canonical_or_non_finite_money(
     amount: str,
 ) -> None:
     boundary = _Boundary()
-    api = ProjectManagementFinancialsDesktopApi(finance_governance_commands=boundary)
+    handler = object.__new__(ForecastGenerationCommands)
+    handler._user_session = boundary._user_session
     command = FinancialGenerateForecastCommand(
         project_id="project-1",
         name="Invalid forecast",
@@ -170,17 +170,18 @@ def test_generate_forecast_rejects_non_canonical_or_non_finite_money(
     )
 
     with pytest.raises(ValidationError) as exc:
-        api.generate_forecast(command)
+        handler.generate_draft(command)
     assert exc.value.code == "PROJECT_FORECAST_AMOUNT_INVALID"
 
 
 def test_generate_forecast_requires_authenticated_actor() -> None:
     boundary = _Boundary()
     boundary._user_session.principal = None
-    api = ProjectManagementFinancialsDesktopApi(finance_governance_commands=boundary)
+    handler = object.__new__(ForecastGenerationCommands)
+    handler._user_session = boundary._user_session
 
     with pytest.raises(ValidationError) as exc:
-        api.generate_forecast(
+        handler.generate_draft(
             FinancialGenerateForecastCommand(
                 project_id="project-1",
                 name="Unauthenticated forecast",

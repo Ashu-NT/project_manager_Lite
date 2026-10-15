@@ -19,6 +19,16 @@ from src.core.platform.application.time_management.calendar.definitions.commands
 from src.core.platform.application.time_management.calendar.definitions.commands.shift_pattern_commands import (
     ShiftPatternCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
+    ExceptionCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.recurring_events import (
+    RecurringEventCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.shift_patterns import (
+    ShiftPatternCreateCommand,
+    ShiftPatternDaySetCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
     CalendarExceptionQueryHandler,
 )
@@ -225,11 +235,13 @@ def global_cal(cal_commands, org_id):
 
 def test_exception_types_persist_correctly(exc_commands, global_cal):
     exc = exc_commands.add_exception(
-        global_cal.id,
-        exception_date=date(2026, 12, 25),
-        exception_type=ExceptionType.HOLIDAY.value,
-        name="Christmas",
-        impact_type=ImpactType.UNAVAILABLE.value,
+        ExceptionCreateCommand(
+            calendar_id=global_cal.id,
+            exception_date=date(2026, 12, 25),
+            exception_type=ExceptionType.HOLIDAY.value,
+            name="Christmas",
+            impact_type=ImpactType.UNAVAILABLE.value,
+        )
     )
     assert exc.exception_type == ExceptionType.HOLIDAY.value
     assert exc.impact_type == ImpactType.UNAVAILABLE.value
@@ -239,28 +251,34 @@ def test_exception_types_persist_correctly(exc_commands, global_cal):
 def test_exception_invalid_type_raises(exc_commands, global_cal):
     with pytest.raises(ValidationError, match="Invalid exception_type"):
         exc_commands.add_exception(
-            global_cal.id,
-            exception_date=date(2026, 1, 1),
-            exception_type="BOGUS",
-            name="X",
-            impact_type=ImpactType.UNAVAILABLE.value,
+            ExceptionCreateCommand(
+                calendar_id=global_cal.id,
+                exception_date=date(2026, 1, 1),
+                exception_type="BOGUS",
+                name="X",
+                impact_type=ImpactType.UNAVAILABLE.value,
+            )
         )
 
 
 def test_exception_list_by_calendar(exc_queries, exc_commands, global_cal):
     exc_commands.add_exception(
-        global_cal.id,
-        exception_date=date(2026, 1, 1),
-        exception_type=ExceptionType.HOLIDAY.value,
-        name="New Year",
-        impact_type=ImpactType.UNAVAILABLE.value,
+        ExceptionCreateCommand(
+            calendar_id=global_cal.id,
+            exception_date=date(2026, 1, 1),
+            exception_type=ExceptionType.HOLIDAY.value,
+            name="New Year",
+            impact_type=ImpactType.UNAVAILABLE.value,
+        )
     )
     exc_commands.add_exception(
-        global_cal.id,
-        exception_date=date(2026, 12, 25),
-        exception_type=ExceptionType.HOLIDAY.value,
-        name="Christmas",
-        impact_type=ImpactType.UNAVAILABLE.value,
+        ExceptionCreateCommand(
+            calendar_id=global_cal.id,
+            exception_date=date(2026, 12, 25),
+            exception_type=ExceptionType.HOLIDAY.value,
+            name="Christmas",
+            impact_type=ImpactType.UNAVAILABLE.value,
+        )
     )
     exceptions = exc_queries.list_exceptions(global_cal.id)
     assert len(exceptions) == 2
@@ -268,11 +286,13 @@ def test_exception_list_by_calendar(exc_queries, exc_commands, global_cal):
 
 def test_exception_delete(exc_queries, exc_commands, global_cal):
     exc = exc_commands.add_exception(
-        global_cal.id,
-        exception_date=date(2026, 6, 15),
-        exception_type=ExceptionType.SHUTDOWN.value,
-        name="Site Shutdown",
-        impact_type=ImpactType.UNAVAILABLE.value,
+        ExceptionCreateCommand(
+            calendar_id=global_cal.id,
+            exception_date=date(2026, 6, 15),
+            exception_type=ExceptionType.SHUTDOWN.value,
+            name="Site Shutdown",
+            impact_type=ImpactType.UNAVAILABLE.value,
+        )
     )
     exc_commands.delete_exception(exc.id)
     exceptions = exc_queries.list_exceptions(global_cal.id)
@@ -288,14 +308,16 @@ def test_recurring_event_rrule_expanded(
     recurring_queries, recurring_commands, global_cal
 ):
     event = recurring_commands.add_recurring_event(
-        global_cal.id,
-        title="Weekly Standup",
-        event_type=RecurringEventType.MEETING.value,
-        recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
-        start_time=time(9, 0),
-        end_time=time(9, 30),
-        impact_type=ImpactType.REDUCED_CAPACITY.value,
-        effective_from=date(2026, 6, 1),
+        RecurringEventCreateCommand(
+            calendar_id=global_cal.id,
+            title="Weekly Standup",
+            event_type=RecurringEventType.MEETING.value,
+            recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
+            start_time=time(9, 0),
+            end_time=time(9, 30),
+            impact_type=ImpactType.REDUCED_CAPACITY.value,
+            effective_from=date(2026, 6, 1),
+        )
     )
     occurrences = recurring_queries.expand_occurrences(
         event.id,
@@ -309,27 +331,31 @@ def test_recurring_event_rrule_expanded(
 def test_recurring_event_invalid_rrule_raises(recurring_commands, global_cal):
     with pytest.raises(ValidationError, match="Invalid recurrence_rule"):
         recurring_commands.add_recurring_event(
-            global_cal.id,
-            title="Bad",
-            event_type=RecurringEventType.MEETING.value,
-            recurrence_rule="THIS IS NOT A RRULE",
-            start_time=time(9, 0),
-            end_time=time(10, 0),
-            impact_type=ImpactType.UNAVAILABLE.value,
-            effective_from=date(2026, 1, 1),
+            RecurringEventCreateCommand(
+                calendar_id=global_cal.id,
+                title="Bad",
+                event_type=RecurringEventType.MEETING.value,
+                recurrence_rule="THIS IS NOT A RRULE",
+                start_time=time(9, 0),
+                end_time=time(10, 0),
+                impact_type=ImpactType.UNAVAILABLE.value,
+                effective_from=date(2026, 1, 1),
+            )
         )
 
 
 def test_recurring_event_delete(recurring_queries, recurring_commands, global_cal):
     event = recurring_commands.add_recurring_event(
-        global_cal.id,
-        title="Weekly Cleanup",
-        event_type=RecurringEventType.ADMIN.value,
-        recurrence_rule="FREQ=WEEKLY;BYDAY=FR",
-        start_time=time(17, 0),
-        end_time=time(18, 0),
-        impact_type=ImpactType.INFORMATION_ONLY.value,
-        effective_from=date(2026, 1, 1),
+        RecurringEventCreateCommand(
+            calendar_id=global_cal.id,
+            title="Weekly Cleanup",
+            event_type=RecurringEventType.ADMIN.value,
+            recurrence_rule="FREQ=WEEKLY;BYDAY=FR",
+            start_time=time(17, 0),
+            end_time=time(18, 0),
+            impact_type=ImpactType.INFORMATION_ONLY.value,
+            effective_from=date(2026, 1, 1),
+        )
     )
     recurring_commands.delete_recurring_event(event.id)
     events = recurring_queries.list_recurring_events(global_cal.id)
@@ -345,14 +371,16 @@ def test_recurring_event_repository_page_is_bounded_and_filtered(
         ("Gamma Admin", RecurringEventType.ADMIN.value),
     ):
         recurring_commands.add_recurring_event(
-            global_cal.id,
-            title=title,
-            event_type=event_type,
-            recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
-            start_time=time(9, 0),
-            end_time=time(10, 0),
-            impact_type=ImpactType.INFORMATION_ONLY.value,
-            effective_from=date(2026, 1, 1),
+            RecurringEventCreateCommand(
+                calendar_id=global_cal.id,
+                title=title,
+                event_type=event_type,
+                recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
+                start_time=time(9, 0),
+                end_time=time(10, 0),
+                impact_type=ImpactType.INFORMATION_ONLY.value,
+                effective_from=date(2026, 1, 1),
+            )
         )
 
     first, total, filtered_total = repos["recurring"].list_page_for_calendar(
@@ -373,10 +401,12 @@ def test_recurring_event_repository_page_is_bounded_and_filtered(
 
 def test_shift_pattern_created(shift_commands):
     pattern = shift_commands.create_shift_pattern(
-        code="STD-8H",
-        name="Standard 8h",
-        pattern_type=PatternType.STANDARD.value,
-        timezone="UTC",
+        ShiftPatternCreateCommand(
+            code="STD-8H",
+            name="Standard 8h",
+            pattern_type=PatternType.STANDARD.value,
+            timezone="UTC",
+        )
     )
     assert pattern.code == "STD-8H"
     assert pattern.pattern_type == PatternType.STANDARD.value
@@ -384,26 +414,32 @@ def test_shift_pattern_created(shift_commands):
 
 def test_shift_pattern_days_created(shift_queries, shift_commands):
     pattern = shift_commands.create_shift_pattern(
-        code="DAY-NIGHT",
-        name="Day/Night Rotation",
-        pattern_type=PatternType.TWO_SHIFT.value,
-        rotation_cycle_days=2,
+        ShiftPatternCreateCommand(
+            code="DAY-NIGHT",
+            name="Day/Night Rotation",
+            pattern_type=PatternType.TWO_SHIFT.value,
+            rotation_cycle_days=2,
+        )
     )
     shift_commands.set_day(
-        pattern.id,
-        day_offset=0,
-        is_working_day=True,
-        start_time=time(6, 0),
-        end_time=time(14, 0),
-        shift_label="Day",
+        ShiftPatternDaySetCommand(
+            pattern_id=pattern.id,
+            day_offset=0,
+            is_working_day=True,
+            start_time=time(6, 0),
+            end_time=time(14, 0),
+            shift_label="Day",
+        )
     )
     shift_commands.set_day(
-        pattern.id,
-        day_offset=1,
-        is_working_day=True,
-        start_time=time(14, 0),
-        end_time=time(22, 0),
-        shift_label="Night",
+        ShiftPatternDaySetCommand(
+            pattern_id=pattern.id,
+            day_offset=1,
+            is_working_day=True,
+            start_time=time(14, 0),
+            end_time=time(22, 0),
+            shift_label="Night",
+        )
     )
     days = shift_queries.list_days(pattern.id)
     assert len(days) == 2
@@ -413,9 +449,13 @@ def test_shift_pattern_days_created(shift_queries, shift_commands):
 
 def test_shift_pattern_duplicate_code_raises(shift_commands):
     shift_commands.create_shift_pattern(
-        code="UNIQUE", name="X", pattern_type=PatternType.STANDARD.value
+        ShiftPatternCreateCommand(
+            code="UNIQUE", name="X", pattern_type=PatternType.STANDARD.value
+        )
     )
     with pytest.raises(ValidationError, match="already exists"):
         shift_commands.create_shift_pattern(
-            code="UNIQUE", name="Y", pattern_type=PatternType.STANDARD.value
+            ShiftPatternCreateCommand(
+                code="UNIQUE", name="Y", pattern_type=PatternType.STANDARD.value
+            )
         )

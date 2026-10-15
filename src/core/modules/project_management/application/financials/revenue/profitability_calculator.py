@@ -34,10 +34,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
     CommercialMetricAvailability as Availability,
 )
-from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.revenue.models.availability import (
     CommercialMetricUnavailableReason as Reason,
 )
 from src.core.modules.project_management.domain.financials.configuration import (

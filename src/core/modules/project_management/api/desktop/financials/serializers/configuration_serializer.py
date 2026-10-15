@@ -13,14 +13,14 @@ from src.core.modules.project_management.api.desktop.financials.models.configura
     FinancialConfigurationWorkspaceDto,
     FinancialProfileDto,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
     FinanceBudgetWorkspaceFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_planned_cost_facts import (
-    FinancePlannedCostWorkspaceFacts,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
+from src.core.modules.project_management.contracts.reads.financials.configuration.models.setup_facts import (
     FinanceSetupWorkspaceFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.planned_costs.models.planned_cost_facts import (
+    FinancePlannedCostWorkspaceFacts,
 )
 
 

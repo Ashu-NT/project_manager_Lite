@@ -2,6 +2,10 @@
 from datetime import date, datetime
 from types import SimpleNamespace
 
+from src.core.modules.project_management.application.timesheets.dto.commands.time_entries import (
+    TimesheetEntryCreateCommand,
+    TimesheetEntryUpdateCommand,
+)
 from src.core.platform.application.time_management.time import TimesheetPeriodAggregate
 from src.core.platform.domain.time_management.time import (
     TimeEntry,
@@ -73,6 +77,23 @@ class _FakeTimesheetService:
         period_start: date,
     ) -> TimesheetPeriod:
         return self.get_timesheet_period(resource_id, period_start=period_start)
+
+    def add_timesheet_entry(self, command: TimesheetEntryCreateCommand) -> TimeEntry:
+        return self.add_time_entry(
+            command.assignment_id,
+            entry_date=command.entry_date,
+            hours=command.hours,
+            note=command.note,
+        )
+
+    def update_timesheet_entry(self, command: TimesheetEntryUpdateCommand) -> TimeEntry:
+        return self.update_time_entry(
+            command.entry_id,
+            expected_version=command.expected_version,
+            entry_date=command.entry_date,
+            hours=command.hours,
+            note=command.note,
+        )
 
     def add_time_entry(
         self,

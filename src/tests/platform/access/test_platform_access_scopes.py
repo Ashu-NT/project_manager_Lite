@@ -5,9 +5,16 @@ import pytest
 from src.core.modules.project_management.access.policy import (
     resolve_project_scope_permissions,
 )
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantRemoveCommand,
+)
 from src.core.platform.access.authorization import require_scope_permission
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
+)
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.master_data.org.access_policy import (
@@ -114,12 +121,8 @@ def test_access_service_supports_organization_scope_grants_and_principal_hydrati
         role_names=["viewer"],
     )
 
-    grant_a = access.assign_scope_grant(
-        scope_type="organization", scope_id=org_a.id, user_id=user.id, scope_role="viewer",
-    )
-    grant_b = access.assign_scope_grant(
-        scope_type="organization", scope_id=org_b.id, user_id=user.id, scope_role="member",
-    )
+    grant_a = access.assign_scope_grant(ScopedAccessGrantAssignCommand(scope_type="organization", scope_id=org_a.id, user_id=user.id, scope_role="viewer"))
+    grant_b = access.assign_scope_grant(ScopedAccessGrantAssignCommand(scope_type="organization", scope_id=org_b.id, user_id=user.id, scope_role="member"))
 
     assert grant_a.scope_type == "organization"
     assert grant_a.permission_codes == sorted(resolve_organization_scope_permissions("viewer"))
@@ -143,7 +146,7 @@ def test_access_service_supports_organization_scope_grants_and_principal_hydrati
     assert listed_scope_grants[0].id == grant_a.id
     assert {row.id for row in listed_user_grants} == {grant_a.id, grant_b.id}
 
-    access.remove_scope_grant(scope_type="organization", scope_id=org_a.id, user_id=user.id)
+    access.remove_scope_grant(ScopedAccessGrantRemoveCommand(scope_type="organization", scope_id=org_a.id, user_id=user.id))
     principal_after_revoke = services["principal_builder"].build(user)
     assert org_a.id not in principal_after_revoke.scoped_access.get("organization", {})
     assert org_b.id in principal_after_revoke.scoped_access.get("organization", {})
@@ -177,12 +180,7 @@ def test_access_service_rejects_organization_target_from_another_tenant(services
     )
 
     with pytest.raises(NotFoundError) as exc_info:
-        services["access_service"].assign_scope_grant(
-            scope_type="organization",
-            scope_id=foreign_org.id,
-            user_id=target.id,
-            scope_role="viewer",
-        )
+        services["access_service"].assign_scope_grant(ScopedAccessGrantAssignCommand(scope_type="organization", scope_id=foreign_org.id, user_id=target.id, scope_role="viewer"))
     assert exc_info.value.code == "ORGANIZATION_NOT_FOUND"
 
 
@@ -200,12 +198,7 @@ def test_access_service_allows_organization_scope_grant_to_a_disabled_organizati
         role_names=["viewer"],
     )
 
-    grant = access.assign_scope_grant(
-        scope_type="organization",
-        scope_id=disabled_org.id,
-        user_id=user.id,
-        scope_role="viewer",
-    )
+    grant = access.assign_scope_grant(ScopedAccessGrantAssignCommand(scope_type="organization", scope_id=disabled_org.id, user_id=user.id, scope_role="viewer"))
 
     assert grant.scope_id == disabled_org.id
     principal = services["principal_builder"].build(user)
@@ -216,10 +209,7 @@ def test_access_service_rejects_target_from_another_tenant(services):
     project = services['project_create'].create_project(
         "Cross Tenant Access Target"
     )
-    other_tenant = services["tenant_lifecycle_commands"].create_tenant(
-        "ACCESS-TARGET",
-        "Access Target Tenant",
-    )
+    other_tenant = services["tenant_lifecycle_commands"].create_tenant(TenantCreateCommand(tenant_code="ACCESS-TARGET", display_name="Access Target Tenant"))
     target = services["user_registration"].register_user(
         "cross-tenant-membership-target",
         "StrongPass123",
@@ -228,12 +218,7 @@ def test_access_service_rejects_target_from_another_tenant(services):
     )
 
     with pytest.raises(BusinessRuleError) as exc_info:
-        services["access_service"].assign_scope_grant(
-            scope_type="project",
-            scope_id=project.id,
-            user_id=target.id,
-            scope_role="viewer",
-        )
+        services["access_service"].assign_scope_grant(ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project.id, user_id=target.id, scope_role="viewer"))
 
     assert exc_info.value.code == "ACCESS_TARGET_TENANT_DENIED"
 
@@ -247,12 +232,7 @@ def test_auth_build_principal_populates_generic_scoped_access_from_project_membe
         role_names=["viewer"],
     )
 
-    access.assign_scope_grant(
-        scope_type="project",
-        scope_id=project.id,
-        user_id=user.id,
-        scope_role="viewer",
-    )
+    access.assign_scope_grant(ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project.id, user_id=user.id, scope_role="viewer"))
 
     principal = services["principal_builder"].build(user)
 
@@ -272,12 +252,7 @@ def test_access_service_supports_site_scope_grants_and_site_filtering(services):
         role_names=["inventory_manager"],
     )
 
-    grant = access.assign_scope_grant(
-        scope_type="site",
-        scope_id=site_a.id,
-        user_id=user.id,
-        scope_role="manager",
-    )
+    grant = access.assign_scope_grant(ScopedAccessGrantAssignCommand(scope_type="site", scope_id=site_a.id, user_id=user.id, scope_role="manager"))
 
     assert grant.permission_codes == sorted(resolve_site_scope_permissions("manager"))
     principal = services["principal_builder"].build(user)

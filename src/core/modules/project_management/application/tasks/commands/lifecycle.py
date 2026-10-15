@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -12,17 +12,33 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.tasks._command_values import (
+    constraint_type as normalize_constraint_type,
+)
+from src.core.modules.project_management.application.tasks._command_values import (
+    task_status,
+)
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
 )
 from src.core.modules.project_management.application.tasks.commands.identity import (
     TaskCodePolicy,
 )
+from src.core.modules.project_management.application.tasks.commands.progress import (
+    TaskProgressCommandHandler,
+)
 from src.core.modules.project_management.application.tasks.commands.scheduling_constraint import (
     TaskSchedulingConstraintHandler,
 )
 from src.core.modules.project_management.application.tasks.commands.validation import (
     TaskValidationPolicy,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+    TaskUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskBulkStatusCommand,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskCreated,
@@ -71,6 +87,7 @@ class TaskLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
         hierarchy_policy: TaskHierarchyPolicy,
         validation_policy: TaskValidationPolicy,
         scheduling_constraint_handler: TaskSchedulingConstraintHandler,
+        progress_handler: TaskProgressCommandHandler,
         uow_scope: TaskUowScope,
     ) -> None:
         self._module_catalog_service = module_catalog_service
@@ -82,26 +99,25 @@ class TaskLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
         self._hierarchy_policy = hierarchy_policy
         self._validation_policy = validation_policy
         self._scheduling_constraint_handler = scheduling_constraint_handler
+        self._progress_handler = progress_handler
         self._uow_scope = uow_scope
 
-    def create_task(
-        self,
-        project_id: str,
-        name: str,
-        description: str = "",
-        start_date: date | None = None,
-        duration_days: int | None = None,
-        status: TaskStatus = TaskStatus.TODO,
-        priority: int = 0,
-        deadline: date | None = None,
-        code: str = "",
-        parent_task_id: str | None = None,
-        wbs_code: str = "",
-        sort_order: int | None = None,
-        is_milestone: bool = False,
-        constraint_type=None,
-        constraint_date: date | None = None,
-    ) -> Task:
+    def create_task(self, command: TaskCreateCommand) -> Task:
+        project_id = command.project_id
+        name = command.name
+        description = command.description
+        start_date = command.start_date
+        duration_days = command.duration_days
+        status = TaskStatus.TODO
+        priority = command.priority if command.priority is not None else 0
+        deadline = command.deadline
+        code = command.code
+        parent_task_id = command.parent_task_id
+        wbs_code = command.wbs_code
+        sort_order = command.sort_order
+        is_milestone = command.is_milestone
+        constraint_type = normalize_constraint_type(command.constraint_type)
+        constraint_date = command.constraint_date
         require_permission(self._user_session, "task.manage", operation_label="create task")
         require_project_permission(
             self._user_session,
@@ -170,6 +186,12 @@ class TaskLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
                 )
                 uow.commit()
             logger.info("Created task %s - %s for project %s", task.id, task.name, project_id)
+            desired_status = task_status(command.status)
+            if desired_status != task.status:
+                changed = self._progress_handler.set_tasks_status(
+                    TaskBulkStatusCommand((task.id,), desired_status.value)
+                )
+                task = changed[0] if changed else task
             return task
         except IntegrityError as exc:
             if self._code_policy.is_task_code_integrity_error(exc):
@@ -185,20 +207,19 @@ class TaskLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
             logger.error("Error creating task: %s", exc)
             raise
 
-    def update_task(
-        self,
-        task_id: str,
-        name: str | None = None,
-        description: str | None = None,
-        start_date: date | None = None,
-        duration_days: int | None = None,
-        status: TaskStatus | None = None,
-        priority: int | None = None,
-        deadline: date | None = None,
-        expected_version: int | None = None,
-        code: str | None = None,
-        is_milestone: bool | None = None,
-    ) -> Task:
+    def update_task(self, command: TaskUpdateCommand) -> Task:
+        desired_status = task_status(command.status)
+        task_id = command.task_id
+        name = command.name
+        description = command.description
+        start_date = command.start_date
+        duration_days = command.duration_days
+        status = None
+        priority = command.priority
+        deadline = command.deadline
+        expected_version = command.expected_version
+        code = command.code
+        is_milestone = command.is_milestone
         require_permission(self._user_session, "task.manage", operation_label="update task")
         task = self._task_repo.get(task_id)
         if not task:
@@ -314,6 +335,11 @@ class TaskLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
             if self._code_policy.is_task_code_integrity_error(exc):
                 self._code_policy.raise_task_code_duplicate(candidate.code, exc)
             raise
+        if desired_status != task.status:
+            changed = self._progress_handler.set_tasks_status(
+                TaskBulkStatusCommand((candidate.id,), desired_status.value)
+            )
+            candidate = changed[0] if changed else candidate
         return candidate
 
 __all__ = ["TaskLifecycleCommandHandler"]

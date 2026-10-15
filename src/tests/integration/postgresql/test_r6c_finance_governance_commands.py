@@ -34,7 +34,7 @@ from src.core.modules.project_management.application.financials.forecasts.comman
     ForecastLifecycleCommands,
     ForecastLineCommands,
 )
-from src.core.modules.project_management.application.financials.forecasts.generation_models import (
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_estimates import (
     ManualEtcEstimate,
 )
 from src.core.modules.project_management.application.financials.governance.command_boundary import (
@@ -44,7 +44,7 @@ from src.core.modules.project_management.application.financials.rate_cards.comma
     ProjectRateCardCommandHandler,
     RateCardLineCommandHandler,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
     FinancePageRequest,
 )
 from src.core.modules.project_management.domain.financials.financial_change import (

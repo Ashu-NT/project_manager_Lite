@@ -56,7 +56,7 @@ PATH_REWRITE_EXACT = {
     "core/services/register/service.py": "src/core/modules/project_management/application/risk/queries/register_query.py",
     "core/services/register/lifecycle.py": "src/core/modules/project_management/application/risk/commands/register_lifecycle.py",
     "core/services/register/query.py": "src/core/modules/project_management/application/risk/queries/register_query.py",
-    "core/services/register/models.py": "src/core/modules/project_management/application/risk/dto/register_summary.py",
+    "core/services/register/models.py": "src/core/modules/project_management/application/risk/dto/responses/register_summary.py",
     "core/services/reporting/__init__.py": "src/core/modules/project_management/infrastructure/reporting/__init__.py",
     "core/services/reporting/baseline_compare.py": "src/core/modules/project_management/infrastructure/reporting/baseline_compare.py",
     "core/services/reporting/cost_breakdown.py": "src/core/modules/project_management/infrastructure/reporting/cost_breakdown.py",

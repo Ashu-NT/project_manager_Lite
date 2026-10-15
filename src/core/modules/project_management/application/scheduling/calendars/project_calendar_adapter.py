@@ -9,6 +9,10 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
+    ResolveCalendarRangeCommand,
+    ResolveContextCommand,
+)
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
     ResolvedCalendarContext,
@@ -91,8 +95,7 @@ class ProjectCalendarAdapter:
         self, project_id: str, target_date: date
     ) -> ResolvedCalendarContext:
         return self._resolver.resolve_calendar_context(
-            project_id=project_id,
-            target_date=target_date,
+            ResolveContextCommand(project_id=project_id, target_date=target_date)
         )
 
     def is_working_day(self, project_id: str, target_date: date) -> bool:
@@ -104,7 +107,9 @@ class ProjectCalendarAdapter:
             return 0
         # Use resolve_range for bulk efficiency — single set of DB queries for the range
         try:
-            days = self._resolver.resolve_range(project_id=project_id, start=start, end=end)
+            days = self._resolver.resolve_range(
+                ResolveCalendarRangeCommand(project_id=project_id, start_date=start, end_date=end)
+            )
             return sum(1 for d in days if d.available_hours > 0)
         except Exception:
             # Fallback: day-by-day (safe but slower)
@@ -127,7 +132,9 @@ class ProjectCalendarAdapter:
         """Resolve one bounded project-calendar snapshot without query fallbacks."""
         if end < start:
             return frozenset()
-        days = self._resolver.resolve_range(project_id=project_id, start=start, end=end)
+        days = self._resolver.resolve_range(
+            ResolveCalendarRangeCommand(project_id=project_id, start_date=start, end_date=end)
+        )
         return frozenset(day.date for day in days if day.available_hours > 0)
 
     def add_working_days(self, project_id: str, start: date, n: int) -> date:

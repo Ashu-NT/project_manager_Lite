@@ -27,6 +27,12 @@ from src.core.modules.project_management.domain.financials.forecast import (
 from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
     ProjectBillingPreparationORM,
 )
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
@@ -47,13 +53,7 @@ def _setup_billable_project(
     ))
     if create_period:
         services["financial_period_commands"].create_period(
-            code="FY26-PROF",
-            name="August 2026",
-            fiscal_year=2026,
-            period_number=8,
-            start_date=date(2026, 8, 1),
-            end_date=date(2026, 8, 31),
-        )
+            FinancialPeriodCreateCommand(code="FY26-PROF", name="August 2026", fiscal_year=2026, period_number=8, start_date=date(2026, 8, 1).isoformat(), end_date=date(2026, 8, 31).isoformat()))
     profile = services['financial_configuration_query'].get_profile(project.id)
     services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,
@@ -364,7 +364,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
     reviewer = services["authentication"].authenticate("profit-billing-reviewer", "StrongPass123")
     services["user_session"].set_principal(services["principal_builder"].build(reviewer))
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
-    services["approval_commands"].approve_and_apply(request.id, note="Approved for delivery")
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Approved for delivery"))
 
     approved = services['billing_preparation_query'].get_preparation(preparation.id)
     admin = services["authentication"].authenticate("admin", "ChangeMe123!")
@@ -453,7 +453,7 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
         reviewer = services["authentication"].authenticate("profit-multi-reviewer", "StrongPass123")
         services["user_session"].set_principal(services["principal_builder"].build(reviewer))
         request = services["approval_queries"].list_pending(project_id=project.id)[-1]
-        services["approval_commands"].approve_and_apply(request.id, note="Approved")
+        services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Approved"))
         return services['billing_preparation_query'].get_preparation(preparation.id)
 
     _govern("BP-PROFIT-A", line_a, "billing-run-a")

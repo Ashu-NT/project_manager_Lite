@@ -15,6 +15,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.accounti
 from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
     ProjectBillingProfileORM,
 )
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
@@ -43,7 +46,7 @@ def approved_preparation(services):
         "handoff-reviewer", "StrongPass123", role_names=["approver"]
     )
     _login(services, "handoff-reviewer", "StrongPass123")
-    services["approval_commands"].approve_and_apply(approval.id)
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=approval.id))
     _login(services, "admin", "ChangeMe123!")
     return services['billing_preparation_query'].get_preparation(submitted.id)
 
@@ -611,7 +614,7 @@ def test_correction_gets_new_identity_without_changing_parent(
         project_id=approved.project_id
     )[0]
     _login(services, "handoff-reviewer", "StrongPass123")
-    services["approval_commands"].approve_and_apply(approval.id)
+    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=approval.id))
     _login(services, "admin", "ChangeMe123!")
     correction = services['billing_preparation_query'].get_preparation(correction.id)
     successor = services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(

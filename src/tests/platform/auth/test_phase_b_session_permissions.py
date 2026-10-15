@@ -5,6 +5,15 @@ from decimal import Decimal
 
 import pytest
 
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
+)
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserPasswordResetCommand,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
@@ -94,7 +103,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     _login_as(services, "viewer2", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        services["password_commands"].reset_user_password(target.id, "ResetByViewer123")
+        services["password_commands"].reset_user_password(UserPasswordResetCommand(user_id=target.id, new_password="ResetByViewer123"))
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         services["resource_master_commands"].create_resource("Forbidden resource")
@@ -169,11 +178,7 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
         services["project_resource_commands"].delete(project_resource.id)
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ecs_commands.create_calendar(
-            name="Viewer Calendar",
-            code="VIEWER_CAL",
-            calendar_type="standard",
-        )
+        ecs_commands.create_calendar(CalendarCreateCommand(name='Viewer Calendar', code='VIEWER_CAL', calendar_type='standard'))
 
 
 def test_governance_permissions_are_split_between_request_and_decide(
@@ -215,7 +220,7 @@ def test_governance_permissions_are_split_between_request_and_decide(
     with pytest.raises(BusinessRuleError, match="approval.request"):
         services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(item.id, expected_version=item.row_version))
     with pytest.raises(BusinessRuleError, match="approval.decide"):
-        approvals.approve_and_apply(request_id)
+        approvals.approve_and_apply(ApprovalDecisionCommand(request_id=request_id))
 
 
 def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(

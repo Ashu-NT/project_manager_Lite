@@ -34,8 +34,14 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
     CalendarAssignmentCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    ProjectCalendarAssignCommand,
+)
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
+    ResolveContextCommand,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -55,6 +61,9 @@ from src.core.platform.application.time_management.calendar.definitions.commands
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
     CalendarExceptionQueryHandler,
 )
@@ -63,6 +72,9 @@ from src.core.platform.application.time_management.calendar.definitions.queries.
 )
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -376,13 +388,9 @@ def test_project_calendar_assigned_and_resolved(
     db_session,
     tenant_context,
 ):
-    project_cal = cal_commands.create_calendar(
-        code="PRJ-REFIT",
-        name="Refit Project",
-        calendar_type=CalendarType.PROJECT.value,
-    )
+    project_cal = cal_commands.create_calendar(CalendarCreateCommand(code='PRJ-REFIT', name='Refit Project', calendar_type=CalendarType.PROJECT.value))
     _seed_project(db_session, tenant_context, "proj-001")
-    assignment_commands.assign_project_calendar("proj-001", project_cal.id)
+    assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-001', calendar_id=project_cal.id))
 
     chain = resolver.get_source_chain(project_id="proj-001")
     assert any("PRJ" in s for s in chain)
@@ -397,57 +405,29 @@ def test_project_calendar_enables_weekend_work(
     db_session,
     tenant_context,
 ):
-    project_cal = cal_commands.create_calendar(
-        code="PRJ-WEEKEND",
-        name="Weekend Project",
-        calendar_type=CalendarType.PROJECT.value,
-    )
-    rule_commands.save_rule(
-        project_cal.id,
-        weekday=5,  # Saturday
-        is_working_day=True,
-        start_time=time(8, 0),
-        end_time=time(14, 0),
-    )
+    project_cal = cal_commands.create_calendar(CalendarCreateCommand(code='PRJ-WEEKEND', name='Weekend Project', calendar_type=CalendarType.PROJECT.value))
+    rule_commands.save_rule(WorkingRuleSaveCommand(calendar_id=project_cal.id, weekday=5, is_working_day=True, start_time=time(8, 0), end_time=time(14, 0)))
     _seed_project(db_session, tenant_context, "proj-weekend")
-    assignment_commands.assign_project_calendar("proj-weekend", project_cal.id)
+    assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-weekend', calendar_id=project_cal.id))
 
-    ctx = resolver.resolve_calendar_context(
-        project_id="proj-weekend",
-        target_date=date(2026, 6, 6),  # Saturday
-    )
+    ctx = resolver.resolve_calendar_context(ResolveContextCommand(project_id='proj-weekend', target_date=date(2026, 6, 6)))
     assert ctx.available_hours > 0  # Saturday is now working via project override
 
 
 def test_project_calendar_assignment_service_uses_dto_validation_and_normalization(
     cal_commands, assignment_commands, db_session, tenant_context
 ):
-    project_cal = cal_commands.create_calendar(
-        code="PRJ-NORMALIZED",
-        name="Normalized Project Calendar",
-        calendar_type=CalendarType.PROJECT.value,
-    )
+    project_cal = cal_commands.create_calendar(CalendarCreateCommand(code='PRJ-NORMALIZED', name='Normalized Project Calendar', calendar_type=CalendarType.PROJECT.value))
     _seed_project(db_session, tenant_context, "proj-normalized")
 
-    assignment = assignment_commands.assign_project_calendar(
-        "  proj-normalized  ",
-        f"  {project_cal.id}  ",
-        effective_from=date(2026, 1, 1),
-        effective_to=date(2026, 12, 31),
-        priority="2",
-    )
+    assignment = assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='  proj-normalized  ', calendar_id=f'  {project_cal.id}  ', effective_from=date(2026, 1, 1), effective_to=date(2026, 12, 31), priority='2'))
 
     assert assignment.project_id == "proj-normalized"
     assert assignment.calendar_id == project_cal.id
     assert assignment.priority == 2
 
     with pytest.raises(ValidationError) as exc:
-        assignment_commands.assign_project_calendar(
-            "proj-normalized",
-            project_cal.id,
-            effective_from=date(2026, 12, 31),
-            effective_to=date(2026, 1, 1),
-        )
+        assignment_commands.assign_project_calendar(ProjectCalendarAssignCommand(project_id='proj-normalized', calendar_id=project_cal.id, effective_from=date(2026, 12, 31), effective_to=date(2026, 1, 1)))
     assert exc.value.code == "PROJECT_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID"
 
 

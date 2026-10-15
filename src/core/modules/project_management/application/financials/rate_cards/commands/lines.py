@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, date, datetime
-from decimal import Decimal
 from enum import Enum
 from typing import Any, Final
 
@@ -14,6 +13,17 @@ from src.core.modules.project_management.access.scope_permissions import (
 )
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.financials.rate_cards._command_values import (
+    command_amount as _command_amount,
+)
+from src.core.modules.project_management.application.financials.rate_cards._command_values import (
+    optional_command_amount as _optional_command_amount,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_lines import (
+    FinancialAddRateLineCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateLineCommand,
 )
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardLineAdded,
@@ -30,7 +40,6 @@ from src.core.modules.project_management.domain.financials.rate_cards import (
     ProjectRateCard,
     RateCardLine,
     RateLineOrigin,
-    RateType,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -86,28 +95,25 @@ class RateCardLineCommandHandler(ProjectManagementModuleGuardMixin):
 
     # -- Rate cards ---------------------------------------------------
 
-    def create_line(
-        self,
-        rate_card_id: str,
-        *,
-        rate_type: RateType | str,
-        unit: str,
-        rate_amount: Decimal,
-        rate_currency: str,
-        origin: RateLineOrigin | str = RateLineOrigin.CONFIGURED,
-        resource_id: str | None = None,
-        customer_party_id: str | None = None,
-        contract_reference: str | None = None,
-        role: str | None = None,
-        skill_code: str | None = None,
-        department_id: str | None = None,
-        effective_from: date | None = None,
-        effective_to: date | None = None,
-        overtime_multiplier: Decimal | None = None,
-        weekend_multiplier: Decimal | None = None,
-        holiday_multiplier: Decimal | None = None,
-        expected_card_version: int | None = None,
-    ) -> RateCardLine:
+    def create_line(self, command: FinancialAddRateLineCommand) -> RateCardLine:
+        rate_card_id = command.rate_card_id
+        rate_type = command.rate_type
+        unit = command.unit
+        rate_amount = _command_amount(command.rate_amount, "Rate amount")
+        rate_currency = command.rate_currency
+        origin = RateLineOrigin.CONFIGURED
+        resource_id = command.resource_id
+        customer_party_id = command.customer_party_id
+        contract_reference = command.contract_reference
+        role = command.role
+        skill_code = command.skill_code
+        department_id = command.department_id
+        effective_from = command.effective_from
+        effective_to = command.effective_to
+        overtime_multiplier = _optional_command_amount(command.overtime_multiplier)
+        weekend_multiplier = _optional_command_amount(command.weekend_multiplier)
+        holiday_multiplier = _optional_command_amount(command.holiday_multiplier)
+        expected_card_version = command.expected_card_version
         card = self._require_rate_card(rate_card_id)
         self._require_card_manage(card, "create rate card line")
         self._require_active_card(card)
@@ -151,19 +157,16 @@ class RateCardLineCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return line
 
-    def update_line(
-        self,
-        line_id: str,
-        *,
-        expected_version: int,
-        effective_from: date | None | _Unset = _UNSET,
-        effective_to: date | None | _Unset = _UNSET,
-        rate_amount: Decimal | _Unset = _UNSET,
-        overtime_multiplier: Decimal | None | _Unset = _UNSET,
-        weekend_multiplier: Decimal | None | _Unset = _UNSET,
-        holiday_multiplier: Decimal | None | _Unset = _UNSET,
-        expected_card_version: int | None = None,
-    ) -> RateCardLine:
+    def update_line(self, command: FinancialUpdateRateLineCommand) -> RateCardLine:
+        line_id = command.rate_line_id
+        expected_version = command.expected_version
+        effective_from = command.effective_from
+        effective_to = command.effective_to
+        rate_amount = _command_amount(command.rate_amount, "Rate amount")
+        overtime_multiplier = _optional_command_amount(command.overtime_multiplier)
+        weekend_multiplier = _optional_command_amount(command.weekend_multiplier)
+        holiday_multiplier = _optional_command_amount(command.holiday_multiplier)
+        expected_card_version = command.expected_card_version
         current = self._require_line(line_id, for_update=True)
         card = self._require_rate_card(current.rate_card_id)
         self._require_card_manage(card, "update rate card line")
@@ -216,13 +219,10 @@ class RateCardLineCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return candidate
 
-    def deactivate_line(
-        self,
-        line_id: str,
-        *,
-        expected_version: int,
-        expected_card_version: int | None = None,
-    ) -> RateCardLine:
+    def deactivate_line(self, command: FinancialVersionedRateLineCommand) -> RateCardLine:
+        line_id = command.rate_line_id
+        expected_version = command.expected_version
+        expected_card_version = command.expected_card_version
         current = self._require_line(line_id, for_update=True)
         card = self._require_rate_card(current.rate_card_id)
         self._require_card_manage(card, "deactivate rate card line")

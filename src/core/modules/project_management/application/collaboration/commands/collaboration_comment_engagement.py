@@ -10,6 +10,9 @@ from src.core.modules.project_management.application.collaboration.collaboration
     TaskCommentReactionChangeType,
     TaskCommentReadStateChanged,
 )
+from src.core.modules.project_management.application.collaboration.dto.commands.comment_reactions import (
+    TaskCollaborationReactionCommand,
+)
 from src.core.modules.project_management.application.collaboration.utils.visibility import (
     CollaborationVisibilityPolicy,
     new_collaboration_context,
@@ -96,7 +99,9 @@ class CollaborationCommentEngagementHandler(ProjectManagementModuleGuardMixin):
             )
         return principal_user_id
 
-    def react_to_comment(self, comment_id: str, emoji: str) -> TaskComment:
+    def react_to_comment(self, command: TaskCollaborationReactionCommand) -> TaskComment:
+        comment_id = command.comment_id.strip()
+        emoji = command.emoji
         comment, task = self._require_comment_for_reaction(comment_id)
         principal_user_id = self._principal_user_id_for_reaction()
         emoji_key = normalize_optional_text(emoji)
@@ -131,7 +136,9 @@ class CollaborationCommentEngagementHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
         return comment
 
-    def remove_reaction(self, comment_id: str, emoji: str) -> TaskComment:
+    def remove_reaction(self, command: TaskCollaborationReactionCommand) -> TaskComment:
+        comment_id = command.comment_id.strip()
+        emoji = command.emoji
         comment, task = self._require_comment_for_reaction(comment_id)
         principal_user_id = self._principal_user_id_for_reaction()
         emoji_key = normalize_optional_text(emoji)

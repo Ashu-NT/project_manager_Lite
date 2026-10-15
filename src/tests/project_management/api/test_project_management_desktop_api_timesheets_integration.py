@@ -6,6 +6,10 @@ import pytest
 from src.core.modules.project_management.api.desktop import (
     build_project_management_timesheets_desktop_api,
 )
+from src.core.modules.project_management.application.timesheets.dto.commands.time_entries import (
+    TimesheetEntryCreateCommand,
+    TimesheetEntryUpdateCommand,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
     WorkerType,
@@ -96,6 +100,7 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         resource_query=resource_service,
         # The fake implements every Time capability the adapter uses.
         timesheet_review_query=timesheet_service,
+        timesheet_workspace_commands=timesheet_service,
         time_entry_commands=timesheet_service,
         time_entry_queries=timesheet_service,
         timesheet_period_query=timesheet_service,
@@ -109,7 +114,7 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
     )
 
     created_entry = api.add_time_entry(
-        SimpleNamespace(
+        TimesheetEntryCreateCommand(
             assignment_id=assignment.id,
             entry_date=date(2026, 5, 3),
             hours=8.0,
@@ -117,7 +122,7 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         )
     )
     api.add_time_entry(
-        SimpleNamespace(
+        TimesheetEntryCreateCommand(
             assignment_id=assignment.id,
             entry_date=date(2026, 5, 4),
             hours=6.5,
@@ -125,7 +130,7 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         )
     )
     updated_entry = api.update_time_entry(
-        SimpleNamespace(
+        TimesheetEntryUpdateCommand(
             entry_id=created_entry.entry_id,
             expected_version=created_entry.version,
             entry_date=date(2026, 5, 3),

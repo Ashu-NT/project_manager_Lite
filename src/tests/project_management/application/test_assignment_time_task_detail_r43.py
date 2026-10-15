@@ -266,7 +266,7 @@ def test_desktop_create_assignment_forwards_planned_hours_and_exposes_project_re
         project_service=ps, task_lookup_query=services['task_lookup_query'], task_hierarchy_query=services['task_hierarchy_query'], task_deletion_commands=services['task_deletion_commands'], task_progress_commands=services['task_progress_commands'], task_hierarchy_commands=services['task_hierarchy_commands'], task_constraint_commands=services['task_constraint_commands'], task_lifecycle_commands=services['task_lifecycle_commands'], task_dependency_commands=services['task_dependency_commands'], task_dependency_query=services['task_dependency_query'], task_detail_query=services['task_detail_query'], task_assignment_commands=services['task_assignment_commands'], project_resource_query=prs, resource_query=rs,
     )
 
-    from src.core.modules.project_management.application.tasks.dto import (
+    from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
         TaskAssignmentCreateCommand,
     )
 
@@ -292,7 +292,7 @@ def test_desktop_update_assignment_planned_hours_succeeds_with_correct_versions(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
     )
 
-    from src.core.modules.project_management.application.tasks.dto import (
+    from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
         TaskAssignmentPlannedHoursCommand,
     )
 
@@ -330,7 +330,7 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
         task_id=task_b.id, project_resource_id=project_resource.id, allocation_percent=50.0
     )
 
-    from src.core.modules.project_management.application.tasks.dto import (
+    from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
         TaskAssignmentPlannedHoursCommand,
     )
 

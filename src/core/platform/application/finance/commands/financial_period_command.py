@@ -9,6 +9,11 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.platform.application.finance.dto.commands.financial_periods import (
+    FinancialPeriodCreateCommand,
+    FinancialPeriodTransitionCommand,
+    FinancialPeriodUpdateCommand,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -17,6 +22,7 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
+    ValidationError,
 )
 from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
 from src.core.platform.domain.finance.periods import (
@@ -24,6 +30,22 @@ from src.core.platform.domain.finance.periods import (
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
+
+
+def _parse_required_date(value: str, *, field_name: str) -> date:
+    try:
+        return date.fromisoformat(str(value or "").strip())
+    except ValueError as exc:
+        raise ValidationError(
+            f"{field_name} must be a valid ISO date.",
+            code="FINANCIAL_PERIOD_DATE_INVALID",
+        ) from exc
+
+
+def _parse_optional_date(value: str | None, *, field_name: str) -> date | None:
+    if value is None:
+        return None
+    return _parse_required_date(value, field_name=field_name)
 
 
 def _utc_now() -> datetime:
@@ -54,16 +76,13 @@ class FinancialPeriodCommandHandler:
         self._enterprise_audit_service = enterprise_audit_service
         self._now_provider = now_provider
 
-    def create_period(
-        self,
-        *,
-        code: str,
-        name: str,
-        fiscal_year: int,
-        period_number: int,
-        start_date: date,
-        end_date: date,
-    ) -> FinancialPeriod:
+    def create_period(self, command: FinancialPeriodCreateCommand) -> FinancialPeriod:
+        code = command.code
+        name = command.name
+        fiscal_year = command.fiscal_year
+        period_number = command.period_number
+        start_date = _parse_required_date(command.start_date, field_name="Start date")
+        end_date = _parse_required_date(command.end_date, field_name="End date")
         require_permission(
             self._user_session,
             "finance.manage",
@@ -99,18 +118,15 @@ class FinancialPeriodCommandHandler:
         self._session.commit()
         return period
 
-    def update_period(
-        self,
-        period_id: str,
-        *,
-        expected_version: int,
-        code: str | None = None,
-        name: str | None = None,
-        fiscal_year: int | None = None,
-        period_number: int | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
-    ) -> FinancialPeriod:
+    def update_period(self, command: FinancialPeriodUpdateCommand) -> FinancialPeriod:
+        period_id = command.period_id
+        expected_version = command.expected_version
+        code = command.code
+        name = command.name
+        fiscal_year = command.fiscal_year
+        period_number = command.period_number
+        start_date = _parse_optional_date(command.start_date, field_name="Start date")
+        end_date = _parse_optional_date(command.end_date, field_name="End date")
         require_permission(
             self._user_session,
             "finance.manage",
@@ -148,14 +164,18 @@ class FinancialPeriodCommandHandler:
         self._session.commit()
         return current
 
-    def close_period(self, period_id: str, *, expected_version: int) -> FinancialPeriod:
+    def close_period(self, command: FinancialPeriodTransitionCommand) -> FinancialPeriod:
+        period_id = command.period_id
+        expected_version = command.expected_version
         return self._transition(
             period_id,
             expected_version=expected_version,
             operation="close",
         )
 
-    def lock_period(self, period_id: str, *, expected_version: int) -> FinancialPeriod:
+    def lock_period(self, command: FinancialPeriodTransitionCommand) -> FinancialPeriod:
+        period_id = command.period_id
+        expected_version = command.expected_version
         return self._transition(
             period_id,
             expected_version=expected_version,

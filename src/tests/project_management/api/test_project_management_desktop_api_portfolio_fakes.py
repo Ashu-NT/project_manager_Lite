@@ -1,5 +1,13 @@
+
 from datetime import date, datetime
 
+from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
+    PortfolioIntakeCreateCommand,
+)
+from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
+    PortfolioTemplateActivateCommand,
+    PortfolioTemplateCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import (
     ProjectStatus,
 )
@@ -103,17 +111,14 @@ class _FakePortfolioServiceBase:
     def list_scoring_templates(self) -> list[PortfolioScoringTemplate]:
         return list(self._templates.values())
 
-    def create_scoring_template(
-        self,
-        *,
-        name: str,
-        summary: str = "",
-        strategic_weight: int = 3,
-        value_weight: int = 2,
-        urgency_weight: int = 2,
-        risk_weight: int = 1,
-        activate: bool = False,
-    ) -> PortfolioScoringTemplate:
+    def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioScoringTemplate:
+        name = command.name
+        summary = command.summary
+        strategic_weight = command.strategic_weight
+        value_weight = command.value_weight
+        urgency_weight = command.urgency_weight
+        risk_weight = command.risk_weight
+        activate = command.activate
         if activate:
             for existing in self._templates.values():
                 existing.is_active = False
@@ -134,7 +139,8 @@ class _FakePortfolioServiceBase:
         self._append_action("Template created", "Portfolio", summary or name)
         return template
 
-    def activate_scoring_template(self, template_id: str) -> PortfolioScoringTemplate:
+    def activate_scoring_template(self, command: PortfolioTemplateActivateCommand) -> PortfolioScoringTemplate:
+        template_id = command.template_id
         for existing in self._templates.values():
             existing.is_active = existing.id == template_id
         template = self._templates[template_id]
@@ -147,22 +153,19 @@ class _FakePortfolioServiceBase:
             rows = [row for row in rows if row.status == status]
         return rows
 
-    def create_intake_item(
-        self,
-        *,
-        title: str,
-        sponsor_name: str,
-        summary: str = "",
-        requested_budget: float = 0.0,
-        requested_capacity_percent: float = 0.0,
-        target_start_date: date | None = None,
-        strategic_score: int = 3,
-        value_score: int = 3,
-        urgency_score: int = 3,
-        risk_score: int = 3,
-        scoring_template_id: str | None = None,
-        status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED,
-    ) -> PortfolioIntakeItem:
+    def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeItem:
+        title = command.title
+        sponsor_name = command.sponsor_name
+        summary = command.summary
+        requested_budget = command.requested_budget
+        requested_capacity_percent = command.requested_capacity_percent
+        target_start_date = command.target_start_date
+        strategic_score = command.strategic_score
+        value_score = command.value_score
+        urgency_score = command.urgency_score
+        risk_score = command.risk_score
+        scoring_template_id = command.scoring_template_id
+        status = command.status
         template = (
             self._templates.get(str(scoring_template_id or "").strip())
             if scoring_template_id

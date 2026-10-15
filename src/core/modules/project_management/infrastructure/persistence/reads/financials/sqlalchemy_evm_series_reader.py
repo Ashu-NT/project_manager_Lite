@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+from src.core.modules.project_management.contracts.reads.financials.earned_value.models.series_facts import (
     EvmBaselineTaskFact,
     EvmSeriesFacts,
 )

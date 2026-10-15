@@ -4,6 +4,11 @@ import ast
 import inspect
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryCreateCommand,
+    RegisterEntryDeleteCommand,
+    RegisterEntryUpdateCommand,
+)
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
@@ -88,9 +93,7 @@ def test_register_create_causes_control_refresh_via_view_invalidation_only(servi
         RegisterEntryType,
     )
 
-    services["register_lifecycle_commands"].create_entry(
-        project.id, entry_type=RegisterEntryType.RISK, title="P41-FIX risk"
-    )
+    services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="P41-FIX risk"))
 
     assert refresh_calls == ["refresh"]
 
@@ -103,18 +106,14 @@ def test_register_update_and_delete_also_cause_control_refresh(services):
         RegisterEntryType,
     )
 
-    entry = services["register_lifecycle_commands"].create_entry(
-        project.id, entry_type=RegisterEntryType.ISSUE, title="P41-FIX issue"
-    )
+    entry = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.ISSUE, title="P41-FIX issue"))
     controller = platform_catalog.controlWorkspace
     controller.ensureLoaded()
     refresh_calls: list[str] = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    services["register_lifecycle_commands"].update_entry(
-        entry.id, expected_version=entry.version, title="P41-FIX issue updated"
-    )
-    services["register_lifecycle_commands"].delete_entry(entry.id)
+    services["register_lifecycle_commands"].update_entry(RegisterEntryUpdateCommand(entry.id, project_id=entry.project_id, expected_version=entry.version, title="P41-FIX issue updated"))
+    services["register_lifecycle_commands"].delete_entry(RegisterEntryDeleteCommand(entry.id))
 
     assert refresh_calls == ["refresh", "refresh"]
 
@@ -139,8 +138,6 @@ def test_control_does_not_refresh_from_an_unrelated_view_invalidation_category(s
         RegisterEntryType,
     )
 
-    services["register_lifecycle_commands"].create_entry(
-        project.id, entry_type=RegisterEntryType.RISK, title="P41-FIX category-proof risk"
-    )
+    services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="P41-FIX category-proof risk"))
 
     assert stale_calls == [project.id], "the same signal fires for an actual Register mutation"

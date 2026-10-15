@@ -9,6 +9,10 @@ import pytest
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
 )
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryCreateCommand,
+    RegisterEntryUpdateCommand,
+)
 from src.core.modules.project_management.application.risk.queries.register_query import (
     RegisterQueryHandler,
 )
@@ -341,36 +345,10 @@ def test_register_service_applies_one_triage_policy_to_lists_and_summary(
         _FixedDate,
     )
     service, commands = _make_service(monkeypatch)
-    critical_future = commands.create_entry(
-        "proj-1",
-        entry_type=RegisterEntryType.RISK,
-        title="Future critical",
-        severity=RegisterEntrySeverity.CRITICAL,
-        due_date=date(2026, 6, 15),
-    )
-    high_overdue = commands.create_entry(
-        "proj-1",
-        entry_type=RegisterEntryType.ISSUE,
-        title="High overdue",
-        severity=RegisterEntrySeverity.HIGH,
-        due_date=date(2026, 6, 5),
-    )
-    medium_overdue = commands.create_entry(
-        "proj-1",
-        entry_type=RegisterEntryType.CHANGE,
-        title="Medium overdue",
-        severity=RegisterEntrySeverity.MEDIUM,
-        status=RegisterEntryStatus.IN_PROGRESS,
-        due_date=date(2026, 6, 6),
-    )
-    commands.create_entry(
-        "proj-1",
-        entry_type=RegisterEntryType.RISK,
-        title="Closed historical item",
-        severity=RegisterEntrySeverity.LOW,
-        status=RegisterEntryStatus.CLOSED,
-        due_date=date(2026, 6, 1),
-    )
+    critical_future = commands.create_entry(RegisterEntryCreateCommand("proj-1", entry_type=RegisterEntryType.RISK, title="Future critical", severity=RegisterEntrySeverity.CRITICAL, due_date=date(2026, 6, 15)))
+    high_overdue = commands.create_entry(RegisterEntryCreateCommand("proj-1", entry_type=RegisterEntryType.ISSUE, title="High overdue", severity=RegisterEntrySeverity.HIGH, due_date=date(2026, 6, 5)))
+    medium_overdue = commands.create_entry(RegisterEntryCreateCommand("proj-1", entry_type=RegisterEntryType.CHANGE, title="Medium overdue", severity=RegisterEntrySeverity.MEDIUM, status=RegisterEntryStatus.IN_PROGRESS, due_date=date(2026, 6, 6)))
+    commands.create_entry(RegisterEntryCreateCommand("proj-1", entry_type=RegisterEntryType.RISK, title="Closed historical item", severity=RegisterEntrySeverity.LOW, status=RegisterEntryStatus.CLOSED, due_date=date(2026, 6, 1)))
 
     listed = service.list_entries(as_of=date(2026, 6, 10))
     summary = service.get_project_summary("proj-1")
@@ -403,27 +381,9 @@ def test_register_service_applies_one_triage_policy_to_lists_and_summary(
 def test_register_service_update_validates_final_state(monkeypatch: pytest.MonkeyPatch):
     service, commands = _make_service(monkeypatch)
 
-    created = commands.create_entry(
-        "proj-1",
-        entry_type="risk",
-        title="  Supplier Delay  ",
-        owner_name="  Lead Planner  ",
-        code="REG-SUPP-1",
-    )
+    created = commands.create_entry(RegisterEntryCreateCommand("proj-1", entry_type="risk", title="  Supplier Delay  ", owner_name="  Lead Planner  ", code="REG-SUPP-1"))
 
-    updated = commands.update_entry(
-        created.id,
-        expected_version=created.version,
-        title="  Supplier Delay Mitigated  ",
-        description="  Final release note received.  ",
-        severity="high",
-        status="mitigated",
-        owner_name="  Delivery Manager  ",
-        due_date=None,
-        impact_summary="  Residual freight risk remains.  ",
-        response_plan="  Track shipment daily.  ",
-        code="REG-MIT-1",
-    )
+    updated = commands.update_entry(RegisterEntryUpdateCommand(created.id, project_id=created.project_id, expected_version=created.version, title="  Supplier Delay Mitigated  ", description="  Final release note received.  ", severity="high", status="mitigated", owner_name="  Delivery Manager  ", due_date=None, impact_summary="  Residual freight risk remains.  ", response_plan="  Track shipment daily.  ", code="REG-MIT-1"))
 
     assert updated.title == "Supplier Delay Mitigated"
     assert updated.description == "Final release note received."
@@ -441,9 +401,5 @@ def test_register_service_update_validates_final_state(monkeypatch: pytest.Monke
     assert reloaded.code == "REG-MIT-1"
 
     with pytest.raises(ValidationError) as exc:
-        commands.update_entry(
-            created.id,
-            expected_version=updated.version,
-            title=" ",
-        )
+        commands.update_entry(RegisterEntryUpdateCommand(created.id, project_id=created.project_id, expected_version=updated.version, title=" "))
     assert exc.value.code == "REGISTER_TITLE_EMPTY"

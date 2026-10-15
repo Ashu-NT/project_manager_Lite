@@ -9,6 +9,10 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
+    ResolveCalendarRangeCommand,
+    ResolveContextCommand,
+)
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
     ResolvedCalendarContext,
@@ -56,14 +60,16 @@ class ResourceAvailabilityQueryHandler:
         worker_type, employee_id, resolve_resource_id = self._classify(resource, resource_id)
 
         return self._resolver.resolve_calendar_context(
-            site_id=site_id,
-            department_id=department_id,
-            employee_id=employee_id,
-            project_id=project_id,
-            resource_id=resolve_resource_id,
-            worker_type=worker_type,
-            target_date=target_date,
-            assigned_hours=assigned_hours,
+            ResolveContextCommand(
+                site_id=site_id,
+                department_id=department_id,
+                employee_id=employee_id,
+                project_id=project_id,
+                resource_id=resolve_resource_id,
+                worker_type=worker_type,
+                target_date=target_date,
+                assigned_hours=assigned_hours,
+            )
         )
 
     def get_availability_range(
@@ -84,15 +90,17 @@ class ResourceAvailabilityQueryHandler:
         worker_type, employee_id, resolve_resource_id = self._classify(resource, resource_id)
 
         return self._resolver.resolve_range(
-            site_id=site_id,
-            department_id=department_id,
-            employee_id=employee_id,
-            project_id=project_id,
-            resource_id=resolve_resource_id,
-            worker_type=worker_type,
-            start=start,
-            end=end,
-            assigned_hours_by_date=assigned_hours_by_date,
+            ResolveCalendarRangeCommand(
+                site_id=site_id,
+                department_id=department_id,
+                employee_id=employee_id,
+                project_id=project_id,
+                resource_id=resolve_resource_id,
+                worker_type=worker_type,
+                start_date=start,
+                end_date=end,
+                assigned_hours_by_date=assigned_hours_by_date,
+            )
         )
 
     def is_available(self, resource_id: str, target_date: date) -> bool:

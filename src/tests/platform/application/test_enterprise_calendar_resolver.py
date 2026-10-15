@@ -10,8 +10,15 @@ from src.core.platform.application.tenant.tenancy.tenant_context import ActiveSc
 from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
     CalendarAssignmentCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    SiteCalendarAssignCommand,
+)
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
+    ResolveCalendarRangeCommand,
+    ResolveContextCommand,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -31,6 +38,15 @@ from src.core.platform.application.time_management.calendar.definitions.commands
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
+    ExceptionCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.recurring_events import (
+    RecurringEventCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
     CalendarExceptionQueryHandler,
 )
@@ -39,6 +55,9 @@ from src.core.platform.application.time_management.calendar.definitions.queries.
 )
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -332,7 +351,9 @@ def global_cal(cal_commands, org_id):
 
 
 def test_resolver_returns_unavailable_with_no_global_calendar(resolver):
-    ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 1))
+    ctx = resolver.resolve_calendar_context(
+        ResolveContextCommand(target_date=date(2026, 6, 1))
+    )
     assert ctx.available_hours == 0.0  # no rules means no working hours
     assert ctx.source_chain == []
 
@@ -350,8 +371,9 @@ def test_resolver_warns_once_per_scope_not_once_per_date(resolver, caplog):
     with caplog.at_level(logging.WARNING):
         for day in range(1, 15):
             resolver.resolve_calendar_context(
-                project_id="proj-without-a-calendar",
-                target_date=date(2026, 1, day),
+                ResolveContextCommand(
+                    project_id="proj-without-a-calendar", target_date=date(2026, 1, day)
+                )
             )
 
     no_chain_records = [
@@ -366,8 +388,10 @@ def test_resolver_warns_once_per_scope_not_once_per_date(resolver, caplog):
     # not global.
     with caplog.at_level(logging.WARNING):
         resolver.resolve_calendar_context(
-            project_id="a-different-project-without-a-calendar",
-            target_date=date(2026, 1, 1),
+            ResolveContextCommand(
+                project_id="a-different-project-without-a-calendar",
+                target_date=date(2026, 1, 1),
+            )
         )
     no_chain_records = [
         r for r in caplog.records if "resolved without source chain" in r.message
@@ -384,7 +408,9 @@ def test_resolver_source_chain_global(
         end_time=time(17, 0),
         break_minutes=60,
     )
-    ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 1))
+    ctx = resolver.resolve_calendar_context(
+        ResolveContextCommand(target_date=date(2026, 6, 1))
+    )
     assert "GLOBAL" in ctx.source_chain
     assert ctx.base_hours == 8.0
     assert ctx.available_hours == 8.0
@@ -406,25 +432,30 @@ def test_resolver_site_overrides_global(
         break_minutes=60,
     )
     site_cal = cal_commands.create_calendar(
-        code="SITE-HH",
-        name="Hamburg",
-        calendar_type=CalendarType.SITE.value,
-        timezone="Europe/Berlin",
+        CalendarCreateCommand(
+            code="SITE-HH",
+            name="Hamburg",
+            calendar_type=CalendarType.SITE.value,
+            timezone="Europe/Berlin",
+        )
     )
     rule_commands.save_rule(
-        site_cal.id,
-        weekday=0,  # Monday
-        is_working_day=True,
-        start_time=time(7, 0),
-        end_time=time(15, 0),
-        break_minutes=30,
-        hours_override=7.5,
+        WorkingRuleSaveCommand(
+            calendar_id=site_cal.id,
+            weekday=0,
+            is_working_day=True,
+            start_time=time(7, 0),
+            end_time=time(15, 0),
+            break_minutes=30,
+            hours_override=7.5,
+        )
     )
-    assignment_commands.assign_site_calendar("site-hamburg", site_cal.id)
+    assignment_commands.assign_site_calendar(
+        SiteCalendarAssignCommand(site_id="site-hamburg", calendar_id=site_cal.id)
+    )
 
     ctx = resolver.resolve_calendar_context(
-        site_id="site-hamburg",
-        target_date=date(2026, 6, 1),  # Monday
+        ResolveContextCommand(site_id="site-hamburg", target_date=date(2026, 6, 1))
     )
     assert "GLOBAL" in ctx.source_chain
     assert any("SITE" in s for s in ctx.source_chain)
@@ -441,13 +472,17 @@ def test_resolver_holiday_exception_from_global(
         break_minutes=60,
     )
     exc_commands.add_exception(
-        global_cal.id,
-        exception_date=date(2026, 6, 1),
-        exception_type=ExceptionType.HOLIDAY.value,
-        name="Global Holiday",
-        impact_type=ImpactType.UNAVAILABLE.value,
+        ExceptionCreateCommand(
+            calendar_id=global_cal.id,
+            exception_date=date(2026, 6, 1),
+            exception_type=ExceptionType.HOLIDAY.value,
+            name="Global Holiday",
+            impact_type=ImpactType.UNAVAILABLE.value,
+        )
     )
-    ctx = resolver.resolve_calendar_context(target_date=date(2026, 6, 1))
+    ctx = resolver.resolve_calendar_context(
+        ResolveContextCommand(target_date=date(2026, 6, 1))
+    )
     assert ctx.available_hours == 0.0
     assert ctx.status == "UNAVAILABLE"
 
@@ -466,18 +501,20 @@ def test_resolver_surfaces_recurring_event_on_a_matching_day(
         break_minutes=60,
     )
     recurring_commands.add_recurring_event(
-        global_cal.id,
-        title="Weekly Standup",
-        event_type=RecurringEventType.MEETING.value,
-        recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
-        start_time=time(9, 0),
-        end_time=time(9, 30),
-        impact_type=ImpactType.REDUCED_CAPACITY.value,
-        effective_from=date(2026, 6, 1),
+        RecurringEventCreateCommand(
+            calendar_id=global_cal.id,
+            title="Weekly Standup",
+            event_type=RecurringEventType.MEETING.value,
+            recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
+            start_time=time(9, 0),
+            end_time=time(9, 30),
+            impact_type=ImpactType.REDUCED_CAPACITY.value,
+            effective_from=date(2026, 6, 1),
+        )
     )
 
     monday_ctx = resolver.resolve_calendar_context(
-        target_date=date(2026, 6, 1)
+        ResolveContextCommand(target_date=date(2026, 6, 1))
     )  # Monday
     assert monday_ctx.available_hours == 7.5  # 8h - 0.5h meeting
     assert len(monday_ctx.recurring_events) == 1
@@ -486,7 +523,7 @@ def test_resolver_surfaces_recurring_event_on_a_matching_day(
     assert monday_ctx.recurring_events[0]["impact"] == ImpactType.REDUCED_CAPACITY.value
 
     tuesday_ctx = resolver.resolve_calendar_context(
-        target_date=date(2026, 6, 2)
+        ResolveContextCommand(target_date=date(2026, 6, 2))
     )  # Tuesday
     assert tuesday_ctx.available_hours == 8.0
     assert tuesday_ctx.recurring_events == []
@@ -502,17 +539,23 @@ def test_resolve_range_surfaces_recurring_events_per_day(
         break_minutes=60,
     )
     recurring_commands.add_recurring_event(
-        global_cal.id,
-        title="Weekly Standup",
-        event_type=RecurringEventType.MEETING.value,
-        recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
-        start_time=time(9, 0),
-        end_time=time(9, 30),
-        impact_type=ImpactType.REDUCED_CAPACITY.value,
-        effective_from=date(2026, 6, 1),
+        RecurringEventCreateCommand(
+            calendar_id=global_cal.id,
+            title="Weekly Standup",
+            event_type=RecurringEventType.MEETING.value,
+            recurrence_rule="FREQ=WEEKLY;BYDAY=MO",
+            start_time=time(9, 0),
+            end_time=time(9, 30),
+            impact_type=ImpactType.REDUCED_CAPACITY.value,
+            effective_from=date(2026, 6, 1),
+        )
     )
 
-    days = resolver.resolve_range(start=date(2026, 6, 1), end=date(2026, 6, 7))
+    days = resolver.resolve_range(
+        ResolveCalendarRangeCommand(
+            start_date=date(2026, 6, 1), end_date=date(2026, 6, 7)
+        )
+    )
     mondays = [d for d in days if d.date.weekday() == 0]
     assert len(mondays) == 1
     assert mondays[0].recurring_events[0]["name"] == "Weekly Standup"

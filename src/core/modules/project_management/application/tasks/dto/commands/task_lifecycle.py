@@ -1,0 +1,45 @@
+"""Task use-case commands."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+
+from src.core.modules.project_management.domain.enums import TaskStatus
+
+
+@dataclass(frozen=True)
+class TaskCreateCommand:
+    project_id: str
+    name: str
+    code: str = ""
+    description: str = ""
+    start_date: date | None = None
+    duration_days: int | None = None
+    status: str = TaskStatus.TODO.value
+    priority: int | None = None
+    deadline: date | None = None
+    parent_task_id: str | None = None
+    wbs_code: str = ""
+    sort_order: int | None = None
+    is_milestone: bool = False
+    constraint_type: str | None = None
+    constraint_date: date | None = None
+
+
+@dataclass(frozen=True)
+class TaskUpdateCommand:
+    task_id: str
+    name: str
+    code: str = ""
+    description: str = ""
+    start_date: date | None = None
+    duration_days: int | None = None
+    status: str = TaskStatus.TODO.value
+    priority: int | None = None
+    deadline: date | None = None
+    expected_version: int | None = None
+    is_milestone: bool | None = None
+
+
+__all__ = ["TaskCreateCommand", "TaskUpdateCommand"]

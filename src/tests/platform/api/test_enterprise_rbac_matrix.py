@@ -7,6 +7,9 @@ from src.core.modules.project_management.access.policy import (
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+)
 from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -101,7 +104,7 @@ def test_access_and_security_admin_capabilities_are_separated(services):
         tenant_id=active_tenant_id,
     )
 
-    access.assign_scope_grant(scope_type="project", scope_id=project.id, user_id=target.id, scope_role="lead")
+    access.assign_scope_grant(ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project.id, user_id=target.id, scope_role="lead"))
 
     login_as(services, "access-admin-user", "StrongPass123")
     memberships = access.list_scope_grants("project", project.id)

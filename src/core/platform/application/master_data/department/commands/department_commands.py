@@ -17,7 +17,7 @@ from src.core.platform.application.master_data.department.department_validation 
     validate_parent_department_id,
     validate_site_id,
 )
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )

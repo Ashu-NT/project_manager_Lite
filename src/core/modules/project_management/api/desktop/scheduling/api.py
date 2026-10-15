@@ -15,15 +15,13 @@ if TYPE_CHECKING:
     from src.core.modules.project_management.domain.scheduling.baseline import (
         BaselineTask,
     )
-    from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    from src.core.platform.application.time_management.calendar.capacity.dto.queries.working_days import (
         WorkingDaysCommand,
     )
 
 logger = logging.getLogger(__name__)
 
 from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
-    coerce_dependency_direction,
-    coerce_dependency_type,
     dependency_direction,
     dependency_type_label,
 )
@@ -119,13 +117,18 @@ from src.core.modules.project_management.application.scheduling.baselines.querie
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
 )
-from src.core.modules.project_management.application.scheduling.dto import (
+from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
+    SchedulingBaselineDeleteCommand,
     SchedulingBaselineRejectCommand,
     SchedulingBaselineSubmitCommand,
+)
+from src.core.modules.project_management.application.scheduling.dto.commands.dependencies import (
     SchedulingDependencyCreateCommand,
     SchedulingDependencyUpdateCommand,
+)
+from src.core.modules.project_management.application.scheduling.dto.commands.working_days import (
     SchedulingWorkingDayCalculationCommand,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
@@ -237,7 +240,7 @@ class ProjectManagementSchedulingDesktopApi:
 
     def calculate_working_days(self, command: SchedulingWorkingDayCalculationCommand) -> SchedulingWorkingDayCalculationDto:
         if self._platform_calendar_api is not None:
-            from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+            from src.core.platform.application.time_management.calendar.capacity.dto.queries.working_days import (
                 WorkingDaysCommand as PlatformWorkingDaysCommand,
             )
 
@@ -332,14 +335,8 @@ class ProjectManagementSchedulingDesktopApi:
         return tuple(rows)
 
     def create_dependency(self, command: SchedulingDependencyCreateCommand) -> SchedulingDependencyDto:
-        direction = coerce_dependency_direction(command.relationship_direction)
-        predecessor_id = command.related_activity_id if direction == "PREDECESSOR" else command.task_id
-        successor_id = command.task_id if direction == "PREDECESSOR" else command.related_activity_id
         dependency = require_task_method(self._task_dependency_commands, "add_dependency")(
-            predecessor_id=predecessor_id,
-            successor_id=successor_id,
-            dependency_type=coerce_dependency_type(command.dependency_type),
-            lag_days=command.lag_days,
+            command
         )
         current = require_task_method(self._task_detail_query, "get_task")(command.task_id)
         tasks_by_id = build_tasks_by_id(self._task_lookup_query, current.project_id if current else "")
@@ -347,9 +344,7 @@ class ProjectManagementSchedulingDesktopApi:
 
     def update_dependency(self, command: SchedulingDependencyUpdateCommand, *, current_task_id: str) -> SchedulingDependencyDto:
         dependency = require_task_method(self._task_dependency_commands, "update_dependency")(
-            command.dependency_id,
-            dependency_type=coerce_dependency_type(command.dependency_type),
-            lag_days=command.lag_days,
+            command
         )
         current = require_task_method(self._task_detail_query, "get_task")(current_task_id)
         tasks_by_id = build_tasks_by_id(self._task_lookup_query, current.project_id if current else "")
@@ -492,27 +487,22 @@ class ProjectManagementSchedulingDesktopApi:
         return build_baseline_rows((project_id or "").strip(), self._baseline_query)
 
     def create_baseline(self, command: SchedulingBaselineCreateCommand) -> SchedulingBaselineOptionDescriptor:
-        # No baseline-effective date is supplied by the desktop command, so
-        # this boundary resolves "as of" itself — never inside
-        # BaselineQueryHandler (see create_baseline's `rate_as_of` docstring).
-        baseline = self._require_baseline_commands().create_baseline(
-            command.project_id, command.name, rate_as_of=date.today()  # noqa: DTZ011
-        )
+        baseline = self._require_baseline_commands().create_baseline(command)
         return SchedulingBaselineOptionDescriptor(
             value=baseline.id, label=f"{baseline.name} ({baseline.created_at.isoformat()})"
         )
 
     def submit_baseline(self, command: SchedulingBaselineSubmitCommand) -> None:
-        self._require_baseline_commands().submit_baseline(command.baseline_id, command.submitted_by, command.notes)
+        self._require_baseline_commands().submit_baseline(command)
 
     def approve_baseline(self, command: SchedulingBaselineApproveCommand) -> None:
-        self._require_baseline_commands().approve_baseline(command.baseline_id, command.approved_by, command.notes)
+        self._require_baseline_commands().approve_baseline(command)
 
     def reject_baseline(self, command: SchedulingBaselineRejectCommand) -> None:
-        self._require_baseline_commands().reject_baseline(command.baseline_id, command.notes)
+        self._require_baseline_commands().reject_baseline(command)
 
-    def delete_baseline(self, baseline_id: str) -> None:
-        self._require_baseline_commands().delete_baseline(baseline_id)
+    def delete_baseline(self, command: SchedulingBaselineDeleteCommand) -> None:
+        self._require_baseline_commands().delete_baseline(command)
 
     def list_baseline_variance_records(self, baseline_id: str) -> tuple[SchedulingBaselineVarianceRowDto, ...]:
         return build_variance_rows((baseline_id or "").strip(), self._baseline_query)

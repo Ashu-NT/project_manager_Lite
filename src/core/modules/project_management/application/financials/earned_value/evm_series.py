@@ -13,10 +13,10 @@ from src.core.modules.project_management.application.financials.earned_value.can
     CanonicalEarnedValueCalculator,
     EvmCalculationInput,
 )
-from src.core.modules.project_management.application.financials.earned_value.dto import (
+from src.core.modules.project_management.application.financials.earned_value.dto.responses.earned_value import (
     EvmSeriesPoint,
 )
-from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
+from src.core.modules.project_management.contracts.reads.financials.earned_value.reader import (
     EvmSeriesReader,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (

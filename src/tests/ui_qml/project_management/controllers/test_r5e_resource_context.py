@@ -15,7 +15,7 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.resources.factories.resources_api_factory import (
     build_project_management_resources_desktop_api,
 )
-from src.core.modules.project_management.application.resources.dto import (
+from src.core.modules.project_management.application.resources.dto.commands.skills import (
     ResourceAddSkillCommand,
 )
 from src.core.modules.project_management.contracts.reads import ReadSort

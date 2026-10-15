@@ -1,0 +1,1 @@
+"""rate cards queries package."""

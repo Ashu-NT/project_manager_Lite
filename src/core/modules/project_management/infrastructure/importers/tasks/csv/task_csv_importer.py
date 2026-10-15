@@ -4,6 +4,16 @@ from __future__ import annotations
 
 import logging
 
+from src.core.modules.project_management.application.tasks.dto.commands.task_hierarchy import (
+    TaskWbsMoveCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+    TaskUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskProgressCommand,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.infrastructure.importers.tasks.capabilities import (
     TaskImportCapabilities,
@@ -34,7 +44,9 @@ def preview_tasks(
     project_service,
     task_capabilities: TaskImportCapabilities,
 ) -> ImportPreview:
-    preview = ImportPreview(entity_type="tasks", available_columns=[], mapped_columns={})
+    preview = ImportPreview(
+        entity_type="tasks", available_columns=[], mapped_columns={}
+    )
     projects = build_project_lookup(project_service)
     for line_no, row in rows:
         try:
@@ -44,13 +56,24 @@ def preview_tasks(
                 project_name=row.get("project_name") or None,
             )
             if project is None:
-                raise ValueError("Project reference is required via project_id or project_name.")
+                raise ValueError(
+                    "Project reference is required via project_id or project_name."
+                )
             name = required(row, "name")
             tasks = task_capabilities.lookup.list_tasks_for_project(project.id)
             task_id = row.get("id") or ""
-            task = next((t for t in tasks if t.id == task_id), None) if task_id else None
+            task = (
+                next((t for t in tasks if t.id == task_id), None) if task_id else None
+            )
             if task is None:
-                task = next((t for t in tasks if t.name.strip().lower() == name.strip().lower()), None)
+                task = next(
+                    (
+                        t
+                        for t in tasks
+                        if t.name.strip().lower() == name.strip().lower()
+                    ),
+                    None,
+                )
             optional_date(row.get("start_date"))
             optional_int(row.get("duration_days"))
             optional_int(row.get("priority"))
@@ -67,7 +90,8 @@ def preview_tasks(
                 available_wbs_codes.update(
                     str(candidate.get("wbs_code") or "").strip().upper()
                     for _, candidate in rows
-                    if str(candidate.get("project_id") or "").strip() in {"", project.id}
+                    if str(candidate.get("project_id") or "").strip()
+                    in {"", project.id}
                 )
                 if parent_wbs_code not in available_wbs_codes:
                     raise ValueError(
@@ -90,7 +114,13 @@ def preview_tasks(
         except Exception as exc:
             logger.exception("Failed to import task row at line %s", line_no)
             preview.rows.append(
-                ImportPreviewRow(line_no=line_no, status="ERROR", action="ERROR", message=str(exc), row=row)
+                ImportPreviewRow(
+                    line_no=line_no,
+                    status="ERROR",
+                    action="ERROR",
+                    message=str(exc),
+                    row=row,
+                )
             )
     return preview
 
@@ -117,8 +147,12 @@ def import_tasks(
                     project_name=row.get("project_name") or None,
                 )
                 if project is None:
-                    raise ValueError("Project reference is required via project_id or project_name.")
-                current_tasks = task_capabilities.lookup.list_tasks_for_project(project.id)
+                    raise ValueError(
+                        "Project reference is required via project_id or project_name."
+                    )
+                current_tasks = task_capabilities.lookup.list_tasks_for_project(
+                    project.id
+                )
                 parent_task = next(
                     (
                         item
@@ -176,7 +210,11 @@ def _import_task_row(
         task = next((item for item in tasks if item.id == task_id), None)
     if task is None:
         task = next(
-            (item for item in tasks if item.name.strip().lower() == name.strip().lower()),
+            (
+                item
+                for item in tasks
+                if item.name.strip().lower() == name.strip().lower()
+            ),
             None,
         )
     code = str(row.get("task_code") or "").strip()
@@ -189,14 +227,38 @@ def _import_task_row(
     percent_complete = optional_float(row.get("percent_complete"))
     wbs_code = str(row.get("wbs_code") or "").strip()
     sort_order = optional_int(row.get("sort_order"))
-    hierarchy_requested = bool(wbs_code or parent_task is not None or sort_order is not None)
+    hierarchy_requested = bool(
+        wbs_code or parent_task is not None or sort_order is not None
+    )
     if task is None:
         created = task_capabilities.lifecycle.create_task(
-            project.id,
-            status=status or TaskStatus.TODO,
-            parent_task_id=parent_task.id if parent_task is not None else None,
-            wbs_code=wbs_code,
-            sort_order=sort_order,
+            TaskCreateCommand(
+                project_id=project.id,
+                status=status or TaskStatus.TODO,
+                parent_task_id=parent_task.id if parent_task is not None else None,
+                wbs_code=wbs_code,
+                sort_order=sort_order,
+                name=name,
+                code=code,
+                description=description,
+                start_date=start_date,
+                duration_days=duration_days,
+                priority=priority,
+                deadline=deadline,
+            )
+        )
+        if percent_complete is not None:
+            task_capabilities.progress.update_progress(
+                TaskProgressCommand(created.id, percent_complete=percent_complete)
+            )
+        summary.created_count += 1
+        return
+
+    updated = task_capabilities.lifecycle.update_task(
+        TaskUpdateCommand(
+            task_id=task.id,
+            expected_version=task.version,
+            status=(status or task.status).value,
             name=name,
             code=code,
             description=description,
@@ -205,22 +267,6 @@ def _import_task_row(
             priority=priority,
             deadline=deadline,
         )
-        if percent_complete is not None:
-            task_capabilities.progress.update_progress(created.id, percent_complete=percent_complete)
-        summary.created_count += 1
-        return
-
-    updated = task_capabilities.lifecycle.update_task(
-        task.id,
-        expected_version=task.version,
-        status=status,
-        name=name,
-        code=code,
-        description=description,
-        start_date=start_date,
-        duration_days=duration_days,
-        priority=priority,
-        deadline=deadline,
     )
     target_parent_id = (
         parent_task.id
@@ -233,16 +279,20 @@ def _import_task_row(
         or (sort_order is not None and sort_order != task.sort_order)
     ):
         updated = task_capabilities.hierarchy.move_task(
-            updated.id,
-            parent_task_id=target_parent_id,
-            wbs_code=wbs_code or None,
-            sort_order=sort_order,
-            expected_version=updated.version,
+            TaskWbsMoveCommand(
+                updated.id,
+                parent_task_id=target_parent_id,
+                wbs_code=wbs_code or None,
+                sort_order=sort_order,
+                expected_version=updated.version,
+            )
         )
     if percent_complete is not None:
         task_capabilities.progress.update_progress(
-            updated.id,
-            percent_complete=percent_complete,
-            expected_version=updated.version,
+            TaskProgressCommand(
+                updated.id,
+                percent_complete=percent_complete,
+                expected_version=updated.version,
+            )
         )
     summary.updated_count += 1

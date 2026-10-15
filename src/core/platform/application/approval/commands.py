@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 from src.core.platform.application.approval.approval_mutation_participant import (
     build_request_audit_details,
     request_approval_using,
@@ -13,7 +15,10 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
+from src.core.platform.contract.models.approval.contracts import (
+    ApprovalDecisionInput,
+    ApprovalHandlerResult,
+)
 from src.core.platform.contract.repositories.approval.contracts import (
     ApprovalRepository,
 )
@@ -116,7 +121,9 @@ class ApprovalCommandHandler:
             uow.commit()
         return request
 
-    def reject(self, request_id: str, note: str | None = None) -> ApprovalRequest:
+    def reject(self, command: ApprovalDecisionInput) -> ApprovalRequest:
+        request_id = command.request_id
+        note = command.note
         require_permission(
             self._user_session,
             "approval.decide",
@@ -137,7 +144,7 @@ class ApprovalCommandHandler:
             registration = self._participants.reject_handlers.get(request.request_type)
             if registration is not None:
                 handler, dependencies_factory = registration
-                deps = dependencies_factory(getattr(uow, "_session"))
+                deps = dependencies_factory(cast(Any, uow)._session)
                 handler_result = self._normalize_handler_result(handler(request, deps))
 
             uow.approvals.update(request)
@@ -171,7 +178,9 @@ class ApprovalCommandHandler:
 
         return request
 
-    def approve_and_apply(self, request_id: str, note: str | None = None) -> ApprovalRequest:
+    def approve_and_apply(self, command: ApprovalDecisionInput) -> ApprovalRequest:
+        request_id = command.request_id
+        note = command.note
         require_permission(
             self._user_session,
             "approval.decide",
@@ -189,7 +198,7 @@ class ApprovalCommandHandler:
                     code="APPROVAL_HANDLER_MISSING",
                 )
             handler, dependencies_factory = registration
-            deps = dependencies_factory(getattr(uow, "_session"))
+            deps = dependencies_factory(cast(Any, uow)._session)
             handler_result = self._normalize_handler_result(handler(request, deps))
             principal = self._user_session.principal if self._user_session else None
             request.status = ApprovalStatus.APPROVED

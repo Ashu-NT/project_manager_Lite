@@ -1,0 +1,36 @@
+"""Task collaboration use-case commands."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class TaskCollaborationPostCommand:
+    task_id: str
+    body: str
+    attachments: tuple[str, ...] = ()
+    linked_document_ids: tuple[str, ...] = ()
+    parent_comment_id: str | None = None
+    submission_id: str | None = None
+
+
+@dataclass(frozen=True)
+class TaskCollaborationEditCommand:
+    comment_id: str
+    body: str
+    expected_revision: int
+
+
+@dataclass(frozen=True)
+class TaskCollaborationDeleteCommand:
+    comment_id: str
+    expected_revision: int
+    reason: str | None = None
+
+
+__all__ = [
+    "TaskCollaborationPostCommand",
+    "TaskCollaborationEditCommand",
+    "TaskCollaborationDeleteCommand",
+]

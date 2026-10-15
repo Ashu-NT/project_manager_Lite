@@ -6,10 +6,13 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+from src.core.modules.project_management.contracts.reads.financials.overview.models.overview_facts import (
     FinanceOverviewFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.ledger_query import (
+    ProjectFinanceLedgerQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.snapshot_facts import (
     ActualMonthFact,
     ApprovedForecastFact,
     CostAggregateFact,
@@ -21,9 +24,6 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     ProjectResourceFact,
     ResourceFact,
     TaskFact,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
-    ProjectFinanceLedgerQuery,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 

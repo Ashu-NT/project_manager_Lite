@@ -8,8 +8,15 @@ import pytest
 from src.core.platform.application.security.auth import (
     UserRegistrationHandler,
 )
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
+    UserPasswordResetCommand,
+)
 from src.core.platform.application.security.authorization.roles.commands import (
     RoleAssignmentHandler,
+)
+from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
+    TenantCreateCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.master_data.org import Organization
@@ -107,9 +114,7 @@ def _cross_tenant_user(services, *, username: str):
             user.id
         ),
         lambda service, user, _session_id: service.passwords.reset_user_password(
-            user.id,
-            "ChangedPass123!",
-        ),
+            UserPasswordResetCommand(user_id=user.id, new_password="ChangedPass123!")),
         lambda service, user, _session_id: service.mfa.provision_mfa_secret(user.id),
         lambda service, user, _session_id: service.mfa.enable_user_mfa(
             user.id,
@@ -225,10 +230,7 @@ def test_customer_onboarding_creates_active_membership_and_safe_default_role(
     )
 
     user = customer_auth.registration.onboard_tenant_user(
-        username="containment-onboarded-user",
-        raw_password="StrongPass123!",
-        display_name="Onboarded User",
-    )
+        UserCreateCommand(username="containment-onboarded-user", password="StrongPass123!", display_name="Onboarded User"))
 
     assert customer_auth.target_users._user_tenant_repo.is_active_member(user.id, tenant_id)
     assert customer_auth.queries.get_user_role_names(user.id) == {"viewer"}
@@ -351,9 +353,7 @@ def test_customer_onboarding_denies_missing_explicit_tenant_context(
 
     with pytest.raises(BusinessRuleError) as exc_info:
         customer_auth.registration.onboard_tenant_user(
-            username="containment-onboarding-denied",
-            raw_password="StrongPass123!",
-        )
+            UserCreateCommand(username="containment-onboarding-denied", password="StrongPass123!"))
 
     assert exc_info.value.code == "TENANT_CONTEXT_REQUIRED"
     assert (
@@ -379,9 +379,7 @@ def test_customer_onboarding_denies_missing_context_authorization_service(
 
     with pytest.raises(BusinessRuleError) as exc_info:
         customer_auth.registration.onboard_tenant_user(
-            username="containment-onboarding-no-policy-target",
-            raw_password="StrongPass123!",
-        )
+            UserCreateCommand(username="containment-onboarding-no-policy-target", password="StrongPass123!"))
 
     assert exc_info.value.code == "AUTHORIZATION_CONTEXT_REQUIRED"
 
@@ -396,9 +394,7 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
     assert current_tenant_id is not None
 
     target_tenant = services["tenant_lifecycle_commands"].create_tenant(
-        "CONTAIN-SWITCH",
-        "Containment Switch",
-    )
+        TenantCreateCommand(tenant_code="CONTAIN-SWITCH", display_name="Containment Switch"))
     target_organization = Organization.create(
         "CONTAIN-SWITCH-ORG",
         "Containment Switch Organization",

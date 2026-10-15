@@ -9,15 +9,18 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
+)
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserCreateCommand,
 )
 from src.core.platform.common.exceptions import ValidationError
 
@@ -161,8 +164,7 @@ def test_link_employee_user_account_succeeds_for_valid_human_user_and_can_be_unl
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EHI-D11", name="Link Dept Two"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EHI-E7", full_name="Employee Seven", department_id=department.id))
     user = services["user_registration"].onboard_tenant_user(
-        username="ehi-link-user", raw_password="StrongPass123!", display_name="Link User"
-    )
+        UserCreateCommand(username="ehi-link-user", password="StrongPass123!", display_name="Link User"))
 
     linked = services["employee_commands"].link_employee_user_account(employee.id, user.id)
     assert linked.user_id == user.id
@@ -177,8 +179,7 @@ def test_link_employee_user_account_rejects_user_already_linked_to_another_emplo
     employee_one = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EHI-E8", full_name="Employee Eight", department_id=department.id))
     employee_two = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EHI-E9", full_name="Employee Nine", department_id=department.id))
     user = services["user_registration"].onboard_tenant_user(
-        username="ehi-double-link-user", raw_password="StrongPass123!", display_name="Double Link User"
-    )
+        UserCreateCommand(username="ehi-double-link-user", password="StrongPass123!", display_name="Double Link User"))
     services["employee_commands"].link_employee_user_account(employee_one.id, user.id)
 
     with pytest.raises(ValidationError) as exc_info:
@@ -191,8 +192,7 @@ def test_deactivated_user_account_may_remain_linked_to_employee(services) -> Non
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EHI-D13", name="Link Dept Four"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EHI-E10", full_name="Employee Ten", department_id=department.id))
     user = services["user_registration"].onboard_tenant_user(
-        username="ehi-inactive-user", raw_password="StrongPass123!", display_name="Inactive User"
-    )
+        UserCreateCommand(username="ehi-inactive-user", password="StrongPass123!", display_name="Inactive User"))
     services["employee_commands"].link_employee_user_account(employee.id, user.id)
 
     services["user_administration_commands"].set_user_active(user.id, is_active=False)
@@ -206,8 +206,7 @@ def test_deactivating_employee_does_not_touch_linked_user_account(services) -> N
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="EHI-D14", name="Link Dept Five"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EHI-E11", full_name="Employee Eleven", department_id=department.id))
     user = services["user_registration"].onboard_tenant_user(
-        username="ehi-still-active-user", raw_password="StrongPass123!", display_name="Still Active User"
-    )
+        UserCreateCommand(username="ehi-still-active-user", password="StrongPass123!", display_name="Still Active User"))
     services["employee_commands"].link_employee_user_account(employee.id, user.id)
 
     services["employee_commands"].deactivate_employee(employee.id)

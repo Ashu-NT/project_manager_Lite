@@ -10,7 +10,7 @@ from src.core.modules.project_management.api.desktop.financials.models.forecasts
     FinancialForecastTableRecordDto,
     FinancialForecastWorkspaceDto,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
+from src.core.modules.project_management.contracts.reads.financials.forecasts.models.forecast_facts import (
     FinanceForecastWorkspaceFacts,
 )
 

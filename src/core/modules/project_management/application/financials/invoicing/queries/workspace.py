@@ -10,7 +10,10 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.financials.accounting.status_capabilities import (
     with_accounting_capabilities,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
+    FinancePageFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
     AccountingStatusFact,
     AccountingStatusQuery,
     BillingPreparationLineQuery,
@@ -20,16 +23,13 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     BillingSourceQuery,
     FinanceBillingWorkspaceFacts,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
-    FinancePageFacts,
-)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
 from src.core.platform.common.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
-    from src.core.modules.project_management.contracts.reads.financials.finance_billing_reader import (
+    from src.core.modules.project_management.contracts.reads.financials.invoicing.reader import (
         FinanceBillingReader,
     )
     from src.core.platform.application.integration.accounting.queries import (

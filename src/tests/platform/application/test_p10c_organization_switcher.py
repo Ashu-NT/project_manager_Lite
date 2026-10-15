@@ -5,6 +5,10 @@ from pathlib import Path
 
 import pytest
 
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantRemoveCommand,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -30,8 +34,7 @@ def _register_active_tenant_user(services, username: str, *, role_names: list[st
 
 def _grant_organization_access(services, *, user_id: str, organization_id: str, scope_role: str = "viewer"):
     services["access_service"].assign_scope_grant(
-        scope_type="organization", scope_id=organization_id, user_id=user_id, scope_role=scope_role
-    )
+        ScopedAccessGrantAssignCommand(scope_type="organization", scope_id=organization_id, user_id=user_id, scope_role=scope_role))
 
 
 # ----------------------------------------------------------------------
@@ -179,7 +182,7 @@ def test_revoked_organization_access_is_not_restored_on_the_next_login(services)
     services["tenant_context_service"].set_active_organization(org.id)
 
     _login_admin(services)
-    access.remove_scope_grant(scope_type="organization", scope_id=org.id, user_id=user.id)
+    access.remove_scope_grant(ScopedAccessGrantRemoveCommand(scope_type="organization", scope_id=org.id, user_id=user.id))
 
     login_as(services, "switcher-revoke-relogin-user", "StrongPass123")
 
@@ -202,7 +205,7 @@ def test_revoking_a_grant_for_a_different_currently_active_user_session_is_a_noo
 
     _login_admin(services)
     services["user_session"].set_active_organization_id(default_org.id)
-    access.remove_scope_grant(scope_type="organization", scope_id=org.id, user_id=other_user.id)
+    access.remove_scope_grant(ScopedAccessGrantRemoveCommand(scope_type="organization", scope_id=org.id, user_id=other_user.id))
 
     assert services["tenant_context_service"].get_active_organization_id() == default_org.id
 

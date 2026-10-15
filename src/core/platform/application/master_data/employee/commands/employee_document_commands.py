@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from src.core.platform.application.master_data.documents.commands.document_commands import (
     DocumentCommandHandler,
 )
-from src.core.platform.application.master_data.documents.dto import (
+from src.core.platform.application.master_data.documents.dto.commands.links import (
     DocumentLinkCreateCommand,
 )
 from src.core.platform.application.master_data.documents.queries.document_queries import (

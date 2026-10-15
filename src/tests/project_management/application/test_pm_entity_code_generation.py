@@ -6,6 +6,9 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
+    RegisterEntryCreateCommand,
+)
 from src.core.modules.project_management.domain.risk.register import RegisterEntryType
 from src.core.platform.common.exceptions import ValidationError
 
@@ -48,10 +51,5 @@ def test_resource_autogenerates_code(services):
 # ── Register (REG, per-project) ──────────────────────────────────────────────
 def test_register_autogenerates_code(services):
     pid = _project(services).id
-    entry = services["register_lifecycle_commands"].create_entry(
-        pid,
-        entry_type=RegisterEntryType.RISK,
-        title="Supplier delay",
-        due_date=date(2026, 6, 1),
-    )
+    entry = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(pid, entry_type=RegisterEntryType.RISK, title="Supplier delay", due_date=date(2026, 6, 1)))
     assert entry.code == "REG-SUPP-0001"

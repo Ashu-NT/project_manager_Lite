@@ -1,6 +1,6 @@
 import pytest
 
-from src.core.modules.project_management.contracts.reads.financials.models.project_finance_ledger_query import (
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.ledger_query import (
     ProjectFinanceLedgerQuery,
 )
 from src.core.platform.common.exceptions import ValidationError

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.application.tasks.dto import (
+from src.core.modules.project_management.application.tasks.dto.commands.task_dependencies import (
     TaskDependencyCreateCommand,
     TaskDependencyUpdateCommand,
 )

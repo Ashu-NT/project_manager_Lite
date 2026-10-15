@@ -35,27 +35,8 @@ class WorkingCalendarSnapshotDto:
 
 
 @dataclass(frozen=True)
-class WorkingCalendarUpdateCommand:
-    working_days: tuple[int, ...]
-    hours_per_day: float
-
-
-@dataclass(frozen=True)
-class WorkingCalendarHolidayCreateCommand:
-    holiday_date: date
-    name: str = ""
-
-
-@dataclass(frozen=True)
-class WorkingDayCalculationCommand:
-    start_date: date
-    working_days: int
-
-
-@dataclass(frozen=True)
 class WorkingDayCalculationDto:
     start_date: date
     working_days: int
     result_date: date
     skipped_non_working_days: int
-

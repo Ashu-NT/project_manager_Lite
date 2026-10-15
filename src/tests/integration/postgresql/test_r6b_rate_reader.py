@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import event, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
+from src.core.modules.project_management.contracts.reads.financials.rate_cards.models.rate_facts import (
     RateCardRequest,
     RateLineRequest,
 )

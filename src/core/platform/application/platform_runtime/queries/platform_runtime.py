@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.platform.application.platform_runtime.dto import ModuleRuntimeSnapshot
+from src.core.platform.application.platform_runtime.dto.responses.module_runtime import (
+    ModuleRuntimeSnapshot,
+)
 from src.core.platform.application.platform_runtime.module_access_policy import (
     is_module_accessible,
 )

@@ -6,7 +6,7 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.reads.financials.sorting import (
+from src.core.modules.project_management.contracts.reads.financials.shared.sorting import (
     normalize_commitment_sort,
 )
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (

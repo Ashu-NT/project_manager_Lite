@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.application.financials.rate_cards.dto import (
-    FinancialAddRateLineCommand,
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_cards import (
     FinancialCreateRateCardCommand,
     FinancialUpdateRateCardCommand,
-    FinancialUpdateRateLineCommand,
     FinancialVersionedRateCardCommand,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_lines import (
+    FinancialAddRateLineCommand,
+    FinancialUpdateRateLineCommand,
     FinancialVersionedRateLineCommand,
 )
 from src.ui_qml.modules.project_management.presenters.financials.shared.commands import (

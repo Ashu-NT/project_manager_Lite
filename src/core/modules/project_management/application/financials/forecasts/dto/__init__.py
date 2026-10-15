@@ -1,0 +1,1 @@
+"""forecasts application DTO package."""

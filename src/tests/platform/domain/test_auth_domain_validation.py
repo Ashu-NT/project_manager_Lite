@@ -17,6 +17,9 @@ from src.core.platform.application.security.auth import (
 from src.core.platform.application.security.auth.credentials.authentication_transactions import (
     AuthenticationTransactions,
 )
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserUpdateCommand,
+)
 from src.core.platform.application.security.auth.session.principal_builder import (
     PrincipalBuilder,
 )
@@ -483,11 +486,7 @@ def test_auth_service_uses_entity_validation_for_user_and_session_models(
     assert user.must_change_password is True
 
     updated = auth.user_administration.update_user_profile(
-        user.id,
-        username="  Alice-Prime  ",
-        display_name="  Alice Prime  ",
-        email="  ALICE.PRIME@EXAMPLE.COM  ",
-    )
+        UserUpdateCommand(user_id=user.id, username="  Alice-Prime  ", display_name="  Alice Prime  ", email="  ALICE.PRIME@EXAMPLE.COM  "))
     assert updated.username == "alice-prime"
     assert updated.display_name == "Alice Prime"
     assert updated.email == "alice.prime@example.com"

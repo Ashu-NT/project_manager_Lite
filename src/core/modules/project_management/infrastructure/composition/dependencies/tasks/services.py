@@ -169,6 +169,15 @@ def build_task_capabilities(
         schedule_synchronizer=schedule_synchronizer,
         uow_scope=task_uow_scope,
     )
+    progress_handler = TaskProgressCommandHandler(
+        module_catalog_service=platform_services.module_catalog_service,
+        task_repo=repositories.pm.task_repo,
+        user_session=platform_services.user_session,
+        tenant_context_service=platform_services.tenant_context_service,
+        hierarchy_policy=hierarchy_policy,
+        validation_policy=validation_policy,
+        uow_scope=task_uow_scope,
+    )
     lifecycle_handler = TaskLifecycleCommandHandler(
         module_catalog_service=platform_services.module_catalog_service,
         task_repo=repositories.pm.task_repo,
@@ -179,6 +188,7 @@ def build_task_capabilities(
         hierarchy_policy=hierarchy_policy,
         validation_policy=validation_policy,
         scheduling_constraint_handler=scheduling_constraint_handler,
+        progress_handler=progress_handler,
         uow_scope=task_uow_scope,
     )
     hierarchy_command_handler = TaskHierarchyCommandHandler(
@@ -187,15 +197,6 @@ def build_task_capabilities(
         user_session=platform_services.user_session,
         tenant_context_service=platform_services.tenant_context_service,
         hierarchy_policy=hierarchy_policy,
-        uow_scope=task_uow_scope,
-    )
-    progress_handler = TaskProgressCommandHandler(
-        module_catalog_service=platform_services.module_catalog_service,
-        task_repo=repositories.pm.task_repo,
-        user_session=platform_services.user_session,
-        tenant_context_service=platform_services.tenant_context_service,
-        hierarchy_policy=hierarchy_policy,
-        validation_policy=validation_policy,
         uow_scope=task_uow_scope,
     )
     dependency_diagnostics_handler = TaskDependencyDiagnosticsQueryHandler(

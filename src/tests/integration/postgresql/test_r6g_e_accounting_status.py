@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy import text
 
-from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
     AccountingStatusQuery,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_billing_reader import (

@@ -10,6 +10,9 @@ from src.core.platform.application.security.auth.audit.security_audit import (
 from src.core.platform.application.security.auth.auth_transaction_scope import (
     AuthTransactionScope,
 )
+from src.core.platform.application.security.auth.dto.commands.users import (
+    UserUpdateCommand,
+)
 from src.core.platform.application.security.auth.queries.auth_queries import (
     AuthQueryHandler,
 )
@@ -97,14 +100,11 @@ class UserAdministrationCommandHandler:
         self._lifecycle.refresh_current_session_if_user(user.id)
         return user
 
-    def update_user_profile(
-        self,
-        user_id: str,
-        *,
-        username: str | None = None,
-        display_name: str | None = None,
-        email: str | None = None,
-    ) -> UserAccount:
+    def update_user_profile(self, command: UserUpdateCommand) -> UserAccount:
+        user_id = command.user_id
+        username = command.username
+        display_name = command.display_name
+        email = command.email
         require_permission(self._user_session, "auth.manage", operation_label="update user profile")
         self._enforce_user_tenant_boundary(user_id, "update profile")
         user = self._auth_queries.require_user(user_id)

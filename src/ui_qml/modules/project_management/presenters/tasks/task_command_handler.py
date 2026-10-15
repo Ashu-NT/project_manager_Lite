@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.application.tasks.dto import (
-    TaskBulkStatusCommand,
+from src.core.modules.project_management.application.tasks.dto.commands.task_constraints import (
     TaskConstraintUpdateCommand,
-    TaskCreateCommand,
-    TaskProgressCommand,
-    TaskUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_hierarchy import (
     TaskWbsMoveCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+    TaskUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskBulkStatusCommand,
+    TaskProgressCommand,
 )
 
 from .validation import (

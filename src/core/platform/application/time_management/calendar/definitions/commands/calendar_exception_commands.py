@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, date, datetime, time
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -11,8 +11,16 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.time_management.calendar._input import (
+    parse_time as _parse_time,
+)
+from src.core.platform.application.time_management.calendar._input import required_date
 from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
     _resolve_username,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
+    ExceptionCreateCommand,
+    ExceptionUpdateCommand,
 )
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.contract.repositories.time_management.calendar.contracts import (
@@ -40,23 +48,21 @@ class CalendarExceptionCommandHandler:
         self._exception_repo = exception_repo
         self._user_session = user_session
 
-    def add_exception(
-        self,
-        calendar_id: str,
-        *,
-        exception_date: date,
-        exception_type: str,
-        name: str,
-        impact_type: str,
-        scope_type: str | None = None,
-        scope_id: str | None = None,
-        description: str | None = None,
-        start_time: time | None = None,
-        end_time: time | None = None,
-        hours_override: float | None = None,
-        priority: int = 0,
-        approval_status: str = "APPROVED",
-    ) -> CalendarException:
+    def add_exception(self, command: ExceptionCreateCommand) -> CalendarException:
+        calendar_id = command.calendar_id
+        exception_date = required_date(command.exception_date)
+        exception_type = command.exception_type
+        name = command.name
+        impact_type = command.impact_type
+        scope_type = command.scope_type or None
+        scope_id = command.scope_id or None
+        description = command.description or None
+        start_time = _parse_time(command.start_time)
+        end_time = _parse_time(command.end_time)
+        hours_override = command.hours_override
+        priority = command.priority
+        approval_status = command.approval_status or "APPROVED"
+
         require_permission(
             self._user_session,
             "calendar.manage",
@@ -85,21 +91,19 @@ class CalendarExceptionCommandHandler:
         self._session.commit()
         return exc
 
-    def update_exception(
-        self,
-        exception_id: str,
-        *,
-        name: str | None = None,
-        description: str | None = None,
-        exception_type: str | None = None,
-        impact_type: str | None = None,
-        start_time: time | None = None,
-        end_time: time | None = None,
-        hours_override: float | None = None,
-        priority: int | None = None,
-        approval_status: str | None = None,
-        approved_by: str | None = None,
-    ) -> CalendarException:
+    def update_exception(self, command: ExceptionUpdateCommand) -> CalendarException:
+        exception_id = command.exception_id
+        name = command.name or None
+        description = command.description or None
+        exception_type = command.exception_type or None
+        impact_type = command.impact_type or None
+        start_time = command.start_time
+        end_time = command.end_time
+        hours_override = command.hours_override
+        priority = command.priority
+        approval_status = command.approval_status or None
+        approved_by = command.approved_by or None
+
         require_permission(
             self._user_session,
             "calendar.manage",
@@ -149,33 +153,23 @@ class CalendarExceptionCommandHandler:
 
     # --- Entity-scoped helpers ---
 
-    def add_site_exception(
-        self, site_id: str, calendar_id: str, **kwargs: Any
-    ) -> CalendarException:
-        return self.add_exception(
-            calendar_id, scope_type="site", scope_id=site_id, **kwargs
-        )
+    def add_site_exception(self, command: ExceptionCreateCommand) -> CalendarException:
+        return self.add_exception(replace(command, scope_type="site"))
 
     def add_department_exception(
-        self, department_id: str, calendar_id: str, **kwargs: Any
+        self, command: ExceptionCreateCommand
     ) -> CalendarException:
-        return self.add_exception(
-            calendar_id, scope_type="department", scope_id=department_id, **kwargs
-        )
+        return self.add_exception(replace(command, scope_type="department"))
 
     def add_employee_exception(
-        self, employee_id: str, calendar_id: str, **kwargs: Any
+        self, command: ExceptionCreateCommand
     ) -> CalendarException:
-        return self.add_exception(
-            calendar_id, scope_type="employee", scope_id=employee_id, **kwargs
-        )
+        return self.add_exception(replace(command, scope_type="employee"))
 
     def add_resource_exception(
-        self, resource_id: str, calendar_id: str, **kwargs: Any
+        self, command: ExceptionCreateCommand
     ) -> CalendarException:
-        return self.add_exception(
-            calendar_id, scope_type="resource", scope_id=resource_id, **kwargs
-        )
+        return self.add_exception(replace(command, scope_type="resource"))
 
     def _require_calendar(self, calendar_id: str) -> None:
         if self._calendar_repo.get(calendar_id) is None:

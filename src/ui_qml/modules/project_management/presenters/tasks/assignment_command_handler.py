@@ -6,7 +6,7 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     AssignmentValidationDesktopDto,
 )
-from src.core.modules.project_management.application.tasks.dto import (
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentPlannedHoursCommand,

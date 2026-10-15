@@ -7,10 +7,10 @@ main workspace does not (Department is Site-optional)."""
 
 from __future__ import annotations
 
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
 )
-from src.core.platform.application.master_data.site.dto import (
+from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
 from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (

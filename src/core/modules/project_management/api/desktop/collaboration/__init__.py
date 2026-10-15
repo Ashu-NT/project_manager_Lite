@@ -17,12 +17,6 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
     TaskCollaborationReactionSummaryDto,
     TaskCollaborationSnapshotDto,
 )
-from src.core.modules.project_management.application.collaboration.dto import (
-    TaskCollaborationDeleteCommand,
-    TaskCollaborationEditCommand,
-    TaskCollaborationPostCommand,
-    TaskCollaborationReactionCommand,
-)
 
 __all__ = [
     "CollaborationCommentPageDto",
@@ -31,12 +25,8 @@ __all__ = [
     "CollaborationPresenceDesktopDto",
     "ProjectManagementCollaborationDesktopApi",
     "TaskCollaborationCommentDesktopDto",
-    "TaskCollaborationDeleteCommand",
     "TaskCollaborationDocumentOptionDescriptor",
-    "TaskCollaborationEditCommand",
     "TaskCollaborationMentionOptionDescriptor",
-    "TaskCollaborationPostCommand",
-    "TaskCollaborationReactionCommand",
     "TaskCollaborationReactionSummaryDto",
     "TaskCollaborationSnapshotDto",
     "build_project_management_collaboration_desktop_api",

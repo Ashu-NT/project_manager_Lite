@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from sqlalchemy import event
 
-from src.core.modules.project_management.application.financials.forecasts.generation_models import (
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_estimates import (
     ManualEtcEstimate,
 )
 from src.core.modules.project_management.domain.financials.financial_change import (
@@ -17,6 +17,9 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
     ForecastLineSourceKind,
     ForecastLineSourceType,
+)
+from src.core.platform.application.approval.dto.commands.decisions import (
+    ApprovalDecisionCommand,
 )
 
 _OBSERVED_SQL: list[list[str]] = []
@@ -190,8 +193,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     _, counts["budget.approval_decision"] = _measure(
         engine,
         lambda: services["approval_commands"].approve_and_apply(
-            approval_result.approval_request_id
-        ),
+            ApprovalDecisionCommand(request_id=approval_result.approval_request_id)),
     )
     _login(services, "admin", "ChangeMe123!")
     _, counts["budget.successor"] = _measure(
@@ -257,8 +259,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     _, counts["forecast.approval_decision"] = _measure(
         engine,
         lambda: services["approval_commands"].approve_and_apply(
-            forecast_approval.approval_request_id
-        ),
+            ApprovalDecisionCommand(request_id=forecast_approval.approval_request_id)),
     )
     _login(services, "admin", "ChangeMe123!")
     _, counts["forecast.regenerate_successor"] = _measure(
@@ -342,7 +343,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     _login(services, "sql-change-reviewer", "StrongPass123")
     _, counts["change.decision_apply"] = _measure(
         engine,
-        lambda: services["approval_commands"].approve_and_apply(approval.id),
+        lambda: services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=approval.id)),
     )
 
     print("R6C-F SQL statement counts:", dict(sorted(counts.items())))

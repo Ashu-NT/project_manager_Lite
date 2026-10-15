@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.application.platform_runtime.dto import (
+from src.core.platform.application.platform_runtime.dto.responses.module_runtime import (
     ModuleRuntimeSnapshot,
     RuntimeEntitlementFact,
     RuntimeModuleFact,

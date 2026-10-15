@@ -12,6 +12,9 @@ from src.core.modules.project_management.domain.financials.configuration import 
     ProjectCostCode,
     ProjectFinancialProfile,
 )
+from src.core.platform.access.application.dto.commands.scoped_access import (
+    ScopedAccessGrantAssignCommand,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -243,11 +246,7 @@ def test_financial_configuration_requires_global_and_project_manage_permissions(
         tenant_id=services["user_session"].active_tenant_id(),
     )
     services["access_service"].assign_scope_grant(
-        scope_type="project",
-        scope_id=project.id,
-        user_id=user.id,
-        scope_role="owner",
-    )
+        ScopedAccessGrantAssignCommand(scope_type="project", scope_id=project.id, user_id=user.id, scope_role="owner"))
     login_as(services, "phase-b1-project-manager", "StrongPass123")
 
     assert services['financial_configuration_query'].get_profile(project.id)

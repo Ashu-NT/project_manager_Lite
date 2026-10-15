@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.application.timesheets.dto import (
+from src.core.modules.project_management.application.timesheets.dto.commands.time_entries import (
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
 )

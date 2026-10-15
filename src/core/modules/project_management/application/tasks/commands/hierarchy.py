@@ -16,6 +16,9 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
     TaskHierarchyPolicy,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_hierarchy import (
+    TaskWbsMoveCommand,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskHierarchyChanged,
     TaskHierarchyChangeType,
@@ -61,15 +64,12 @@ class TaskHierarchyCommandHandler(ProjectManagementModuleGuardMixin):
         self._hierarchy_policy = hierarchy_policy
         self._uow_scope = uow_scope
 
-    def move_task(
-        self,
-        task_id: str,
-        *,
-        parent_task_id: str | None,
-        wbs_code: str | None = None,
-        sort_order: int | None = None,
-        expected_version: int | None = None,
-    ) -> Task:
+    def move_task(self, command: TaskWbsMoveCommand) -> Task:
+        task_id = command.task_id
+        parent_task_id = command.parent_task_id
+        wbs_code = command.wbs_code
+        sort_order = command.sort_order
+        expected_version = command.expected_version
         require_permission(self._user_session, "task.manage", operation_label="move task in WBS")
         task = self._task_repo.get(task_id)
         if task is None:
@@ -238,11 +238,13 @@ class TaskHierarchyCommandHandler(ProjectManagementModuleGuardMixin):
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         return self.move_task(
-            task_id,
-            parent_task_id=task.parent_task_id,
-            wbs_code=wbs_code,
-            sort_order=task.sort_order,
-            expected_version=expected_version,
+            TaskWbsMoveCommand(
+                task_id=task_id,
+                parent_task_id=task.parent_task_id,
+                wbs_code=wbs_code,
+                sort_order=task.sort_order,
+                expected_version=expected_version,
+            )
         )
 
 

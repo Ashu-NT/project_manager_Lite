@@ -16,7 +16,7 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.platform_runtime.runtime import (
     PlatformRuntimeDesktopApi,
 )
-from src.core.platform.application.master_data.org.dto import (
+from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )

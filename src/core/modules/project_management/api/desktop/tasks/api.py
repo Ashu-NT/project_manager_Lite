@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from decimal import Decimal
 from typing import TypeVar
 
 from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
     EDITABLE_CONSTRAINT_OPTIONS,
-    coerce_constraint_type,
 )
 from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
     coerce_dependency_direction,
@@ -102,9 +100,6 @@ from src.core.modules.project_management.api.desktop.tasks.services.resource_loo
 from src.core.modules.project_management.api.desktop.tasks.utils.task_id_utils import (
     normalize_task_ids,
 )
-from src.core.modules.project_management.api.desktop.tasks.utils.task_status_utils import (
-    coerce_task_status,
-)
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
 )
@@ -135,19 +130,29 @@ from src.core.modules.project_management.application.tasks.commands.assignment i
 from src.core.modules.project_management.application.tasks.commands.time_entries import (
     TaskTimeEntryHandler,
 )
-from src.core.modules.project_management.application.tasks.dto import (
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
     TaskAssignmentPlannedHoursCommand,
-    TaskBulkStatusCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_constraints import (
     TaskConstraintUpdateCommand,
-    TaskCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_dependencies import (
     TaskDependencyCreateCommand,
     TaskDependencyUpdateCommand,
-    TaskProgressCommand,
-    TaskUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_hierarchy import (
     TaskWbsMoveCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+    TaskUpdateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskBulkStatusCommand,
+    TaskProgressCommand,
 )
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     TaskDependencyDiagnosticsQueryHandler,
@@ -371,26 +376,7 @@ class ProjectManagementTasksDesktopApi:
         )
 
     def create_task(self, command: TaskCreateCommand) -> TaskDesktopDto:
-        task = self._require_task_capability(self._task_lifecycle_commands).create_task(
-            project_id=command.project_id,
-            name=command.name,
-            code=getattr(command, "code", ""),
-            description=command.description,
-            start_date=command.start_date,
-            duration_days=command.duration_days,
-            priority=command.priority or 0,
-            deadline=command.deadline,
-            parent_task_id=getattr(command, "parent_task_id", None),
-            wbs_code=getattr(command, "wbs_code", "") or "",
-            sort_order=getattr(command, "sort_order", None),
-            is_milestone=bool(getattr(command, "is_milestone", False)),
-            constraint_type=coerce_constraint_type(getattr(command, "constraint_type", None)),
-            constraint_date=getattr(command, "constraint_date", None),
-        )
-        desired_status = coerce_task_status(command.status)
-        if desired_status != task.status:
-            self._require_task_capability(self._task_progress_commands).set_status(task.id, desired_status)
-            task = self._require_task_capability(self._task_detail_query).get_task(task.id) or task
+        task = self._require_task_capability(self._task_lifecycle_commands).create_task(command)
         return serialize_task(
             task,
             project_name=self._project_name_by_id().get(task.project_id, ""),
@@ -412,69 +398,28 @@ class ProjectManagementTasksDesktopApi:
     def update_task_scheduling_constraint(
         self, command: TaskConstraintUpdateCommand
     ) -> TaskDesktopDto:
-        task = self._require_task_capability(self._task_constraint_commands).update_task_scheduling_constraint(
-            command.task_id,
-            constraint_type=coerce_constraint_type(command.constraint_type),
-            constraint_date=command.constraint_date,
-            expected_version=command.expected_version,
-        )
+        task = self._require_task_capability(self._task_constraint_commands).update_task_scheduling_constraint(command)
         return serialize_task(
             task,
             project_name=self._project_name_by_id().get(task.project_id, ""),
         )
 
     def move_task(self, command: TaskWbsMoveCommand) -> TaskDesktopDto:
-        task = self._require_task_capability(self._task_hierarchy_commands).move_task(
-            command.task_id,
-            parent_task_id=command.parent_task_id,
-            wbs_code=command.wbs_code,
-            sort_order=command.sort_order,
-            expected_version=command.expected_version,
-        )
+        task = self._require_task_capability(self._task_hierarchy_commands).move_task(command)
         refreshed = self.get_task(task.id)
         if refreshed is None:
             raise RuntimeError("Task could not be loaded after the WBS move.")
         return refreshed
 
     def update_task(self, command: TaskUpdateCommand) -> TaskDesktopDto:
-        current_task = self._require_task_capability(self._task_detail_query).get_task(command.task_id)
-        if current_task is None:
-            raise RuntimeError("Task could not be loaded for update.")
-        desired_status = coerce_task_status(command.status)
-        task = self._require_task_capability(self._task_lifecycle_commands).update_task(
-            command.task_id,
-            name=command.name,
-            code=getattr(command, "code", ""),
-            description=command.description,
-            start_date=command.start_date,
-            duration_days=command.duration_days,
-            status=current_task.status,
-            priority=command.priority,
-            deadline=command.deadline,
-            expected_version=command.expected_version,
-            is_milestone=getattr(command, "is_milestone", None),
-        )
-        if desired_status != current_task.status:
-            self._require_task_capability(self._task_progress_commands).set_status(task.id, desired_status)
-            task = self._require_task_capability(self._task_detail_query).get_task(task.id) or task
+        task = self._require_task_capability(self._task_lifecycle_commands).update_task(command)
         return serialize_task(
             task,
             project_name=self._project_name_by_id().get(task.project_id, ""),
         )
 
     def update_progress(self, command: TaskProgressCommand) -> TaskDesktopDto:
-        task = self._require_task_capability(self._task_progress_commands).update_progress(
-            command.task_id,
-            percent_complete=command.percent_complete,
-            actual_start=command.actual_start,
-            actual_end=command.actual_end,
-            status=(
-                coerce_task_status(command.status)
-                if command.status is not None
-                else None
-            ),
-            expected_version=command.expected_version,
-        )
+        task = self._require_task_capability(self._task_progress_commands).update_progress(command)
         return serialize_task(
             task,
             project_name=self._project_name_by_id().get(task.project_id, ""),
@@ -635,12 +580,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskAssignmentCreateCommand,
     ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_capability(self._task_assignment_commands).assign_project_resource(
-            task_id=command.task_id,
-            project_resource_id=command.project_resource_id,
-            allocation_percent=command.allocation_percent,
-            allocated_planned_hours=getattr(command, "allocated_planned_hours", None) or Decimal(0),
-        )
+        assignment = self._require_task_capability(self._task_assignment_commands).assign_project_resource(command)
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
@@ -654,11 +594,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskAssignmentAllocationCommand,
     ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_capability(self._task_assignment_commands).set_assignment_allocation(
-            assignment_id=command.assignment_id,
-            allocation_percent=command.allocation_percent,
-            expected_version=command.expected_version,
-        )
+        assignment = self._require_task_capability(self._task_assignment_commands).set_assignment_allocation(command)
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
@@ -672,12 +608,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskAssignmentPlannedHoursCommand,
     ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_capability(self._task_assignment_commands).update_assignment_planned_hours(
-            assignment_id=command.assignment_id,
-            allocated_planned_hours=command.allocated_planned_hours,
-            expected_assignment_version=command.expected_assignment_version,
-            expected_project_resource_version=command.expected_project_resource_version,
-        )
+        assignment = self._require_task_capability(self._task_assignment_commands).update_assignment_planned_hours(command)
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
@@ -693,10 +624,7 @@ class ProjectManagementTasksDesktopApi:
     ) -> TaskAssignmentDesktopDto:
         assignment = self._require_task_assignment_commands(
             operation_label="log assignment hours"
-        ).set_assignment_hours(
-            assignment_id=command.assignment_id,
-            hours_logged=command.hours_logged,
-        )
+        ).set_assignment_hours(command)
         return serialize_assignment(
             assignment,
             resources_by_id=resource_by_id(
@@ -813,25 +741,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskDependencyCreateCommand,
     ) -> TaskDependencyDesktopDto:
-        relationship_direction = coerce_dependency_direction(
-            command.relationship_direction
-        )
-        predecessor_id = (
-            command.linked_task_id
-            if relationship_direction == "PREDECESSOR"
-            else command.task_id
-        )
-        successor_id = (
-            command.task_id
-            if relationship_direction == "PREDECESSOR"
-            else command.linked_task_id
-        )
-        dependency = self._require_task_capability(self._task_dependency_commands).add_dependency(
-            predecessor_id=predecessor_id,
-            successor_id=successor_id,
-            dependency_type=coerce_dependency_type(command.dependency_type),
-            lag_days=command.lag_days,
-        )
+        dependency = self._require_task_capability(self._task_dependency_commands).add_dependency(command)
         current_task = self._require_task_capability(self._task_detail_query).get_task(command.task_id)
         tasks_by_id: dict[str, object] = {}
         list_tasks_for_project = getattr(self._task_lookup_query, "list_tasks_for_project", None)
@@ -853,12 +763,7 @@ class ProjectManagementTasksDesktopApi:
         normalized_id = (command.dependency_id or "").strip()
         if not normalized_id:
             raise ValueError("Dependency ID is required.")
-        self._require_task_capability(self._task_dependency_commands).update_dependency(
-            normalized_id,
-            dependency_type=coerce_dependency_type(command.dependency_type),
-            lag_days=command.lag_days,
-            expected_version=command.expected_version,
-        )
+        self._require_task_capability(self._task_dependency_commands).update_dependency(command)
 
     def delete_dependency(self, dependency_id: str) -> None:
         self._require_task_capability(self._task_dependency_commands).remove_dependency(dependency_id)
@@ -928,13 +833,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskBulkStatusCommand,
     ) -> tuple[TaskDesktopDto, ...]:
-        desired_status = coerce_task_status(command.status)
-        task_ids = normalize_task_ids(command.task_ids)
-        changed = self._require_task_capability(self._task_progress_commands).set_tasks_status(
-            task_ids,
-            desired_status,
-            reopen_percent_complete=command.reopen_percent_complete,
-        )
+        changed = self._require_task_capability(self._task_progress_commands).set_tasks_status(command)
         project_names = self._project_name_by_id()
         return tuple(
             serialize_task(

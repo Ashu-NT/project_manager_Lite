@@ -3,12 +3,12 @@ from __future__ import annotations
 from src.core.platform.application.master_data.department import (
     DepartmentCommandHandler,
 )
-from src.core.platform.application.master_data.department.dto import (
+from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
 )
 from src.core.platform.application.master_data.employee import EmployeeCommandHandler
-from src.core.platform.application.master_data.employee.dto import (
+from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
 )

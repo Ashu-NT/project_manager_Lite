@@ -2,51 +2,50 @@
 
 from __future__ import annotations
 
-from datetime import date, time, timedelta
 from functools import partial
-from typing import cast
 
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
     CalendarAssignmentDto,
-    CalendarCreateCommand,
     CalendarDayDto,
     CalendarDto,
     CalendarExceptionDto,
-    CalendarUpdateCommand,
-    DeptCalendarAssignCommand,
     EffectiveCalendarDto,
-    EmpCalendarAssignCommand,
-    ExceptionCreateCommand,
-    ExceptionUpdateCommand,
-    ProjectCalendarAssignCommand,
-    RecurringEventCreateCommand,
     RecurringEventDto,
-    RecurringEventUpdateCommand,
-    ResolveCalendarRangeCommand,
-    ResolveContextCommand,
     ResolvedContextDto,
-    ResolveEffectiveCalendarCommand,
-    ResourceCalendarAssignCommand,
-    ResourceCapacityCommand,
     ResourceCapacityDto,
-    ShiftPatternCreateCommand,
     ShiftPatternDayDto,
-    ShiftPatternDaySetCommand,
     ShiftPatternDto,
-    ShiftPatternUpdateCommand,
-    SiteCalendarAssignCommand,
-    WorkingDaysCommand,
     WorkingDaysResultDto,
     WorkingRuleDto,
-    WorkingRuleSaveCommand,
+)
+from src.core.platform.application.time_management.calendar._input import (
+    parse_date as _parse_date,
 )
 from src.core.platform.application.time_management.calendar.assignment.commands.calendar_assignment_commands import (
     CalendarAssignmentCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    DeptCalendarAssignCommand,
+    EmpCalendarAssignCommand,
+    ProjectCalendarAssignCommand,
+    ResourceCalendarAssignCommand,
+    SiteCalendarAssignCommand,
+)
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
+    ResolveCalendarRangeCommand,
+    ResolveContextCommand,
+    ResolveEffectiveCalendarCommand,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.resource_capacity import (
+    ResourceCapacityCommand,
+)
+from src.core.platform.application.time_management.calendar.capacity.dto.queries.working_days import (
+    WorkingDaysCommand,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -66,6 +65,22 @@ from src.core.platform.application.time_management.calendar.definitions.commands
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
+    ExceptionCreateCommand,
+    ExceptionUpdateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.recurring_events import (
+    RecurringEventCreateCommand,
+    RecurringEventUpdateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.shift_patterns import (
+    ShiftPatternCreateCommand,
+    ShiftPatternDaySetCommand,
+    ShiftPatternUpdateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
     CalendarExceptionQueryHandler,
 )
@@ -77,6 +92,10 @@ from src.core.platform.application.time_management.calendar.definitions.queries.
 )
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
+    CalendarUpdateCommand,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,
@@ -90,27 +109,6 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     ShiftPattern,
     ShiftPatternDay,
 )
-
-
-def _parse_date(value: str) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None
-
-
-def _parse_time(value: str) -> time | None:
-    if not value:
-        return None
-    try:
-        parts = value.split(":")
-        hour = int(parts[0])
-        minute = int(parts[1]) if len(parts) > 1 else 0
-        return time(hour, minute)
-    except (ValueError, IndexError):
-        return None
 
 
 def _fmt_date(d) -> str:
@@ -326,21 +324,7 @@ class PlatformCalendarDesktopApi:
     def create_calendar(self, command: CalendarCreateCommand) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: _serialize_calendar(
-                self._platform_calendar_commands.create_calendar(
-                    code=command.code,
-                    name=command.name,
-                    calendar_type=command.calendar_type,
-                    timezone=command.timezone or "UTC",
-                    description=command.description or None,
-                    base_calendar_id=command.base_calendar_id or None,
-                    scope_type=command.scope_type or None,
-                    scope_id=command.scope_id or None,
-                    locale=command.locale or None,
-                    is_default=command.is_default,
-                    effective_from=_parse_date(command.effective_from),
-                    effective_to=_parse_date(command.effective_to),
-                    priority=command.priority,
-                )
+                self._platform_calendar_commands.create_calendar(command)
             )
         )
 
@@ -351,17 +335,7 @@ class PlatformCalendarDesktopApi:
         # this generic profile update.
         return execute_desktop_operation(
             lambda: _serialize_calendar(
-                self._platform_calendar_commands.update_calendar(
-                    command.calendar_id,
-                    name=command.name or None,
-                    description=command.description or None,
-                    timezone=command.timezone or None,
-                    locale=command.locale or None,
-                    is_active=command.is_active,
-                    effective_from=_parse_date(command.effective_from),
-                    effective_to=_parse_date(command.effective_to),
-                    priority=command.priority,
-                )
+                self._platform_calendar_commands.update_calendar(command)
             )
         )
 
@@ -391,22 +365,7 @@ class PlatformCalendarDesktopApi:
 
     def save_working_rule(self, command: WorkingRuleSaveCommand) -> DesktopApiResult:
         return execute_desktop_operation(
-            lambda: _serialize_rule(
-                self._working_rule_commands.save_rule(
-                    command.calendar_id,
-                    command.weekday,
-                    is_working_day=command.is_working_day,
-                    start_time=_parse_time(command.start_time),
-                    end_time=_parse_time(command.end_time),
-                    break_start_time=_parse_time(command.break_start_time),
-                    break_end_time=_parse_time(command.break_end_time),
-                    break_minutes=command.break_minutes,
-                    hours_override=command.hours_override
-                    if command.hours_override
-                    else None,
-                    shift_code=command.shift_code or None,
-                )
-            )
+            lambda: _serialize_rule(self._working_rule_commands.save_rule(command))
         )
 
     def delete_working_rule(self, rule_id: str) -> DesktopApiResult:
@@ -433,42 +392,14 @@ class PlatformCalendarDesktopApi:
     def add_exception(self, command: ExceptionCreateCommand) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: _serialize_exception(
-                self._calendar_exception_commands.add_exception(
-                    command.calendar_id,
-                    exception_date=date.fromisoformat(command.exception_date),
-                    exception_type=command.exception_type,
-                    name=command.name,
-                    impact_type=command.impact_type,
-                    scope_type=command.scope_type or None,
-                    scope_id=command.scope_id or None,
-                    description=command.description or None,
-                    start_time=_parse_time(command.start_time),
-                    end_time=_parse_time(command.end_time),
-                    hours_override=command.hours_override
-                    if command.hours_override
-                    else None,
-                    priority=command.priority,
-                    approval_status=command.approval_status or "APPROVED",
-                )
+                self._calendar_exception_commands.add_exception(command)
             )
         )
 
     def update_exception(self, command: ExceptionUpdateCommand) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: _serialize_exception(
-                self._calendar_exception_commands.update_exception(
-                    command.exception_id,
-                    name=command.name or None,
-                    description=command.description or None,
-                    exception_type=command.exception_type or None,
-                    impact_type=command.impact_type or None,
-                    hours_override=command.hours_override
-                    if command.hours_override
-                    else None,
-                    priority=command.priority,
-                    approval_status=command.approval_status or None,
-                    approved_by=command.approved_by or None,
-                )
+                self._calendar_exception_commands.update_exception(command)
             )
         )
 
@@ -496,23 +427,7 @@ class PlatformCalendarDesktopApi:
     ) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: _serialize_recurring_event(
-                self._recurring_event_commands.add_recurring_event(
-                    command.calendar_id,
-                    title=command.title,
-                    event_type=command.event_type,
-                    recurrence_rule=command.recurrence_rule,
-                    # Blank times pass through as None (the RecurringEvent model's
-                    # times are optional); the service signature is narrower.
-                    start_time=cast(time, _parse_time(command.start_time)),
-                    end_time=cast(time, _parse_time(command.end_time)),
-                    impact_type=command.impact_type,
-                    effective_from=date.fromisoformat(command.effective_from),
-                    scope_type=command.scope_type or None,
-                    scope_id=command.scope_id or None,
-                    capacity_impact_percent=command.capacity_impact_percent or None,
-                    effective_to=_parse_date(command.effective_to),
-                    priority=command.priority,
-                )
+                self._recurring_event_commands.add_recurring_event(command)
             )
         )
 
@@ -521,20 +436,7 @@ class PlatformCalendarDesktopApi:
     ) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: _serialize_recurring_event(
-                self._recurring_event_commands.update_recurring_event(
-                    command.event_id,
-                    title=command.title or None,
-                    event_type=command.event_type or None,
-                    recurrence_rule=command.recurrence_rule or None,
-                    start_time=_parse_time(command.start_time),
-                    end_time=_parse_time(command.end_time),
-                    impact_type=command.impact_type or None,
-                    capacity_impact_percent=command.capacity_impact_percent or None,
-                    effective_from=_parse_date(command.effective_from),
-                    effective_to=_parse_date(command.effective_to),
-                    is_active=command.is_active,
-                    priority=command.priority,
-                )
+                self._recurring_event_commands.update_recurring_event(command)
             )
         )
 
@@ -577,15 +479,7 @@ class PlatformCalendarDesktopApi:
     ) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: _serialize_shift_pattern(
-                self._shift_pattern_commands.create_shift_pattern(
-                    code=command.code,
-                    name=command.name,
-                    pattern_type=command.pattern_type,
-                    timezone=command.timezone or "UTC",
-                    description=command.description or None,
-                    rotation_cycle_days=command.rotation_cycle_days or None,
-                    anchor_date=_parse_date(command.anchor_date),
-                )
+                self._shift_pattern_commands.create_shift_pattern(command)
             )
         )
 
@@ -594,18 +488,7 @@ class PlatformCalendarDesktopApi:
     ) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: _serialize_shift_pattern(
-                self._shift_pattern_commands.update_shift_pattern(
-                    command.pattern_id,
-                    name=command.name or None,
-                    description=command.description or None,
-                    pattern_type=command.pattern_type or None,
-                    timezone=command.timezone or None,
-                    rotation_cycle_days=command.rotation_cycle_days or None,
-                    anchor_date=_parse_date(command.anchor_date)
-                    if command.anchor_date
-                    else None,
-                    is_active=command.is_active,
-                )
+                self._shift_pattern_commands.update_shift_pattern(command)
             )
         )
 
@@ -618,18 +501,7 @@ class PlatformCalendarDesktopApi:
         self, command: ShiftPatternDaySetCommand
     ) -> DesktopApiResult:
         return execute_desktop_operation(
-            lambda: _serialize_shift_day(
-                self._shift_pattern_commands.set_day(
-                    command.pattern_id,
-                    command.day_offset,
-                    is_working_day=command.is_working_day,
-                    start_time=_parse_time(command.start_time),
-                    end_time=_parse_time(command.end_time),
-                    break_minutes=command.break_minutes,
-                    hours=command.hours if command.hours else None,
-                    shift_label=command.shift_label or None,
-                )
-            )
+            lambda: _serialize_shift_day(self._shift_pattern_commands.set_day(command))
         )
 
     def delete_shift_pattern_day(self, day_id: str) -> DesktopApiResult:
@@ -644,12 +516,7 @@ class PlatformCalendarDesktopApi:
     ) -> DesktopApiResult:
         def _assign():
             assignment = self._calendar_assignment_commands.assign_site_calendar(
-                command.site_id,
-                command.calendar_id,
-                effective_from=_parse_date(command.effective_from),
-                effective_to=_parse_date(command.effective_to),
-                is_default=command.is_default,
-                priority=command.priority,
+                command
             )
             calendar = self._platform_calendar_queries.get_calendar(
                 assignment.calendar_id
@@ -665,12 +532,7 @@ class PlatformCalendarDesktopApi:
     ) -> DesktopApiResult:
         def _assign():
             assignment = self._calendar_assignment_commands.assign_department_calendar(
-                command.department_id,
-                command.calendar_id,
-                effective_from=_parse_date(command.effective_from),
-                effective_to=_parse_date(command.effective_to),
-                is_default=command.is_default,
-                priority=command.priority,
+                command
             )
             calendar = self._platform_calendar_queries.get_calendar(
                 assignment.calendar_id
@@ -686,12 +548,7 @@ class PlatformCalendarDesktopApi:
     ) -> DesktopApiResult:
         def _assign():
             assignment = self._calendar_assignment_commands.assign_employee_calendar(
-                command.employee_id,
-                command.calendar_id,
-                effective_from=_parse_date(command.effective_from),
-                effective_to=_parse_date(command.effective_to),
-                is_default=command.is_default,
-                priority=command.priority,
+                command
             )
             calendar = self._platform_calendar_queries.get_calendar(
                 assignment.calendar_id
@@ -707,12 +564,7 @@ class PlatformCalendarDesktopApi:
     ) -> DesktopApiResult:
         def _assign():
             assignment = self._calendar_assignment_commands.assign_project_calendar(
-                command.project_id,
-                command.calendar_id,
-                effective_from=_parse_date(command.effective_from),
-                effective_to=_parse_date(command.effective_to),
-                is_default=command.is_default,
-                priority=command.priority,
+                command
             )
             calendar = self._platform_calendar_queries.get_calendar(
                 assignment.calendar_id
@@ -728,12 +580,7 @@ class PlatformCalendarDesktopApi:
     ) -> DesktopApiResult:
         def _assign():
             assignment = self._calendar_assignment_commands.assign_resource_calendar(
-                command.resource_id,
-                command.calendar_id,
-                effective_from=_parse_date(command.effective_from),
-                effective_to=_parse_date(command.effective_to),
-                is_default=command.is_default,
-                priority=command.priority,
+                command
             )
             calendar = self._platform_calendar_queries.get_calendar(
                 assignment.calendar_id
@@ -938,16 +785,7 @@ class PlatformCalendarDesktopApi:
         self, command: ResolveContextCommand
     ) -> DesktopApiResult:
         def _resolve():
-            ctx = self._resolver.resolve_calendar_context(
-                site_id=command.site_id or None,
-                department_id=command.department_id or None,
-                employee_id=command.employee_id or None,
-                project_id=command.project_id or None,
-                resource_id=command.resource_id or None,
-                worker_type=command.worker_type or None,
-                target_date=date.fromisoformat(command.target_date),
-                assigned_hours=command.assigned_hours,
-            )
+            ctx = self._resolver.resolve_calendar_context(command)
             return ResolvedContextDto(
                 date=str(ctx.date),
                 base_hours=ctx.base_hours,
@@ -976,16 +814,7 @@ class PlatformCalendarDesktopApi:
         day at a time."""
 
         def _resolve():
-            days = self._resolver.resolve_range(
-                site_id=command.site_id or None,
-                department_id=command.department_id or None,
-                employee_id=command.employee_id or None,
-                project_id=command.project_id or None,
-                resource_id=command.resource_id or None,
-                worker_type=command.worker_type or None,
-                start=date.fromisoformat(command.start_date),
-                end=date.fromisoformat(command.end_date),
-            )
+            days = self._resolver.resolve_range(command)
             return tuple(_serialize_calendar_day(day) for day in days)
 
         return execute_desktop_operation(_resolve)
@@ -998,17 +827,7 @@ class PlatformCalendarDesktopApi:
         this (never reimplement the fallback chain in a presenter)."""
 
         def _resolve():
-            result = self._resolver.resolve_effective_calendar(
-                site_id=command.site_id or None,
-                department_id=command.department_id or None,
-                employee_id=command.employee_id or None,
-                project_id=command.project_id or None,
-                resource_id=command.resource_id or None,
-                worker_type=command.worker_type or None,
-                at_date=date.fromisoformat(command.at_date)
-                if command.at_date
-                else None,
-            )
+            result = self._resolver.resolve_effective_calendar(command)
             return EffectiveCalendarDto(
                 has_calendar=result.has_calendar,
                 calendar_id=result.calendar_id,
@@ -1020,45 +839,12 @@ class PlatformCalendarDesktopApi:
         return execute_desktop_operation(_resolve)
 
     def calculate_working_days(self, command: WorkingDaysCommand) -> DesktopApiResult:
-        def _is_available(target_date: date) -> bool:
-            ctx = self._resolver.resolve_calendar_context(
-                project_id=command.project_id or None,
-                resource_id=command.resource_id or None,
-                target_date=target_date,
-            )
-            return ctx.available_hours > 0
-
         def _calculate():
-            start = date.fromisoformat(command.start_date)
-            working_days = max(command.working_days, 0)
-            if working_days == 0:
-                return WorkingDaysResultDto(
-                    start_date=command.start_date,
-                    end_date=str(start),
-                    working_days=0,
-                )
-
-            # Bounded like ProjectCalendarAdapter.add_working_days: small moves
-            # fail fast, large moves are capped so bad data can't scan forever.
-            max_iterations = min(max(working_days * 7, 730), 365 * 40)
-            iterations = 0
-
-            current = start
-            while not _is_available(current) and iterations < max_iterations:
-                current += timedelta(days=1)
-                iterations += 1
-
-            remaining = working_days - 1
-            while remaining > 0 and iterations < max_iterations:
-                current += timedelta(days=1)
-                iterations += 1
-                if _is_available(current):
-                    remaining -= 1
-
+            result = self._resolver.calculate_working_days(command)
             return WorkingDaysResultDto(
-                start_date=command.start_date,
-                end_date=str(current),
-                working_days=working_days,
+                start_date=str(result.start_date),
+                end_date=str(result.end_date),
+                working_days=result.working_days,
             )
 
         return execute_desktop_operation(_calculate)
@@ -1105,11 +891,8 @@ class PlatformCalendarDesktopApi:
             )
 
         def _compute():
-            summary = self._capacity_calculator.compute(
-                command.resource_id,
-                date.fromisoformat(command.start_date),
-                date.fromisoformat(command.end_date),
-                project_id=command.project_id or None,
+            summary = self._resolver.calculate_resource_capacity(
+                command, calculator=self._capacity_calculator
             )
             return ResourceCapacityDto(
                 resource_id=summary.resource_id,
