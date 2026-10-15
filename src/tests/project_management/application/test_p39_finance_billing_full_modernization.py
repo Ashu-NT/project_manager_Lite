@@ -102,7 +102,7 @@ def _setup_billable_project(services):
 
 
 def _ready_schedule_line(services, project, *, amount=Decimal(24000)):
-    billing_profile_service = services['billing_profile_query']
+    services['billing_profile_query']
     bp_profile = services['finance_governance_commands'].billing_profile(lambda handler: handler.create_profile(
         project.id, contract_reference=_unique("P39-CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",
@@ -212,7 +212,7 @@ def test_dedupe_within_one_transaction():
 
 def test_profile_lifecycle_produces_source_derived_facts(services):
     _, project, _cost_code = _setup_billable_project(services)
-    billing_profile_service = services['billing_profile_query']
+    services['billing_profile_query']
 
     hints = _spy_hints(services)
     profile = services['finance_governance_commands'].billing_profile(lambda handler: handler.create_profile(
@@ -250,7 +250,7 @@ def test_profile_lifecycle_produces_source_derived_facts(services):
 def test_create_preparation_and_add_fixed_price_source_produce_facts(services):
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
-    billing_preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
 
     hints = _spy_hints(services)
     preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
@@ -270,7 +270,7 @@ def test_create_preparation_and_add_fixed_price_source_produce_facts(services):
 def test_create_preparation_replay_produces_zero_hints(services):
     _, project, _cost_code = _setup_billable_project(services)
     _ready_schedule_line(services, project)
-    billing_preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     key = _unique("bp-replay-key")
     first = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id, preparation_number=_unique("BP"),
@@ -292,7 +292,7 @@ def test_create_preparation_replay_produces_zero_hints(services):
 def test_add_source_already_reserved_is_rejected(services):
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
-    billing_preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id, preparation_number=_unique("BP"),
         period_start=date(2026, 8, 1), period_end=date(2026, 8, 31),
@@ -317,7 +317,7 @@ def test_add_source_already_reserved_is_rejected(services):
 def test_submit_preparation_produces_status_changed_submitted(services):
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
-    billing_preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id, preparation_number=_unique("BP"),
         period_start=date(2026, 8, 1), period_end=date(2026, 8, 31),
@@ -338,7 +338,7 @@ def test_submit_preparation_produces_status_changed_submitted(services):
 
 
 def _submitted_preparation(services, project, line):
-    billing_preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id, preparation_number=_unique("BP"),
         period_start=date(2026, 8, 1), period_end=date(2026, 8, 31),
@@ -448,7 +448,7 @@ def test_rejected_preparation_releases_source_for_new_draft(services):
     services["approval_commands"].reject(request.id, note="Revise the claim")
 
     _login(services, "admin", "ChangeMe123!")
-    service = services['billing_preparation_query']
+    services['billing_preparation_query']
     replacement = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id,
         preparation_number=_unique("BP"),
@@ -469,7 +469,7 @@ def test_draft_line_removal_updates_totals_and_frees_source(services):
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
     _, schedule_line = _ready_schedule_line(services, project)
-    service = services['billing_preparation_query']
+    services['billing_preparation_query']
     preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id,
         preparation_number=_unique("BP"),
@@ -514,7 +514,7 @@ def test_cancel_draft_preserves_history_and_releases_source(services):
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
     _, schedule_line = _ready_schedule_line(services, project)
-    service = services['billing_preparation_query']
+    services['billing_preparation_query']
     preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id,
         preparation_number=_unique("BP"),
@@ -554,7 +554,7 @@ def test_fixed_price_source_selector_is_bounded_and_excludes_reservations(servic
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
     _, schedule_line = _ready_schedule_line(services, project)
-    service = services['billing_preparation_query']
+    services['billing_preparation_query']
     preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id,
         preparation_number=_unique("BP"),
@@ -595,7 +595,7 @@ def test_request_delivery_produces_status_changed_delivery_pending(accounting_se
     services["approval_commands"].approve_and_apply(request.id)
     _login(services, "admin", "ChangeMe123!")
 
-    billing_preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     approved = services['billing_preparation_query'].get_preparation(submitted.id)
 
     hints = _spy_hints(services)
@@ -614,7 +614,7 @@ def test_correction_uses_reconciled_parent_without_mutating_its_evidence(account
     organization, project, cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
     parent = _submitted_preparation(services, project, line)
-    billing = services['billing_preparation_query']
+    services['billing_preparation_query']
 
     def correction(parent_id, target_project=project):
         return services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
@@ -675,7 +675,7 @@ def test_external_outcome_replay_produces_zero_hints(accounting_services, accoun
     services["approval_commands"].approve_and_apply(request.id)
     _login(services, "admin", "ChangeMe123!")
 
-    billing_preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     approved = services['billing_preparation_query'].get_preparation(submitted.id)
     services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
@@ -707,7 +707,7 @@ def test_add_schedule_line_reports_the_command_permission_without_a_boundary_pre
     """A viewer must be denied on `finance.manage`, not a masking read permission."""
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
-    billing_profile_service = services['billing_profile_query']
+    services['billing_profile_query']
 
     services["user_registration"].register_user("p39-viewer-profile", "StrongPass123", role_names=["viewer"])
     _login(services, "p39-viewer-profile", "StrongPass123")
@@ -721,7 +721,7 @@ def test_add_schedule_line_reports_the_command_permission_without_a_boundary_pre
 def test_mark_schedule_line_ready_permission_check_is_not_masked(services):
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
-    billing_profile_service = services['billing_profile_query']
+    services['billing_profile_query']
     profile = services['finance_governance_commands'].billing_profile(lambda handler: handler.create_profile(
         project.id, contract_reference=_unique("CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",
@@ -745,7 +745,7 @@ def test_add_fixed_price_source_permission_check_is_not_masked(services):
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)
-    billing_preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id, preparation_number=_unique("BP"),
         period_start=date(2026, 8, 1), period_end=date(2026, 8, 31),
@@ -812,7 +812,7 @@ def test_concurrent_activate_profile_second_writer_rejected(services, session):
     )
 
     _, project, _cost_code = _setup_billable_project(services)
-    billing_profile_service = services['billing_profile_query']
+    services['billing_profile_query']
     profile = services['finance_governance_commands'].billing_profile(lambda handler: handler.create_profile(
         project.id, contract_reference=_unique("CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",

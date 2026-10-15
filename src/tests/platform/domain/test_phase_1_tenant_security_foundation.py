@@ -270,7 +270,7 @@ def test_user_repo_list_for_tenant(services):
     user_a = services["user_registration"].register_user(
         "tenant-member-a", "StrongPass123!", role_names=["viewer"], tenant_id=active_tenant_id
     )
-    user_b = services["user_registration"].register_user(
+    services["user_registration"].register_user(
         "no-tenant-b", "StrongPass123!", role_names=["viewer"]
     )
 
@@ -288,7 +288,7 @@ def test_user_repo_list_for_tenant(services):
 def test_set_active_tenant_admin_bypasses_membership_check(services):
     session = services["session"]
     tenant_context = services["tenant_context_service"]
-    user_session = services["user_session"]
+    services["user_session"]
 
     second_tenant = Tenant.create(tenant_code="TENANT2", display_name="Tenant Two")
     tenant_repo = SqlAlchemyTenantRepository(session)
@@ -301,7 +301,7 @@ def test_set_active_tenant_admin_bypasses_membership_check(services):
 
 def test_set_active_tenant_non_admin_without_membership_raises(services):
     session = services["session"]
-    user_session = services["user_session"]
+    services["user_session"]
     user_tenant_repo = SqlAlchemyUserTenantMembershipRepository(session)
     tenant_repo = SqlAlchemyTenantRepository(session)
     org_repo = services["organization_query"]._organization_repo
@@ -414,7 +414,7 @@ def test_register_user_without_tenant_id_does_not_create_membership(services):
     registration itself succeeds without one."""
     session = services["session"]
     tenant_context = services["tenant_context_service"]
-    user_tenant_repo = SqlAlchemyUserTenantMembershipRepository(session)
+    SqlAlchemyUserTenantMembershipRepository(session)
 
     active_tenant_id = tenant_context.get_active_tenant_id()
     assert active_tenant_id is not None
@@ -429,7 +429,7 @@ def test_register_user_without_tenant_id_does_not_create_membership(services):
 # ---------------------------------------------------------------------------
 
 def test_admin_user_has_membership_in_default_tenant(services):
-    user_session = services["user_session"]
+    services["user_session"]
     tenant_context = services["tenant_context_service"]
     session = services["session"]
 

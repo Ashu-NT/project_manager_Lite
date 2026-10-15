@@ -807,7 +807,7 @@ def test_financial_change_request_and_impact_stale_writes_fail_closed(
             expected_change_version=updated.row_version,
         )
     ).impact
-    first_impact_update = boundary.financial_change(
+    first_update = boundary.financial_change(
         lambda service: service.update_impact(
             impact.id,
             impact_type=impact.impact_type,
@@ -818,10 +818,9 @@ def test_financial_change_request_and_impact_stale_writes_fail_closed(
             expected_impact_version=impact.row_version,
             expected_change_version=updated.row_version + 1,
         )
-    ).impact
-    current_change = boundary.financial_change(
-        lambda service: service.get_change(change.id)
     )
+    first_impact_update = first_update.impact
+    current_change = first_update.change
     assert first_impact_update.row_version == impact.row_version + 1
     with pytest.raises(ConcurrencyError):
         boundary.financial_change(

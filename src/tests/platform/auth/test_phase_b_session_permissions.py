@@ -76,7 +76,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    cost_entries = services['cost_entry_query']
+    services['cost_entry_query']
     services["project_resource_query"]
 
     project = services['project_create'].create_project("Permission project")
@@ -189,8 +189,8 @@ def test_governance_permissions_are_split_between_request_and_decide(
     )
     _login_as(services, "admin", "ChangeMe123!")
 
-    cost_entries = services['cost_entry_query']
-    configuration = services['financial_configuration_query']
+    services['cost_entry_query']
+    services['financial_configuration_query']
     approvals = services["approval_commands"]
 
     project = services['project_create'].create_project("Governance permission split")

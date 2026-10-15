@@ -46,7 +46,7 @@ def _report_sources(services) -> reporting_api.ProjectReportSources:
 
 
 def _setup_report_project(services):
-    bs = services['baseline_query']
+    services['baseline_query']
 
     project = services['project_create'].create_project(
         "Export Validation Project",

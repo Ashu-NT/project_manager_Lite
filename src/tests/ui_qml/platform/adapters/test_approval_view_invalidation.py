@@ -82,7 +82,7 @@ def _submitted_budget(services, session):
         code=_unique("VI-PRJ"),
         financial_currency_code="USD",
     )
-    budget_service = services['budget_query']
+    services['budget_query']
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("VI-CC"), name="View invalidation cost code"
     ))
@@ -271,7 +271,7 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("VI-FIN-CC"), name="View invalidation finance cost code"
     ))
-    budgets = services['budget_query']
+    services['budget_query']
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "VI approved budget"))
     budget_line = services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal(100),
@@ -282,7 +282,7 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
     services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version))
     refresh_calls.clear()  # the approve_budget decision above also invalidates -- isolate submit_change's own
 
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
         project.id, title="VI change", reason="VI probe",
         effective_date=date(2026, 8, 11), created_by="admin",

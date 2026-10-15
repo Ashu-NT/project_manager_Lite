@@ -26,7 +26,7 @@ def _submitted_cost_entry(services, name: str):
         code="MANUAL-ACTUAL",
         name="Manual actual",
     ))
-    service = services['cost_entry_query']
+    services['cost_entry_query']
     entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id=f"{name}-command",
@@ -45,7 +45,7 @@ def test_cost_entry_requester_can_lack_approve_and_admin_can_approve(services, m
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    cost_entries = services['cost_entry_query']
+    services['cost_entry_query']
     approvals = services["approval_commands"]
 
     project, item = _submitted_cost_entry(services, "Governed Cost Project")
@@ -103,7 +103,7 @@ def test_admin_does_not_bypass_governance_requests_for_governed_actions(services
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    cost_entries = services['cost_entry_query']
+    services['cost_entry_query']
     services["approval_commands"]
 
     project, item = _submitted_cost_entry(services, "Admin bypass")

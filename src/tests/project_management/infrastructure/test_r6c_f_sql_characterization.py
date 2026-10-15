@@ -53,7 +53,7 @@ def _seed_approved_bases(services, *, suffix: str):
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"R6CF-CHG-{suffix}", name="Change authority"
     ))
-    budgets = services['budget_query']
+    services['budget_query']
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Approved Budget"))
     budget_line = services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
@@ -70,7 +70,7 @@ def _seed_approved_bases(services, *, suffix: str):
         budget.id, approved_by="admin", expected_version=budget.row_version
     ))
 
-    forecasts = services['forecast_version_query']
+    services['forecast_version_query']
     forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="Approved Forecast",
@@ -107,7 +107,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     setup_project = services['project_create'].create_project(
         "R6C-F SQL Setup", financial_currency_code="USD"
     )
-    setup = services['financial_configuration_query']
+    services['financial_configuration_query']
     profile = services['financial_configuration_query'].get_profile(setup_project.id)
     profile, counts["setup.profile_update"] = _measure(
         engine,
@@ -146,7 +146,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
         "R6C-F SQL Budget", financial_currency_code="USD"
     )
     budget_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(code="R6CF-BUD", name="Budget code"))
-    budgets = services['budget_query']
+    services['budget_query']
     budget, counts["budget.create"] = _measure(
         engine, lambda: services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(budget_project.id, "SQL Budget"))
     )
@@ -222,7 +222,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             ),
         )),
     )
-    forecasts = services['forecast_version_query']
+    services['forecast_version_query']
     forecast = generated.forecast
     _, counts["forecast.input_add"] = _measure(
         engine,
@@ -285,7 +285,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
         "r6cf-change-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "r6cf-change-requester", "StrongPass123")
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change, counts["change.create"] = _measure(
         engine,
         lambda: services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(

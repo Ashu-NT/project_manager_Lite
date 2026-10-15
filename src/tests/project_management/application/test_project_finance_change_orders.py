@@ -53,7 +53,7 @@ def _seed_approved_finance(services):
         code="CHG-001", name="Change control"
     ))
 
-    budgets = services['budget_query']
+    services['budget_query']
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Approved control budget"))
     budget_line = services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
@@ -71,7 +71,7 @@ def _seed_approved_finance(services):
     ))
     budget = services['budget_query'].get_budget(result.budget_id)
 
-    forecasts = services['forecast_version_query']
+    services['forecast_version_query']
     forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="Approved forecast",
@@ -170,7 +170,7 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
     project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
         services
     )
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
@@ -215,7 +215,7 @@ def test_submit_change_audit_failure_rolls_back_change_and_approval_request_toge
     project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
         services
     )
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
@@ -273,7 +273,7 @@ def test_negative_financial_delta_requires_an_exact_target() -> None:
 def test_draft_change_and_impact_support_versioned_edit_and_remove(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
 
     change = services['finance_governance_commands'].financial_change(lambda handler: handler.update_change(
@@ -323,7 +323,7 @@ def test_draft_change_and_impact_support_versioned_edit_and_remove(services) -> 
 def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
@@ -382,7 +382,7 @@ def test_change_read_capabilities_are_deny_safe_and_target_lookup_is_bounded(
         "change-owner", "StrongPass123", role_names=["planner"]
     )
     _login(services, "change-owner", "StrongPass123")
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
@@ -442,7 +442,7 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
     )
     _login(services, "change-requester", "StrongPass123")
 
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     budget_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
@@ -485,13 +485,13 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
     assert applied.applied_budget_id and applied.applied_budget_id != budget.id
     assert applied.applied_forecast_id and applied.applied_forecast_id != forecast.id
 
-    budgets = services['budget_query']
+    services['budget_query']
     assert services['budget_query'].get_budget(budget.id).status is BudgetStatus.SUPERSEDED
     successor_budget = services['budget_query'].get_budget(applied.applied_budget_id)
     assert successor_budget.status is BudgetStatus.APPROVED
     assert services['budget_query'].list_lines(successor_budget.id)[0].amount == Decimal(125)
 
-    forecasts = services['forecast_version_query']
+    services['forecast_version_query']
     assert services['forecast_version_query'].get_forecast(forecast.id).status is ForecastStatus.SUPERSEDED
     successor_forecast = services['forecast_version_query'].get_forecast(applied.applied_forecast_id)
     assert successor_forecast.status is ForecastStatus.APPROVED
@@ -512,7 +512,7 @@ def test_financial_change_requester_cannot_decide_own_request(
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
     project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
@@ -557,7 +557,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
     )
     _login(services, "stale-base-requester", "StrongPass123")
 
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
@@ -588,7 +588,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
 
     _login(services, "admin", "ChangeMe123!")
     if "budget" in moved_authorities:
-        budgets = services['budget_query']
+        services['budget_query']
         successor = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_successor(budget.id, name="New approved budget base"))
         successor = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
             successor.id,
@@ -601,7 +601,7 @@ def test_change_apply_fails_closed_when_approved_financial_base_moves(
             expected_version=successor.row_version,
         ))
     if "forecast" in moved_authorities:
-        forecasts = services['forecast_version_query']
+        services['forecast_version_query']
         successor = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
             project.id,
             name="New approved forecast base",
@@ -682,7 +682,7 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
         "schedule-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "schedule-requester", "StrongPass123")
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
@@ -730,7 +730,7 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
         start_date=date(2026, 8, 10),
         duration_days=4,
     )
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,
@@ -795,7 +795,7 @@ def test_impact_write_rolls_back_when_financial_audit_fails(
 
     _login(services, "admin", "ChangeMe123!")
     project, code, _, budget_line, *_ = _seed_approved_finance(services)
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     monkeypatch.setattr(
         FinancialChangeDraftCommandHandler,
@@ -839,7 +839,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         "rollback-requester", "StrongPass123", role_names=["planner"]
     )
     _login(services, "rollback-requester", "StrongPass123")
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = _draft_change(services, project)
     services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         change.id,

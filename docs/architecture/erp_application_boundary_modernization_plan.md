@@ -1195,7 +1195,7 @@ and represents an absent portfolio summary as unavailable, not zero.
 The combined matrix was rerun after these corrections from the final source
 worktree:
 
-| Final PM cutover verification | Passed | Failed | Skipped |
+| Earlier seven-boundary checkpoint (not current final verification) | Passed | Failed | Skipped |
 | --- | ---: | ---: | ---: |
 | All affected test files, architecture/schema guards, composition, Project/Resource/Scheduling/Finance contracts and desktop/UI regressions | 672 | 0 | 0 |
 | Live PostgreSQL runtime-role RLS, Finance performance Reader, governed commands, approved-Time posting and activity/history scope | 37 | 0 | 0 |
@@ -1203,14 +1203,68 @@ worktree:
 All 5,982 repository tests collect successfully. The full repository suite was
 not executed. Scoped Ruff F/I and compilation cover all changed Python files;
 Mypy covers all 78 changed production Python files; `git diff --check` is green.
-Standalone Pylance/Pyright remains unavailable. These checks certify the
-implemented cuts, not the still-open PM write/participant migrations listed
-above. Seven former service source paths are retired, while 15 named service
-boundaries remain, including the temporary Project test-fixture facade.
+Standalone Pylance/Pyright remains unavailable. Those earlier checks certified
+the initial seven retired paths only. Their then-open 15 boundaries have now
+been migrated as described in the current inventory; final verification of
+the combined implementation must not reuse the earlier counts as evidence.
 
 PM/A4 remains IN PROGRESS. No Finance business-semantic change, future
 Accounting/Procurement/Inventory operation, additional runtime graph or commit
 is authorized by this progress record.
+
+### Current Integration Corrections
+
+- Finance features use real commands/ and queries/ packages. Lifecycle,
+  line/source editing, submission, review and posting are separated where
+  their dependencies/invariants differ; a large service was not simply renamed.
+- Source cost analytics lives at
+  application/financials/analytics/costs/source_breakdown.py. Its former
+  reporting/analytics.py path and reporting re-export are removed.
+- Task assignment-preview conflict labels use one scoped batched task lookup,
+  not get_task inside a per-conflict query loop.
+- Baseline events use the existing ID-only active-scope contract. Project
+  invalidation drops and logs a tenantless event instead of constructing an
+  unscoped presentation hint.
+- The finite Accounting handoff evidence builder remains destination-neutral.
+  Delivery infrastructure is injected at composition, never inferred from a
+  Billing facade's private state.
+
+### Transport-Neutral Error Contract
+
+Core exceptions remain under core/platform/common/exceptions.py and contain
+no HTTP status, FastAPI dependency or transport response. Every expected
+failure carries a stable code, safe message and its original cause when
+translated. The application/API adapters use the shared validation,
+not-found, business-rule, concurrency, authentication, authorization,
+configuration and unsupported-operation vocabulary. Missing runtime wiring
+is a configuration failure, not a missing business record or a fake zero.
+
+The future HTTP adapter should use specific-before-general type dispatch:
+
+| Application failure | Future HTTP mapping |
+| --- | --- |
+| AuthenticationError | 401; adapter supplies authentication headers when appropriate. |
+| AuthorizationError | 403; preserve the permission-denial code. |
+| NotFoundError | 404; retain scoped not-found behavior without revealing foreign records. |
+| ConcurrencyError | 409; an adapter may use 412 only for an explicit HTTP conditional-write contract. |
+| BusinessRuleError | 409 for a rejected state transition or workflow prerequisite. |
+| OperationNotPermittedError | 409 for an operation forbidden by entity structure/immutability; caller permission denial uses AuthorizationError instead. |
+| ValidationError | 422 for validly parsed but invalid application input; malformed transport syntax is the adapter's 400 responsibility. |
+| Named ingress payload-size validation error | 413, checked before general ValidationError. |
+| UnsupportedOperationError | 501 for a genuinely unsupported server operation; invalid format/selection input remains ValidationError, not this type. |
+| ConfigurationError, otherwise-unclassified DomainError, or unexpected internal failure | 500 with a safe response; log technical details/cause privately. |
+
+Successful 200 reads, 201 creation, 202 accepted asynchronous work and 204
+no-content writes are selected by endpoint semantics, not by exceptions.
+A valid read model with unavailable/restricted metrics remains a truthful
+successful result; metric availability is not an HTTP error classifier.
+
+Pydantic validators retain the internal exceptions their validation machinery
+requires. Public boundaries translate expected failures or quarantine finite
+integration rejection reasons; programmer errors and injected infrastructure
+failures are not mislabeled as successful business results. No FastAPI
+implementation, HTTP schema hierarchy or generic catch-and-swallow layer is
+introduced by this contract.
 
 ## Risk and Verification Matrix
 

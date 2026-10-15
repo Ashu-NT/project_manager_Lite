@@ -149,7 +149,7 @@ def test_approve_baseline_request_emits_project_baseline_view_invalidation(servi
     services["role_assignment_commands"].assign_role(services["authentication"].authenticate("admin", "ChangeMe123!").id, "approver")
 
     approvals = services["approval_commands"]
-    baseline = services['baseline_query']
+    services['baseline_query']
     project = services['project_create'].create_project("Approval baseline events")
     services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=1)
     _login_as(services, "planner-baseline", "StrongPass123")

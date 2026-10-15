@@ -114,7 +114,7 @@ def test_outbox_retries_then_dead_letters(delivery_store) -> None:
         retry_policy=IntegrationRetryPolicy(initial_delay=timedelta(seconds=1), maximum_delay=timedelta(seconds=2)),
         max_attempts=2,
     )
-    record = service.enqueue(_event())
+    service.enqueue(_event())
     first = service.claim_batch(lease_token="worker", lease_duration=timedelta(seconds=10))[0]
     failed = service.mark_failed(first.id, lease_token="worker", error_code="BROKER_DOWN", error_message="offline")
     assert failed.status is OutboxDeliveryStatus.RETRY

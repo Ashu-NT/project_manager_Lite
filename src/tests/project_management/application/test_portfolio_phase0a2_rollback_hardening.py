@@ -61,7 +61,7 @@ def _portfolio_hints(hints):
 
 
 def _dependency_case(services):
-    project_service = services['project_query']
+    services['project_query']
     project_a = services['project_create'].create_project("Dependency Project A")
     project_b = services['project_create'].create_project("Dependency Project B")
     counter = {"n": 0}
@@ -339,7 +339,7 @@ def test_update_scenario_rolls_back_on_repository_failure(services, monkeypatch)
 
 
 def test_remove_project_dependency_rolls_back_on_repository_failure(services, monkeypatch):
-    project_service = services['project_query']
+    services['project_query']
     project_a = services['project_create'].create_project("Remove Dependency Project A")
     project_b = services['project_create'].create_project("Remove Dependency Project B")
     dependency = services["portfolio_dependency_commands"].create_project_dependency(

@@ -12,10 +12,10 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     FinancialSourceReference,
     FinancialSourceType,
 )
+from src.core.platform.common.exceptions import UnsupportedOperationError
 from src.core.platform.domain.security.identity.service_principal import (
     ServicePrincipal,
 )
-from src.core.platform.common.exceptions import UnsupportedOperationError
 from src.core.platform.integration import (
     APPROVED_TIME_ENTRY_EVENT_TYPE,
     ApprovedTimeEntryEventPayload,

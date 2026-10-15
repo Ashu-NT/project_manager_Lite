@@ -156,7 +156,7 @@ def test_baseline_task_and_variance_dtos_normalize_and_validate_local_fields():
 
 
 def test_baseline_service_uses_domain_normalization_for_create_and_reject_flow(services):
-    baseline_service = services['baseline_query']
+    services['baseline_query']
 
     project = services['project_create'].create_project("Baseline DTO Service Proof")
     services['task_lifecycle_commands'].create_task(project.id, "First Task", start_date=date(2026, 7, 1), duration_days=2)
@@ -180,7 +180,7 @@ def test_baseline_service_uses_domain_normalization_for_create_and_reject_flow(s
 
 
 def test_baseline_captures_explicit_milestone_as_immutable_snapshot(services):
-    baseline_service = services['baseline_query']
+    services['baseline_query']
 
     project = services['project_create'].create_project("Milestone Snapshot Proof")
     task = services['task_lifecycle_commands'].create_task(

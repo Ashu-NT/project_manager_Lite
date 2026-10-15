@@ -159,7 +159,7 @@ def test_create_and_update_scenario_produce_hints(services):
 
 
 def test_create_and_remove_dependency_produce_hints(services):
-    project_service = services['project_query']
+    services['project_query']
     project_a = services['project_create'].create_project("P42 dependency A")
     project_b = services['project_create'].create_project("P42 dependency B")
     hints = _spy_hints(services)

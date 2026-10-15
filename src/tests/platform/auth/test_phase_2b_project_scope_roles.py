@@ -89,7 +89,7 @@ def test_project_scope_roles_are_seeded_in_db(services):
 # ---------------------------------------------------------------------------
 
 def test_user_assigned_project_lead_gets_correct_permissions(services):
-    project_service = services['project_query']
+    services['project_query']
     tenant_id, _ = _active_context_ids(services)
 
     project = services['project_create'].create_project("Phase 2B Lead Project")
@@ -110,7 +110,7 @@ def test_user_assigned_project_lead_gets_correct_permissions(services):
 
 
 def test_user_assigned_project_viewer_gets_read_only_permissions(services):
-    project_service = services['project_query']
+    services['project_query']
     tenant_id, _ = _active_context_ids(services)
 
     project = services['project_create'].create_project("Phase 2B Viewer Project")
@@ -134,7 +134,7 @@ def test_user_assigned_project_viewer_gets_read_only_permissions(services):
 # ---------------------------------------------------------------------------
 
 def test_project_role_binding_is_scoped_to_its_own_project(services):
-    project_service = services['project_query']
+    services['project_query']
     tenant_id, organization_id = _active_context_ids(services)
 
     project_a = services['project_create'].create_project("Phase 2B Scope A")

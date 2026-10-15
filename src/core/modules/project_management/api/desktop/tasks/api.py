@@ -1015,8 +1015,8 @@ class ProjectManagementTasksDesktopApi:
         if self._schedule_change_impact_query is None:
             logger.warning(
                 "Schedule impact requested but no ScheduleChangeImpactQueryHandler is wired "
-                "(task_id=%s, project_id=%s) -- check that task_service/work_calendar_engine/"
-                "baseline_query are all non-None at desktop_api_builder composition time.",
+                "(task_id=%s, project_id=%s) -- check the Scheduling query capability "
+                "in module-owned composition.",
                 normalized_task_id,
                 normalized_project_id,
             )

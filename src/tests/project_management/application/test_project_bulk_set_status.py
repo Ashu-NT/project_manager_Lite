@@ -28,7 +28,7 @@ def _count_uow_creations(factory_cls):
 
 
 def test_bulk_set_status_updates_every_project_in_one_transaction(services) -> None:
-    project_service = services['project_query']
+    services['project_query']
     projects = [
         services['project_create'].create_project(f"Bulk status project {i}", "")
         for i in range(3)

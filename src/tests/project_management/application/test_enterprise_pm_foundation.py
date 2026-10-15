@@ -15,8 +15,8 @@ from src.tests.ui_runtime_helpers import login_as
 
 
 def _approve_project_budget(services, project_id: str, amount: str) -> None:
-    configuration = services['financial_configuration_query']
-    budgets = services['budget_query']
+    services['financial_configuration_query']
+    services['budget_query']
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"PORT-{project_id[:8]}",
         name="Portfolio authorization",

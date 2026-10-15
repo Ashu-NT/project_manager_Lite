@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from src.core.platform.application.master_data.data_exchange.dto import MasterDataExportRequest
+from src.core.platform.application.master_data.data_exchange.dto import (
+    MasterDataExportRequest,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.tests.ui_runtime_helpers import login_as
 

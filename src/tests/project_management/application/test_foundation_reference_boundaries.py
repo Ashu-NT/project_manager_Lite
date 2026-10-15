@@ -52,7 +52,7 @@ def test_resource_desktop_dto_uses_current_platform_employee_profile(services):
 
 
 def test_project_client_party_is_platform_owned_and_scope_checked(services):
-    project_service = services['project_query']
+    services['project_query']
     client = services["party_commands"].create_party(PartyCreateCommand(party_code="CUST-BOUNDARY", party_name="Client"))
 
     project = services['project_create'].create_project(
@@ -73,7 +73,7 @@ def test_project_client_party_is_platform_owned_and_scope_checked(services):
 
 
 def test_project_department_reference_is_optional_and_platform_owned(services):
-    project_service = services['project_query']
+    services['project_query']
     project = services['project_create'].create_project(name="No department project")
     assert project.department_id is None
 

@@ -13,15 +13,10 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
-
 from types import SimpleNamespace
 
-from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
-    TenantAdminDependencies,
-    build_tenant_admin_dependencies,
-)
-from src.tests.platform.tenancy_support import tenant_admin_operations
+import pytest
+
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -30,6 +25,10 @@ from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     UserTenantMembership,
+)
+from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
+    TenantAdminDependencies,
+    build_tenant_admin_dependencies,
 )
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
@@ -40,6 +39,7 @@ from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.te
 from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
     SqlAlchemyUserTenantMembershipRepository,
 )
+from src.tests.platform.tenancy_support import tenant_admin_operations
 
 # ---------------------------------------------------------------------------
 # Helpers

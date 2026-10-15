@@ -301,7 +301,7 @@ def test_single_enabled_organization_zero_grant_auto_select_still_works(services
     default_org = services["tenant_context_service"].get_active_organization()
     assert default_org is not None
 
-    user = services["user_registration"].register_user(
+    services["user_registration"].register_user(
         "sec-single-org-zero-grant-user", "StrongPass123", role_names=["viewer"]
     )
 
@@ -338,7 +338,7 @@ def test_tenant_admin_role_restore_bypasses_organization_scoped_access_check(ser
     org_a = services["organization_commands"].create_organization(
         organization_code="SEC-TENANT-ADMIN-BYPASS-A", display_name="Sec Tenant Admin Bypass A"
     )
-    user = _register_active_tenant_user(services, "sec-tenant-admin-user", role_names=["tenant_admin"])
+    _register_active_tenant_user(services, "sec-tenant-admin-user", role_names=["tenant_admin"])
 
     login_as(services, "sec-tenant-admin-user", "StrongPass123")
     services["tenant_context_service"].set_active_organization(org_a.id)
@@ -370,7 +370,7 @@ def test_persisted_tenant_only_session_reauto_selects_sole_enabled_organization(
     default_org = services["tenant_context_service"].get_active_organization()
     assert default_org is not None
 
-    user = services["user_registration"].register_user(
+    services["user_registration"].register_user(
         "sec-tenant-only-reheal-user", "StrongPass123", role_names=["viewer"]
     )
     login_as(services, "sec-tenant-only-reheal-user", "StrongPass123")

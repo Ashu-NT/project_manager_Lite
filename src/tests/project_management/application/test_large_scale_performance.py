@@ -199,7 +199,7 @@ def test_large_scale_performance_workflow(services):
     assert config.resources >= 20, "Large-scale performance test expects at least 20 resources."
 
     sched = services["scheduling_engine"]
-    bs = services['baseline_query']
+    services['baseline_query']
     metrics: dict[str, float] = {}
     total_started = time.perf_counter()
 

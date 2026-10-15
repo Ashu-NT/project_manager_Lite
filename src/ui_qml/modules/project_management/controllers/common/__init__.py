@@ -69,7 +69,6 @@ from src.ui_qml.modules.project_management.controllers.common.serializers.schedu
     serialize_scheduling_calendar_view_model,
     serialize_scheduling_collection_view_model,
     serialize_scheduling_overview_view_model,
-    serialize_scheduling_record_view_models,
 )
 from src.ui_qml.modules.project_management.controllers.common.serializers.selector_serializer import (
     serialize_selector_options,

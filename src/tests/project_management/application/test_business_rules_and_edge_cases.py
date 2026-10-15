@@ -120,7 +120,7 @@ def test_work_calendar_next_and_negative_day_math(services):
 
 
 def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services):
-    bs = services['baseline_query']
+    services['baseline_query']
     no_task_project = services['project_create'].create_project("No Tasks Baseline", "")
     with pytest.raises(ValidationError):
         services['baseline_commands'].create_baseline(no_task_project.id, "BL-Empty", rate_as_of=date.today())

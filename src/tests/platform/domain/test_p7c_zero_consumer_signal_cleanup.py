@@ -144,7 +144,7 @@ def test_real_budget_approval_still_emits_its_own_real_view_invalidation(service
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("P7C-CC"), name="P7C cost code"
     ))
-    budgets = services['budget_query']
+    services['budget_query']
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "P7C Budget"))
     services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id, cost_code_id=cost_code.id, description="Line", amount=Decimal(100),

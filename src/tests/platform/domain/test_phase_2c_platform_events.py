@@ -13,14 +13,10 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
-
 from types import SimpleNamespace
 
-from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
-    TenantAdminDependencies,
-    build_tenant_admin_dependencies,
-)
+import pytest
+
 from src.core.platform.common.exceptions import OperationNotPermittedError
 from src.core.platform.domain.history.platform_events.platform_event import (
     PlatformEvent,
@@ -29,6 +25,10 @@ from src.core.platform.domain.tenant.tenancy.tenant import (
     TENANT_STATUS_ACTIVE,
     TENANT_STATUS_ARCHIVED,
     TENANT_STATUS_SUSPENDED,
+)
+from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
+    TenantAdminDependencies,
+    build_tenant_admin_dependencies,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.platform_events.platform_events import (
     SqlAlchemyPlatformEventRepository,

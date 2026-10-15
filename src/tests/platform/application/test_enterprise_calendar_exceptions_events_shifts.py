@@ -7,26 +7,26 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
 from src.core.platform.application.time_management.calendar.definitions.commands.calendar_exception_commands import (
     CalendarExceptionCommandHandler,
-)
-from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
-    CalendarExceptionQueryHandler,
 )
 from src.core.platform.application.time_management.calendar.definitions.commands.recurring_event_commands import (
     RecurringEventCommandHandler,
 )
-from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
-    RecurringEventQueryHandler,
-)
 from src.core.platform.application.time_management.calendar.definitions.commands.shift_pattern_commands import (
     ShiftPatternCommandHandler,
 )
+from src.core.platform.application.time_management.calendar.definitions.queries.calendar_exception_queries import (
+    CalendarExceptionQueryHandler,
+)
+from src.core.platform.application.time_management.calendar.definitions.queries.recurring_event_queries import (
+    RecurringEventQueryHandler,
+)
 from src.core.platform.application.time_management.calendar.definitions.queries.shift_pattern_queries import (
     ShiftPatternQueryHandler,
-)
-from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
-    PlatformCalendarCommandHandler,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,

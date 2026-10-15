@@ -138,7 +138,7 @@ def _submitted_budget_in_org_a1(services, *, org_a1_id: str):
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("XORG-CC"), name="Cross-org cost code"
     ))
-    budgets = services['budget_query']
+    services['budget_query']
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Cross-org budget"))
     services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,

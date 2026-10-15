@@ -42,7 +42,7 @@ def _become_independent_decider(services) -> None:
 def _submitted_entry(services, session):
     organization = services["tenant_context_service"].get_active_organization()
     project = _make_project(services)
-    cost_entry_service = services['cost_entry_query']
+    services['cost_entry_query']
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="APPROVAL-TEST", name="Approval test cost code"
     ))

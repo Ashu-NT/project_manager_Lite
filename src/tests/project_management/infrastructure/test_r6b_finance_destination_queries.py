@@ -237,7 +237,7 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
         code="R6B-BUDGET",
         name="R6B Budget",
     ))
-    budgets = services['budget_query']
+    services['budget_query']
 
     first = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Alpha", currency_code="USD"))
     services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
@@ -373,7 +373,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
         resource_id=resource.id,
         effective_from=date(2026, 1, 1),
     ))
-    planned_costs = services['planned_cost_query']
+    services['planned_cost_query']
     first = services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(
         project.id,
         calculated_by="admin",
@@ -441,7 +441,7 @@ def _seed_forecast_reader(services):
         "R6B Forecast Task",
         wbs_code="2.1",
     )
-    forecasts = services['forecast_version_query']
+    services['forecast_version_query']
     first = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="Alpha Forecast",
@@ -1224,7 +1224,7 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services
         code="R6B-OVERVIEW",
         name="R6B Overview",
     ))
-    budgets = services['budget_query']
+    services['budget_query']
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Approved control", currency_code="USD"))
     services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
@@ -1245,7 +1245,7 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services
         expected_version=budget.row_version,
     ))
 
-    forecasts = services['forecast_version_query']
+    services['forecast_version_query']
     forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project.id,
         name="Approved ETC",

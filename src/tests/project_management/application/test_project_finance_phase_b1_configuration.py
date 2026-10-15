@@ -81,7 +81,7 @@ def test_profile_configuration_requires_version_and_is_the_only_currency_authori
         "Profile concurrency",
         financial_currency_code="EUR",
     )
-    service = services['financial_configuration_query']
+    services['financial_configuration_query']
     profile = services['financial_configuration_query'].get_profile(project.id)
 
     updated = services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
@@ -109,7 +109,7 @@ def test_profile_configuration_requires_version_and_is_the_only_currency_authori
 
 def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> None:
     project = services['project_create'].create_project("Restricted cost catalog")
-    service = services['financial_configuration_query']
+    services['financial_configuration_query']
     parent = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(code="LAB", name="Labor"))
     child = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="LAB.ENG",
@@ -195,7 +195,7 @@ def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> Non
 
 def test_create_cost_code_for_restricted_project_is_immediately_available(services) -> None:
     project = services['project_create'].create_project("Restricted cost-code creation")
-    service = services['financial_configuration_query']
+    services['financial_configuration_query']
     profile = services['financial_configuration_query'].get_profile(project.id)
     services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,

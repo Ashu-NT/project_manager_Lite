@@ -365,7 +365,7 @@ def test_report_view_alone_gets_redacted_baseline_comparison_not_a_denial(servic
     call. Regression test for the F0 gap where this method authorized on
     report.view alone with no redaction."""
     project_id = _seed_labor_finance_project(services)
-    baseline_service = services['baseline_query']
+    services['baseline_query']
     baseline_1 = services['baseline_commands'].create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
     baseline_2 = services['baseline_commands'].create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
     _register_and_login(services, "report-only-baseline", role_names=["viewer"])
@@ -389,7 +389,7 @@ def test_finance_read_allows_baseline_comparison_cost_detail(services):
     """Case B: finance.read must allow the planned-cost fields in a
     baseline comparison to be visible."""
     project_id = _seed_labor_finance_project(services)
-    baseline_service = services['baseline_query']
+    services['baseline_query']
     baseline_1 = services['baseline_commands'].create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
     baseline_2 = services['baseline_commands'].create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
     _register_and_login(services, "finance-reader-baseline", role_names=["project_manager"])

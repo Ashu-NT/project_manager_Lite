@@ -35,7 +35,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
     _, project, cost_code = _setup_billable_project(services)
     profile, schedule = _ready_schedule_line(services, project, amount=Decimal(24000))
     _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="30000")
-    billing = services['billing_preparation_query']
+    services['billing_preparation_query']
     reporting = services["profitability_report"]
     cutoff = date(2026, 8, 31)
     original = _submitted_preparation(services, project, schedule)
@@ -120,7 +120,7 @@ def test_governed_golden_project_keeps_preparation_progress_separate_from_revenu
             schedule_line_id=schedule.id,
             expected_row_version=correction.row_version,
         ))
-    schedule_service = services['billing_profile_query']
+    services['billing_profile_query']
     delta = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         project.id,
         name="Additional governed milestone",

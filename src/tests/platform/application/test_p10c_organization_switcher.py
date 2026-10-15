@@ -99,7 +99,7 @@ def test_list_accessible_organizations_returns_empty_for_a_user_with_zero_org_gr
     services["organization_commands"].create_organization(
         organization_code="SWITCH-ZERO-GRANT-OTHER", display_name="Switcher Zero Grant Other"
     )
-    user = _register_active_tenant_user(services, "switcher-zero-grant-user", role_names=["viewer"])
+    _register_active_tenant_user(services, "switcher-zero-grant-user", role_names=["viewer"])
     login_as(services, "switcher-zero-grant-user", "StrongPass123")
     services["user_session"].set_active_organization_id(None)
 
@@ -420,7 +420,7 @@ def test_switch_organization_does_not_call_organization_availability_mutation():
 def test_tenant_membership_alone_is_insufficient_organization_authorization(services):
     """A TenantMembership with zero organization-scoped RoleBinding and zero ambient session
     selection must not resolve any organization as accessible."""
-    user = _register_active_tenant_user(services, "switcher-membership-only-user", role_names=["viewer"])
+    _register_active_tenant_user(services, "switcher-membership-only-user", role_names=["viewer"])
     login_as(services, "switcher-membership-only-user", "StrongPass123")
     services["user_session"].set_active_organization_id(None)
 

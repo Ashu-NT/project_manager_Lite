@@ -159,7 +159,7 @@ def test_cost_entry_domain_enforces_signed_lifecycle_and_complete_posting_snapsh
 
 def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(services) -> None:
     organization, project, cost_code, _period, draft = _create_draft(services)
-    service = services['cost_entry_query']
+    services['cost_entry_query']
 
     replay = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
@@ -311,7 +311,7 @@ def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
 def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> None:
     organization, project, cost_code, _period = _create_project_finance_setup(services)
     transaction_currency = "USD" if organization.base_currency != "USD" else "EUR"
-    service = services['cost_entry_query']
+    services['cost_entry_query']
     draft = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=project.id,
         command_id="fx-command",
@@ -351,7 +351,7 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
 
 def test_posting_rejects_closed_period(services) -> None:
     _organization, _project, _cost_code, period, draft = _create_draft(services)
-    service = services['cost_entry_query']
+    services['cost_entry_query']
     submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
     _become_independent_decider(services)
     services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
@@ -375,7 +375,7 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _organization, project, _cost_code, _period, draft = _create_draft(services)
-    service = services['cost_entry_query']
+    services['cost_entry_query']
     submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
     services["user_registration"].register_user(
         "cost-requester",

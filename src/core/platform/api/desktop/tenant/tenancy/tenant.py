@@ -13,20 +13,20 @@ from src.core.platform.api.desktop.tenant.tenancy.models.tenant import (
     TenantDto,
     TenantInvitationDto,
 )
+from src.core.platform.application.tenant.tenancy.commands.invitations import (
+    TenantInvitationCommandHandler,
+)
 from src.core.platform.application.tenant.tenancy.commands.tenant_lifecycle import (
     TenantLifecycleCommandHandler,
 )
 from src.core.platform.application.tenant.tenancy.queries.admin import (
     TenantAdminQueryHandler,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import (
-    TenantContextService,
-)
-from src.core.platform.application.tenant.tenancy.commands.invitations import (
-    TenantInvitationCommandHandler,
-)
 from src.core.platform.application.tenant.tenancy.queries.membership import (
     TenantMembershipQueryHandler,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership

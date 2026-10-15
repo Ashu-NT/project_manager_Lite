@@ -4,7 +4,9 @@ from unittest.mock import Mock
 from src.core.modules.project_management.application.projects.event_handlers.view_invalidation import (
     build_project_view_invalidation_handler,
 )
-from src.core.modules.project_management.application.projects.project_events import ProjectCreated
+from src.core.modules.project_management.application.projects.project_events import (
+    ProjectCreated,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 

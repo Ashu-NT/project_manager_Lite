@@ -12,14 +12,14 @@ from src.core.platform.application.time_management.calendar.assignment.commands.
 from src.core.platform.application.time_management.calendar.assignment.queries.calendar_assignment_queries import (
     CalendarAssignmentQueryHandler,
 )
+from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
+    PlatformCalendarCommandHandler,
+)
 from src.core.platform.application.time_management.calendar.definitions.commands.working_rule_commands import (
     WorkingRuleCommandHandler,
 )
 from src.core.platform.application.time_management.calendar.definitions.queries.working_rule_queries import (
     WorkingRuleQueryHandler,
-)
-from src.core.platform.application.time_management.calendar.commands.platform_calendar_commands import (
-    PlatformCalendarCommandHandler,
 )
 from src.core.platform.application.time_management.calendar.queries.platform_calendar_queries import (
     PlatformCalendarQueryHandler,

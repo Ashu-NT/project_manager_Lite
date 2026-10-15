@@ -8,15 +8,12 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
+from src.core.modules.project_management.api.desktop.financials.api import (
+    ProjectManagementFinancialsDesktopApi,
+)
 from src.core.modules.project_management.application.common.clock import SystemClock
 from src.core.modules.project_management.application.financials.commitments.commands import (
     ProjectCommitmentCommandHandler,
-)
-from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
-    build_approval_repository_context,
-)
-from src.core.modules.project_management.api.desktop.financials.api import (
-    ProjectManagementFinancialsDesktopApi,
 )
 from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
@@ -39,6 +36,9 @@ from src.core.modules.project_management.domain.financials.commitment import (
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryKind,
+)
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    build_approval_repository_context,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
     ProjectCommitmentLineORM,

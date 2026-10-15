@@ -91,7 +91,9 @@ from src.core.modules.project_management.application.resources.queries.skill_que
     ResourceCapabilityQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
+from src.core.platform.application.master_data.department import DepartmentQueryHandler
 from src.core.platform.application.master_data.employee import EmployeeQueryHandler
+from src.core.platform.application.master_data.site import SiteQueryHandler
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
@@ -133,8 +135,8 @@ class ProjectManagementResourcesDesktopApi:
         module_catalog_service: SupportsModuleEntitlements | None = None,
         employee_query: EmployeeQueryHandler | None = None,
         workload_service: object | None = None,
-        department_query: object | None = None,
-        site_query: object | None = None,
+        department_query: DepartmentQueryHandler | None = None,
+        site_query: SiteQueryHandler | None = None,
     ) -> None:
         self._resource_query = resource_query
         self._resource_master_commands = resource_master_commands

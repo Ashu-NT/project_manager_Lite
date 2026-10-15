@@ -40,7 +40,7 @@ def _make_project(services):
 def _submitted_budget(services, session):
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
-    budget_service = services['budget_query']
+    services['budget_query']
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"UOW-CUTOVER-{_REQUESTER_COUNTER['n']}-{project.id[:8]}", name="UoW cutover cost code"
     ))

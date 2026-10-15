@@ -6,8 +6,8 @@ from src.core.global_overview.contract.action_center import (
 from src.core.global_overview.contract.module_summary import (
     ModuleSummaryDto,
 )
-from src.core.platform.contract.port.approval.capabilities import ApprovalQueries
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.port.approval.capabilities import ApprovalQueries
 
 
 class PlatformModuleOverviewContributor:

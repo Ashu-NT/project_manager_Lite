@@ -11,7 +11,10 @@ from src.core.platform.api.desktop.approval.models.approval import (
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.core.platform.contract.port.approval.capabilities import ApprovalCommands, ApprovalQueries
+from src.core.platform.contract.port.approval.capabilities import (
+    ApprovalCommands,
+    ApprovalQueries,
+)
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 
 

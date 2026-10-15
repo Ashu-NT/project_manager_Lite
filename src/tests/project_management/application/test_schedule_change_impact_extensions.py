@@ -151,7 +151,7 @@ class TestGetTaskScheduleOverview:
 
 class TestBaselineComparison:
     def test_get_task_schedule_overview_reports_baseline_finish_and_variance(self, services):
-        bs = services['baseline_query']
+        services['baseline_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
         project = services['project_create'].create_project("Schedule Impact Baseline", "")
@@ -185,7 +185,7 @@ class TestBaselineComparison:
         assert overview.schedule_variance_days is None
 
     def test_baseline_service_get_baseline_task_returns_the_snapshot(self, services):
-        bs = services['baseline_query']
+        services['baseline_query']
         project = services['project_create'].create_project("Baseline Task Snapshot", "")
         task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
@@ -197,7 +197,7 @@ class TestBaselineComparison:
         assert baseline_task.baseline_finish is not None
 
     def test_baseline_service_get_baseline_task_returns_none_for_unknown_task(self, services):
-        bs = services['baseline_query']
+        services['baseline_query']
         project = services['project_create'].create_project("Baseline Task Snapshot Missing", "")
         services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())

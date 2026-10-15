@@ -41,7 +41,7 @@ def _seed_rates(services):
     project = services['project_create'].create_project(
         "R6B Rate Reader", financial_currency_code="USD"
     )
-    rates = services['rate_card_query']
+    services['rate_card_query']
     organization_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(name="Alpha Organization Rates"))
     project_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="Zulu Project Rates", project_id=project.id

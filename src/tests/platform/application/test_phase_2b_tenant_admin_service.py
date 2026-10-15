@@ -25,15 +25,10 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
-
 from types import SimpleNamespace
 
-from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
-    TenantAdminDependencies,
-    build_tenant_admin_dependencies,
-)
-from src.tests.platform.tenancy_support import tenant_admin_operations
+import pytest
+
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
 )
@@ -46,12 +41,17 @@ from src.core.platform.domain.tenant.tenancy.tenant import (
     TENANT_STATUS_SUSPENDED,
     Tenant,
 )
+from src.core.platform.infrastructure.composition.dependencies.tenancy.admin import (
+    TenantAdminDependencies,
+    build_tenant_admin_dependencies,
+)
 from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
     SqlAlchemyTenantRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
     SqlAlchemyUserTenantMembershipRepository,
 )
+from src.tests.platform.tenancy_support import tenant_admin_operations
 
 # ---------------------------------------------------------------------------
 # Helpers

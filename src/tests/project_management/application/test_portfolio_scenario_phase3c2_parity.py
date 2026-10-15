@@ -36,8 +36,8 @@ def _assign(
 
 
 def _approve_budget(services, project_id: str, amount: str) -> None:
-    configuration = services['financial_configuration_query']
-    budgets = services['budget_query']
+    services['financial_configuration_query']
+    services['budget_query']
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"SCN-{project_id[:8]}",
         name="Scenario budget",

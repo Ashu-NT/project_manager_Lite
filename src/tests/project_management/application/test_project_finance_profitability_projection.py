@@ -68,7 +68,7 @@ def _setup_billable_project(
 def _create_billing_profile(
     services, project_id: str, *, contract_value: Decimal, activate: bool = True
 ):
-    billing_profile_service = services['billing_profile_query']
+    services['billing_profile_query']
     profile = services['finance_governance_commands'].billing_profile(lambda handler: handler.create_profile(
         project_id,
         contract_reference="CONTRACT-PROFIT",
@@ -83,7 +83,7 @@ def _create_billing_profile(
 
 
 def _approve_forecast_with_etc(services, project_id: str, cost_code, *, etc_amount: str):
-    forecast_service = services['forecast_version_query']
+    services['forecast_version_query']
     forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project_id,
         name="Profitability forecast",
@@ -332,7 +332,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
         services, billing_method=BillingMethod.FIXED_PRICE
     )
     _create_billing_profile(services, project.id, contract_value=Decimal(24000))
-    api_profile_service = services['billing_profile_query']
+    services['billing_profile_query']
     line = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         project.id, name="Milestone 1", amount=Decimal(24000), due_date=date(2026, 8, 20)
     ))
@@ -340,7 +340,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(accountin
         line.id, expected_row_version=line.row_version
     ))
 
-    preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     services["user_registration"].register_user(
         "profit-billing-reviewer", "StrongPass123", role_names=["approver"]
     )
@@ -410,7 +410,7 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
         services, billing_method=BillingMethod.FIXED_PRICE
     )
     _create_billing_profile(services, project.id, contract_value=Decimal(48000))
-    profile_service = services['billing_profile_query']
+    services['billing_profile_query']
     line_a = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         project.id, name="Milestone A", amount=Decimal(24000), due_date=date(2026, 8, 15)
     ))
@@ -424,7 +424,7 @@ def test_approved_preparation_amount_sums_distinct_governed_sources(services) ->
         line_b.id, expected_row_version=line_b.row_version
     ))
 
-    preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     services["user_registration"].register_user(
         "profit-multi-reviewer", "StrongPass123", role_names=["approver"]
     )

@@ -16,7 +16,7 @@ from src.core.platform.common.exceptions import ValidationError
 
 
 def test_project_manager_uses_eligible_user_identity_not_resource_id(services) -> None:
-    project_service = services['project_query']
+    services['project_query']
     user_id = services["user_session"].principal.user_id
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="PM-MANAGER", name="Management"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="PM-MANAGER", full_name="Manager Employee", department_id=department.id))

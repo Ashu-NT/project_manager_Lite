@@ -85,7 +85,7 @@ def _submitted_budget(services, session):
     project = services['project_create'].create_project(
         _unique("Approval Events Project"), financial_currency_code="USD"
     )
-    budget_service = services['budget_query']
+    services['budget_query']
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("EVT-CC"), name="Approval events cost code"
     ))
@@ -313,7 +313,7 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("EVT-FIN-CC"), name="Events finance cost code"
     ))
-    budgets = services['budget_query']
+    services['budget_query']
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Events approved budget"))
     budget_line = services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal(100),
@@ -323,7 +323,7 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(budget.id, "admin", expected_version=budget.row_version))
     services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version))
 
-    changes = services['financial_change_query']
+    services['financial_change_query']
     change = services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
         project.id, title="Events change", reason="Events probe",
         effective_date=date(2026, 8, 11), created_by="admin",
@@ -379,7 +379,7 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
         project.id, expected_version=profile.version, default_cost_code_id=cost_code.id,
         billing_method=BillingMethod.FIXED_PRICE, is_billable=True,
     ))
-    billing_profile_service = services['billing_profile_query']
+    services['billing_profile_query']
     bp_profile = services['finance_governance_commands'].billing_profile(lambda handler: handler.create_profile(
         project.id, contract_reference=_unique("EVT-CONTRACT"), contract_value=Decimal(50000),
         customer_party_id="party-1",
@@ -390,7 +390,7 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
     ))
     line = services['finance_governance_commands'].billing_schedule(lambda handler: handler.mark_schedule_line_ready(line.id, expected_row_version=line.row_version))
 
-    billing_preparation_service = services['billing_preparation_query']
+    services['billing_preparation_query']
     preparation = services['finance_governance_commands'].billing_preparation(lambda handler: handler.create_preparation(
         project.id, preparation_number=_unique("EVT-BP"),
         period_start=date(2026, 8, 1), period_end=date(2026, 8, 31),
@@ -731,7 +731,9 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     from sqlalchemy.orm import sessionmaker
 
     from src.core.platform.application.approval.commands import ApprovalCommandHandler
-    from src.core.platform.application.approval.participants import ApprovalParticipantRegistry
+    from src.core.platform.application.approval.participants import (
+        ApprovalParticipantRegistry,
+    )
     from src.core.platform.application.approval.queries import ApprovalQueryHandler
     from src.core.platform.application.approval.scope import ApprovalScope
     from src.core.platform.domain.security.auth.session import (

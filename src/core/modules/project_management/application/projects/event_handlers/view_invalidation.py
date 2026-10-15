@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+
 from src.core.modules.project_management.application.projects.project_events import (
     ProjectCreated,
     ProjectProfileUpdated,

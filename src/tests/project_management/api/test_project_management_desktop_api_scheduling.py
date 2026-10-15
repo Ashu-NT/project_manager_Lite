@@ -32,7 +32,7 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
         priority=90,
         deadline=date(2026, 5, 7),
     )
-    task_b = task_service.create_task(
+    task_service.create_task(
         project_id=project.id,
         name="Punchlist Closeout",
         description="Commissioning closeout walkdown.",

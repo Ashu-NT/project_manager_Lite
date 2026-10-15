@@ -20,14 +20,17 @@ from src.core.modules.project_management.application.financials.cost.entries.app
 from src.core.modules.project_management.application.financials.cost.entries.commands.approved_time import (
     ApprovedTimeCostEntryCommandHandler,
 )
+from src.core.modules.project_management.application.financials.cost.entries.commands.manual import (
+    ProjectCostEntryLifecycleCommandHandler,
+)
 from src.core.modules.project_management.application.financials.governance.command_boundary import (
     FinanceGovernanceCommandBoundary,
 )
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
-    RateCardResolver,
-)
 from src.core.modules.project_management.application.financials.rate_cards.commands.lines import (
     RateCardLineCommandHandler,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
+    RateCardResolver,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourceModule,
@@ -465,6 +468,14 @@ def _governed_rate_boundary(environment):
     def operations(uow):
         return SimpleNamespace(
             post_commit_actions=(),
+            cost_entries=ProjectCostEntryLifecycleCommandHandler(
+                session=uow._session, entry_repo=uow.cost_entries,
+                project_repo=uow.projects, financial_profile_repo=uow.profiles,
+                cost_code_repo=uow.cost_codes, task_repo=uow.tasks, resource_repo=uow.resources,
+                clock=SystemClock(), user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                tenant_context_service=scope, record_event=uow.record_event,
+            ),
             rate_lines=RateCardLineCommandHandler(
                 session=uow._session, rate_card_repo=uow.rate_cards,
                 project_repo=uow.projects, user_session=user_session,

@@ -92,7 +92,7 @@ def test_cost_code_lookup_preserves_restriction_and_effective_date_policy(servic
     project = services['project_create'].create_project(
         "R6B Lookup Cost Codes", financial_currency_code="XAF"
     )
-    configuration = services['financial_configuration_query']
+    services['financial_configuration_query']
     profile = services['financial_configuration_query'].get_profile(project.id)
     services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id,

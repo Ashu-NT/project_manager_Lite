@@ -58,7 +58,7 @@ def _seed_changes(services):
         start_date=date(2026, 9, 1),
         duration_days=5,
     )
-    changes = services['financial_change_query']
+    services['financial_change_query']
     principal = services["user_session"].principal
     alpha = services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
         project.id,
@@ -113,7 +113,7 @@ def _seed_changes(services):
 
 
 def _approve_finance_bases(services, project_id: str, cost_code_id: str) -> None:
-    budgets = services['budget_query']
+    services['budget_query']
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project_id, "R6B approved budget"))
     services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
         budget.id,
@@ -130,7 +130,7 @@ def _approve_finance_bases(services, project_id: str, cost_code_id: str) -> None
         budget.id, approved_by="admin", expected_version=budget.row_version
     ))
 
-    forecasts = services['forecast_version_query']
+    services['forecast_version_query']
     forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
         project_id,
         name="R6B approved forecast",

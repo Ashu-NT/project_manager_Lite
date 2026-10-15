@@ -3,8 +3,8 @@
 from uuid import uuid4
 
 from pydantic import JsonValue
-from src.core.platform.common.exceptions import ValidationError
 
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.contract.port.integration.accounting_outcomes import (
     IngressRejectionReason,
     ValidatedAccountingIngress,

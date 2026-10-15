@@ -214,8 +214,6 @@ class GanttListModel(QAbstractListModel):
         }
         self._baseline_id = str(projection.selected_baseline_id or "") if projection else ""
         self._recount_baseline_matches()
-        range_start = projection.range_start_day_ordinal if projection else None
-        range_finish = projection.range_finish_day_ordinal if projection else None
         self._expanded_summary_ids = {
             row.task_id
             for row in self._all_rows

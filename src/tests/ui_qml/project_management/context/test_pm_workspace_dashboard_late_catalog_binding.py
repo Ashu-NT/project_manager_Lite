@@ -32,7 +32,7 @@ def _ensure_qgui_application() -> QGuiApplication:
 def test_dashboard_loads_even_when_pmcatalog_is_assigned_after_shell_page_completes(
     services,
 ) -> None:
-    qapp = _ensure_qgui_application()
+    _ensure_qgui_application()
     registry = build_desktop_api_registry(services)
     pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
     platform_catalog = PlatformWorkspaceCatalog()
