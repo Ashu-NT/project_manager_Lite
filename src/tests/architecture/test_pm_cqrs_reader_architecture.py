@@ -18,7 +18,9 @@ from src.core.modules.project_management.application.collaboration.utils.visibil
 from src.core.modules.project_management.application.financials.budgets import (
     BudgetApprovalOutcome,
     BudgetApprovalResult,
-    BudgetService,
+)
+from src.core.modules.project_management.application.financials.budgets.commands import (
+    BudgetApprovalCommands,
 )
 from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
     CostBreakdownEngine,
@@ -667,7 +669,7 @@ def test_budget_approval_uses_one_immutable_command_result_for_both_outcomes() -
     assert BudgetApprovalOutcome.APPLIED.value == "applied"
     assert BudgetApprovalOutcome.PENDING_APPROVAL.value == "pending_approval"
 
-    source = inspect.getsource(BudgetService.approve_budget)
+    source = inspect.getsource(BudgetApprovalCommands.approve_budget)
     assert "BudgetApprovalOutcome.APPLIED" in source
     assert "BudgetApprovalOutcome.PENDING_APPROVAL" in source
     assert "approval_request_id=req.id" in source

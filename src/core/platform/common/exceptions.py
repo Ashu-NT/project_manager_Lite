@@ -21,6 +21,27 @@ class BusinessRuleError(DomainError):
     """Raised when business rules are violated."""
 
 
+class AuthenticationError(BusinessRuleError):
+    """Raised when an operation cannot authenticate its caller."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message, code=code or "AUTHENTICATION_REQUIRED")
+
+
+class AuthorizationError(BusinessRuleError):
+    """Raised when a caller lacks permission for an operation."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message, code=code or "PERMISSION_DENIED")
+
+
+class ConfigurationError(DomainError):
+    """Raised when a required runtime dependency is not configured."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message, code=code or "CONFIGURATION_ERROR")
+
+
 class ConcurrencyError(DomainError):
     """Raised when optimistic locking detects a stale update."""
 
@@ -32,8 +53,11 @@ class UnsupportedOperationError(DomainError):
     """Raised when a requested operation is not implemented or supported."""
 
 __all__ = [
+    "AuthenticationError",
+    "AuthorizationError",
     "BusinessRuleError",
     "ConcurrencyError",
+    "ConfigurationError",
     "DomainError",
     "NotFoundError",
     "OperationNotPermittedError",

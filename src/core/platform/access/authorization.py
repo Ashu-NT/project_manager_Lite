@@ -9,7 +9,7 @@ from src.core.platform.application.security.authorization import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     record_authorization_denial,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import AuthorizationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 _T = TypeVar("_T")
@@ -37,7 +37,7 @@ def require_scope_permission(
         target_scope_id=normalized_scope_id,
         operation="authorization.scope.denied",
     )
-    raise BusinessRuleError(
+    raise AuthorizationError(
         (
             f"Permission denied for {operation_label}. "
             f"Missing scoped '{permission_code}' access for {normalized_scope_type} '{normalized_scope_id}'."

@@ -43,7 +43,11 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConfigurationError,
+    NotFoundError,
+)
 from src.core.platform.common.ids import generate_id
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.shared.activity import record_activity
@@ -116,7 +120,7 @@ class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
 
     def _require_shared_uow_factory(self) -> UnitOfWorkFactory:
         if self._shared_uow_factory is None:
-            raise RuntimeError("Project resource write transaction factory is not configured.")
+            raise ConfigurationError("Project resource write transaction factory is not configured.")
         return self._shared_uow_factory
 
     def _new_context(self):
@@ -127,7 +131,7 @@ class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
 
     def _record_assignment_changed(self, uow, project_id: str) -> None:
         if self._tenant_context_service is None:
-            raise RuntimeError("Project resource tenant scope is not configured.")
+            raise ConfigurationError("Project resource tenant scope is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="record project resource assignment change"
         )

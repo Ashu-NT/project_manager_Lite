@@ -34,6 +34,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -58,7 +59,7 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
             self._user_session, "project.read", operation_label="list project managers"
         )
         if self._project_catalog_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Project catalog reader is not configured.")
+            raise ConfigurationError("Project catalog reader is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="list project managers"
         )
@@ -101,7 +102,7 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="list project catalog",
         )
         if self._project_catalog_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Project catalog reader is not configured.")
+            raise ConfigurationError("Project catalog reader is not configured.")
         reader = self._project_catalog_reader
         page_request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
@@ -176,7 +177,7 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="view project",
         )
         if self._project_catalog_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Project catalog reader is not configured.")
+            raise ConfigurationError("Project catalog reader is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view project"
         )
@@ -202,7 +203,7 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
         require_project_permission(self._user_session, normalized_id, "project.read",
                                    operation_label="view project resources")
         if self._project_catalog_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Project catalog reader is not configured.")
+            raise ConfigurationError("Project catalog reader is not configured.")
         reader = self._project_catalog_reader
         request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
@@ -235,7 +236,7 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
         require_project_permission(self._user_session, normalized_id, "project.read",
                                    operation_label="view project activity")
         if self._project_catalog_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Project catalog reader is not configured.")
+            raise ConfigurationError("Project catalog reader is not configured.")
         reader = self._project_catalog_reader
         request = PageRequest(page=page, page_size=page_size)
         normalized_category = str(category or "all").strip().lower()

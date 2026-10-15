@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeEventType,
 )
+from src.core.modules.project_management.application.financials.financial_changes.mutation_result import (
+    FinancialChangeImpactMutationResult,
+)
 from src.core.modules.project_management.application.financials.financial_changes.policy import (
     FinancialChangeAuditPolicy,
     FinancialChangeValidationPolicy,
@@ -198,7 +201,7 @@ class FinancialChangeDraftCommandHandler(
         target_line_id: str | None = None,
         schedule_start: date | None = None,
         schedule_finish: date | None = None,
-    ) -> FinancialChangeImpact:
+    ) -> FinancialChangeImpactMutationResult:
         change = self._require_mutable_change(
             change_id, expected_change_version, "add financial change impact"
         )
@@ -270,7 +273,7 @@ class FinancialChangeDraftCommandHandler(
         self._emit_change_event(
             change, FinancialChangeEventType.IMPACT_ADDED, impact_id=impact.id
         )
-        return impact
+        return FinancialChangeImpactMutationResult(change=change, impact=impact)
 
     def update_impact(
         self,
@@ -287,7 +290,7 @@ class FinancialChangeDraftCommandHandler(
         target_line_id: str | None = None,
         schedule_start: date | None = None,
         schedule_finish: date | None = None,
-    ) -> FinancialChangeImpact:
+    ) -> FinancialChangeImpactMutationResult:
         impact = self._require_impact(impact_id)
         if impact.impact_type is not impact_type:
             raise BusinessRuleError(
@@ -371,7 +374,7 @@ class FinancialChangeDraftCommandHandler(
         self._emit_change_event(
             change, FinancialChangeEventType.IMPACT_UPDATED, impact_id=impact.id
         )
-        return impact
+        return FinancialChangeImpactMutationResult(change=change, impact=impact)
 
     def remove_impact(
         self,

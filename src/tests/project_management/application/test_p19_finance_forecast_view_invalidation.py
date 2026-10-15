@@ -559,7 +559,7 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
             target_line_id=forecast_line.id,
             expected_change_version=change.row_version,
         )
-    )
+    ).impact
     change = changes.get_change(change.id)
     change = services["finance_governance_commands"].financial_change_submission(
         lambda handler: handler.submit_change(

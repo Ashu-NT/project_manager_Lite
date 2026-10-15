@@ -1,47 +1,84 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.application.financials.invoicing.commands import ProjectBillingScheduleCommandHandler
-from src.core.modules.project_management.application.financials.invoicing.commands import BillingPreparationSubmissionCommandHandler
-from src.core.modules.project_management.application.financials.invoicing.commands import BillingPreparationSourceCommandHandler
-from src.core.modules.project_management.application.financials.invoicing.commands import PreparationLifecycleCommandHandler
-from src.core.modules.project_management.application.financials.accounting.commands.request import AccountingHandoffRequestCommandHandler
-from src.core.modules.project_management.application.financials.invoicing.commands import ProjectBillingProfileCommandHandler
-from src.core.modules.project_management.application.financials.cost.entries.commands import ProjectCostEntryPostingCommandHandler
-from src.core.modules.project_management.application.financials.cost.entries.commands import ProjectCostEntryReviewCommandHandler
-from src.core.modules.project_management.application.financials.cost.entries.commands import ProjectCostEntryLifecycleCommandHandler
-from src.core.modules.project_management.application.financials.planned_costs.commands import PlannedCostCommandHandler
-from src.core.modules.project_management.application.financials.rate_cards.commands import RateCardLineCommandHandler
-from src.core.modules.project_management.application.financials.rate_cards.commands import ProjectRateCardCommandHandler
-from src.core.modules.project_management.application.financials.configuration.commands import CostCodeCommandHandler
-from src.core.modules.project_management.application.financials.configuration.commands import FinancialProfileCommandHandler
-from src.core.modules.project_management.application.financials.financial_changes.commands import FinancialChangeSubmissionCommandHandler
-from src.core.modules.project_management.application.financials.financial_changes.commands import FinancialChangeDraftCommandHandler
-from src.core.modules.project_management.application.financials.forecasts.commands import ForecastGenerationCommands
-from src.core.modules.project_management.application.financials.forecasts.commands import ForecastApprovalCommands
-from src.core.modules.project_management.application.financials.forecasts.commands import ForecastLineCommands
-from src.core.modules.project_management.application.financials.forecasts.commands import ForecastLifecycleCommands
-from src.core.modules.project_management.application.financials.budgets.commands import BudgetApprovalCommands
-from src.core.modules.project_management.application.financials.budgets.commands import BudgetLineCommands
-from src.core.modules.project_management.application.financials.budgets.commands import BudgetLifecycleCommands
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.financials.governance import FinanceGovernanceOperations
-from src.core.modules.project_management.application.financials.invoicing.evidence_builder import BillingPreparationEvidenceBuilder
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import RateCardResolver
-from src.core.modules.project_management.infrastructure.composition.dependencies.finance.changes import build_financial_change_schedule_port
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import SqlAlchemyRateResolutionReader
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import SqlAlchemyFinanceGovernanceUnitOfWork
-from src.core.platform.application.finance.queries.financial_period_query import FinancialPeriodQueryHandler
-from src.core.platform.application.integration.delivery_service import IntegrationOutboxService
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.modules.project_management.application.financials.accounting.commands.request import (
+    AccountingHandoffRequestCommandHandler,
+)
+from src.core.modules.project_management.application.financials.budgets.commands import (
+    BudgetApprovalCommands,
+    BudgetLifecycleCommands,
+    BudgetLineCommands,
+)
+from src.core.modules.project_management.application.financials.configuration.commands import (
+    CostCodeCommandHandler,
+    FinancialProfileCommandHandler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.commands import (
+    ProjectCostEntryLifecycleCommandHandler,
+    ProjectCostEntryPostingCommandHandler,
+    ProjectCostEntryReviewCommandHandler,
+)
+from src.core.modules.project_management.application.financials.financial_changes.commands import (
+    FinancialChangeDraftCommandHandler,
+    FinancialChangeSubmissionCommandHandler,
+)
+from src.core.modules.project_management.application.financials.forecasts.commands import (
+    ForecastApprovalCommands,
+    ForecastGenerationCommands,
+    ForecastLifecycleCommands,
+    ForecastLineCommands,
+)
+from src.core.modules.project_management.application.financials.governance import (
+    FinanceGovernanceOperations,
+)
+from src.core.modules.project_management.application.financials.invoicing.commands import (
+    BillingPreparationSourceCommandHandler,
+    BillingPreparationSubmissionCommandHandler,
+    PreparationLifecycleCommandHandler,
+    ProjectBillingProfileCommandHandler,
+    ProjectBillingScheduleCommandHandler,
+)
+from src.core.modules.project_management.application.financials.invoicing.evidence_builder import (
+    BillingPreparationEvidenceBuilder,
+)
+from src.core.modules.project_management.application.financials.planned_costs.commands import (
+    PlannedCostCommandHandler,
+)
+from src.core.modules.project_management.application.financials.rate_cards.commands import (
+    ProjectRateCardCommandHandler,
+    RateCardLineCommandHandler,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
+    RateCardResolver,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.changes import (
+    build_financial_change_schedule_port,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
+    SqlAlchemyRateResolutionReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
+    SqlAlchemyFinanceGovernanceUnitOfWork,
+)
+from src.core.platform.application.finance.queries.financial_period_query import (
+    FinancialPeriodQueryHandler,
+)
+from src.core.platform.application.integration.delivery_service import (
+    IntegrationOutboxService,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
 from src.core.platform.infrastructure.composition.bundle import PlatformServiceBundle
 from src.core.platform.integration.events import IntegrationEventEnvelope
 from src.core.shared.events.domain_event import DomainEvent
-from src.infra.composition.integration.accounting.accounting_integration import build_accounting_capability
+from src.infra.composition.integration.accounting.accounting_integration import (
+    build_accounting_capability,
+)
 
 
 def build_finance_governance_operations_factory(

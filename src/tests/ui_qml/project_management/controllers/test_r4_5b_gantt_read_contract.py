@@ -15,7 +15,7 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_b
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask
 from src.core.modules.project_management.domain.tasks.hierarchy import TaskHierarchyNode
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, ConfigurationError, NotFoundError
 from src.ui_qml.modules.project_management.controllers.scheduling.gantt_list_model import (
     GanttListModel,
 )
@@ -247,7 +247,7 @@ def test_desktop_api_requires_canonical_engine_and_rejects_scope_mismatch() -> N
         task_lookup_query=task_service, task_detail_query=task_service, task_hierarchy_query=task_service, task_dependency_query=task_service, task_dependency_commands=task_service, task_leveling_commands=task_service,
         tenant_context_service=_ScopeContext("tenant-1", "org-1"),
     )
-    with pytest.raises(RuntimeError, match="not connected"):
+    with pytest.raises(ConfigurationError, match="not connected"):
         degraded_api.build_gantt_projection("project-1")
 
 

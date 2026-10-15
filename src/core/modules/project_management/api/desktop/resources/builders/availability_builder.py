@@ -5,7 +5,7 @@ from datetime import date
 from src.core.modules.project_management.api.desktop.resources.serializers.availability_serializer import (
     serialize_resource_availability,
 )
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ConfigurationError, ValidationError
 
 
 def build_resource_availability(
@@ -26,7 +26,7 @@ def build_resource_availability(
             code="RESOURCE_WORKLOAD_DATE_REQUIRED",
         )
     if workload_service is None:
-        raise RuntimeError("Resource workload service is not configured.")
+        raise ConfigurationError("Resource workload service is not configured.")
     fact = workload_service.read(
         normalized_id,
         start_date=start_date,

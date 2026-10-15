@@ -75,7 +75,7 @@ def _seed_changes(services):
         amount=Decimal("125.2500"),
         cost_code_id=code.id,
         expected_change_version=alpha.row_version,
-    ))
+    )).impact
     alpha = services['financial_change_query'].get_change(alpha.id)
     forecast_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         alpha.id,
@@ -84,7 +84,7 @@ def _seed_changes(services):
         amount=Decimal("80.5000"),
         cost_code_id=code.id,
         expected_change_version=alpha.row_version,
-    ))
+    )).impact
     alpha = services['financial_change_query'].get_change(alpha.id)
     schedule_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
         alpha.id,
@@ -94,7 +94,7 @@ def _seed_changes(services):
         schedule_start=date(2026, 9, 8),
         schedule_finish=date(2026, 9, 11),
         expected_change_version=alpha.row_version,
-    ))
+    )).impact
     alpha = services['financial_change_query'].get_change(alpha.id)
     alpha = services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
         alpha.id,

@@ -12,28 +12,37 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.financials.budgets.budget_service import (
-    BudgetService,
+from src.core.modules.project_management.application.financials.budgets.commands import (
+    BudgetApprovalCommands,
+    BudgetLifecycleCommands,
+    BudgetLineCommands,
 )
-from src.core.modules.project_management.application.financials.configuration.service import (
-    FinancialConfigurationService,
+from src.core.modules.project_management.application.financials.configuration.commands import (
+    CostCodeCommandHandler,
+    FinancialProfileCommandHandler,
 )
-from src.core.modules.project_management.application.financials.financial_changes.service import (
-    FinancialChangeService,
+from src.core.modules.project_management.application.financials.configuration.queries import (
+    FinancialConfigurationQueryHandler,
 )
-from src.core.modules.project_management.application.financials.forecasts.generation_service import (
-    ForecastGenerationService,
+from src.core.modules.project_management.application.financials.financial_changes.commands import (
+    FinancialChangeDraftCommandHandler,
+    FinancialChangeSubmissionCommandHandler,
+)
+from src.core.modules.project_management.application.financials.forecasts.commands import (
+    ForecastApprovalCommands,
+    ForecastGenerationCommands,
+    ForecastLifecycleCommands,
+    ForecastLineCommands,
+)
+from src.core.modules.project_management.application.financials.forecasts.generation_models import (
     ManualEtcEstimate,
-)
-from src.core.modules.project_management.application.financials.forecasts.version_service import (
-    ForecastVersionService,
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
-    FinanceGovernanceOperations,
 )
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
-    ProjectRateCardService,
+from src.core.modules.project_management.application.financials.rate_cards.commands import (
+    ProjectRateCardCommandHandler,
+    RateCardLineCommandHandler,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
@@ -57,6 +66,7 @@ from src.core.platform.domain.security.auth.session import (
 from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
     SqlAlchemyApprovalRepository,
 )
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -203,32 +213,81 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
     clock = SystemClock()
 
     def operations(uow):
-        common = {
-            "session": uow._session,
-            "clock": clock,
-            "user_session": user_session,
-            "enterprise_audit_service": uow._enterprise_audit_service,
-            "tenant_context_service": scope,
-        }
-        return FinanceGovernanceOperations(
-            budgets=BudgetService(
+        return SimpleNamespace(
+            budget_lifecycle=BudgetLifecycleCommands(
+                session=uow._session,
                 budget_repo=uow.budgets,
                 project_repo=uow.projects,
                 financial_profile_repo=uow.profiles,
-                cost_code_repo=uow.cost_codes,
-                task_repo=uow.tasks,
-                approval_commands=None,
-                **common,
+                clock=clock,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
             ),
-            forecast_versions=ForecastVersionService(
-                forecast_repo=uow.forecasts,
-                project_repo=uow.projects,
+            budget_lines=BudgetLineCommands(
+                session=uow._session,
+                budget_repo=uow.budgets,
                 financial_profile_repo=uow.profiles,
                 cost_code_repo=uow.cost_codes,
                 task_repo=uow.tasks,
-                **common,
+                clock=clock,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
             ),
-            forecast_generation=ForecastGenerationService(
+            budget_approvals=BudgetApprovalCommands(
+                session=uow._session,
+                budget_repo=uow.budgets,
+                clock=clock,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                approval_commands=None,
+                record_event=uow.record_event,
+            ),
+            forecast_lifecycle=ForecastLifecycleCommands(
+                session=uow._session,
+                forecast_repo=uow.forecasts,
+                project_repo=uow.projects,
+                financial_profile_repo=uow.profiles,
+                clock=clock,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
+            ),
+            forecast_lines=ForecastLineCommands(
+                session=uow._session,
+                forecast_repo=uow.forecasts,
+                financial_profile_repo=uow.profiles,
+                cost_code_repo=uow.cost_codes,
+                task_repo=uow.tasks,
+                clock=clock,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
+            ),
+            forecast_approvals=ForecastApprovalCommands(
+                session=uow._session,
+                forecast_repo=uow.forecasts,
+                clock=clock,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
+                approval_commands=None,
+            ),
+            forecast_generation=ForecastGenerationCommands(
+                session=uow._session,
                 forecast_repo=uow.forecasts,
                 project_repo=uow.projects,
                 financial_profile_repo=uow.profiles,
@@ -238,9 +297,15 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 commitment_repo=uow.commitments,
                 cost_entry_repo=uow.cost_entries,
                 register_repo=uow.register_entries,
-                **common,
+                clock=clock,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
             ),
-            financial_changes=FinancialChangeService(
+            financial_changes=FinancialChangeDraftCommandHandler(
+                session=uow._session,
                 change_repo=uow.changes,
                 budget_repo=uow.budgets,
                 forecast_repo=uow.forecasts,
@@ -249,31 +314,68 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 cost_code_repo=uow.cost_codes,
                 task_repo=uow.tasks,
                 task_service=_SchedulePort(),
-                approval_commands=None,
-                **common,
+                clock=clock,
+                record_event=uow.record_event,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
             ),
-            financial_setup=FinancialConfigurationService(
+            financial_change_submissions=FinancialChangeSubmissionCommandHandler(
+                session=uow._session,
+                change_repo=uow.changes,
+                budget_repo=uow.budgets,
+                forecast_repo=uow.forecasts,
+                task_service=_SchedulePort(),
+                clock=clock,
+                approval_repo=uow.approvals,
+                record_event=uow.record_event,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+            ),
+            financial_profiles=FinancialProfileCommandHandler(
                 session=uow._session,
                 profile_repo=uow.profiles,
                 cost_code_repo=uow.cost_codes,
                 project_repo=uow.projects,
                 user_session=user_session,
                 enterprise_audit_service=uow._enterprise_audit_service,
-                tenant_context_service=scope,
+                module_catalog_service=None,
+                record_event=uow.record_event,
             ),
-            rate_cards=ProjectRateCardService(
+            cost_codes=CostCodeCommandHandler(
+                session=uow._session,
+                profile_repo=uow.profiles,
+                cost_code_repo=uow.cost_codes,
+                project_repo=uow.projects,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
+            ),
+            rate_cards=ProjectRateCardCommandHandler(
                 session=uow._session,
                 rate_card_repo=uow.rate_cards,
                 project_repo=uow.projects,
                 user_session=user_session,
                 enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
                 tenant_context_service=scope,
                 record_event=uow.record_event,
             ),
-            planned_costs=SimpleNamespace(),
-            cost_entries=SimpleNamespace(),
-            billing_profiles=SimpleNamespace(),
-            billing_preparations=SimpleNamespace(),
+            rate_lines=RateCardLineCommandHandler(
+                session=uow._session,
+                rate_card_repo=uow.rate_cards,
+                project_repo=uow.projects,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
+            ),
         )
 
     return FinanceGovernanceCommandBoundary(
@@ -337,7 +439,7 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
             cost_code_id=setup.id,
             expected_change_version=change.row_version,
         )
-    )
+    ).impact
 
     session = postgres_test_environment.runtime_session(
         tenant_id=TENANT_A,
@@ -394,9 +496,11 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
         postgres_test_environment,
         scope=_TenantContext(TENANT_A, ORG_A),
     )
-    profile = boundary.financial_setup(
-        lambda service: service.get_profile(PROJECT_A)
-    )
+    with boundary._uow_factory.create(context=DomainEventContext(correlation_id="setup-read")) as uow:
+        profile = FinancialConfigurationQueryHandler(
+            profile_repo=uow.profiles, cost_code_repo=uow.cost_codes,
+            project_repo=uow.projects, user_session=_user_session(),
+        ).get_profile(PROJECT_A)
     updated = boundary.financial_profile(
         lambda service: service.configure_profile(
             PROJECT_A,
@@ -702,7 +806,7 @@ def test_financial_change_request_and_impact_stale_writes_fail_closed(
             cost_code_id=cost_code_id,
             expected_change_version=updated.row_version,
         )
-    )
+    ).impact
     first_impact_update = boundary.financial_change(
         lambda service: service.update_impact(
             impact.id,
@@ -714,7 +818,7 @@ def test_financial_change_request_and_impact_stale_writes_fail_closed(
             expected_impact_version=impact.row_version,
             expected_change_version=updated.row_version + 1,
         )
-    )
+    ).impact
     current_change = boundary.financial_change(
         lambda service: service.get_change(change.id)
     )
@@ -731,7 +835,7 @@ def test_financial_change_request_and_impact_stale_writes_fail_closed(
                 expected_impact_version=impact.row_version,
                 expected_change_version=current_change.row_version,
             )
-        )
+        ).impact
 
 
 @pytest.mark.parametrize(

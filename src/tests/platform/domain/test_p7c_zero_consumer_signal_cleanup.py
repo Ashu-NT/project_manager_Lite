@@ -80,8 +80,8 @@ def test_emit_signal_safely_removed_after_task_modernization():
 
 
 def test_project_cost_apply_participant_emits_typed_status_changed_events():
-    from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
-        ProjectCostEntryService,
+    from src.core.modules.project_management.application.financials.cost.entries.commands.review import (
+        ProjectCostEntryReviewCommandHandler,
     )
     from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
         ProjectCostApprovalParticipant,
@@ -98,11 +98,11 @@ def test_project_cost_apply_participant_emits_typed_status_changed_events():
     assert '"cost_entries_changed"' not in reject_source
 
     approval_decision_source = inspect.getsource(
-        ProjectCostEntryService._apply_approval_decision
+        ProjectCostEntryReviewCommandHandler._apply_approval_decision
     )
     assert "CostEntryStatusChangeType.APPROVED" in approval_decision_source
     rejection_decision_source = inspect.getsource(
-        ProjectCostEntryService._apply_rejection_decision
+        ProjectCostEntryReviewCommandHandler._apply_rejection_decision
     )
     assert "CostEntryStatusChangeType.REJECTED" in rejection_decision_source
 

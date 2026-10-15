@@ -5,6 +5,12 @@ from hashlib import sha256
 
 from pydantic import SecretBytes, ValidationError
 
+from src.core.platform.common.exceptions import (
+    AuthenticationError,
+)
+from src.core.platform.common.exceptions import (
+    ValidationError as DomainValidationError,
+)
 from src.core.platform.contract.port.integration.accounting_outcomes import (
     AccountingIngressAuthenticator,
     AccountingOutcomeConsumer,
@@ -26,14 +32,20 @@ def _unique_object(pairs):
     return result
 
 
-class AccountingIngressAuthenticationError(Exception):
+class AccountingIngressAuthenticationError(AuthenticationError):
     def __init__(self):
-        super().__init__("Accounting ingress authentication failed.")
+        super().__init__(
+            "Accounting ingress authentication failed.",
+            code="ACCOUNTING_INGRESS_AUTHENTICATION_FAILED",
+        )
 
 
-class AccountingIngressSizeError(Exception):
+class AccountingIngressSizeError(DomainValidationError):
     def __init__(self):
-        super().__init__("Accounting ingress exceeds the allowed size.")
+        super().__init__(
+            "Accounting ingress exceeds the allowed size.",
+            code="ACCOUNTING_INGRESS_SIZE_EXCEEDED",
+        )
 
 
 class AccountingOutcomeIngress:

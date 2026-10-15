@@ -9,6 +9,7 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 
 
 def build_assignment_validation(
@@ -22,7 +23,7 @@ def build_assignment_validation(
     if assignment_skill_validator is None or project_resource_query is None:
         return _valid_assignment(task_id)
     if task_query is None:
-        raise RuntimeError("Project management tasks desktop API is not connected.")
+        raise ConfigurationError("Project management tasks desktop API is not connected.")
     task = task_query.get_task(task_id)
     if task is None:
         return _valid_assignment(task_id)

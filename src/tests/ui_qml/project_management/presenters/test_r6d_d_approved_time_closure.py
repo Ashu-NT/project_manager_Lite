@@ -14,8 +14,8 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     ApprovedTimeLaborCostConsumer,
 )
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
-    ProjectCostEntryService,
+from src.core.modules.project_management.application.financials.cost.entries.commands.approved_time import (
+    ApprovedTimeCostEntryCommandHandler,
 )
 from src.infra.integration.approved_time_dispatcher import (
     ApprovedTimeFinancialDispatcher,
@@ -131,7 +131,7 @@ def test_approved_time_flow_keeps_project_finance_out_of_accounting() -> None:
         (
             inspect.getsource(ApprovedTimeLaborCostConsumer),
             inspect.getsource(ApprovedTimeFinancialDispatcher),
-            inspect.getsource(ProjectCostEntryService.apply_approved_time_source),
+            inspect.getsource(ApprovedTimeCostEntryCommandHandler.apply_approved_time_source),
         )
     ).lower()
     for forbidden in (

@@ -14,6 +14,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.presenters.scheduling.leveling_builder import (
     build_resource_leveling_state,
 )
@@ -123,5 +124,6 @@ class TestPresenterDelegation:
         presenter = ProjectSchedulingWorkspacePresenter(desktop_api=_desktop_api(services))
         project = services['project_create'].create_project("Presenter Delegation No Preview", "")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(BusinessRuleError) as missing_preview:
             presenter.apply_resource_leveling(project.id)
+        assert missing_preview.value.code == "LEVELING_PREVIEW_REQUIRED"

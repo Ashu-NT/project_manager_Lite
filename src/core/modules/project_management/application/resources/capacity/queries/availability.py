@@ -13,6 +13,7 @@ from src.core.platform.application.time_management.calendar.capacity.platform_ca
     PlatformCalendarResolver,
     ResolvedCalendarContext,
 )
+from src.core.platform.common.exceptions import NotFoundError
 
 
 class ResourceAvailabilityQueryHandler:
@@ -50,7 +51,7 @@ class ResourceAvailabilityQueryHandler:
     ) -> ResolvedCalendarContext:
         resource = self._resource_repo.get(resource_id)
         if resource is None:
-            raise ValueError(f"Resource '{resource_id}' not found.")
+            raise NotFoundError(f"Resource '{resource_id}' not found.", code="RESOURCE_NOT_FOUND")
 
         worker_type, employee_id, resolve_resource_id = self._classify(resource, resource_id)
 
@@ -78,7 +79,7 @@ class ResourceAvailabilityQueryHandler:
     ) -> list[ResolvedCalendarContext]:
         resource = self._resource_repo.get(resource_id)
         if resource is None:
-            raise ValueError(f"Resource '{resource_id}' not found.")
+            raise NotFoundError(f"Resource '{resource_id}' not found.", code="RESOURCE_NOT_FOUND")
 
         worker_type, employee_id, resolve_resource_id = self._classify(resource, resource_id)
 

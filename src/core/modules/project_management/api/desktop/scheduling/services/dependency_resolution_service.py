@@ -1,3 +1,5 @@
+from src.core.platform.common.exceptions import ConfigurationError
+
 """Dependency resolution helpers."""
 
 
@@ -13,7 +15,7 @@ def get_task_method(task_service, method_name: str):
 
 def require_task_method(task_service, method_name: str):
     if task_service is None:
-        raise RuntimeError("Project management scheduling desktop API is not connected.")
+        raise ConfigurationError("Project management scheduling desktop API is not connected.")
     method = getattr(task_service, method_name, None)
     if not callable(method):
         raise UnsupportedOperationError(f"Project management scheduling desktop API does not support {method_name}.")

@@ -88,6 +88,7 @@ from src.core.platform.application.time_management.time import (
     TimesheetPeriodQueryHandler,
     TimesheetPeriodTransitionHandler,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
     SupportsModuleEntitlements,
 )
@@ -582,14 +583,14 @@ class ProjectManagementTimesheetsDesktopApi:
 
     def _require_task_lookup_query(self) -> TaskLookupQueryHandler:
         if self._task_lookup_query is None:
-            raise RuntimeError(
+            raise ConfigurationError(
                 "Project management timesheets desktop API is not connected."
             )
         return self._task_lookup_query
 
     def _require_task_assignment_commands(self) -> TaskAssignmentCommandHandler:
         if self._task_assignment_commands is None:
-            raise RuntimeError(
+            raise ConfigurationError(
                 "Project management timesheets desktop API is not connected."
             )
         return self._task_assignment_commands
@@ -598,7 +599,7 @@ class ProjectManagementTimesheetsDesktopApi:
 
 def _connected[T](capability: T | None) -> T:
     if capability is None:
-        raise RuntimeError("Project management timesheets desktop API is not connected.")
+        raise ConfigurationError("Project management timesheets desktop API is not connected.")
     return capability
 
 

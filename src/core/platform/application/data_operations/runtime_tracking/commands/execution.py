@@ -6,7 +6,7 @@ from pathlib import Path
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.contract.repositories.data_operations.runtime_tracking.contracts import (
     RuntimeExecutionRepository,
 )
@@ -130,7 +130,7 @@ class RuntimeExecutionCommandHandler:
     def request_cancellation(self, execution_id: str) -> RuntimeExecution:
         execution = self._runtime_execution_repo.get(execution_id)
         if execution is None:
-            raise ValueError("Runtime execution not found.")
+            raise NotFoundError("Runtime execution not found.", code="RUNTIME_EXECUTION_NOT_FOUND")
         if execution.status in {"COMPLETED", "FAILED", "CANCELLED"}:
             return execution
         principal = self._user_session.principal if self._user_session is not None else None
@@ -160,7 +160,7 @@ class RuntimeExecutionCommandHandler:
     ) -> RuntimeExecution:
         previous = self._runtime_execution_repo.get(execution_id)
         if previous is None:
-            raise ValueError("Runtime execution not found.")
+            raise NotFoundError("Runtime execution not found.", code="RUNTIME_EXECUTION_NOT_FOUND")
         return self.start_execution(
             operation_type=previous.operation_type,
             operation_key=previous.operation_key,

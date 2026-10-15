@@ -5,13 +5,13 @@ from src.core.modules.project_management.application.financials.cost.entries.app
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     ApprovedTimeLaborCostConsumer,
 )
-from src.core.modules.project_management.application.financials.cost.entries.commands.approved_time import (
-    ApprovedTimeCostEntryCommandHandler,
-)
 from src.core.modules.project_management.application.financials.cost.entries.commands import (
     ProjectCostEntryLifecycleCommandHandler,
-    ProjectCostEntryReviewCommandHandler,
     ProjectCostEntryPostingCommandHandler,
+    ProjectCostEntryReviewCommandHandler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.commands.approved_time import (
+    ApprovedTimeCostEntryCommandHandler,
 )
 from src.core.modules.project_management.application.financials.cost.entries.commands.procurement_receipt import (
     ProcurementReceiptCostEntryCommandHandler,

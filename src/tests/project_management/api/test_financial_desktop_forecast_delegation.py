@@ -12,6 +12,7 @@ from src.core.modules.project_management.api.desktop.financials.api import (
 from src.core.modules.project_management.api.desktop.financials.builders import (
     commitment_builder,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 
 
 class _FinanceSnapshotQueryHandler:
@@ -124,8 +125,9 @@ def test_commitment_percentage_without_approved_budget_is_unavailable():
 def test_financial_desktop_requires_canonical_finance_snapshot_query() -> None:
     api = ProjectManagementFinancialsDesktopApi()
 
-    with pytest.raises(RuntimeError, match="finance service"):
+    with pytest.raises(ConfigurationError, match="finance service") as missing:
         api.get_commitment_summary("project-1")
+    assert missing.value.code == "CONFIGURATION_ERROR"
 
 
 def test_financial_desktop_maps_paged_canonical_commitment_lines() -> None:

@@ -332,7 +332,7 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
         change.id, impact_type=FinancialChangeImpactType.BUDGET, description="Increase scope",
         amount=Decimal(10), cost_code_id=code.id, target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    ))
+    )).impact
     change = services['financial_change_query'].get_change(change.id)
 
     recorded = _spy_recorded_events(

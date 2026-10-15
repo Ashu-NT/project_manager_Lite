@@ -36,7 +36,11 @@ from src.core.platform.application.security.authorization.enforcement.session_au
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConfigurationError,
+    NotFoundError,
+)
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -83,7 +87,7 @@ class ResourceQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="list resource catalog",
         )
         if self._resource_catalog_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Resource catalog reader is not configured.")
+            raise ConfigurationError("Resource catalog reader is not configured.")
         page_request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
             key=sort_key,
@@ -135,7 +139,7 @@ class ResourceQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="view resource inspector",
         )
         if self._resource_inspector_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Resource Inspector reader is not configured.")
+            raise ConfigurationError("Resource Inspector reader is not configured.")
         normalized_id = str(resource_id or "").strip()
         if not normalized_id:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
@@ -169,7 +173,7 @@ class ResourceQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="view resource summary",
         )
         if self._resource_summary_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Resource summary reader is not configured.")
+            raise ConfigurationError("Resource summary reader is not configured.")
         normalized_id = str(resource_id or "").strip()
         if not normalized_id:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")

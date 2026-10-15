@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from src.core.modules.project_management.application.projects.project_events import (
     ProjectCreated,
     ProjectProfileUpdated,
@@ -18,6 +19,7 @@ from src.core.shared.events.view_invalidation import (
 )
 
 PROJECT_CATEGORY = "project"
+logger = logging.getLogger(__name__)
 PROJECT_LIST_SCOPE_CODE = "project_list"
 PROJECT_DETAIL_SCOPE_CODE = "project_detail"
 PROJECT_MODULE_CODE = "project_management"
@@ -66,6 +68,9 @@ def build_project_view_invalidation_handler(channel: ViewInvalidationChannel):
         event: _ProjectEvent,
         context: DomainEventContext,
     ) -> None:
+        if event.tenant_id is None:
+            logger.warning("Project invalidation skipped: tenant context is missing; project_id=%s", event.project_id)
+            return
         if context is not current_context[0]:
             current_context[0] = context
             notified_org_targets.clear()

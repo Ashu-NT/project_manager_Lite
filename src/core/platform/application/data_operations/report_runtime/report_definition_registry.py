@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from src.core.platform.common.exceptions import (
+    UnsupportedOperationError,
+    ValidationError,
+)
 from src.core.platform.domain.data_operations.report_runtime.report_definition import (
     ReportDefinition,
 )
@@ -13,7 +17,7 @@ class ReportDefinitionRegistry:
     def normalize_key(report_key: str) -> str:
         normalized = str(report_key or "").strip().lower()
         if not normalized:
-            raise ValueError("Report key is required.")
+            raise ValidationError("Report key is required.", code="REPORT_KEY_REQUIRED")
         return normalized
 
     def register(self, definition: ReportDefinition) -> None:
@@ -30,7 +34,9 @@ class ReportDefinitionRegistry:
         try:
             return self._definitions[key]
         except KeyError as exc:
-            raise ValueError(f"Unsupported report type: {report_key}") from exc
+            raise UnsupportedOperationError(
+                f"Unsupported report type: {report_key}", code="REPORT_TYPE_UNSUPPORTED"
+            ) from exc
 
     def list_report_keys(self) -> tuple[str, ...]:
         return tuple(self._definitions.keys())

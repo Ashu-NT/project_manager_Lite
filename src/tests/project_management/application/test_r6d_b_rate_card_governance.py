@@ -146,14 +146,15 @@ def test_consumed_rate_line_blocks_rewrite_but_allows_future_end_date(
         )
     assert exc.value.code == "RATE_CARD_LINE_HISTORICAL_IMMUTABLE"
 
+    future_end = date.today() + timedelta(days=30)  # noqa: DTZ011 -- local business date matches the historical-rate guard
     ended = boundary.rate_line(
         lambda handler: handler.update_line(
             line.id,
             expected_version=line.version,
-            effective_to=date.today() + timedelta(days=30),
+            effective_to=future_end,
         )
     )
-    assert ended.effective_to == date.today() + timedelta(days=30)
+    assert ended.effective_to == future_end
 
 
 def test_resolution_snapshot_captures_line_version_and_modifier(services):
@@ -184,7 +185,7 @@ def test_resolution_snapshot_captures_line_version_and_modifier(services):
         project_id=project.id,
         resource_id=resource.id,
         rate_type=RateType.COST,
-        as_of=date.today(),
+        as_of=date(2026, 1, 1),
         unit="HOUR",
         modifier="overtime",
     )

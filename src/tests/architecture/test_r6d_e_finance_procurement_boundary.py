@@ -2,9 +2,10 @@ import ast
 from pathlib import Path
 
 PM_FINANCE = Path("src/core/modules/project_management/application/financials")
-INNER_SERVICES = (
+INNER_OPERATIONS = (
     PM_FINANCE / "integration/procurement_consumer.py",
-    PM_FINANCE / "commitments/commitment_service.py",
+    *(PM_FINANCE / "commitments/commands").glob("*.py"),
+    *(PM_FINANCE / "cost/entries/commands").glob("*.py"),
 )
 
 
@@ -32,7 +33,7 @@ def test_finance_procurement_projection_does_not_import_source_or_accounting_imp
 
 
 def test_procurement_projection_inner_services_do_not_commit_or_rollback():
-    for path in INNER_SERVICES:
+    for path in INNER_OPERATIONS:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         forbidden_calls = [
             node for node in ast.walk(tree)

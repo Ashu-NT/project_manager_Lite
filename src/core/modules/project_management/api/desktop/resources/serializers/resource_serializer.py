@@ -53,7 +53,7 @@ def serialize_resource(
         cost_type_label=format_enum_label(cost_type.value),
         hourly_rate=canonical_decimal_text(resource.hourly_rate),
         hourly_rate_label=format_money(
-            getattr(resource, "hourly_rate", 0.0),
+            getattr(resource, "hourly_rate", 0),
             resolved_currency,
         ),
         currency_code=resolved_currency,

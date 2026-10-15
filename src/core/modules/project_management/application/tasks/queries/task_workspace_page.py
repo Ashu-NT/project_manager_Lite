@@ -24,6 +24,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -74,7 +75,7 @@ class TaskWorkspacePageQueryHandler:
                 operation_label="list task workspace",
             )
         if self._task_workspace_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Task workspace reader is not configured.")
+            raise ConfigurationError("Task workspace reader is not configured.")
 
         page_request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(

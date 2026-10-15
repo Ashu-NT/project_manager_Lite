@@ -21,7 +21,7 @@ class DashboardEvmWidget:
     def build(self, project_id: str, baseline_id: str | None = None) -> DashboardEVM | None:
         try:
             evm = self._earned_value.get_earned_value(project_id, baseline_id=baseline_id)
-            if evm.availability == "baseline_unavailable":
+            if evm.availability == "baseline_unavailable" or evm.baseline_id is None:
                 return None
             status = self.interpret(evm)
             return DashboardEVM(

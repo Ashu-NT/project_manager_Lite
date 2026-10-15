@@ -10,7 +10,7 @@ from src.core.platform.access.authorization import (
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     record_authorization_denial,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import AuthorizationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 _T = TypeVar("_T")
@@ -53,7 +53,7 @@ def require_any_project_permission(
         target_scope_id=project_id,
     )
     expected = " or ".join(f"'{code}'" for code in codes) or "project permission"
-    raise BusinessRuleError(
+    raise AuthorizationError(
         f"Permission denied for {operation_label}. Missing one of {expected}.",
         code="PERMISSION_DENIED",
     )

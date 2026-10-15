@@ -42,7 +42,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import ConfigurationError, NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 _ACTIVE_STATUSES = {
@@ -103,7 +103,7 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
                 operation_label="view register catalog",
             )
         if self._register_catalog_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Register catalog reader is not configured.")
+            raise ConfigurationError("Register catalog reader is not configured.")
         page_request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
             key=sort_key,

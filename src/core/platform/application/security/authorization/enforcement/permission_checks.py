@@ -7,7 +7,7 @@ from typing import NoReturn
 from src.core.platform.application.security.authorization import (
     get_authorization_engine,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import AuthorizationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.security.authorization import SecurityDenialEvent
 
@@ -29,7 +29,7 @@ def require_permission(
         reason_code="PERMISSION_DENIED",
         required_permissions=(permission_code,),
     )
-    raise BusinessRuleError(
+    raise AuthorizationError(
         f"Permission denied for {operation_label}. Missing '{permission_code}'.",
         code="PERMISSION_DENIED",
     )
@@ -52,7 +52,7 @@ def require_any_permission(
         required_permissions=codes,
     )
     expected = " or ".join(f"'{code}'" for code in codes) or "required permission"
-    raise BusinessRuleError(
+    raise AuthorizationError(
         f"Permission denied for {operation_label}. Missing one of {expected}.",
         code="PERMISSION_DENIED",
     )
@@ -158,7 +158,7 @@ def authorization_denied(
         target_scope_id=target_scope_id,
         operation=operation,
     )
-    raise BusinessRuleError(message, code=code)
+    raise AuthorizationError(message, code=code)
 
 
 def _clean_text(value: object, *, fallback: str) -> str:

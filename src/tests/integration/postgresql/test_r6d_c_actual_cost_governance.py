@@ -11,12 +11,13 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
-    ProjectCostEntryService,
+from src.core.modules.project_management.application.financials.cost.entries.commands import (
+    ProjectCostEntryLifecycleCommandHandler,
+    ProjectCostEntryPostingCommandHandler,
+    ProjectCostEntryReviewCommandHandler,
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
-    FinanceGovernanceOperations,
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
@@ -278,37 +279,47 @@ def _boundary(postgres_test_environment):
     )
 
     def operations(uow):
-        period_queries = FinancialPeriodQueryHandler(
-            period_repo=uow.financial_periods,
-            user_session=user_session,
-        )
-        cost_entries = ProjectCostEntryService(
-            session=uow._session,
-            entry_repo=uow.cost_entries,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            resource_repo=uow.resources,
-            financial_period_queries=period_queries,
-            clock=SystemClock(),
-            user_session=user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            tenant_context_service=scope,
-            record_event=uow.record_event,
-        )
-        empty = SimpleNamespace()
-        return FinanceGovernanceOperations(
-            budgets=empty,
-            forecast_versions=empty,
-            forecast_generation=empty,
-            financial_changes=empty,
-            financial_setup=empty,
-            rate_cards=empty,
-            planned_costs=empty,
-            cost_entries=cost_entries,
-            billing_profiles=empty,
-            billing_preparations=empty,
+        return SimpleNamespace(
+            cost_entries=ProjectCostEntryLifecycleCommandHandler(
+                session=uow._session,
+                entry_repo=uow.cost_entries,
+                project_repo=uow.projects,
+                financial_profile_repo=uow.profiles,
+                cost_code_repo=uow.cost_codes,
+                task_repo=uow.tasks,
+                resource_repo=uow.resources,
+                clock=SystemClock(),
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                activity_service=None,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
+            ),
+            cost_reviews=ProjectCostEntryReviewCommandHandler(
+                session=uow._session,
+                entry_repo=uow.cost_entries,
+                clock=SystemClock(),
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                activity_service=None,
+                module_catalog_service=None,
+                approval_commands=None,
+                record_event=uow.record_event,
+            ),
+            cost_postings=ProjectCostEntryPostingCommandHandler(
+                session=uow._session,
+                entry_repo=uow.cost_entries,
+                financial_profile_repo=uow.profiles,
+                financial_period_queries=FinancialPeriodQueryHandler(period_repo=uow.financial_periods, user_session=user_session),
+                clock=SystemClock(),
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                activity_service=None,
+                module_catalog_service=None,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
+            ),
         )
 
     return FinanceGovernanceCommandBoundary(

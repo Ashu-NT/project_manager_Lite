@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import inspect
 
-from src.core.modules.project_management.application.financials.invoicing.preparation_service import (
-    ProjectBillingPreparationService,
+from src.core.modules.project_management.application.financials.invoicing.commands.preparation_sources import (
+    BillingPreparationSourceCommandHandler,
 )
 from src.core.modules.project_management.application.financials.revenue.commercial_projection_query import (
     CommercialProjectionQuery,
@@ -29,7 +29,7 @@ def test_commercial_projection_has_one_bounded_managerial_read_path() -> None:
 
 
 def test_billable_time_uses_billing_rate_and_canonical_decimal_margin() -> None:
-    time_source = inspect.getsource(ProjectBillingPreparationService.add_approved_time_source)
+    time_source = inspect.getsource(BillingPreparationSourceCommandHandler.add_approved_time_source)
     margin_source = inspect.getsource(ProjectProfitabilityCalculator.calculate)
     assert "RateType.BILLING" in time_source
     assert "RateType.COST" not in time_source

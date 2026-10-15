@@ -24,11 +24,11 @@ from src.core.modules.project_management.application.scheduling.leveling.resourc
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
 
-def _snapshot(ts, project_id):
-    tasks = select_leaf_tasks(ts._task_repo.list_by_project(project_id))
+def _snapshot(task_lookup, dependency_query, project_id):
+    tasks = select_leaf_tasks(task_lookup.list_tasks_for_project(project_id))
     tasks_by_id = {t.id: t for t in tasks}
-    assignments = ts._assignment_repo.list_by_tasks([t.id for t in tasks]) if tasks else []
-    deps = ts._dependency_repo.list_by_project(project_id)
+    assignments = task_lookup.list_assignments_for_tasks([t.id for t in tasks])
+    deps = dependency_query.list_dependencies_for_project(project_id)
     return tasks_by_id, assignments, deps
 
 
@@ -45,7 +45,7 @@ class TestPreviewApplyReloadIdempotence:
         services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
         # -- PREVIEW --
-        tasks_by_id, assignments, deps = _snapshot(ts, project.id)
+        tasks_by_id, assignments, deps = _snapshot(ts, services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,
@@ -64,7 +64,7 @@ class TestPreviewApplyReloadIdempotence:
         # -- RELOAD -- deliberately fresh objects, not the pre-apply ones,
         # to rule out any bug that only "works" because of Python object
         # identity/caching rather than genuinely persisted state.
-        reloaded_tasks_by_id, reloaded_assignments, reloaded_deps = _snapshot(ts, project.id)
+        reloaded_tasks_by_id, reloaded_assignments, reloaded_deps = _snapshot(ts, services['task_dependency_query'], project.id)
         assert reloaded_tasks_by_id is not tasks_by_id
         for task_id, task in reloaded_tasks_by_id.items():
             assert task is not tasks_by_id[task_id]
@@ -99,7 +99,7 @@ class TestPreviewApplyReloadIdempotence:
         services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
-        tasks_by_id, assignments, deps = _snapshot(ts, project.id)
+        tasks_by_id, assignments, deps = _snapshot(ts, services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,
@@ -121,7 +121,7 @@ class TestPreviewApplyReloadIdempotence:
         for iteration in range(3):
             sched.recalculate_project_schedule(project.id)
 
-            reloaded_tasks_by_id, reloaded_assignments, _reloaded_deps = _snapshot(ts, project.id)
+            reloaded_tasks_by_id, reloaded_assignments, _reloaded_deps = _snapshot(ts, services['task_dependency_query'], project.id)
             assert reloaded_tasks_by_id[moved_task_id].start_date == expected_start, (
                 f"moved task's start drifted on recalculation iteration {iteration}"
             )

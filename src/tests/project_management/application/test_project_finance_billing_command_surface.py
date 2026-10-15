@@ -27,6 +27,7 @@ from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
+        finance_governance_commands=services['finance_governance_commands'],
         billing_profile_query=services['billing_profile_query'],
         billing_preparation_query=services['billing_preparation_query'],
     )

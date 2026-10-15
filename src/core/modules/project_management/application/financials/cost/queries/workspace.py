@@ -23,7 +23,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import ConfigurationError, NotFoundError
 
 if TYPE_CHECKING:
     from src.core.modules.project_management.contracts.reads.financials.finance_lookup_reader import (
@@ -182,7 +182,7 @@ class CostWorkspaceQueries:
             operation_label=operation,
         )
         if self._tenant_context_service is None:
-            raise RuntimeError("Finance lookup scope is not configured.")
+            raise ConfigurationError("Finance lookup scope is not configured.")
         return self._tenant_context_service.require_active_scope_ids(
             operation_label=operation
         )
@@ -207,7 +207,7 @@ class CostWorkspaceQueries:
             operation_label="view project planned costs",
         )
         if self._planned_cost_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Finance Planned Cost Reader is not configured.")
+            raise ConfigurationError("Finance Planned Cost Reader is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view project planned costs"
         )

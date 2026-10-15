@@ -33,13 +33,14 @@ from src.core.modules.project_management.application.collaboration.queries impor
     CollaborationInboxQueryHandler,
     CollaborationPresenceQueryHandler,
 )
+from src.core.platform.common.exceptions import ConfigurationError, ValidationError
 
 _HandlerT = TypeVar("_HandlerT")
 
 
 def _require(handler: _HandlerT | None) -> _HandlerT:
     if handler is None:
-        raise RuntimeError(
+        raise ConfigurationError(
             "Project management collaboration desktop API is not connected."
         )
     return handler
@@ -169,13 +170,13 @@ class ProjectManagementCollaborationDesktopApi:
     def mark_task_mentions_read(self, task_id: str) -> None:
         normalized_task_id = (task_id or "").strip()
         if not normalized_task_id:
-            raise ValueError("Task ID is required to mark collaboration mentions as read.")
+            raise ValidationError("Task ID is required to mark collaboration mentions as read.", code="TASK_ID_REQUIRED")
         _require(self._comment_engagement).mark_task_mentions_read(normalized_task_id)
 
     def touch_task_presence(self, task_id: str, *, activity: str = "reviewing") -> None:
         normalized_task_id = (task_id or "").strip()
         if not normalized_task_id:
-            raise ValueError("Task ID is required to start a presence session.")
+            raise ValidationError("Task ID is required to start a presence session.", code="TASK_ID_REQUIRED")
         normalized_activity = (activity or "").strip() or "reviewing"
         _require(self._presence_commands).touch_task_presence(
             normalized_task_id, activity=normalized_activity
@@ -184,7 +185,7 @@ class ProjectManagementCollaborationDesktopApi:
     def clear_task_presence(self, task_id: str) -> None:
         normalized_task_id = (task_id or "").strip()
         if not normalized_task_id:
-            raise ValueError("Task ID is required to clear a presence session.")
+            raise ValidationError("Task ID is required to clear a presence session.", code="TASK_ID_REQUIRED")
         _require(self._presence_commands).clear_task_presence(normalized_task_id)
 
     def build_task_snapshot(
@@ -302,7 +303,7 @@ class ProjectManagementCollaborationDesktopApi:
     ) -> TaskCollaborationCommentDesktopDto:
         normalized_task_id = (command.task_id or "").strip()
         if not normalized_task_id:
-            raise ValueError("Task ID is required to post a collaboration update.")
+            raise ValidationError("Task ID is required to post a collaboration update.", code="TASK_ID_REQUIRED")
         comment = _require(self._comment_commands).post_comment(
             task_id=normalized_task_id,
             body=command.body,
@@ -322,7 +323,7 @@ class ProjectManagementCollaborationDesktopApi:
     ) -> TaskCollaborationCommentDesktopDto:
         normalized_comment_id = (command.comment_id or "").strip()
         if not normalized_comment_id:
-            raise ValueError("Comment ID is required to edit a collaboration update.")
+            raise ValidationError("Comment ID is required to edit a collaboration update.", code="COMMENT_ID_REQUIRED")
         comment = _require(self._comment_commands).edit_comment(
             normalized_comment_id,
             command.body,
@@ -339,7 +340,7 @@ class ProjectManagementCollaborationDesktopApi:
     ) -> TaskCollaborationCommentDesktopDto:
         normalized_comment_id = (command.comment_id or "").strip()
         if not normalized_comment_id:
-            raise ValueError("Comment ID is required to delete a collaboration update.")
+            raise ValidationError("Comment ID is required to delete a collaboration update.", code="COMMENT_ID_REQUIRED")
         comment = _require(self._comment_commands).delete_comment(
             normalized_comment_id,
             expected_revision=command.expected_revision,
@@ -356,7 +357,7 @@ class ProjectManagementCollaborationDesktopApi:
     ) -> TaskCollaborationCommentDesktopDto:
         normalized_comment_id = (command.comment_id or "").strip()
         if not normalized_comment_id:
-            raise ValueError("Comment ID is required to react to a collaboration update.")
+            raise ValidationError("Comment ID is required to react to a collaboration update.", code="COMMENT_ID_REQUIRED")
         comment = _require(self._comment_engagement).react_to_comment(normalized_comment_id, command.emoji)
         linked_documents = _require(self._document_query).list_comment_documents_for_ids(
             comment.task_id, (comment.id,)
@@ -369,7 +370,7 @@ class ProjectManagementCollaborationDesktopApi:
     ) -> TaskCollaborationCommentDesktopDto:
         normalized_comment_id = (command.comment_id or "").strip()
         if not normalized_comment_id:
-            raise ValueError("Comment ID is required to remove a reaction.")
+            raise ValidationError("Comment ID is required to remove a reaction.", code="COMMENT_ID_REQUIRED")
         comment = _require(self._comment_engagement).remove_reaction(normalized_comment_id, command.emoji)
         linked_documents = _require(self._document_query).list_comment_documents_for_ids(
             comment.task_id, (comment.id,)

@@ -7,6 +7,7 @@ the SCHEDULE branch is covered end-to-end by `test_project_finance_change_orders
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import date
 from decimal import Decimal
 
@@ -27,6 +28,9 @@ from src.core.modules.project_management.application.financials.financial_change
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeChanged,
     FinancialChangeEventType,
+)
+from src.core.modules.project_management.application.financials.financial_changes.mutation_result import (
+    FinancialChangeImpactMutationResult,
 )
 from src.core.modules.project_management.application.financials.forecasts.commands import (
     ForecastApprovalCommands,
@@ -143,7 +147,6 @@ def _seed_approved_forecast(services, project, code):
 
 def _submitted_change(services, session, *, include_forecast=False):
     project, code, _budget, budget_line = _seed_approved_budget(services)
-    changes = services["financial_change_query"]
     boundary = services["finance_governance_commands"]
     principal = services["user_session"].principal
     if include_forecast:
@@ -157,7 +160,7 @@ def _submitted_change(services, session, *, include_forecast=False):
             created_by=principal.user_id,
         )
     )
-    boundary.financial_change(
+    mutation = boundary.financial_change(
         lambda commands: commands.add_impact(
             change.id,
             impact_type=FinancialChangeImpactType.BUDGET,
@@ -168,9 +171,9 @@ def _submitted_change(services, session, *, include_forecast=False):
             expected_change_version=change.row_version,
         )
     )
+    change = mutation.change
     if include_forecast:
-        change = changes.get_change(change.id)
-        boundary.financial_change(
+        mutation = boundary.financial_change(
             lambda commands: commands.add_impact(
                 change.id,
                 impact_type=FinancialChangeImpactType.FORECAST,
@@ -181,7 +184,7 @@ def _submitted_change(services, session, *, include_forecast=False):
                 expected_change_version=change.row_version,
             )
         )
-    change = changes.get_change(change.id)
+        change = mutation.change
     change = boundary.financial_change_submission(
         lambda commands: commands.submit_change(
             change.id,
@@ -201,6 +204,60 @@ def _deps(services, session):
         tenant_context_service=services["tenant_context_service"],
         work_calendar_engine=services["work_calendar_engine"],
     )
+
+
+def test_impact_mutations_return_parent_and_impact_from_the_command_transaction(services):
+    _login(services, "admin", "ChangeMe123!")
+    project, code, _, budget_line = _seed_approved_budget(services)
+    boundary = services["finance_governance_commands"]
+    change = boundary.financial_change(
+        lambda commands: commands.create_change(
+            project.id,
+            title="Scope adjustment",
+            reason="Customer request",
+            effective_date=date(2026, 8, 11),
+            created_by=services["user_session"].principal.user_id,
+        )
+    )
+    version = change.row_version
+
+    added = boundary.financial_change(
+        lambda commands: commands.add_impact(
+            change.id,
+            impact_type=FinancialChangeImpactType.BUDGET,
+            description="Additional scope",
+            amount=Decimal("25.50"),
+            cost_code_id=code.id,
+            target_line_id=budget_line.id,
+            expected_change_version=version,
+        )
+    )
+
+    assert isinstance(added, FinancialChangeImpactMutationResult)
+    assert added.change.id == added.impact.change_request_id == change.id
+    assert added.change.row_version == version + 1
+    assert added.impact.amount == Decimal("25.50")
+    with pytest.raises(FrozenInstanceError):
+        added.change = change
+
+    updated = boundary.financial_change(
+        lambda commands: commands.update_impact(
+            added.impact.id,
+            impact_type=FinancialChangeImpactType.BUDGET,
+            description="Revised additional scope",
+            amount=Decimal("30.75"),
+            cost_code_id=code.id,
+            target_line_id=budget_line.id,
+            expected_change_version=added.change.row_version,
+            expected_impact_version=added.impact.row_version,
+        )
+    )
+
+    assert isinstance(updated, FinancialChangeImpactMutationResult)
+    assert updated.change.id == updated.impact.change_request_id == change.id
+    assert updated.change.row_version == version + 2
+    assert updated.impact.row_version == added.impact.row_version + 1
+    assert updated.impact.amount == Decimal("30.75")
 
 
 def test_participant_apply_applies_change_on_the_supplied_session_with_budget_only_events(
@@ -297,8 +354,9 @@ def test_participant_applies_budget_and_forecast_successors_on_the_shared_sessio
 
 
 @pytest.mark.parametrize("include_forecast", [False, True])
+@pytest.mark.parametrize("decision", ["apply", "reject"])
 def test_participant_never_calls_commit_or_rollback(
-    services, session, monkeypatch, include_forecast
+    services, session, monkeypatch, include_forecast, decision
 ):
     """The participant stages only; the caller owns transaction completion."""
     _login(services, "admin", "ChangeMe123!")
@@ -315,10 +373,11 @@ def test_participant_never_calls_commit_or_rollback(
     monkeypatch.setattr(type(session), "commit", _forbidden)
     monkeypatch.setattr(type(session), "rollback", _forbidden)
 
-    FinancialChangeApprovalParticipant().apply(request, deps)
+    getattr(FinancialChangeApprovalParticipant(), decision)(request, deps)
 
 
-def test_participant_apply_requires_authenticated_actor(services, session):
+@pytest.mark.parametrize("decision", ["apply", "reject"])
+def test_participant_requires_authenticated_actor(services, session, decision):
     _login(services, "admin", "ChangeMe123!")
     _, _, request = _submitted_change(services, session)
     deps = build_financial_change_approval_deps(
@@ -329,7 +388,49 @@ def test_participant_apply_requires_authenticated_actor(services, session):
     )
 
     with pytest.raises(BusinessRuleError, match="authenticated principal"):
-        FinancialChangeApprovalParticipant().apply(request, deps)
+        getattr(FinancialChangeApprovalParticipant(), decision)(request, deps)
+
+
+@pytest.mark.parametrize("include_forecast", [False, True])
+def test_caller_rollback_discards_change_and_successor_versions(
+    services, session, include_forecast
+):
+    _login(services, "admin", "ChangeMe123!")
+    _, change, request = _submitted_change(
+        services, session, include_forecast=include_forecast
+    )
+    deps = _deps(services, session)
+    commands = deps.financial_change_commands
+    change_id = change.id
+    base_budget_id = change.base_budget_id
+    base_forecast_id = change.base_forecast_id
+
+    FinancialChangeApprovalParticipant().apply(request, deps)
+
+    applied = commands._change_repo.get(change_id)
+    successor_budget_id = applied.applied_budget_id
+    successor_forecast_id = applied.applied_forecast_id
+    assert successor_budget_id != base_budget_id
+    if include_forecast:
+        assert successor_forecast_id != base_forecast_id
+
+    session.rollback()
+
+    restored = commands._change_repo.get(change_id)
+    assert restored.status is FinancialChangeStatus.PENDING_APPROVAL
+    assert restored.applied_budget_id is None
+    assert restored.applied_forecast_id is None
+    assert commands._budget_repo.get(successor_budget_id) is None
+    assert (
+        commands._budget_repo.get_approved_for_project(restored.project_id).id
+        == base_budget_id
+    )
+    if include_forecast:
+        assert commands._forecast_repo.get(successor_forecast_id) is None
+        assert (
+            commands._forecast_repo.get_approved_for_project(restored.project_id).id
+            == base_forecast_id
+        )
 
 
 class _BlankUserSession:

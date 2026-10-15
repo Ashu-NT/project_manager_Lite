@@ -8,10 +8,11 @@ from src.core.modules.project_management.api.desktop.resources.formatters.employ
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceEmployeeOptionDescriptor,
 )
+from src.core.platform.application.master_data.employee import EmployeeQueryHandler
 
 
 def build_employee_options(
-    employee_query: object | None = None,
+    employee_query: EmployeeQueryHandler | None = None,
 ) -> tuple[ResourceEmployeeOptionDescriptor, ...]:
     if employee_query is None:
         return ()
@@ -46,7 +47,7 @@ def build_employee_options(
 
 
 def build_employee_lookup(
-    employee_query: object | None = None,
+    employee_query: EmployeeQueryHandler | None = None,
 ) -> dict[str, ResourceEmployeeOptionDescriptor]:
     return {
         option.value: option

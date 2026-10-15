@@ -40,7 +40,7 @@ class TestOptimisticConcurrency:
         """Two callers read the same dependency, then both try to update it.
         The second must get a stale-write error, not silently overwrite the
         first caller's change."""
-        ts = services['task_lookup_query']
+        dependency_commands = services['task_dependency_commands']
         _project, a, b = _make_two_tasks(services)
         dep = services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
@@ -50,7 +50,7 @@ class TestOptimisticConcurrency:
         # A second caller, still holding the pre-update version, tries to
         # write on top of it.
         with pytest.raises(ConcurrencyError):
-            ts._dependency_repo.update(
+            dependency_commands._dependency_repo.update(
                 __import__("dataclasses").replace(dep, lag_days=5)
             )
 

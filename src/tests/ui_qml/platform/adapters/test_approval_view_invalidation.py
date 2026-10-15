@@ -291,7 +291,7 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
         change.id, impact_type=FinancialChangeImpactType.BUDGET, description="Increase scope",
         amount=Decimal(10), cost_code_id=code.id, target_line_id=budget_line.id,
         expected_change_version=change.row_version,
-    ))
+    )).impact
     change = services['financial_change_query'].get_change(change.id)
 
     services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(change.id, submitted_by="admin", expected_version=change.row_version))

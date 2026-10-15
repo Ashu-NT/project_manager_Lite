@@ -52,6 +52,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
+    ConfigurationError,
     NotFoundError,
     OperationNotPermittedError,
     ValidationError,
@@ -223,7 +224,7 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
         )
         if attachment_paths:
             if self._attachment_store is None or self._attachment_cleanup is None:
-                raise RuntimeError(
+                raise ConfigurationError(
                     "Collaboration attachment storage is not configured."
                 )
             comment.attachments = self._attachment_store(

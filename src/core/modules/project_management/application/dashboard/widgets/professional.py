@@ -110,7 +110,8 @@ class DashboardScheduleHealthWidget:
                 continue
             primary = max(assignments, key=lambda item: float(item.allocation_percent or 0.0))
             resource_id = getattr(primary, "resource_id", None)
-            owner_by_task[task.id] = getattr(primary, "resource_name", None) or resource_names.get(resource_id) or resource_id
+            resource_name = resource_names.get(resource_id) if resource_id is not None else None
+            owner_by_task[task.id] = getattr(primary, "resource_name", None) or resource_name or resource_id
         return owner_by_task
 
     @staticmethod

@@ -101,6 +101,7 @@ from src.core.modules.project_management.application.resources import (
     PortfolioResourcePoolQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.platform.common.exceptions import ConfigurationError
 
 
 class ProjectManagementPortfolioDesktopApi:
@@ -428,7 +429,7 @@ _HandlerT = TypeVar("_HandlerT")
 
 def _require(handler: _HandlerT | None) -> _HandlerT:
     if handler is None:
-        raise RuntimeError("Project management portfolio desktop API is not connected.")
+        raise ConfigurationError("Project management portfolio desktop API is not connected.")
     return handler
 
 

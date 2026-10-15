@@ -32,7 +32,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ConfigurationError, ValidationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -104,7 +104,7 @@ class TaskDetailPageQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="view task assignments",
         )
         if self._task_workspace_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Task workspace reader is not configured.")
+            raise ConfigurationError("Task workspace reader is not configured.")
         request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
             key=sort_key,
@@ -201,7 +201,7 @@ class TaskDetailPageQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="view task dependencies",
         )
         if self._task_workspace_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Task workspace reader is not configured.")
+            raise ConfigurationError("Task workspace reader is not configured.")
         request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
             key=sort_key,
@@ -268,7 +268,7 @@ class TaskDetailPageQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="view task activity",
         )
         if self._task_workspace_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Task workspace reader is not configured.")
+            raise ConfigurationError("Task workspace reader is not configured.")
         request = PageRequest(page=page, page_size=page_size)
         normalized_category = str(category or "all").strip().lower()
         if normalized_category not in {"all", "task", "assignments"}:

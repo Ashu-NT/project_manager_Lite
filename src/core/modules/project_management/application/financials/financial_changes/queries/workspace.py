@@ -23,6 +23,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
     from src.core.modules.project_management.contracts.reads.financials.finance_change_reader import (
@@ -96,7 +97,7 @@ class FinancialChangesWorkspaceQueries:
             operation_label=operation,
         )
         if self._tenant_context_service is None:
-            raise RuntimeError("Finance lookup scope is not configured.")
+            raise ConfigurationError("Finance lookup scope is not configured.")
         return self._tenant_context_service.require_active_scope_ids(
             operation_label=operation
         )
@@ -121,7 +122,7 @@ class FinancialChangesWorkspaceQueries:
             operation_label="view project financial changes",
         )
         if self._change_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Finance Change Reader is not configured.")
+            raise ConfigurationError("Finance Change Reader is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view project financial changes"
         )

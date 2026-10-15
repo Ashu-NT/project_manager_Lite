@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
+from typing import Any
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
@@ -11,30 +12,6 @@ logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.scheduling.cpm.task_date_math import (
-    apply_actual_date_constraints,
-    apply_resource_leveling_floor,
-    apply_scheduling_constraints,
-    compute_duration_dates,
-    compute_milestone_dates,
-)
-from src.core.modules.project_management.contracts.repositories.resources.resource import (
-    ResourceRepository,
-)
-from src.core.modules.project_management.contracts.repositories.tasks.task import (
-    AssignmentRepository,
-    DependencyRepository,
-    TaskRepository,
-)
-from src.core.modules.project_management.domain.tasks.hierarchy import (
-    select_leaf_dependencies,
-    select_leaf_tasks,
-)
-from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
-
-# Enterprise CalendarResolver now handles hierarchy resolution; kept as a
-# type placeholder for the isinstance checks below.
-CalendarResolver = None  # type: ignore[assignment]
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     BoundProjectCalendar,
     ProjectCalendarAdapter,
@@ -55,9 +32,29 @@ from src.core.modules.project_management.application.scheduling.cpm.passes impor
 from src.core.modules.project_management.application.scheduling.cpm.results import (
     build_schedule_result,
 )
+from src.core.modules.project_management.application.scheduling.cpm.task_date_math import (
+    apply_actual_date_constraints,
+    apply_resource_leveling_floor,
+    apply_scheduling_constraints,
+    compute_duration_dates,
+    compute_milestone_dates,
+)
 from src.core.modules.project_management.application.scheduling.models.cpm import (
     CPMTaskInfo,
 )
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    DependencyRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    select_leaf_dependencies,
+    select_leaf_tasks,
+)
+from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 
 
 class SchedulingEngine:
@@ -78,7 +75,7 @@ class SchedulingEngine:
         calendar: CalendarProtocol,
         assignment_repo: AssignmentRepository | None = None,
         resource_repo: ResourceRepository | None = None,
-        calendar_resolver: CalendarResolver | None = None,
+        calendar_resolver: Any = None,
         resource_calendar_map: dict[str, CalendarProtocol] | None = None,
         project_calendar_adapter: ProjectCalendarAdapter | None = None,
     ):
@@ -90,7 +87,8 @@ class SchedulingEngine:
         self._task_calendar: CalendarProtocol = calendar  # per-task override, reset each pass
         self._assignment_repo: AssignmentRepository | None = assignment_repo
         self._resource_repo: ResourceRepository | None = resource_repo
-        self._calendar_resolver: CalendarResolver | None = calendar_resolver
+        # Legacy duck-typed resource hook, not PlatformCalendarResolver's hierarchy API.
+        self._calendar_resolver: Any = calendar_resolver
         self._resource_calendar_map: dict[str, CalendarProtocol] = resource_calendar_map or {}
         self._task_primary_resource: dict[str, str] = {}  # task_id → resource_id, pre-loaded per run
         self._project_calendar_adapter: ProjectCalendarAdapter | None = project_calendar_adapter

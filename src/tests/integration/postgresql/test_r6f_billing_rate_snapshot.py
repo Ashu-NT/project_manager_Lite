@@ -8,6 +8,9 @@ import pytest
 from sqlalchemy import text
 
 from src.core.modules.project_management.application.common.clock import SystemClock
+from src.core.modules.project_management.application.financials.invoicing.commands.preparation_sources import (
+    BillingPreparationSourceCommandHandler,
+)
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
     RateCardResolver,
 )
@@ -17,8 +20,9 @@ from src.core.modules.project_management.domain.financials.billing_preparation i
 from src.core.modules.project_management.domain.financials.billing_profile import (
     ProjectBillingProfile,
 )
-from src.core.modules.project_management.infrastructure.composition.registrations.approvals.finance.billing_preparation import (
-    build_billing_preparation_approval_deps,
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    build_approval_repository_context,
+    build_enterprise_audit_service,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.invoicing.billing import (
     SqlAlchemyProjectBillingRepository,
@@ -102,11 +106,20 @@ def test_billing_rate_race_preserves_complete_immutable_snapshot(postgres_test_e
             )
             repo.add_preparation(preparation)
             session.flush()
-            service = build_billing_preparation_approval_deps(
-                session, user_session=user, tenant_context_service=scope,
-            ).billing_preparation_service
-            service._rate_resolver = RateCardResolver(reader=PausingReader(session), tenant_context_service=scope, clock=SystemClock())
-            line = service.add_approved_time_source(preparation.id, time_entry_id=envelope.aggregate_id, expected_row_version=1)
+            bundle = build_approval_repository_context(session, scope)
+            handler = BillingPreparationSourceCommandHandler(
+                session=session, billing_repo=repo,
+                cost_entry_repo=bundle.pm.project_cost_entry_repo,
+                labor_posting_repo=bundle.pm.approved_time_labor_posting_repo,
+                rate_resolver=RateCardResolver(
+                    reader=PausingReader(session), tenant_context_service=scope, clock=SystemClock(),
+                ),
+                tenant_context_service=scope, clock=SystemClock(), user_session=user,
+                enterprise_audit_service=build_enterprise_audit_service(
+                    session, bundle, user_session=user, tenant_context_service=scope,
+                ),
+            )
+            line = handler.add_approved_time_source(preparation.id, time_entry_id=envelope.aggregate_id, expected_row_version=1)
             session.commit()
             return preparation.id, line
 

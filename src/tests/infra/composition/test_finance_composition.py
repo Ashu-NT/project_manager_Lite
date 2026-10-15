@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import fields
+
 import pytest
 
 from src.core.modules.project_management.application.financials.budgets.budget_events import (
@@ -61,9 +63,6 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
     RateCardLineDeactivated,
     RateCardLineUpdated,
     RateCardUpdated,
-)
-from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governed_ports import (
-    FINANCE_MUTATIONS,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.infra.composition.app_container import build_service_dict
@@ -176,39 +175,36 @@ def test_remaining_finance_events_have_one_handler_per_family(services) -> None:
         assert all(handler is handlers[0] for handler in handlers)
 
 
-def test_finance_setup_rate_and_budget_preserve_raw_service_lifetimes(services, session) -> None:
+def test_finance_setup_rate_and_budget_queries_reuse_scoped_repositories(services, session) -> None:
     configuration = services['financial_configuration_query']
-    rate_cards = services['rate_card_query']
+    rates = services['rate_card_query']
     budget = services['budget_query']
-    resolver = services["rate_card_resolver"]
-
-    assert configuration._read_service._session is session
-    assert rate_cards._read_service._session is session
-    assert budget._read_service._session is session
-    assert budget._read_service._clock is resolver._clock
+    assert configuration._profile_repo.session is session
+    assert rates._rate_card_repo.session is session
+    assert budget._budget_repo.session is session
+    assert not hasattr(budget, '_clock')
 
 
-def test_finance_cost_services_preserve_session_clock_and_rate_resolver(services, session) -> None:
-    cost_entries = services['cost_entry_query']._read_service
+def test_finance_cost_queries_do_not_own_mutation_or_rate_dependencies(services, session) -> None:
+    costs = services['cost_entry_query']
     commitments = services['commitment_query']
-    planned_costs = services['planned_cost_query']._read_service
-    resolver = services["rate_card_resolver"]
-
-    assert cost_entries._session is session
-    assert commitments._session is session
-    assert planned_costs._session is session
-    assert cost_entries._clock is commitments._clock is planned_costs._clock
-    assert cost_entries._clock is resolver._clock
-    assert cost_entries._rate_resolver is planned_costs._rate_resolver is resolver
+    planned = services['planned_cost_query']
+    assert costs._entry_repo.session is session
+    assert commitments._commitment_repo.session is session
+    assert planned._planned_cost_repo.session is session
+    assert not hasattr(costs, 'post')
+    assert not hasattr(planned, 'calculate_snapshot')
 
 
-def test_finance_forecast_services_preserve_session_and_clock(services, session) -> None:
-    version = services['forecast_version_query']._read_service
-    generation = services['finance_governance_commands']._read_service
-
-    assert version._session is session
-    assert generation._session is session
-    assert version._clock is generation._clock is services["rate_card_resolver"]._clock
+def test_finance_forecast_query_and_generation_have_separate_lifetimes(services, session) -> None:
+    query = services['forecast_version_query']
+    assert query._forecast_repo.session is session
+    boundary = services['finance_governance_commands']
+    with boundary._uow_factory.create(context=DomainEventContext(correlation_id='forecast-composition')) as uow:
+        operations = boundary._operations_factory(uow)
+        assert operations.forecast_generation._session is uow._session
+        assert operations.forecast_lifecycle._clock is operations.forecast_generation._clock
+        assert uow._session is not session
 
 
 def test_finance_read_services_preserve_ambient_session(services, session) -> None:
@@ -236,75 +232,35 @@ def test_finance_worker_dispatchers_share_fresh_session_uow_factory(services, se
         worker_session.close()
 
 
-def test_finance_change_and_billing_preserve_raw_service_dependencies(services, session) -> None:
-    change = services['financial_change_query']._read_service
-    profile = services['billing_profile_query']._read_service
-    preparation = services['billing_preparation_query']._read_service
-    resolver = services["rate_card_resolver"]
+def test_finance_change_and_billing_queries_reuse_scoped_repositories(services, session) -> None:
+    change = services['financial_change_query']
+    profile = services['billing_profile_query']
+    preparation = services['billing_preparation_query']
+    assert change._change_repo.session is session
+    assert profile._billing_repo is preparation._billing_repo
+    assert preparation._billing_repo.session is session
+    assert not hasattr(preparation, '_rate_resolver')
 
-    assert change._session is profile._session is preparation._session is session
-    assert change._clock is profile._clock is preparation._clock is resolver._clock
-    assert preparation._rate_resolver is resolver
 
-
-def test_finance_governed_operations_use_one_fresh_session_for_billing_and_rates(
-    services, session
-) -> None:
-    boundary = services["finance_governance_commands"]
-    uow = boundary._uow_factory.create(context=DomainEventContext(correlation_id="composition-test"))
-    try:
+def test_finance_governed_operations_use_one_fresh_session_for_billing_and_rates(services, session) -> None:
+    boundary = services['finance_governance_commands']
+    with boundary._uow_factory.create(context=DomainEventContext(correlation_id='composition-test')) as uow:
         operations = boundary._operations_factory(uow)
         assert uow._session is not session
-        for service in (
-            operations.budgets,
-            operations.forecast_versions,
-            operations.forecast_generation,
-            operations.financial_setup,
-            operations.rate_cards,
-            operations.planned_costs,
-            operations.cost_entries,
-            operations.billing_profiles,
-            operations.billing_preparations,
-        ):
-            assert service._session is uow._session
-
-        billing = operations.billing_preparations
-        assert billing._cost_entry_repo is uow.cost_entries
-        assert billing._labor_posting_repo is uow.labor_postings
-        assert billing._financial_period_queries._period_repo.session is uow._session
-        assert billing._rate_resolver._reader._session is uow._session
-        assert operations.planned_costs._rate_resolver is billing._rate_resolver
-        assert operations.cost_entries._rate_resolver is billing._rate_resolver
-        assert billing._approval_repo is uow.approvals
-        with pytest.raises(TypeError, match="requires a domain event"):
-            billing._record_event(object())
-    finally:
-        uow._session.close()
+        for field in fields(operations):
+            assert getattr(operations, field.name)._session is uow._session
+        sources = operations.billing_sources
+        assert sources._cost_entry_repo is uow.cost_entries
+        assert sources._labor_posting_repo is uow.labor_postings
+        assert operations.billing_preparations._financial_period_queries._period_repo.session is uow._session
+        assert sources._rate_resolver._reader._session is uow._session
+        assert operations.planned_costs._rate_resolver is sources._rate_resolver
+        assert operations.billing_submissions._approval_repo is uow.approvals
+        assert not hasattr(operations.cost_entries, '_rate_resolver')
+        with pytest.raises(TypeError, match='requires a domain event'):
+            sources._record_event(object())
 
 
-def test_finance_governed_ports_share_one_boundary_and_declared_mutations(services) -> None:
-    boundary = services["finance_governance_commands"]
-    families = {
-        "financial_setup": "financial_configuration_service",
-        "budget": "budget_service",
-        "forecast_version": "forecast_version_service",
-        "forecast_generation": "forecast_generation_service",
-        "financial_change": "financial_change_service",
-        "rate_card": "rate_card_service",
-        "planned_cost": "planned_cost_service",
-        "cost_entry": "cost_entry_service",
-        "billing_profile": "billing_profile_service",
-        "billing_preparation": "billing_preparation_service",
-    }
-    assert set(families) == set(FINANCE_MUTATIONS)
-    for family, service_key in families.items():
-        port = services[service_key]
-        assert port._boundary is boundary
-        assert port._family == family
-        assert port._mutations == FINANCE_MUTATIONS[family]
-        for method_name in port._mutations:
-            assert callable(getattr(port._read_service, method_name))
-            assert callable(getattr(port, method_name))
 
 
 def test_finance_performance_query_reuses_reporting_baseline_and_reader(services, session) -> None:

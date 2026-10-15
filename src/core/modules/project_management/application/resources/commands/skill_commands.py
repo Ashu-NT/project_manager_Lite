@@ -30,6 +30,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 )
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
+    ConfigurationError,
     NotFoundError,
     ValidationError,
 )
@@ -58,7 +59,7 @@ class ResourceCapabilityCommandHandler:
 
     def _require_uow_factory(self) -> ResourceUnitOfWorkFactory:
         if self._uow_factory is None:
-            raise RuntimeError("Resource unit of work is not configured.")
+            raise ConfigurationError("Resource unit of work is not configured.")
         return self._uow_factory
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
@@ -97,7 +98,7 @@ class ResourceCapabilityCommandHandler:
         self, uow, child, *, change_type: ResourceCapabilityChangeType
     ) -> None:
         if self._tenant_context_service is None:
-            raise RuntimeError("Resource capability tenant scope is not configured.")
+            raise ConfigurationError("Resource capability tenant scope is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="mutate resource capability"
         )
@@ -125,7 +126,7 @@ class ResourceCapabilityCommandHandler:
             self._user_session, "resource.manage", operation_label="add resource skill"
         )
         if self._skill_repo is None:
-            raise RuntimeError("Skill repository is not configured.")
+            raise ConfigurationError("Skill repository is not configured.")
         # The validated domain dataclass normalizes text to SkillProficiencyLevel.
         skill = ResourceSkill.create(
             resource_id=resource_id,
@@ -164,7 +165,7 @@ class ResourceCapabilityCommandHandler:
             self._user_session, "resource.manage", operation_label="update resource skill"
         )
         if self._skill_repo is None:
-            raise RuntimeError("Skill repository is not configured.")
+            raise ConfigurationError("Skill repository is not configured.")
         existing = self._skill_repo.get(skill_id)
         if existing is None:
             raise NotFoundError("Skill not found.", code="SKILL_NOT_FOUND")
@@ -205,7 +206,7 @@ class ResourceCapabilityCommandHandler:
             self._user_session, "resource.manage", operation_label="remove resource skill"
         )
         if self._skill_repo is None:
-            raise RuntimeError("Skill repository is not configured.")
+            raise ConfigurationError("Skill repository is not configured.")
         existing = self._skill_repo.get(skill_id)
         if existing is None:
             raise NotFoundError("Skill not found.", code="SKILL_NOT_FOUND")
@@ -241,7 +242,7 @@ class ResourceCapabilityCommandHandler:
             operation_label="add resource certification",
         )
         if self._cert_repo is None:
-            raise RuntimeError("Certification repository is not configured.")
+            raise ConfigurationError("Certification repository is not configured.")
         cert = ResourceCertification.create(
             resource_id=resource_id,
             certification_code=certification_code,
@@ -287,7 +288,7 @@ class ResourceCapabilityCommandHandler:
             operation_label="update resource certification",
         )
         if self._cert_repo is None:
-            raise RuntimeError("Certification repository is not configured.")
+            raise ConfigurationError("Certification repository is not configured.")
         existing = self._cert_repo.get(cert_id)
         if existing is None:
             raise NotFoundError("Certification not found.", code="CERT_NOT_FOUND")
@@ -337,7 +338,7 @@ class ResourceCapabilityCommandHandler:
             operation_label="remove resource certification",
         )
         if self._cert_repo is None:
-            raise RuntimeError("Certification repository is not configured.")
+            raise ConfigurationError("Certification repository is not configured.")
         existing = self._cert_repo.get(cert_id)
         if existing is None:
             raise NotFoundError("Certification not found.", code="CERT_NOT_FOUND")

@@ -15,7 +15,7 @@ from src.core.platform.common.pydantic import (
 
 def _decimal_text(value: object) -> str:
     if not isinstance(value, str):
-        raise TypeError("Transport money and quantities must be exact Decimal text.")
+        raise ValueError("Transport money and quantities must be exact Decimal text.")
     try:
         if not Decimal(value).is_finite():
             raise ValueError("Finite Decimal evidence is required.")

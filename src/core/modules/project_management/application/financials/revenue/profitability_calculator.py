@@ -15,7 +15,7 @@ skipped:
   forecast) -- using it as a stand-in forecast revenue would present an
   unproven number as if it were one. Profitability is explicitly
   unavailable until a forecast-billing-volume concept is built.
-- COST_PLUS: add_cost_plus_source (preparation_service.py) selects billable
+- COST_PLUS: add_cost_plus_source (invoicing/commands/preparation_sources.py) selects billable
   cost one posted ProjectCostEntry at a time with no cost-code/category
   filter, and there is no recoverable/non-recoverable cost distinction
   anywhere in the domain. CostControlTotals.estimate_at_completion is

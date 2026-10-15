@@ -135,19 +135,19 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         assert deps_a.baseline_commands is not deps_b.baseline_commands
 
         assert deps_a.baseline_commands._sched is not deps_b.baseline_commands._sched
-        assert deps_a.baseline_query._sched._session is session_a
-        assert deps_b.baseline_query._sched._session is session_b
+        assert deps_a.baseline_commands._sched._session is session_a
+        assert deps_b.baseline_commands._sched._session is session_b
 
-        assert deps_a.baseline_query._activity_service is not (
-            deps_b.baseline_query._activity_service
+        assert deps_a.baseline_commands._activity_service is not (
+            deps_b.baseline_commands._activity_service
         )
-        assert deps_a.baseline_query._activity_service._session is session_a
-        assert deps_b.baseline_query._activity_service._session is session_b
+        assert deps_a.baseline_commands._activity_service._session is session_a
+        assert deps_b.baseline_commands._activity_service._session is session_b
 
-        assert deps_a.baseline_query._approval_commands is None, (
+        assert deps_a.baseline_commands._approval_commands is None, (
             "the apply path must never reach back into ApprovalCommandHandler"
         )
-        assert deps_b.baseline_query._approval_commands is None
+        assert deps_b.baseline_commands._approval_commands is None
     finally:
         session_a.close()
         session_b.close()

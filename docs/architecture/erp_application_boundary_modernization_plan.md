@@ -1116,30 +1116,32 @@ were introduced, and no commit was made by the agent.
 The requested PM inventory contains 22 boundaries: Projects and Tasks (2),
 Finance (13 when Forecast generation/versions and Billing profile/preparation
 are counted separately), Resources (4), and Scheduling/baselines (3).
-This inventory is not a claim that all PM/A4 work is complete.
+All named production facades below have been retired. Final integrated
+verification is still in progress; implementation status is not a phase
+closure claim.
 
 | Existing boundary | Current migration status |
 | --- | --- |
-| ProjectService | Production read consumers receive ProjectQueryHandler; desktop writes and CSV import receive the existing create/update/status/deletion handlers directly. Composition constructs each once and preserves its UoW. Test-fixture migration and facade deletion remain OPEN. |
-| TaskService | Remaining delegation/participant/event-draining cutover OPEN; existing participant transaction ownership is unchanged. |
-| BudgetService | Governed command/query separation OPEN. |
-| ProjectCommitmentService | Governed command/query separation OPEN. |
-| FinancialConfigurationService | Governed command/query separation OPEN. |
-| ProjectCostEntryService | Governed command/query separation OPEN. |
-| FinancialChangeService | Governed command/query separation OPEN. |
-| ForecastGenerationService | Explicit generation command/caller cutover OPEN. |
-| ForecastVersionService | Governed command/query separation OPEN. |
-| ProjectBillingProfileService | Governed command/query separation OPEN. |
-| ProjectBillingPreparationService | Governed command/query separation OPEN. |
-| PlannedCostService | Governed command/query separation OPEN. |
-| ProjectRateCardService | Governed command/query separation OPEN. |
+| ProjectService | Deleted. Composition injects the existing query/create/update/status/deletion handlers directly into desktop, import and internal consumers. |
+| TaskService | Deleted. Typed Task composition exposes lifecycle, progress, hierarchy, dependency, assignment, time-entry, scheduling and read capabilities. Approval participants receive only their supplied-session decision handlers and TaskUowScope; Financial Change receives the trusted scheduling port. |
+| BudgetService | Deleted. budgets/commands separates lifecycle, lines and approval/successor authority; budgets/queries separates catalog and workspace reads. |
+| ProjectCommitmentService | Deleted. commitments/commands/projection.py owns neutral financial-fact projection/matching; commitments/queries owns read-only catalog access. |
+| FinancialConfigurationService | Deleted. configuration/commands separates financial profile and cost-code operations; configuration/queries owns catalog/workspace reads. |
+| ProjectCostEntryService | Deleted. cost/entries/commands separates manual lifecycle, review, posting, approved-Time and neutral Procurement receipt consumption. Queries cannot mutate or revalue Actuals. |
+| FinancialChangeService | Deleted. financial_changes/commands separates draft/impact, submission and approval/successor application. Impact commands return their changed parent and impact together from the same transaction. |
+| ForecastGenerationService | Deleted. forecasts/commands/generation.py owns the existing authoritative draft-generation operation inside the fresh governance UoW. |
+| ForecastVersionService | Deleted. forecasts/commands separates lifecycle, lines and approval/successor operations; forecasts/queries owns catalog/workspace reads. |
+| ProjectBillingProfileService | Deleted. invoicing/commands separates profile and schedule operations; invoicing/queries owns profile/schedule reads. |
+| ProjectBillingPreparationService | Deleted. invoicing/commands separates preparation lifecycle, sources, submission and participant approval. Accounting handoff requests no longer reach through private preparation state. |
+| PlannedCostService | Deleted. planned_costs/commands/snapshot.py owns snapshot creation; planned_costs/queries owns read-only access. |
+| ProjectRateCardService | Deleted. rate_cards/commands separates cards from rate-line governance; rate_cards/queries owns catalog/workspace reads. Historical selection remains RateCardResolver-owned. |
 | FinanceService | Single read authority moved to financials/queries/snapshot.py as FinanceSnapshotQueryHandler; composition, desktop, reporting/export and test consumers migrated; former production file deleted. Financial calculation semantics unchanged. |
-| AccountingHandoffRequestService | Explicit dependency and governed request cutover OPEN. Preserve destination-neutral evidence and atomic outbox ownership. |
+| AccountingHandoffRequestService | Deleted. accounting/commands/request.py injects repositories, evidence builder, permission context, clock, audit/event sink and enqueue capability explicitly. Immutable handoff, outbox and Billing transition remain atomic; the enqueue clock is pinned to the evidence timestamp. |
 | EnterpriseResourceAvailabilityService | ResourceAvailabilityQueryHandler under resources/capacity/queries/availability.py; composed instance reused by capacity/assignment consumers; old production file deleted. |
 | ResourceWorkloadService | ResourceWorkloadQueryHandler under resources/capacity/queries/workload.py; scoped workload consumers migrated; old production file deleted. |
 | PortfolioResourcePoolService | PortfolioResourcePoolQueryHandler under resources/portfolio/queries/resource_pool.py; Portfolio/composition consumers migrated; old production file deleted. |
 | ProjectResourceService | Facade deleted. Composition exposes ProjectResourceCommandHandler and ProjectResourceQueryHandler directly, with the existing scoped repository and shared UoW; both enforce module entitlement before operation. |
-| BaselineService | Governed baseline command/query and participant cutover OPEN. |
+| BaselineService | Deleted. scheduling/baselines/commands/lifecycle.py owns the governed lifecycle; queries/catalog.py owns reads. The approval participant retains its supplied session and never opens or commits another UoW. |
 | BaselineComparisonService | Standalone comparison implementation moved to scheduling/baselines/queries/comparison.py as BaselineComparisonQueryHandler; old file deleted. Existing callers are tests, not an active production destination; production integration is not claimed. Do not conflate baseline-to-baseline comparison with current-schedule reporting. |
 | ScheduleChangeImpactService | ScheduleChangeImpactQueryHandler under scheduling/forecasting/queries/change_impact.py. Module composition constructs it from scoped repositories/calendar/approved-baseline port and injects the same instance into Tasks and Scheduling desktop adapters. Old service and API-owned construction helper deleted. |
 
@@ -1157,18 +1159,17 @@ identity and disabled-module rejection before repositories/UoWs execute.
 Resource tests similarly verify command/query repository identity without
 asserting an obsolete forwarding facade's source text.
 
-TEMPORARY / DELETE BEFORE PROJECT CUTOVER CLOSURE:
-`application/projects/service.py` and its composition exposure remain only
-while existing test-fixture callers are migrated. The file explicitly marks
-this condition. It is not an accepted permanent compatibility layer and the
-Project cutover must not be closed with it present. No additional handlers,
-sessions or forwarding facades were constructed to replace it.
+The temporary Project and Task facade files and their graph exposures are
+deleted. Test helpers inspect the actual owning handlers/repositories rather
+than requiring compatibility attributes on a query handler.
 
-Finance write migrations must retain the existing operation-scoped governance
-UoW: the current dynamic FinanceGovernedServicePort is not a final architecture.
-Its eventual replacement must explicitly preserve participant/caller-owned
-transactions, Accounting handoff/outbox atomicity, Decimal authorities and
-permission/scope checks. Merely renaming those mixed services is insufficient.
+Finance writes retain the operation-scoped governance UoW. The dynamic
+FinanceGovernedServicePort, mutation registry and wrapping composition module
+are deleted. Explicit, typed governance callbacks select cohesive command
+handlers on the fresh UoW; outward reads receive query handlers directly.
+This is real transaction orchestration, not a replacement forwarding facade.
+Participant/caller-owned transactions, immutable handoff/outbox atomicity,
+Decimal authorities and permission/scope checks remain required gates.
 
 Verification so far (overlapping slices, not a unique-test sum): scheduling
 and entitlement 55 passed; resource/Finance-read/desktop 57 passed;

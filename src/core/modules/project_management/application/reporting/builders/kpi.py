@@ -36,6 +36,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     TaskRepository,
 )
+from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
@@ -228,7 +229,7 @@ class ProjectKpiReportBuilder(ProjectManagementModuleGuardMixin):
 
         assignments = self._assignment_repo.list_by_tasks(task_ids)
         resource_ids = sorted({assignment.resource_id for assignment in assignments})
-        resources = tuple(self._resource_repo.list_by_ids(resource_ids))
+        resources: tuple[Resource, ...] = tuple(self._resource_repo.list_by_ids(resource_ids))
         scheduled_ranges = [
             (min(task.start_date, task.end_date), max(task.start_date, task.end_date))
             for task in tasks

@@ -20,7 +20,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import ConfigurationError, NotFoundError
 
 if TYPE_CHECKING:
     from src.core.modules.project_management.contracts.reads.financials.finance_setup_reader import (
@@ -59,7 +59,7 @@ class ConfigurationWorkspaceQueries:
             operation_label="search Financial Setup cost codes",
         )
         if self._tenant_context_service is None:
-            raise RuntimeError("Finance Setup Reader is not configured.")
+            raise ConfigurationError("Finance Setup Reader is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="search Financial Setup cost codes"
         )
@@ -106,7 +106,7 @@ class ConfigurationWorkspaceQueries:
             operation_label="view project finance setup",
         )
         if self._tenant_context_service is None:
-            raise RuntimeError("Finance Setup Reader is not configured.")
+            raise ConfigurationError("Finance Setup Reader is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view project finance setup"
         )

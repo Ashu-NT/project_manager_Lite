@@ -47,7 +47,7 @@ def run_forward_pass(
         known_starts = [
             t.start_date
             for t in tasks_by_id.values()
-            if getattr(t, "start_date", None) is not None
+            if t.start_date is not None
         ]
         default_start: date = min(known_starts) if known_starts else date.today()  # noqa: DTZ011
 

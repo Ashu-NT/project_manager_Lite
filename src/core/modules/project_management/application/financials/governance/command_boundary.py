@@ -4,30 +4,51 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
-from src.core.modules.project_management.application.financials.budgets.commands import BudgetLifecycleCommands
-from src.core.modules.project_management.application.financials.budgets.commands import BudgetLineCommands
-from src.core.modules.project_management.application.financials.budgets.commands import BudgetApprovalCommands
-from src.core.modules.project_management.application.financials.forecasts.commands import ForecastLifecycleCommands
-from src.core.modules.project_management.application.financials.forecasts.commands import ForecastLineCommands
-from src.core.modules.project_management.application.financials.forecasts.commands import ForecastApprovalCommands
-from src.core.modules.project_management.application.financials.forecasts.commands import ForecastGenerationCommands
-from src.core.modules.project_management.application.financials.financial_changes.commands import FinancialChangeDraftCommandHandler
-from src.core.modules.project_management.application.financials.financial_changes.commands import FinancialChangeSubmissionCommandHandler
-from src.core.modules.project_management.application.financials.configuration.commands import FinancialProfileCommandHandler
-from src.core.modules.project_management.application.financials.configuration.commands import CostCodeCommandHandler
-from src.core.modules.project_management.application.financials.rate_cards.commands import ProjectRateCardCommandHandler
-from src.core.modules.project_management.application.financials.rate_cards.commands import RateCardLineCommandHandler
-from src.core.modules.project_management.application.financials.planned_costs.commands import PlannedCostCommandHandler
-from src.core.modules.project_management.application.financials.cost.entries.commands import ProjectCostEntryLifecycleCommandHandler
-from src.core.modules.project_management.application.financials.cost.entries.commands import ProjectCostEntryReviewCommandHandler
-from src.core.modules.project_management.application.financials.cost.entries.commands import ProjectCostEntryPostingCommandHandler
-from src.core.modules.project_management.application.financials.invoicing.commands import ProjectBillingProfileCommandHandler
-from src.core.modules.project_management.application.financials.invoicing.commands import (
-    PreparationLifecycleCommandHandler, BillingPreparationSourceCommandHandler,
-    BillingPreparationSubmissionCommandHandler, ProjectBillingScheduleCommandHandler,
+from src.core.modules.project_management.application.financials.accounting.commands.request import (
+    AccountingHandoffRequestCommandHandler,
 )
-from src.core.modules.project_management.application.financials.accounting.commands.request import AccountingHandoffRequestCommandHandler
-from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import FinanceGovernanceUnitOfWork, FinanceGovernanceUnitOfWorkFactory
+from src.core.modules.project_management.application.financials.budgets.commands import (
+    BudgetApprovalCommands,
+    BudgetLifecycleCommands,
+    BudgetLineCommands,
+)
+from src.core.modules.project_management.application.financials.configuration.commands import (
+    CostCodeCommandHandler,
+    FinancialProfileCommandHandler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.commands import (
+    ProjectCostEntryLifecycleCommandHandler,
+    ProjectCostEntryPostingCommandHandler,
+    ProjectCostEntryReviewCommandHandler,
+)
+from src.core.modules.project_management.application.financials.financial_changes.commands import (
+    FinancialChangeDraftCommandHandler,
+    FinancialChangeSubmissionCommandHandler,
+)
+from src.core.modules.project_management.application.financials.forecasts.commands import (
+    ForecastApprovalCommands,
+    ForecastGenerationCommands,
+    ForecastLifecycleCommands,
+    ForecastLineCommands,
+)
+from src.core.modules.project_management.application.financials.invoicing.commands import (
+    BillingPreparationSourceCommandHandler,
+    BillingPreparationSubmissionCommandHandler,
+    PreparationLifecycleCommandHandler,
+    ProjectBillingProfileCommandHandler,
+    ProjectBillingScheduleCommandHandler,
+)
+from src.core.modules.project_management.application.financials.planned_costs.commands import (
+    PlannedCostCommandHandler,
+)
+from src.core.modules.project_management.application.financials.rate_cards.commands import (
+    ProjectRateCardCommandHandler,
+    RateCardLineCommandHandler,
+)
+from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (
+    FinanceGovernanceUnitOfWork,
+    FinanceGovernanceUnitOfWorkFactory,
+)
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
 

@@ -11,6 +11,9 @@ from PySide6.QtCore import Qt
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.application.financials.configuration.commands import (
+    CostCodeCommandHandler,
+)
 from src.core.modules.project_management.application.financials.configuration.dto import (
     FinancialCreateCostCodeCommand,
 )
@@ -20,6 +23,9 @@ from src.core.modules.project_management.application.financials.cost.entries.dto
     FinancialReverseActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
+)
+from src.core.modules.project_management.application.financials.governance.command_boundary import (
+    FinanceGovernanceCommandBoundary,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller import (
@@ -95,15 +101,15 @@ def test_create_cost_code_builds_project_available_command():
 
 
 def test_create_cost_code_desktop_api_preserves_project_availability_scope():
-    configuration_service = MagicMock()
-    configuration_service.create_cost_code.return_value = MagicMock(
+    cost_code_commands = MagicMock(spec_set=CostCodeCommandHandler)
+    cost_code_commands.create_cost_code.return_value = MagicMock(
         id="cost-code-1",
         code="LABOR.INTERNAL",
         name="Internal labor",
     )
-    governance_commands = MagicMock()
-    governance_commands.financial_setup.side_effect = (
-        lambda operation, **_kwargs: operation(configuration_service)
+    governance_commands = MagicMock(spec_set=FinanceGovernanceCommandBoundary)
+    governance_commands.cost_code.side_effect = (
+        lambda operation: operation(cost_code_commands)
     )
     api = ProjectManagementFinancialsDesktopApi(
         finance_governance_commands=governance_commands,
@@ -118,7 +124,7 @@ def test_create_cost_code_desktop_api_preserves_project_availability_scope():
         )
     )
 
-    configuration_service.create_cost_code.assert_called_once_with(
+    cost_code_commands.create_cost_code.assert_called_once_with(
         code="LABOR.INTERNAL",
         name="Internal labor",
         description="Employee delivery time",
@@ -129,7 +135,8 @@ def test_create_cost_code_desktop_api_preserves_project_availability_scope():
         effective_from=None,
         effective_to=None,
     )
-    assert governance_commands.financial_setup.call_args.kwargs == {}
+    governance_commands.cost_code.assert_called_once()
+    assert governance_commands.cost_code.call_args.kwargs == {}
     assert result.value == "cost-code-1"
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import FrozenInstanceError, replace
 from datetime import date
 from decimal import Decimal
 
@@ -17,16 +17,16 @@ from src.core.platform.common.exceptions import BusinessRuleError, ValidationErr
 
 
 def _line(**overrides) -> RateCardLine:
-    values = dict(
-        tenant_id="tenant-a",
-        organization_id="org-a",
-        rate_card_id="card-1",
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(50),
-        rate_currency="USD",
-        resource_id="resource-1",
-    )
+    values = {
+        "tenant_id": "tenant-a",
+        "organization_id": "org-a",
+        "rate_card_id": "card-1",
+        "rate_type": RateType.COST,
+        "unit": "HOUR",
+        "rate_amount": Decimal(50),
+        "rate_currency": "USD",
+        "resource_id": "resource-1",
+    }
     values.update(overrides)
     return RateCardLine.create(**values)
 
@@ -129,7 +129,7 @@ def test_resolver_fails_closed_when_no_rate_card_exists(services) -> None:
             project_id=None,
             resource_id=resource_id,
             rate_type=RateType.COST,
-            as_of=date.today(),
+            as_of=date(2026, 1, 1),
             unit="HOUR",
         )
 
@@ -159,7 +159,7 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
         project_id=project_id,
         resource_id=resource_id,
         rate_type=RateType.COST,
-        as_of=date.today(),
+        as_of=date(2026, 1, 1),
         unit="HOUR",
     )
     assert org_snapshot.precedence_level == 4
@@ -186,7 +186,7 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
         project_id=project_id,
         resource_id=resource_id,
         rate_type=RateType.COST,
-        as_of=date.today(),
+        as_of=date(2026, 1, 1),
         unit="HOUR",
     )
     assert project_snapshot.precedence_level == 2
@@ -200,7 +200,7 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
         project_id=other_project_id,
         resource_id=resource_id,
         rate_type=RateType.COST,
-        as_of=date.today(),
+        as_of=date(2026, 1, 1),
         unit="HOUR",
     )
     assert other_snapshot.precedence_level == 4
@@ -232,7 +232,7 @@ def test_resolver_never_crosses_cost_and_billing_rate_types(services) -> None:
             project_id=None,
             resource_id=resource_id,
             rate_type=RateType.COST,
-            as_of=date.today(),
+            as_of=date(2026, 1, 1),
             unit="HOUR",
         )
     billing_snapshot = resolver.resolve(
@@ -241,7 +241,7 @@ def test_resolver_never_crosses_cost_and_billing_rate_types(services) -> None:
         project_id=None,
         resource_id=resource_id,
         rate_type=RateType.BILLING,
-        as_of=date.today(),
+        as_of=date(2026, 1, 1),
         unit="HOUR",
     )
     assert billing_snapshot.monetary_rate.money.amount == Decimal(120)
@@ -334,7 +334,7 @@ def test_resolver_raises_on_ambiguous_equal_specificity_different_dimensions(
             project_id=project_id,
             resource_id=resource_id,
             rate_type=RateType.COST,
-            as_of=date.today(),
+            as_of=date(2026, 1, 1),
             unit="HOUR",
         )
 
@@ -384,7 +384,7 @@ def test_resolver_requires_customer_and_contract_together(services) -> None:
             project_id=None,
             resource_id=resource_id,
             rate_type=RateType.COST,
-            as_of=date.today(),
+            as_of=date(2026, 1, 1),
             unit="HOUR",
             customer_party_id="cust-1",
         )
@@ -418,7 +418,7 @@ def test_resolver_raises_when_requested_modifier_not_configured(services) -> Non
             project_id=None,
             resource_id=resource_id,
             rate_type=RateType.COST,
-            as_of=date.today(),
+            as_of=date(2026, 1, 1),
             unit="HOUR",
             modifier=RateModifier.OVERTIME,
         )
@@ -450,7 +450,7 @@ def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) 
         project_id=None,
         resource_id=resource_id,
         rate_type=RateType.COST,
-        as_of=date.today(),
+        as_of=date(2026, 1, 1),
         unit="HOUR",
         modifier=RateModifier.OVERTIME,
     )
@@ -458,7 +458,7 @@ def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) 
     assert snapshot.modifiers_applied == {"overtime": Decimal("1.5")}
     with pytest.raises(TypeError):
         snapshot.modifiers_applied["overtime"] = Decimal(2)
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         snapshot.modifier_applied = None
 
 

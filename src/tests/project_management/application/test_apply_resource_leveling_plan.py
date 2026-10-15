@@ -18,11 +18,11 @@ from src.core.modules.project_management.domain.tasks.hierarchy import select_le
 from src.core.platform.common.exceptions import ConcurrencyError
 
 
-def _snapshot(ts, project_id):
-    tasks = select_leaf_tasks(ts._task_repo.list_by_project(project_id))
+def _snapshot(task_lookup, dependency_query, project_id):
+    tasks = select_leaf_tasks(task_lookup.list_tasks_for_project(project_id))
     tasks_by_id = {t.id: t for t in tasks}
-    assignments = ts._assignment_repo.list_by_tasks([t.id for t in tasks]) if tasks else []
-    deps = ts._dependency_repo.list_by_project(project_id)
+    assignments = task_lookup.list_assignments_for_tasks([t.id for t in tasks])
+    deps = dependency_query.list_dependencies_for_project(project_id)
     return tasks_by_id, assignments, deps
 
 
@@ -37,7 +37,7 @@ def _build_overload_proposal(services):
     services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
     services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
-    tasks_by_id, assignments, deps = _snapshot(ts, project.id)
+    tasks_by_id, assignments, deps = _snapshot(ts, services['task_dependency_query'], project.id)
     planner = ResourceLevelingPlanner(calendar)
     proposal = planner.build_proposal(
         project_id=project.id,
@@ -109,7 +109,7 @@ class TestApplyHappyPath:
         task = services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
         before_version = services['task_detail_query'].get_task(task.id).version
 
-        tasks_by_id, assignments, deps = _snapshot(ts, project.id)
+        tasks_by_id, assignments, deps = _snapshot(ts, services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,

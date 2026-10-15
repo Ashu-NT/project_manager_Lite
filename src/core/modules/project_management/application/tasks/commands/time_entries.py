@@ -17,7 +17,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 from src.core.platform.application.time_management.time import TimeEntryQueryHandler
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import ConfigurationError, NotFoundError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -38,7 +38,7 @@ class TaskTimeEntryHandler:
     def _require_time_queries(self) -> TimeEntryQueryHandler:
         queries = self._time_queries
         if queries is None:
-            raise RuntimeError("Time query handler is not configured.")
+            raise ConfigurationError("Time query handler is not configured.")
         return queries
 
     def list_time_entries_for_task_page(

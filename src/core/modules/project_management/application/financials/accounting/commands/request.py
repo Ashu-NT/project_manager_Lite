@@ -6,23 +6,30 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingPreparationStatusChanged,
     BillingPreparationStatusChangeType,
 )
-from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
-
+from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
+    ProjectBillingRepository,
+)
 from src.core.modules.project_management.domain.financials.accounting.handoff import (
     AccountingHandoffRequestResult,
     AccountingHandoffSnapshot,
 )
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.integration.events import IntegrationEventEnvelope
-from src.core.shared.audit import record_audit_entry
 from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.time.clock import Clock
 
 

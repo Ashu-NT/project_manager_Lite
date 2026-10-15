@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+from dataclasses import fields
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -9,6 +10,7 @@ import pytest
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
 )
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
 class _FakeUow:
@@ -114,12 +116,7 @@ def test_post_commit_action_failure_does_not_undo_commit() -> None:
 
 def test_r6c_services_and_approval_participants_do_not_own_commit_or_rollback() -> None:
     root = Path("src/core/modules/project_management")
-    files = (
-        root / "application/financials/budgets/budget_service.py",
-        root / "application/financials/forecasts/version_service.py",
-        root / "application/financials/forecasts/generation_service.py",
-        root / "application/financials/financial_changes/service.py",
-        root / "application/financials/configuration/service.py",
+    files = (*root.glob("application/financials/**/commands/*.py"),
         root / "infrastructure/approval/budget_apply_participant.py",
         root / "infrastructure/approval/forecast_apply_participant.py",
         root / "infrastructure/approval/financial_change_apply_participant.py",
@@ -135,15 +132,20 @@ def test_r6c_services_and_approval_participants_do_not_own_commit_or_rollback() 
     assert forbidden == []
 
 
-def test_production_composition_exposes_governed_ports(services) -> None:
+def test_production_composition_separates_reads_and_scoped_command_handlers(services) -> None:
     boundary = services["finance_governance_commands"]
     assert isinstance(boundary, FinanceGovernanceCommandBoundary)
     assert boundary._uow_factory is not None
-    for key in (
-        "budget_service",
-        "forecast_version_service",
-        "forecast_generation_service",
-        "financial_change_service",
-        "financial_configuration_service",
+    for key, read, write in (
+        ("budget_query", "get_budget", "create_budget"),
+        ("forecast_version_query", "get_forecast", "create_forecast"),
+        ("financial_change_query", "get_change", "create_change"),
+        ("financial_configuration_query", "get_profile", "configure_profile"),
     ):
-        assert services[key]._boundary is boundary
+        query = services[key]
+        assert callable(getattr(query, read))
+        assert not hasattr(query, write)
+    with boundary._uow_factory.create(context=DomainEventContext(correlation_id="composition-proof")) as uow:
+        operations = boundary._operations_factory(uow)
+        for field in fields(operations):
+            assert getattr(operations, field.name)._session is uow._session

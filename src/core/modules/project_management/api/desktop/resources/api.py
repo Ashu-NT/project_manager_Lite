@@ -95,6 +95,7 @@ from src.core.platform.application.master_data.employee import EmployeeQueryHand
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
     SupportsModuleEntitlements,
 )
@@ -596,7 +597,7 @@ class ProjectManagementResourcesDesktopApi:
 
     def _require_resource_query(self) -> ResourceQueryHandler:
         if self._resource_query is None:
-            raise RuntimeError(
+            raise ConfigurationError(
                 "Project management resources desktop API is not connected."
             )
         return self._resource_query
@@ -605,7 +606,7 @@ class ProjectManagementResourcesDesktopApi:
         self, operation_label: str
     ) -> ResourceMasterCommandHandler:
         if self._resource_master_commands is None:
-            raise RuntimeError(
+            raise ConfigurationError(
                 "Project management resources desktop API is not connected."
             )
         require_module_enabled(
@@ -619,7 +620,7 @@ class ProjectManagementResourcesDesktopApi:
         self, operation_label: str
     ) -> ResourceCapabilityCommandHandler:
         if self._resource_capability_commands is None:
-            raise RuntimeError(
+            raise ConfigurationError(
                 "Project management resources desktop API is not connected."
             )
         require_module_enabled(
@@ -631,7 +632,7 @@ class ProjectManagementResourcesDesktopApi:
 
     def _require_resource_capability_query(self) -> ResourceCapabilityQueryHandler:
         if self._resource_capability_query is None:
-            raise RuntimeError("Project management resource capability query is not connected.")
+            raise ConfigurationError("Project management resource capability query is not connected.")
         require_module_enabled(
             self._module_catalog_service,
             "project_management",
@@ -641,7 +642,7 @@ class ProjectManagementResourcesDesktopApi:
 
     def _require_resource_context_query(self) -> ResourceContextQueryHandler:
         if self._resource_context_query is None:
-            raise RuntimeError("Project management resource context query is not connected.")
+            raise ConfigurationError("Project management resource context query is not connected.")
         require_module_enabled(
             self._module_catalog_service,
             "project_management",

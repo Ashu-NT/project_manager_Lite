@@ -10,6 +10,9 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.analytics.costs.source_breakdown import (
+    build_source_analytics,
+)
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostPolicyEngine,
 )
@@ -23,9 +26,6 @@ from src.core.modules.project_management.application.financials.models.finance_m
     FinancePeriodRow,
     FinanceReconciliation,
     FinanceSnapshot,
-)
-from src.core.modules.project_management.application.financials.analytics.costs.source_breakdown import (
-    build_source_analytics,
 )
 from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_currency,

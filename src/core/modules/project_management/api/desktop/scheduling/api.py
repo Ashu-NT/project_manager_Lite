@@ -145,7 +145,12 @@ from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConfigurationError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -366,7 +371,7 @@ class ProjectManagementSchedulingDesktopApi:
     def recalculate_schedule(self, project_id: str) -> tuple[SchedulingTaskDto, ...]:
         normalized_id = (project_id or "").strip()
         if not normalized_id:
-            raise ValueError("Select a project before recalculating the schedule.")
+            raise ValidationError("Select a project before recalculating the schedule.", code="PROJECT_ID_REQUIRED")
         return build_schedule_from_engine(normalized_id, self._require_scheduling_engine(), persist=True)
 
     def build_gantt_projection(
@@ -378,7 +383,7 @@ class ProjectManagementSchedulingDesktopApi:
         """Build the canonical complete-project Gantt read projection."""
         normalized_id = str(project_id or "").strip()
         if not normalized_id:
-            raise ValueError("Select a project before loading the Gantt projection.")
+            raise ValidationError("Select a project before loading the Gantt projection.", code="PROJECT_ID_REQUIRED")
         scope, project = self._require_gantt_project_scope(normalized_id)
 
         schedule = build_schedule_from_engine(
@@ -440,9 +445,9 @@ class ProjectManagementSchedulingDesktopApi:
         normalized_project_id = str(project_id or "").strip()
         normalized_baseline_id = str(baseline_id or "").strip()
         if not normalized_project_id:
-            raise ValueError("Select a project before loading a Gantt baseline.")
+            raise ValidationError("Select a project before loading a Gantt baseline.", code="PROJECT_ID_REQUIRED")
         if not normalized_baseline_id:
-            raise ValueError("Select a baseline before loading its Gantt overlay.")
+            raise ValidationError("Select a baseline before loading its Gantt overlay.", code="BASELINE_ID_REQUIRED")
         scope, _project = self._require_gantt_project_scope(normalized_project_id)
         snapshots = self._require_baseline_query().list_baseline_tasks(
             normalized_baseline_id,
@@ -458,7 +463,7 @@ class ProjectManagementSchedulingDesktopApi:
 
     def _require_gantt_project_scope(self, project_id: str):
         if self._tenant_context_service is None:
-            raise RuntimeError(
+            raise ConfigurationError(
                 "Project management Gantt API requires TenantContextService."
             )
         scope = self._tenant_context_service.require_active_scope_ids(
@@ -555,10 +560,10 @@ class ProjectManagementSchedulingDesktopApi:
     def apply_resource_leveling(self, project_id: str) -> tuple[SchedulingTaskDto, ...]:
         normalized_id = (project_id or "").strip()
         if not normalized_id:
-            raise ValueError("Select a project before applying resource leveling.")
+            raise ValidationError("Select a project before applying resource leveling.", code="PROJECT_ID_REQUIRED")
         proposal = self._pending_leveling_proposals.pop(normalized_id, None)
         if proposal is None:
-            raise ValueError("Preview resource leveling before applying it.")
+            raise BusinessRuleError("Preview resource leveling before applying it.", code="LEVELING_PREVIEW_REQUIRED")
         require_task_method(self._task_leveling_commands, "apply_resource_leveling_plan")(normalized_id, proposal)
         return self.list_schedule(normalized_id)
 
@@ -645,27 +650,27 @@ class ProjectManagementSchedulingDesktopApi:
 
     def _require_scheduling_engine(self) -> SchedulingEngine:
         if self._scheduling_engine is None:
-            raise RuntimeError("Project management scheduling desktop API is not connected.")
+            raise ConfigurationError("Project management scheduling desktop API is not connected.")
         return self._scheduling_engine
 
     def _require_work_calendar_engine(self) -> CalendarProtocol:
         if self._work_calendar_engine is None:
-            raise RuntimeError("Project management scheduling desktop API is not connected.")
+            raise ConfigurationError("Project management scheduling desktop API is not connected.")
         return self._work_calendar_engine
 
     def _require_baseline_query(self) -> BaselineQueryHandler:
         if self._baseline_query is None:
-            raise RuntimeError("Project management scheduling desktop API is not connected.")
+            raise ConfigurationError("Project management scheduling desktop API is not connected.")
         return self._baseline_query
 
     def _require_baseline_commands(self) -> BaselineCommandHandler:
         if self._baseline_commands is None:
-            raise RuntimeError("Project management baselines are not connected.")
+            raise ConfigurationError("Project management baselines are not connected.")
         return self._baseline_commands
 
     def _require_baseline_compare_report(self) -> BaselineCompareReportBuilder:
         if self._baseline_compare_report is None:
-            raise RuntimeError("Project management scheduling desktop API is not connected.")
+            raise ConfigurationError("Project management scheduling desktop API is not connected.")
         return self._baseline_compare_report
 
 

@@ -21,6 +21,11 @@ from src.core.modules.project_management.infrastructure.importers.services.valid
 from src.core.modules.project_management.infrastructure.importers.utils.csv_parser import (
     CsvImportParser,
 )
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    NotFoundError,
+    ValidationError,
+)
 
 _PARSERS: dict[str, Callable[[], ImportParser]] = {
     "csv": CsvImportParser,
@@ -38,15 +43,19 @@ def preview_import(
     normalized_format = (source_format or "csv").strip().lower()
     parser_cls = _PARSERS.get(normalized_format)
     if parser_cls is None:
-        raise ValueError(
+        raise ValidationError(
             f"Unsupported import format: '{source_format}'. "
-            "Supported formats: csv, ms_project_xml, p6_xer."
+            "Supported formats: csv, ms_project_xml, p6_xer.",
+            code="IMPORT_FORMAT_UNSUPPORTED",
         )
     try:
         with open(file_path, "rb") as fh:
             source_bytes = fh.read()
     except OSError as exc:
-        raise ValueError(f"Cannot read file: {exc}") from exc
+        raise ValidationError(
+            "Cannot read the import file. Check that it is accessible and try again.",
+            code="IMPORT_FILE_UNREADABLE",
+        ) from exc
 
     rows = parser_cls().parse(source_bytes)
     svc = ImportValidationService()
@@ -64,11 +73,15 @@ def execute_import(
     normalized_id = (session_id or "").strip()
     preview = import_sessions.get(normalized_id)
     if not isinstance(preview, ImportPreviewModel):
-        raise ValueError("Import session not found or expired. Please re-upload the file.")
+        raise NotFoundError(
+            "Import session not found or expired. Please re-upload the file.",
+            code="IMPORT_SESSION_NOT_FOUND",
+        )
     if not preview.can_commit:
-        raise ValueError(
+        raise BusinessRuleError(
             f"Cannot import: {preview.error_rows} row(s) have errors. "
-            "Fix the source file and re-upload."
+            "Fix the source file and re-upload.",
+            code="IMPORT_PREVIEW_HAS_ERRORS",
         )
     del import_sessions[normalized_id]
     return {

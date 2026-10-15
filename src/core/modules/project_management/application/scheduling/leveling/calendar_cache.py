@@ -32,7 +32,9 @@ from __future__ import annotations
 
 import bisect
 import logging
+from collections.abc import Callable
 from datetime import date, timedelta
+from typing import cast
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
@@ -54,7 +56,7 @@ class MemoizingCalendarWindow:
         self._sorted_dates: list[date] = []
         if window_start <= window_end:
             try:
-                self._working_dates = real_calendar.working_day_dates_between(window_start, window_end)
+                self._working_dates = self._bulk_working_dates(window_start, window_end)
                 self._sorted_dates = sorted(self._working_dates)
                 self._cache_ok = True
             except Exception:
@@ -63,6 +65,14 @@ class MemoizingCalendarWindow:
                     "falling back to authoritative calendar.",
                     exc_info=True,
                 )
+
+    def _bulk_working_dates(self, start: date, end: date) -> frozenset[date]:
+        # Bulk lookup is optional; CalendarProtocol also covers non-bulk calendars.
+        lookup = cast(
+            Callable[[date, date], frozenset[date]],
+            getattr(self._real, "working_day_dates_between"),  # noqa: B009 -- optional capability outside CalendarProtocol
+        )
+        return lookup(start, end)
 
     def _in_window(self, d: date) -> bool:
         return self._cache_ok and self._window_start <= d <= self._window_end
@@ -162,7 +172,7 @@ class MemoizingCalendarWindow:
             lo = bisect.bisect_left(self._sorted_dates, start)
             hi = bisect.bisect_right(self._sorted_dates, end)
             return frozenset(self._sorted_dates[lo:hi])
-        return self._real.working_day_dates_between(start, end)
+        return self._bulk_working_dates(start, end)
 
 
 def build_memoizing_window_for_tasks(

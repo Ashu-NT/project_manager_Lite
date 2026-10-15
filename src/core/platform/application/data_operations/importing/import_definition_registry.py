@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from src.core.platform.common.exceptions import (
+    UnsupportedOperationError,
+    ValidationError,
+)
 from src.core.platform.domain.data_operations.importing import ImportDefinition
 
 
@@ -11,7 +15,7 @@ class ImportDefinitionRegistry:
     def normalize_key(operation_key: str) -> str:
         normalized = str(operation_key or "").strip().lower()
         if not normalized:
-            raise ValueError("Import operation key is required.")
+            raise ValidationError("Import operation key is required.", code="IMPORT_KEY_REQUIRED")
         return normalized
 
     def register(self, definition: ImportDefinition) -> None:
@@ -28,7 +32,9 @@ class ImportDefinitionRegistry:
         try:
             return self._definitions[key]
         except KeyError as exc:
-            raise ValueError(f"Unsupported import type: {operation_key}") from exc
+            raise UnsupportedOperationError(
+                f"Unsupported import type: {operation_key}", code="IMPORT_TYPE_UNSUPPORTED"
+            ) from exc
 
     def list_operation_keys(self) -> tuple[str, ...]:
         return tuple(self._definitions.keys())

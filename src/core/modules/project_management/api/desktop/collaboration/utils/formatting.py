@@ -36,10 +36,8 @@ def format_linked_document_label(document) -> str:
         .title()
         or "Document"
     )
-    storage_kind = _STORAGE_KIND_LABELS.get(
-        getattr(document, "storage_kind", None),
-        "Document",
-    )
+    kind: DocumentStorageKind | None = getattr(document, "storage_kind", None)
+    storage_kind = _STORAGE_KIND_LABELS.get(kind, "Document") if kind is not None else "Document"
     return f"{title} [{document_type} | {storage_kind}]"
 
 

@@ -69,7 +69,11 @@ from src.core.platform.application.master_data.department import (
     DepartmentQueryHandler,
 )
 from src.core.platform.application.master_data.site import SiteQueryHandler
-from src.core.platform.common.exceptions import UnsupportedOperationError
+from src.core.platform.common.exceptions import (
+    ConfigurationError,
+    UnsupportedOperationError,
+    ValidationError,
+)
 
 
 class ProjectManagementProjectsDesktopApi:
@@ -272,7 +276,7 @@ class ProjectManagementProjectsDesktopApi:
 
     def create_project(self, command: ProjectCreateCommand) -> ProjectDesktopDto:
         if self._project_create is None:
-            raise UnsupportedOperationError("Project creation is not connected.")
+            raise ConfigurationError("Project creation is not connected.")
         service = self._project_create
         project = service.create_project(
             name=command.name,
@@ -298,7 +302,7 @@ class ProjectManagementProjectsDesktopApi:
 
     def update_project(self, command: ProjectUpdateCommand) -> ProjectDesktopDto:
         if self._project_update is None:
-            raise UnsupportedOperationError("Project updates are not connected.")
+            raise ConfigurationError("Project updates are not connected.")
         service = self._project_update
         project = service.update_project(
             command.project_id,
@@ -325,7 +329,7 @@ class ProjectManagementProjectsDesktopApi:
 
     def set_project_status(self, project_id: str, status: str) -> ProjectDesktopDto:
         if self._project_status is None:
-            raise UnsupportedOperationError("Project status changes are not connected.")
+            raise ConfigurationError("Project status changes are not connected.")
         service = self._project_status
         service.set_status(project_id, coerce_project_status(status))
         project = self._require_project_query().get_project(project_id)
@@ -341,7 +345,7 @@ class ProjectManagementProjectsDesktopApi:
         self, project_ids: tuple[str, ...], status: str
     ) -> tuple[ProjectDesktopDto, ...]:
         if self._project_status is None:
-            raise UnsupportedOperationError("Project status changes are not connected.")
+            raise ConfigurationError("Project status changes are not connected.")
         service = self._project_status
         service.bulk_set_status(project_ids, coerce_project_status(status))
         site_lookup = self._site_lookup()
@@ -356,7 +360,7 @@ class ProjectManagementProjectsDesktopApi:
 
     def delete_project(self, project_id: str) -> None:
         if self._project_deletion is None:
-            raise UnsupportedOperationError("Project deletion is not connected.")
+            raise ConfigurationError("Project deletion is not connected.")
         self._project_deletion.delete_project(project_id)
 
     # ── Project resources ─────────────────────────────────────────────────────
@@ -439,9 +443,9 @@ class ProjectManagementProjectsDesktopApi:
         normalized_project_id = str(command.project_id or "").strip()
         normalized_resource_id = str(command.resource_id or "").strip()
         if not normalized_project_id:
-            raise ValueError("Project ID is required to assign a resource.")
+            raise ValidationError("Project ID is required to assign a resource.", code="PROJECT_ID_REQUIRED")
         if not normalized_resource_id:
-            raise ValueError("Resource selection is required.")
+            raise ValidationError("Resource selection is required.", code="RESOURCE_ID_REQUIRED")
         service = self._require_project_resource_commands()
         add_fn = getattr(service, "add_to_project", None) or getattr(service, "create", None)
         if not callable(add_fn):
@@ -463,7 +467,7 @@ class ProjectManagementProjectsDesktopApi:
     def update_project_resource(self, command: ProjectResourceUpdateCommand) -> None:
         normalized_id = str(command.project_resource_id or "").strip()
         if not normalized_id:
-            raise ValueError("Project resource ID is required.")
+            raise ValidationError("Project resource ID is required.", code="PROJECT_RESOURCE_ID_REQUIRED")
         service = self._require_project_resource_commands()
         update = getattr(service, "update", None)
         if not callable(update):
@@ -490,7 +494,7 @@ class ProjectManagementProjectsDesktopApi:
     def remove_project_resource(self, project_resource_id: str) -> None:
         normalized_id = str(project_resource_id or "").strip()
         if not normalized_id:
-            raise ValueError("Project resource ID is required.")
+            raise ValidationError("Project resource ID is required.", code="PROJECT_RESOURCE_ID_REQUIRED")
         service = self._require_project_resource_commands()
         delete = getattr(service, "delete", None)
         if not callable(delete):
@@ -501,12 +505,12 @@ class ProjectManagementProjectsDesktopApi:
 
     def _require_project_query(self) -> ProjectQueryHandler:
         if self._project_query is None:
-            raise UnsupportedOperationError("Project management projects query is not connected.")
+            raise ConfigurationError("Project management projects query is not connected.")
         return self._project_query
 
     def _require_project_resource_commands(self) -> ProjectResourceCommandHandler:
         if self._project_resource_commands is None:
-            raise UnsupportedOperationError("Project management project-resource desktop API is not connected.")
+            raise ConfigurationError("Project management project-resource desktop API is not connected.")
         return self._project_resource_commands
 
     def _site_lookup(self) -> dict[str, str]:

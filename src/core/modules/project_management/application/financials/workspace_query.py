@@ -68,6 +68,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 
 
 class ProjectFinanceWorkspaceQuery(
@@ -116,7 +117,7 @@ class ProjectFinanceWorkspaceQuery(
 
     def active_scope_ids(self) -> tuple[str, str]:
         if self._tenant_context_service is None:
-            raise RuntimeError("Finance lookup scope is not configured.")
+            raise ConfigurationError("Finance lookup scope is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="resolve Project Finance scope"
         )
@@ -150,7 +151,7 @@ class ProjectFinanceWorkspaceQuery(
     ) -> FinanceLookupPageFacts:
         require_permission(self._user_session, permission, operation_label=operation)
         if self._tenant_context_service is None:
-            raise RuntimeError("Finance lookup scope is not configured.")
+            raise ConfigurationError("Finance lookup scope is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label=operation
         )
@@ -181,7 +182,7 @@ class ProjectFinanceWorkspaceQuery(
             operation_label=operation,
         )
         if self._tenant_context_service is None:
-            raise RuntimeError("Finance lookup scope is not configured.")
+            raise ConfigurationError("Finance lookup scope is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label=operation
         )
@@ -200,7 +201,7 @@ class ProjectFinanceWorkspaceQuery(
 
     def _require_lookup_reader(self) -> FinanceLookupReader:
         if self._lookup_reader is None:
-            raise RuntimeError("Finance Lookup Reader is not configured.")
+            raise ConfigurationError("Finance Lookup Reader is not configured.")
         return self._lookup_reader
 
     def _has_project_permission(self, project_id: str, permission: str) -> bool:

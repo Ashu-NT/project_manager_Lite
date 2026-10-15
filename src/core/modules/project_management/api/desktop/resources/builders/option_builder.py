@@ -14,6 +14,8 @@ from src.core.modules.project_management.domain.enums import (
     ResourceKind,
     WorkerType,
 )
+from src.core.platform.application.master_data.department import DepartmentQueryHandler
+from src.core.platform.application.master_data.site import SiteQueryHandler
 
 
 def build_worker_type_options() -> tuple[ResourceWorkerTypeDescriptor, ...]:
@@ -43,13 +45,13 @@ def build_kind_options() -> tuple[ResourceKindDescriptor, ...]:
     )
 
 
-def build_department_options(service: object | None) -> tuple[ResourceScopeOptionDescriptor, ...]:
+def build_department_options(service: DepartmentQueryHandler | None) -> tuple[ResourceScopeOptionDescriptor, ...]:
     if service is None:
         return (ResourceScopeOptionDescriptor(value="", label="No department", is_active=True),)
     try:
         rows = service.list_departments(active_only=None)
     except Exception:  # noqa: BLE001
-        rows = ()
+        rows = []
     return (
         ResourceScopeOptionDescriptor(value="", label="No department", is_active=True),
         *(
@@ -64,13 +66,13 @@ def build_department_options(service: object | None) -> tuple[ResourceScopeOptio
     )
 
 
-def build_site_options(service: object | None) -> tuple[ResourceScopeOptionDescriptor, ...]:
+def build_site_options(service: SiteQueryHandler | None) -> tuple[ResourceScopeOptionDescriptor, ...]:
     if service is None:
         return (ResourceScopeOptionDescriptor(value="", label="No site", is_active=True),)
     try:
         rows = service.list_sites(active_only=None)
     except Exception:  # noqa: BLE001
-        rows = ()
+        rows = []
     return (
         ResourceScopeOptionDescriptor(value="", label="No site", is_active=True),
         *(

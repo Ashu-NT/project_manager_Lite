@@ -20,6 +20,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -37,7 +38,7 @@ class ResourceCapabilityQueryHandler:
 
     def _capability_scope(self, operation_label: str):
         if self._tenant_context_service is None:
-            raise RuntimeError("Resource capability reader scope is not configured.")
+            raise ConfigurationError("Resource capability reader scope is not configured.")
         return self._tenant_context_service.require_active_scope_ids(
             operation_label=operation_label
         )
@@ -57,7 +58,7 @@ class ResourceCapabilityQueryHandler:
             self._user_session, "resource.read", operation_label="view resource skills"
         )
         if self._resource_capability_reader is None:
-            raise RuntimeError("Resource capability reader is not configured.")
+            raise ConfigurationError("Resource capability reader is not configured.")
         request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
             key=sort_key,
@@ -107,7 +108,7 @@ class ResourceCapabilityQueryHandler:
             operation_label="view resource certifications",
         )
         if self._resource_capability_reader is None:
-            raise RuntimeError("Resource capability reader is not configured.")
+            raise ConfigurationError("Resource capability reader is not configured.")
         request = PageRequest(page=page, page_size=page_size)
         sort = ReadSort.normalize(
             key=sort_key,

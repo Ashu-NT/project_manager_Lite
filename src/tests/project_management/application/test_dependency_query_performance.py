@@ -9,7 +9,7 @@ from src.tests.project_management._sql_measurement_helpers import count_calls
 
 
 def test_list_project_dependencies_is_one_query_not_per_task_loop(services):
-    ts = services['task_lookup_query']
+    dependency_query = services['task_dependency_query']
 
     project = services['project_create'].create_project("Query Perf", "")
     tasks = [
@@ -19,14 +19,14 @@ def test_list_project_dependencies_is_one_query_not_per_task_loop(services):
     for a, b in zip(tasks, tasks[1:]):
         services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    dependency_repo = ts._dependency_repo
+    dependency_repo = dependency_query._dependency_repo
     with count_calls(
         [
             (dependency_repo, "list_by_project", "list_by_project"),
             (dependency_repo, "list_by_task", "list_by_task"),
         ]
     ) as counts:
-        result = services['task_dependency_query'].list_dependencies_for_project(project.id)
+        result = dependency_query.list_dependencies_for_project(project.id)
 
     assert len(result) == 9
     assert counts["list_by_project"] == 1

@@ -30,6 +30,9 @@ from src.core.modules.project_management.application.financials.financial_change
     FinancialChangeChanged,
     FinancialChangeEventType,
 )
+from src.core.modules.project_management.application.financials.financial_changes.mutation_result import (
+    FinancialChangeImpactMutationResult,
+)
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
     FinancialChangeStatus,
@@ -64,9 +67,6 @@ class _ChangeDraftCommands:
         principal = getattr(self._user_session, "principal", None)
         return getattr(principal, "user_id", None)
 
-    def _require_change(self, _change_id):
-        return self.change
-
     def create_change(self, *args, **kwargs):
         self.calls.append(("create_change", args, kwargs))
         return self.change
@@ -79,15 +79,21 @@ class _ChangeDraftCommands:
     def add_impact(self, *args, **kwargs):
         self.calls.append(("add_impact", args, kwargs))
         self.change = _change(2)
-        return SimpleNamespace(
-            id="impact-1", change_request_id="change-1", row_version=1
+        return FinancialChangeImpactMutationResult(
+            change=self.change,
+            impact=SimpleNamespace(
+                id="impact-1", change_request_id="change-1", row_version=1
+            ),
         )
 
     def update_impact(self, *args, **kwargs):
         self.calls.append(("update_impact", args, kwargs))
         self.change = _change(3)
-        return SimpleNamespace(
-            id="impact-1", change_request_id="change-1", row_version=2
+        return FinancialChangeImpactMutationResult(
+            change=self.change,
+            impact=SimpleNamespace(
+                id="impact-1", change_request_id="change-1", row_version=2
+            ),
         )
 
     def remove_impact(self, *args, **kwargs):

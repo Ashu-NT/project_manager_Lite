@@ -46,6 +46,7 @@ from src.core.modules.project_management.domain.risk.register import (
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
     SupportsModuleEntitlements,
 )
@@ -213,12 +214,12 @@ class ProjectManagementRegisterDesktopApi:
 
     def _require_register_query(self) -> RegisterQueryHandler:
         if self._register_query is None:
-            raise RuntimeError("Project management register desktop API is not connected.")
+            raise ConfigurationError("Project management register desktop API is not connected.")
         return self._register_query
 
     def _require_register_lifecycle_commands(self) -> RegisterLifecycleHandler:
         if self._register_lifecycle_commands is None:
-            raise RuntimeError("Project management register commands are not connected.")
+            raise ConfigurationError("Project management register commands are not connected.")
         require_module_enabled(
             self._module_catalog_service,
             "project_management",

@@ -165,6 +165,7 @@ from src.core.modules.project_management.gateway.task.reservation import (
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
     SupportsModuleEntitlements,
 )
@@ -309,7 +310,7 @@ class ProjectManagementTasksDesktopApi:
         sort_direction: str = "asc",
     ) -> TaskWorkspacePageDesktopDto:
         if self._task_workspace_query is None:
-            raise RuntimeError("Project management tasks desktop API is not connected.")
+            raise ConfigurationError("Project management tasks desktop API is not connected.")
         require_module_enabled(
             self._module_catalog_service,
             "project_management",
@@ -1101,12 +1102,12 @@ class ProjectManagementTasksDesktopApi:
 
     def _require_task_capability(self, capability: _CapabilityT | None) -> _CapabilityT:
         if capability is None:
-            raise RuntimeError('Project management tasks desktop API is not connected.')
+            raise ConfigurationError('Project management tasks desktop API is not connected.')
         return capability
 
     def _require_task_detail_query(self) -> TaskDetailPageQueryHandler:
         if self._task_detail_query is None:
-            raise RuntimeError("Project management tasks desktop API is not connected.")
+            raise ConfigurationError("Project management tasks desktop API is not connected.")
         require_module_enabled(
             self._module_catalog_service,
             "project_management",
@@ -1116,7 +1117,7 @@ class ProjectManagementTasksDesktopApi:
 
     def _require_dependency_diagnostics(self) -> TaskDependencyDiagnosticsQueryHandler:
         if self._task_dependency_diagnostics is None:
-            raise RuntimeError("Project management tasks desktop API is not connected.")
+            raise ConfigurationError("Project management tasks desktop API is not connected.")
         require_module_enabled(
             self._module_catalog_service,
             "project_management",
@@ -1128,7 +1129,7 @@ class ProjectManagementTasksDesktopApi:
         self, *, operation_label: str = "view task time summary"
     ) -> TaskAssignmentCommandHandler:
         if self._task_assignment_commands is None:
-            raise RuntimeError("Project management tasks desktop API is not connected.")
+            raise ConfigurationError("Project management tasks desktop API is not connected.")
         require_module_enabled(
             self._module_catalog_service,
             "project_management",
@@ -1138,7 +1139,7 @@ class ProjectManagementTasksDesktopApi:
 
     def _require_task_time_entries(self) -> TaskTimeEntryHandler:
         if self._task_time_entries is None:
-            raise RuntimeError("Project management tasks desktop API is not connected.")
+            raise ConfigurationError("Project management tasks desktop API is not connected.")
         require_module_enabled(
             self._module_catalog_service,
             "project_management",

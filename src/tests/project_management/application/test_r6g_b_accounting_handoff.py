@@ -51,7 +51,7 @@ def approved_preparation(services):
 def test_durable_request_and_profile_independent_replay(accounting_services, session):
     services = accounting_services
     approved = approved_preparation(services)
-    billing = services['billing_preparation_query']
+    services['billing_preparation_query']
     payload = services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
     ))
@@ -102,11 +102,11 @@ def test_durable_request_and_profile_independent_replay(accounting_services, ses
 def test_handoff_failure_rolls_back_everything_then_retry(
     accounting_services, session, monkeypatch, failure
 ):
-    from src.core.modules.project_management.application.financials.accounting import (
-        request_service,
+    from src.core.modules.project_management.application.financials.accounting.commands import (
+        request as request_commands,
     )
-    from src.core.modules.project_management.application.financials.invoicing.preparation_service import (
-        ProjectBillingPreparationService,
+    from src.core.modules.project_management.application.financials.accounting.commands.request import (
+        AccountingHandoffRequestCommandHandler,
     )
     from src.core.modules.project_management.infrastructure.persistence.repositories.finance.accounting.handoff import (
         SqlAlchemyAccountingHandoffRepository,
@@ -122,10 +122,10 @@ def test_handoff_failure_rolls_back_everything_then_retry(
     audit_count = session.scalar(select(func.count()).select_from(AuditEntryORM))
     targets = {
         "before_snapshot": (SqlAlchemyAccountingHandoffRepository, "add"),
-        "snapshot_validation": (request_service, "AccountingHandoffSnapshot"),
+        "snapshot_validation": (request_commands, "AccountingHandoffSnapshot"),
         "enqueue": (IntegrationOutboxService, "enqueue"),
-        "state": (ProjectBillingPreparationService, "_mark_delivery_requested"),
-        "audit": (request_service, "record_audit_entry"),
+        "state": (AccountingHandoffRequestCommandHandler, "_mark_delivery_requested"),
+        "audit": (request_commands, "record_audit_entry"),
         "commit": (SqlAlchemyUnitOfWorkBase, "commit"),
     }
 
@@ -562,7 +562,7 @@ def test_correction_gets_new_identity_without_changing_parent(
 
     services = accounting_services
     approved = approved_preparation(services)
-    billing = services['billing_preparation_query']
+    services['billing_preparation_query']
     parent = services['finance_governance_commands'].accounting_handoff(lambda handler: handler.request(
         approved.id, expected_row_version=approved.row_version
     ))
@@ -580,7 +580,7 @@ def test_correction_gets_new_identity_without_changing_parent(
             occurred_at=datetime.now(UTC),
             reconciliation_reference="confirmed",
         )
-    profiles = services['billing_profile_query']
+    services['billing_profile_query']
     line = services['finance_governance_commands'].billing_schedule(lambda handler: handler.add_schedule_line(
         approved.project_id,
         name="Correction source",

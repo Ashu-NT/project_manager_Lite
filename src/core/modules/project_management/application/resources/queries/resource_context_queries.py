@@ -22,6 +22,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -51,7 +52,7 @@ class ResourceContextQueryHandler:
 
     def _active_scope(self, operation_label: str):
         if self._tenant_context_service is None:
-            raise RuntimeError("Resource context reader scope is not configured.")
+            raise ConfigurationError("Resource context reader scope is not configured.")
         return self._tenant_context_service.require_active_scope_ids(
             operation_label=operation_label
         )
@@ -79,7 +80,7 @@ class ResourceContextQueryHandler:
             self._user_session, "project.read", operation_label="view resource projects"
         )
         if self._resource_projects_reader is None:
-            raise RuntimeError("Resource Projects reader is not configured.")
+            raise ConfigurationError("Resource Projects reader is not configured.")
         request = self._page_request(page, page_size)
         sort = ReadSort.normalize(
             key=sort_key,
@@ -139,7 +140,7 @@ class ResourceContextQueryHandler:
             self._user_session, "task.read", operation_label="view resource assignments"
         )
         if self._resource_assignments_reader is None:
-            raise RuntimeError("Resource Assignments reader is not configured.")
+            raise ConfigurationError("Resource Assignments reader is not configured.")
         request = self._page_request(page, page_size)
         sort = ReadSort.normalize(
             key=sort_key,
@@ -200,7 +201,7 @@ class ResourceContextQueryHandler:
             self._user_session, "resource.read", operation_label="view resource activity"
         )
         if self._resource_activity_reader is None:
-            raise RuntimeError("Resource Activity reader is not configured.")
+            raise ConfigurationError("Resource Activity reader is not configured.")
         request = self._page_request(page, page_size)
         normalized_category = str(category or "all").strip().lower()
         if normalized_category not in {

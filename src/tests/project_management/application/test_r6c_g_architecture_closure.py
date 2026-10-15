@@ -144,7 +144,7 @@ def test_r6c_has_no_financial_change_submission_uow_or_direct_task_orm_path() ->
     assert not any(path.name in retired_names for path in PM_ROOT.rglob("*.py"))
 
     change_paths = (
-        PM_ROOT / "application/financials/financial_changes/service.py",
+        *(PM_ROOT / "application/financials/financial_changes/commands").glob("*.py"),
         PM_ROOT / "infrastructure/approval/financial_change_apply_participant.py",
     )
     for path in change_paths:

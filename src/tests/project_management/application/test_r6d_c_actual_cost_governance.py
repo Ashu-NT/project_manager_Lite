@@ -8,8 +8,10 @@ from decimal import Decimal
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
-    ProjectCostEntryService,
+from src.core.modules.project_management.application.financials.cost.entries.commands import (
+    ProjectCostEntryLifecycleCommandHandler,
+    ProjectCostEntryPostingCommandHandler,
+    ProjectCostEntryReviewCommandHandler,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
@@ -61,7 +63,7 @@ def _become(services, user_id: str) -> None:
 
 def test_requester_cannot_approve_or_reject_even_with_both_permissions(services):
     _organization, _project, _cost_code, draft = _draft(services)
-    service = services['cost_entry_query']
+    services['cost_entry_query']
     submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
 
     with pytest.raises(BusinessRuleError, match="cannot approve or reject") as approve_error:
@@ -75,7 +77,7 @@ def test_requester_cannot_approve_or_reject_even_with_both_permissions(services)
 
 def test_independent_decider_can_approve(services):
     _organization, _project, _cost_code, draft = _draft(services)
-    service = services['cost_entry_query']
+    services['cost_entry_query']
     submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
     _become(services, "r6dc-independent-decider")
 
@@ -158,7 +160,7 @@ def test_source_owned_entry_has_no_interactive_mutation_capability(services):
     )
 
     with pytest.raises(BusinessRuleError) as source_error:
-        ProjectCostEntryService._require_manual_interactive_entry(
+        ProjectCostEntryLifecycleCommandHandler._require_manual_interactive_entry(
             entry, operation="edit"
         )
     assert source_error.value.code == "PROJECT_COST_ENTRY_SOURCE_OWNED"
@@ -166,7 +168,7 @@ def test_source_owned_entry_has_no_interactive_mutation_capability(services):
 
 def test_actual_filters_are_server_owned_and_invalid_sources_fail_closed(services):
     _organization, project, _cost_code, draft = _draft(services)
-    service = services['cost_entry_query']
+    services['cost_entry_query']
 
     rows, total = services['cost_entry_query'].list_for_project(
         project.id,
@@ -189,7 +191,11 @@ def test_actual_filters_are_server_owned_and_invalid_sources_fail_closed(service
 
 
 def test_cost_service_is_transaction_neutral_and_uses_scoped_savepoints_only():
-    source = inspect.getsource(ProjectCostEntryService)
+    source = "\n".join(inspect.getsource(handler) for handler in (
+        ProjectCostEntryLifecycleCommandHandler,
+        ProjectCostEntryPostingCommandHandler,
+        ProjectCostEntryReviewCommandHandler,
+    ))
     assert ".commit(" not in source
     assert ".rollback(" not in source
     assert source.count("begin_nested()") == 2

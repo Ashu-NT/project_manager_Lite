@@ -16,6 +16,9 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
     PlannedCostSnapshotCalculated,
 )
+from src.core.modules.project_management.application.financials.planned_costs.result import (
+    PlannedCostCalculationResult,
+)
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
@@ -59,10 +62,6 @@ from src.core.platform.common.exceptions import (
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.time.clock import CalendarClock
-
-from src.core.modules.project_management.application.financials.planned_costs.result import (
-    PlannedCostCalculationResult,
-)
 
 _REVISION_CONSTRAINT = "uq_pf_planned_cost_versions_project_revision"
 

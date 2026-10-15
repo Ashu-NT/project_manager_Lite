@@ -18,14 +18,26 @@ from src.core.modules.project_management.application.financials.governance impor
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingPreparationLineAdded,
 )
-from src.core.modules.project_management.application.financials.invoicing.preparation_service import (
-    ProjectBillingPreparationService,
+from src.core.modules.project_management.application.financials.invoicing.commands.preparation_approval import (
+    BillingPreparationApprovalCommandHandler,
+)
+from src.core.modules.project_management.application.financials.invoicing.commands.preparation_sources import (
+    BillingPreparationSourceCommandHandler,
+)
+from src.core.modules.project_management.application.financials.invoicing.commands.preparation_submission import (
+    BillingPreparationSubmissionCommandHandler,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
+    RateCardResolver,
 )
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillingPreparationStatus,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.invoicing.billing import (
     SqlAlchemyProjectBillingRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
+    SqlAlchemyRateResolutionReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
@@ -36,6 +48,7 @@ from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
 )
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.infra.events.in_process_post_commit_event_bus import (
     InProcessPostCommitEventBus,
 )
@@ -225,14 +238,17 @@ def test_governed_billing_reservation_atomicity(postgres_test_environment, billi
         audit = uow._enterprise_audit_service
         if failure == "audit":
             audit.record = fail
-        service = ProjectBillingPreparationService(
-            session=uow._session, billing_repo=uow.billing, financial_profile_repo=uow.profiles,
+        handler = BillingPreparationSourceCommandHandler(
+            session=uow._session, billing_repo=uow.billing,
             cost_entry_repo=uow.cost_entries, labor_posting_repo=uow.labor_postings,
-            rate_resolver=None, financial_period_queries=None,
+            rate_resolver=RateCardResolver(
+                reader=SqlAlchemyRateResolutionReader(uow._session),
+                tenant_context_service=scope, clock=SystemClock(),
+            ),
             tenant_context_service=scope, clock=SystemClock(), user_session=user_session,
             enterprise_audit_service=audit, record_event=uow.record_event,
         )
-        return SimpleNamespace(billing_preparations=service, post_commit_actions=[])
+        return SimpleNamespace(billing_sources=handler)
 
     boundary = FinanceGovernanceCommandBoundary(uow_factory=factory, operations_factory=operations)
 
@@ -243,10 +259,10 @@ def test_governed_billing_reservation_atomicity(postgres_test_environment, billi
         return result
 
     if failure == "none":
-        boundary.billing_preparation(command)
+        boundary.billing_source(command)
     else:
         with pytest.raises(RuntimeError, match="injected billing failure"):
-            boundary.billing_preparation(command)
+            boundary.billing_source(command)
     expected = int(failure == "none")
     with postgres_test_environment.runtime_session(tenant_id=scope.tenant, organization_id=scope.org) as session:
         repo = _repository(session, scope)
@@ -320,28 +336,33 @@ def test_governed_billing_application_race(postgres_test_environment, billing_sc
         post_commit_bus=InProcessPostCommitEventBus(), tenant_context_service=scope, user_session=user,
     )
 
-    def operations(uow):
+    def build_handler(uow):
         validate_postgresql_execution_role(uow._session)
         uow._session.execute(text("SET LOCAL lock_timeout = '8s'"))
-        service = ProjectBillingPreparationService(
-            session=uow._session, billing_repo=uow.billing, financial_profile_repo=uow.profiles,
-            cost_entry_repo=uow.cost_entries, labor_posting_repo=uow.labor_postings,
-            rate_resolver=None, financial_period_queries=None,
+        handler_type = (
+            BillingPreparationSubmissionCommandHandler
+            if action == "submit"
+            else BillingPreparationApprovalCommandHandler
+        )
+        handler = handler_type(
+            session=uow._session, billing_repo=uow.billing, approval_repo=uow.approvals,
             tenant_context_service=scope, clock=SystemClock(), user_session=user,
             enterprise_audit_service=uow._enterprise_audit_service, record_event=uow.record_event,
         )
-        service._approval_repo = uow.approvals
-        read = service._require_preparation
+        read = handler._require_preparation
 
         def synchronized_read(preparation_id):
             result = read(preparation_id)
             barrier.wait(timeout=10)
             return result
 
-        service._require_preparation = synchronized_read
-        return SimpleNamespace(billing_preparations=service, post_commit_actions=[])
+        handler._require_preparation = synchronized_read
+        return handler
 
-    boundary = FinanceGovernanceCommandBoundary(uow_factory=factory, operations_factory=operations)
+    boundary = FinanceGovernanceCommandBoundary(
+        uow_factory=factory,
+        operations_factory=lambda uow: SimpleNamespace(billing_submissions=build_handler(uow)),
+    )
 
     def writer(index):
         def command(service):
@@ -351,7 +372,13 @@ def test_governed_billing_application_race(postgres_test_environment, billing_sc
                 return service._apply_approval_decision(scope.preparation, approved_by=actor, expected_version=1)
             return service._apply_rejection_decision(scope.preparation, rejected_by=actor, expected_version=1, notes="Needs correction")
         try:
-            boundary.billing_preparation(command)
+            if action == "submit":
+                boundary.billing_submission(command)
+            else:
+                context = DomainEventContext(correlation_id=str(uuid4()))
+                with factory.create(context=context) as uow:
+                    command(build_handler(uow))
+                    uow.commit()
             return "committed"
         except ConcurrencyError:
             return "stale"

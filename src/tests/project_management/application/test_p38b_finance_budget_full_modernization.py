@@ -608,7 +608,7 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
             target_line_id=line.id,
             expected_change_version=change.row_version,
         )
-    )
+    ).impact
     change = changes.get_change(change.id)
     change = services["finance_governance_commands"].financial_change_submission(
         lambda handler: handler.submit_change(

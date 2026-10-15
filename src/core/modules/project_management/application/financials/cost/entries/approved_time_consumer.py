@@ -15,6 +15,7 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
 from src.core.platform.domain.security.identity.service_principal import (
     ServicePrincipal,
 )
+from src.core.platform.common.exceptions import UnsupportedOperationError
 from src.core.platform.integration import (
     APPROVED_TIME_ENTRY_EVENT_TYPE,
     ApprovedTimeEntryEventPayload,
@@ -45,7 +46,7 @@ class ApprovedTimeLaborCostConsumer:
 
     def consume(self, envelope: IntegrationEventEnvelope) -> tuple[object, ...]:
         if envelope.event_type != APPROVED_TIME_ENTRY_EVENT_TYPE:
-            raise ValueError(f"Unsupported Approved Time event: {envelope.event_type}")
+            raise UnsupportedOperationError("The event is not an Approved Time event.", code="APPROVED_TIME_EVENT_TYPE_UNSUPPORTED")
         payload = ApprovedTimeEntryEventPayload.model_validate(envelope.payload)
         source = ApprovedTimeFinancialSource(
             reference=FinancialSourceReference(

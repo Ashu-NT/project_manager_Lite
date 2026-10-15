@@ -8,6 +8,10 @@ from decimal import Decimal
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.common.clock import SystemClock
+from src.core.modules.project_management.application.financials.commitments.commands import (
+    ProjectCommitmentCommandHandler,
+)
 from src.core.modules.project_management.application.financials.commitments.commitment_events import (
     CommitmentLineChanged,
     CommitmentLineChangeType,
@@ -36,6 +40,9 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryKind,
+)
+from src.core.modules.project_management.infrastructure.composition.registrations.approvals._shared import (
+    build_approval_repository_context,
 )
 from src.core.platform.application.master_data.party.dto import (
     PartyCreateCommand,
@@ -115,7 +122,27 @@ def _apply_source(services, source):
         name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
     )
     reference = source.reference
-    services['commitment_query'].apply_procurement_source(
+    session = services["session"]
+    repositories = build_approval_repository_context(
+        session, services["tenant_context_service"]
+    )
+    commands = ProjectCommitmentCommandHandler(
+        session=session,
+        commitment_repo=repositories.pm.project_commitment_repo,
+        cost_entry_repo=repositories.pm.project_cost_entry_repo,
+        project_repo=repositories.pm.project_repo,
+        financial_profile_repo=repositories.pm.project_financial_profile_repo,
+        cost_code_repo=repositories.pm.project_cost_code_repo,
+        task_repo=repositories.pm.task_repo,
+        party_repo=repositories.platform.party_repo,
+        site_repo=repositories.platform.site_repo,
+        clock=SystemClock(),
+        user_session=services["user_session"],
+        enterprise_audit_service=services["enterprise_audit_service"],
+        module_catalog_service=services["module_catalog_service"],
+        tenant_context_service=services["tenant_context_service"],
+    )
+    commands.apply_procurement_source(
         source,
         execution=ProcurementExecutionContext(
             service_principal=principal,
@@ -319,6 +346,8 @@ def test_dispatcher_builds_procurement_consumer_inside_fresh_finance_uow(service
     assert callable(dispatcher._consumer_factory)
     assert callable(dispatcher._principal_resolver)
     service = services['commitment_query']
+    assert not hasattr(service, "apply_procurement_source")
+    assert not hasattr(service, "apply_procurement_receipt_match")
     assert not hasattr(service, "ingest_procurement_source")
     assert not hasattr(service, "match_cost_entry")
     assert not hasattr(service, "reverse_match")

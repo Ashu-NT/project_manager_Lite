@@ -306,7 +306,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             cost_code_id=change_code.id,
             target_line_id=budget_line.id,
             expected_change_version=change.row_version,
-        )),
+        )).impact,
     )
     change = services['financial_change_query'].get_change(change.id)
     _, counts["change.impact_update"] = _measure(
@@ -321,7 +321,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
             target_line_id=impact.target_line_id,
             expected_impact_version=impact.row_version,
             expected_change_version=change.row_version,
-        )),
+        )).impact,
     )
     change = services['financial_change_query'].get_change(change.id)
     change, counts["change.submit"] = _measure(

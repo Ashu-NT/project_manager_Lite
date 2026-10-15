@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )

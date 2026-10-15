@@ -236,7 +236,7 @@ from src.core.modules.project_management.infrastructure.reporting.export_runtime
     generate_excel_report,
     generate_pdf_report,
 )
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ConfigurationError, ValidationError
 
 
 class ProjectManagementFinancialsDesktopApi:
@@ -1426,32 +1426,43 @@ class ProjectManagementFinancialsDesktopApi:
     def add_financial_change_impact(
         self, command: FinancialChangeImpactCommand
     ) -> FinancialChangeMutationDto:
-        def add_impact(service):
-            impact = service.add_impact(
-                command.change_id, **self._change_impact_arguments(command)
+        result = self._require_finance_governance_commands().financial_change(
+            lambda handler: handler.add_impact(
+                command.change_id,
+                impact_type=self._change_impact_type(command.impact_type),
+                description=command.description,
+                expected_change_version=command.expected_change_version,
+                amount=self._change_command_amount(command.amount),
+                currency_code=command.currency_code or None,
+                cost_code_id=command.cost_code_id,
+                task_id=command.task_id,
+                target_line_id=command.target_line_id,
+                schedule_start=self._optional_command_date(command.schedule_start),
+                schedule_finish=self._optional_command_date(command.schedule_finish),
             )
-            return service.get_change(impact.change_request_id), impact
-
-        change, impact = self._require_finance_governance_commands().financial_change(
-            add_impact
         )
-        return self._change_mutation_dto(change, impact=impact)
+        return self._change_mutation_dto(result.change, impact=result.impact)
 
     def update_financial_change_impact(
         self, command: FinancialUpdateChangeImpactCommand
     ) -> FinancialChangeMutationDto:
-        def update_impact(service):
-            impact = service.update_impact(
+        result = self._require_finance_governance_commands().financial_change(
+            lambda handler: handler.update_impact(
                 command.impact_id,
                 expected_impact_version=command.expected_impact_version,
-                **self._change_impact_arguments(command),
+                impact_type=self._change_impact_type(command.impact_type),
+                description=command.description,
+                expected_change_version=command.expected_change_version,
+                amount=self._change_command_amount(command.amount),
+                currency_code=command.currency_code or None,
+                cost_code_id=command.cost_code_id,
+                task_id=command.task_id,
+                target_line_id=command.target_line_id,
+                schedule_start=self._optional_command_date(command.schedule_start),
+                schedule_finish=self._optional_command_date(command.schedule_finish),
             )
-            return service.get_change(impact.change_request_id), impact
-
-        change, impact = self._require_finance_governance_commands().financial_change(
-            update_impact
         )
-        return self._change_mutation_dto(change, impact=impact)
+        return self._change_mutation_dto(result.change, impact=result.impact)
 
     def remove_financial_change_impact(
         self, command: FinancialRemoveChangeImpactCommand
@@ -1477,27 +1488,15 @@ class ProjectManagementFinancialsDesktopApi:
         )
         return self._change_mutation_dto(change)
 
-    @classmethod
-    def _change_impact_arguments(cls, command) -> dict[str, object]:
+    @staticmethod
+    def _change_impact_type(value: str) -> FinancialChangeImpactType:
         try:
-            impact_type = FinancialChangeImpactType(str(command.impact_type).strip().lower())
+            return FinancialChangeImpactType(str(value).strip().lower())
         except ValueError as exc:
             raise ValidationError(
                 "Impact type must be Budget, Forecast, or Schedule.",
                 code="FINANCIAL_CHANGE_IMPACT_TYPE_INVALID",
             ) from exc
-        return {
-            "impact_type": impact_type,
-            "description": command.description,
-            "expected_change_version": command.expected_change_version,
-            "amount": cls._change_command_amount(command.amount),
-            "currency_code": command.currency_code or None,
-            "cost_code_id": command.cost_code_id,
-            "task_id": command.task_id,
-            "target_line_id": command.target_line_id,
-            "schedule_start": cls._optional_command_date(command.schedule_start),
-            "schedule_finish": cls._optional_command_date(command.schedule_finish),
-        }
 
     @staticmethod
     def _change_mutation_dto(change, *, impact=None) -> FinancialChangeMutationDto:
@@ -1621,7 +1620,7 @@ class ProjectManagementFinancialsDesktopApi:
         baseline_id: str | None = None,
     ) -> str:
         if self._report_sources is None:
-            raise RuntimeError("Project management reporting service is not connected.")
+            raise ConfigurationError("Project management reporting service is not connected.")
         if report_format == "xlsx":
             result = generate_excel_report(
                 self._report_sources,
@@ -1639,7 +1638,7 @@ class ProjectManagementFinancialsDesktopApi:
                 baseline_id=baseline_id or None,
             )
         else:
-            raise ValueError("Financial report format must be 'xlsx' or 'pdf'.")
+            raise ValidationError("Financial report format must be 'xlsx' or 'pdf'.", code="FINANCIAL_REPORT_FORMAT_INVALID")
         return str(result)
 
     def get_financial_setup_workspace(
@@ -2127,34 +2126,34 @@ class ProjectManagementFinancialsDesktopApi:
 
     def _require_cost_entry_query(self) -> ProjectCostEntryQueryHandler:
         if self._cost_entry_query is None:
-            raise RuntimeError("Project cost-entry service is not connected.")
+            raise ConfigurationError("Project cost-entry service is not connected.")
         return self._cost_entry_query
 
     def _require_billing_profile_query(self) -> ProjectBillingProfileQueryHandler:
         if self._billing_profile_query is None:
-            raise RuntimeError("Project billing profile service is not connected.")
+            raise ConfigurationError("Project billing profile service is not connected.")
         return self._billing_profile_query
 
     def _require_billing_preparation_query(self) -> ProjectBillingPreparationQueryHandler:
         if self._billing_preparation_query is None:
-            raise RuntimeError("Project billing preparation service is not connected.")
+            raise ConfigurationError("Project billing preparation service is not connected.")
         return self._billing_preparation_query
 
     def _require_finance_governance_commands(
         self,
     ) -> FinanceGovernanceCommandBoundary:
         if self._finance_governance_commands is None:
-            raise RuntimeError("Project Finance governance command boundary is not connected.")
+            raise ConfigurationError("Project Finance governance command boundary is not connected.")
         return self._finance_governance_commands
 
     def _require_finance_snapshot_query(self) -> FinanceSnapshotQueryHandler:
         if self._finance_snapshot_query is None:
-            raise RuntimeError("Project management finance service is not connected.")
+            raise ConfigurationError("Project management finance service is not connected.")
         return self._finance_snapshot_query
 
     def _require_finance_workspace_query(self) -> ProjectFinanceWorkspaceQuery:
         if self._finance_workspace_query is None:
-            raise RuntimeError("Project Finance workspace query is not connected.")
+            raise ConfigurationError("Project Finance workspace query is not connected.")
         return self._finance_workspace_query
 
 

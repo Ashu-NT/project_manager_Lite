@@ -14,6 +14,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.common.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
     from src.core.modules.project_management.contracts.reads.financials.finance_integration_reader import (
@@ -50,7 +51,7 @@ class IntegrationWorkspaceQueries:
             operation_label="view approved-time posting failures",
         )
         if self._integration_reader is None or self._tenant_context_service is None:
-            raise RuntimeError("Finance Integration Reader is not configured.")
+            raise ConfigurationError("Finance Integration Reader is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view approved-time posting failures"
         )

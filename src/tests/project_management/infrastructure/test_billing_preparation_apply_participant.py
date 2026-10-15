@@ -14,6 +14,9 @@ from src.core.modules.project_management.application.financials.invoicing.billin
     BillingPreparationStatusChanged,
     BillingPreparationStatusChangeType,
 )
+from src.core.modules.project_management.application.financials.invoicing.commands.preparation_approval import (
+    BillingPreparationApprovalCommandHandler,
+)
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillingPreparationStatus,
 )
@@ -338,6 +341,8 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         service_a = deps_a.billing_preparation_commands
         service_b = deps_b.billing_preparation_commands
 
+        assert type(service_a) is BillingPreparationApprovalCommandHandler
+        assert type(service_b) is BillingPreparationApprovalCommandHandler
         assert service_a._session is session_a
         assert service_b._session is session_b
         assert service_a is not service_b
@@ -345,6 +350,15 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         assert service_b._billing_repo.session is session_b
         # Approval depends only on billing evidence, not source provisioning.
         for commands in (service_a, service_b):
+            for operation in (
+                "create_preparation",
+                "cancel_preparation",
+                "add_fixed_price_source",
+                "remove_draft_line",
+                "submit_preparation",
+                "get_preparation",
+            ):
+                assert not hasattr(commands, operation)
             assert not hasattr(commands, "_financial_profile_repo")
             assert not hasattr(commands, "_cost_entry_repo")
             assert not hasattr(commands, "_labor_posting_repo")

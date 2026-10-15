@@ -19,6 +19,7 @@ from src.core.modules.project_management.contracts.uow.collaboration.collaborati
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.common.exceptions import AuthenticationError
 
 
 class CollaborationPresenceCommandHandler(ProjectManagementModuleGuardMixin):
@@ -53,7 +54,7 @@ class CollaborationPresenceCommandHandler(ProjectManagementModuleGuardMixin):
         principal = self._policy.principal
         user_id = str(getattr(principal, "user_id", "") or "").strip()
         if not user_id:
-            raise RuntimeError("Authenticated user ID is required for task presence.")
+            raise AuthenticationError("Authenticated user ID is required for task presence.", code="AUTHENTICATED_USER_REQUIRED")
         username = self._policy.principal_primary_alias() or user_id
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="update task presence"
@@ -86,7 +87,7 @@ class CollaborationPresenceCommandHandler(ProjectManagementModuleGuardMixin):
         principal = self._policy.principal
         user_id = str(getattr(principal, "user_id", "") or "").strip()
         if not user_id:
-            raise RuntimeError("Authenticated user ID is required for task presence.")
+            raise AuthenticationError("Authenticated user ID is required for task presence.", code="AUTHENTICATED_USER_REQUIRED")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="clear task presence"
         )

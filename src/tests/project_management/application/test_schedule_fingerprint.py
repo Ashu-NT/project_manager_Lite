@@ -90,10 +90,10 @@ class TestPlannerComputesItsOwnFingerprint:
         services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
-        tasks = ts._task_repo.list_by_project(project.id)
+        tasks = ts.list_tasks_for_project(project.id)
         tasks_by_id = {t.id: t for t in tasks}
-        assignments = ts._assignment_repo.list_by_tasks([t.id for t in tasks])
-        deps = ts._dependency_repo.list_by_project(project.id)
+        assignments = ts.list_assignments_for_tasks([t.id for t in tasks])
+        deps = services['task_dependency_query'].list_dependencies_for_project(project.id)
 
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
@@ -119,10 +119,10 @@ class TestPlannerComputesItsOwnFingerprint:
         services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
         def _snapshot():
-            tasks = ts._task_repo.list_by_project(project.id)
+            tasks = ts.list_tasks_for_project(project.id)
             tasks_by_id = {t.id: t for t in tasks}
-            assignments = ts._assignment_repo.list_by_tasks([t.id for t in tasks])
-            deps = ts._dependency_repo.list_by_project(project.id)
+            assignments = ts.list_assignments_for_tasks([t.id for t in tasks])
+            deps = services['task_dependency_query'].list_dependencies_for_project(project.id)
             return tasks_by_id, assignments, deps
 
         planner = ResourceLevelingPlanner(calendar)

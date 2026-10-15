@@ -7,6 +7,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 
 def test_financial_report_export_passes_canonical_services_and_basis(
@@ -59,9 +60,10 @@ def test_financial_report_rejects_unknown_format() -> None:
         finance_snapshot_query=object(),
     )
 
-    with pytest.raises(ValueError, match="xlsx.*pdf"):
+    with pytest.raises(ValidationError, match="xlsx.*pdf") as invalid:
         api.export_financial_report(
             "project-1",
             "finance.csv",
             report_format="csv",
         )
+    assert invalid.value.code == "FINANCIAL_REPORT_FORMAT_INVALID"

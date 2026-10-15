@@ -22,7 +22,7 @@ TASK_PRESENCE_ENTITY_TYPE = "task"
 def notify_task_presence_stale(
     channel: ViewInvalidationChannel | None,
     *,
-    tenant_id: str | None,
+    tenant_id: str,
     organization_id: str,
     task_id: str,
 ) -> None:

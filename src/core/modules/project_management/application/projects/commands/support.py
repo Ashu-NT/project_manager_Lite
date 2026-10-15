@@ -31,6 +31,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 )
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
+    ConfigurationError,
     ValidationError,
 )
 from src.core.platform.contract.repositories.master_data.department.contracts import (
@@ -119,7 +120,7 @@ class ProjectSupportMixin:
         if not department_id:
             return
         if self._department_repo is None:
-            raise RuntimeError("Department directory is not configured.")
+            raise ConfigurationError("Department directory is not configured.")
         department = self._department_repo.get(department_id)
         if department is None or department.organization_id != organization_id:
             raise ValidationError(
@@ -135,7 +136,7 @@ class ProjectSupportMixin:
         if not party_id:
             return
         if self._party_repo is None:
-            raise RuntimeError("Party directory is not configured.")
+            raise ConfigurationError("Party directory is not configured.")
         party = self._party_repo.get(party_id)
         if party is None or party.organization_id != organization_id:
             raise ValidationError(
@@ -154,7 +155,7 @@ class ProjectSupportMixin:
             return
         reader = self._project_catalog_reader
         if reader is None:
-            raise RuntimeError("Project catalog reader is not configured.")
+            raise ConfigurationError("Project catalog reader is not configured.")
         scope = self._require_project_scope_ids(operation_label="assign project manager")
         if not reader.is_eligible_manager(
             tenant_id=scope.tenant_id,
@@ -256,7 +257,7 @@ class ProjectSupportMixin:
 
     def _require_project_uow_factory(self) -> ProjectUnitOfWorkFactory:
         if self._uow_factory is None:
-            raise RuntimeError("Project unit of work is not configured.")
+            raise ConfigurationError("Project unit of work is not configured.")
         return self._uow_factory
 
     def _record_financial_profile_audit(

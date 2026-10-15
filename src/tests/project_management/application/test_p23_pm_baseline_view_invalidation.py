@@ -189,7 +189,7 @@ def test_create_baseline_produces_exactly_one_project_baseline_hint(services):
     project = _project_with_tasks(services)
     hints = _spy_hints(services)
 
-    baseline_service = services['baseline_query']
+    services['baseline_query']
     baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
 
     baseline_hints = _baseline_hints(hints)
@@ -200,7 +200,7 @@ def test_create_baseline_produces_exactly_one_project_baseline_hint(services):
 
 def test_submit_baseline_produces_exactly_one_hint(services):
     project = _project_with_tasks(services)
-    baseline_service = services['baseline_query']
+    services['baseline_query']
     baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
     hints = _spy_hints(services)
 
@@ -214,7 +214,7 @@ def test_submit_baseline_produces_exactly_one_hint(services):
 
 def test_approve_baseline_produces_exactly_one_hint_and_carries_superseded_id(services):
     project = _project_with_tasks(services)
-    baseline_service = services['baseline_query']
+    services['baseline_query']
 
     first = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
     services['baseline_commands'].submit_baseline(first.id, submitted_by="admin")
@@ -227,7 +227,7 @@ def test_approve_baseline_produces_exactly_one_hint_and_carries_superseded_id(se
     # ViewInvalidation hint) to prove `superseded_baseline_id` is populated correctly. Reached
     # via the bound `uow_factory` method's own `__self__` -- the post-commit bus itself is not
     # exposed as a top-level services-dict key.
-    post_commit_bus = baseline_service._uow_factory.__self__._post_commit_bus
+    post_commit_bus = services['baseline_commands']._uow_factory.__self__._post_commit_bus
     seen_events: list = []
     post_commit_bus.subscribe(
         ProjectBaselineApproved, lambda event, _context, _seen=seen_events: _seen.append(event)
@@ -246,7 +246,7 @@ def test_approve_baseline_produces_exactly_one_hint_and_carries_superseded_id(se
 
 def test_reject_baseline_produces_exactly_one_hint(services):
     project = _project_with_tasks(services)
-    baseline_service = services['baseline_query']
+    services['baseline_query']
     baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())
     services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
     hints = _spy_hints(services)
@@ -292,7 +292,7 @@ def test_baseline_service_shared_session_survives_repeated_commits(services):
     the SAME long-lived `baseline_service` instance, with the Session object itself unchanged
     and still usable throughout."""
     project = _project_with_tasks(services)
-    baseline_service = services['baseline_query']
+    services['baseline_query']
     session_before = services['baseline_commands']._session
 
     baseline = services['baseline_commands'].create_baseline(project.id, "BL1", rate_as_of=date.today())

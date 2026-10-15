@@ -43,6 +43,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 )
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
+    ConfigurationError,
     NotFoundError,
     ValidationError,
 )
@@ -75,7 +76,7 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
 
     def _require_uow_factory(self) -> RegisterUnitOfWorkFactory:
         if self._uow_factory is None:
-            raise RuntimeError("Register unit of work is not configured.")
+            raise ConfigurationError("Register unit of work is not configured.")
         return self._uow_factory
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:

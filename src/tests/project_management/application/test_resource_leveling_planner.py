@@ -15,12 +15,11 @@ from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
 
-def _snapshot(services, project_id):
-    ts = services['task_lookup_query']
-    tasks = select_leaf_tasks(ts._task_repo.list_by_project(project_id))
+def _snapshot(task_lookup, dependency_query, project_id):
+    tasks = select_leaf_tasks(task_lookup.list_tasks_for_project(project_id))
     tasks_by_id = {t.id: t for t in tasks}
-    assignments = ts._assignment_repo.list_by_tasks([t.id for t in tasks]) if tasks else []
-    deps = ts._dependency_repo.list_by_project(project_id)
+    assignments = task_lookup.list_assignments_for_tasks([t.id for t in tasks])
+    deps = dependency_query.list_dependencies_for_project(project_id)
     return tasks_by_id, assignments, deps
 
 
@@ -35,7 +34,7 @@ class TestBasicOverloadResolution:
         services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
-        tasks_by_id, assignments, deps = _snapshot(services, project.id)
+        tasks_by_id, assignments, deps = _snapshot(services['task_lookup_query'], services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,
@@ -56,7 +55,7 @@ class TestBasicOverloadResolution:
         project = services['project_create'].create_project("Leveling Planner No Conflicts", "")
         services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
 
-        tasks_by_id, assignments, deps = _snapshot(services, project.id)
+        tasks_by_id, assignments, deps = _snapshot(services['task_lookup_query'], services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,
@@ -89,7 +88,7 @@ class TestPreviewNeverPersists:
         before_start = services['task_detail_query'].get_task(task_b.id).start_date
         before_floor = services['task_detail_query'].get_task(task_b.id).resource_leveling_not_before
 
-        tasks_by_id, assignments, deps = _snapshot(services, project.id)
+        tasks_by_id, assignments, deps = _snapshot(services['task_lookup_query'], services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,
@@ -133,7 +132,7 @@ class TestDependencyAwarePropagation:
         services['task_assignment_commands'].assign_resource(task_a.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_other.id, resource.id, allocation_percent=60.0)
 
-        tasks_by_id, assignments, deps = _snapshot(services, project.id)
+        tasks_by_id, assignments, deps = _snapshot(services['task_lookup_query'], services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,
@@ -173,7 +172,7 @@ class TestMovabilityRespectedByPlanner:
         services['task_assignment_commands'].assign_resource(task_pinned.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_flexible.id, resource.id, allocation_percent=60.0)
 
-        tasks_by_id, assignments, deps = _snapshot(services, project.id)
+        tasks_by_id, assignments, deps = _snapshot(services['task_lookup_query'], services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,
@@ -209,7 +208,7 @@ class TestUnresolvedConflictWhenNoLegalMoveExists:
         services['task_assignment_commands'].assign_resource(task_1.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_2.id, resource.id, allocation_percent=60.0)
 
-        tasks_by_id, assignments, deps = _snapshot(services, project.id)
+        tasks_by_id, assignments, deps = _snapshot(services['task_lookup_query'], services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,
@@ -246,7 +245,7 @@ class TestMultiResourceTaskCandidatePlacement:
         services['task_assignment_commands'].assign_resource(task_multi.id, resource_y.id, allocation_percent=60.0)
         services['task_assignment_commands'].assign_resource(task_y.id, resource_y.id, allocation_percent=70.0)
 
-        tasks_by_id, assignments, deps = _snapshot(services, project.id)
+        tasks_by_id, assignments, deps = _snapshot(services['task_lookup_query'], services['task_dependency_query'], project.id)
         planner = ResourceLevelingPlanner(calendar)
         proposal = planner.build_proposal(
             project_id=project.id,

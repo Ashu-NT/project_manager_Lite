@@ -36,6 +36,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
+    ConfigurationError,
     NotFoundError,
     ValidationError,
 )
@@ -86,7 +87,7 @@ class ResourceMasterCommandHandler:
 
     def _require_uow_factory(self) -> ResourceUnitOfWorkFactory:
         if self._uow_factory is None:
-            raise RuntimeError("Resource unit of work is not configured.")
+            raise ConfigurationError("Resource unit of work is not configured.")
         return self._uow_factory
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
@@ -273,7 +274,7 @@ class ResourceMasterCommandHandler:
         self, uow, resource: Resource, *, change_type: ResourceMasterChangeType
     ) -> None:
         if self._tenant_context_service is None:
-            raise RuntimeError("Resource tenant scope is not configured.")
+            raise ConfigurationError("Resource tenant scope is not configured.")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="mutate resource master"
         )

@@ -10,14 +10,17 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.financials.accounting.request_service import (
-    AccountingHandoffRequestService,
+from src.core.modules.project_management.application.financials.accounting.commands.request import (
+    AccountingHandoffRequestCommandHandler,
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
 )
-from src.core.modules.project_management.application.financials.invoicing.preparation_service import (
-    ProjectBillingPreparationService,
+from src.core.modules.project_management.application.financials.invoicing.evidence_builder import (
+    BillingPreparationEvidenceBuilder,
+)
+from src.core.modules.project_management.infrastructure.composition.dependencies.finance.governance_operations import (
+    HandoffRequestClock,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.accounting.handoff import (
     ProjectAccountingHandoffORM,
@@ -28,6 +31,9 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+)
+from src.core.platform.application.integration.delivery_service import (
+    IntegrationOutboxService,
 )
 from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
@@ -132,24 +138,25 @@ def boundary(environment, scope, actor, *, barrier=None):
     def operations(uow):
         validate_postgresql_execution_role(uow._session)
         uow._session.execute(text("SET LOCAL lock_timeout = '8s'"))
-        service = ProjectBillingPreparationService(
+        def enqueue(envelope, now):
+            return IntegrationOutboxService(
+                repository=uow.accounting_outbox,
+                owner_module="project_management",
+                clock=HandoffRequestClock(now),
+            ).enqueue(envelope)
+
+        handler = AccountingHandoffRequestCommandHandler(
             session=uow._session,
             billing_repo=uow.billing,
             financial_profile_repo=uow.profiles,
-            cost_entry_repo=uow.cost_entries,
-            labor_posting_repo=uow.labor_postings,
-            rate_resolver=None,
-            financial_period_queries=None,
-            tenant_context_service=scope,
             clock=SystemClock(),
             user_session=user,
             enterprise_audit_service=uow._enterprise_audit_service,
             record_event=uow.record_event,
-        )
-        service._handoff_request_service = AccountingHandoffRequestService(
-            preparations=service,
+            module_catalog_service=None,
+            evidence_builder=BillingPreparationEvidenceBuilder(user_session=user),
             handoffs=uow.accounting_handoffs,
-            outbox=uow.accounting_outbox,
+            enqueue_event=enqueue,
             context=uow.context,
             capability=build_accounting_capability(
                 session=uow._session,
@@ -160,7 +167,7 @@ def boundary(environment, scope, actor, *, barrier=None):
         )
         if barrier:
             barrier.wait(timeout=10)
-        return SimpleNamespace(billing_preparations=service, post_commit_actions=[])
+        return SimpleNamespace(accounting_handoffs=handler)
 
     return FinanceGovernanceCommandBoundary(
         uow_factory=factory, operations_factory=operations
@@ -218,8 +225,8 @@ def test_runtime_uow_rolls_back_and_retries(
 ):
     from sqlalchemy.orm import Session
 
-    from src.core.modules.project_management.application.financials.accounting import (
-        request_service,
+    from src.core.modules.project_management.application.financials.accounting.commands import (
+        request as request_commands,
     )
     from src.core.platform.application.integration.delivery_service import (
         IntegrationOutboxService,
@@ -229,8 +236,8 @@ def test_runtime_uow_rolls_back_and_retries(
     command = boundary(postgres_test_environment, scope, scope.actors[0])
     targets = {
         "enqueue": (IntegrationOutboxService, "enqueue"),
-        "audit": (request_service, "record_audit_entry"),
-        "state": (ProjectBillingPreparationService, "_mark_delivery_requested"),
+        "audit": (request_commands, "record_audit_entry"),
+        "state": (AccountingHandoffRequestCommandHandler, "_mark_delivery_requested"),
         "commit": (Session, "commit"),
     }
 
