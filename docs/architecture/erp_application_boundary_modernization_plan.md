@@ -1229,6 +1229,36 @@ is authorized by this progress record.
   Delivery infrastructure is injected at composition, never inferred from a
   Billing facade's private state.
 
+### Finance Application DTO Ownership
+
+The former application/financials/models/finance_models.py combined unrelated
+application result types. It is deleted, along with the generic models package
+and unused services re-export. Existing fields, calculations, Decimal values,
+availability states and dataclass semantics are preserved at these owners:
+
+| Application owner | Types |
+| --- | --- |
+| financials/dto.py | FinanceSnapshot, FinanceReconciliation, FinancePeriodRow, FinanceAnalyticsRow |
+| financials/cost/dto.py | ProjectFinanceLedgerRow, cost breakdown/source rows and labor result types |
+| financials/revenue/dto.py | ProjectCommercialProjection |
+| financials/earned_value/dto.py | EarnedValueMetrics, EvmSeriesPoint |
+| financials/governance/successors/dto.py | ApprovedFinancialLineAdjustment, ApprovedFinancialSuccessorResult |
+
+Successor contracts are shared only by Budget, Forecast and Financial Change
+approval workflows, not general read models. The former shared/successor_models.py
+is deleted. Reader facts stay under contracts/reads; desktop formatting stays
+under api/desktop. No duplicate DTO definitions or old-path compatibility
+modules are retained.
+
+Governance's package initializer no longer eagerly imports command handlers:
+application DTO imports must not build the governance command graph. Command
+boundary consumers import command_boundary directly. Dashboard's internal
+query capability protocols remain under contracts/ports/dashboard, like other
+contracts between PM capabilities/submodules. Cross-module synchronous
+integration boundaries use the existing module-level gateway package, not
+internal ports. Canonical event payloads remain distinct from synchronous
+gateway capabilities; this grouping does not create a second fact-delivery path.
+
 ### Transport-Neutral Error Contract
 
 Core exceptions remain under core/platform/common/exceptions.py and contain

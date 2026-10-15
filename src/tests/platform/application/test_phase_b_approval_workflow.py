@@ -151,7 +151,7 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     with pytest.raises(RuntimeError, match="simulated decision persistence failure"):
         approvals.approve_and_apply(request.id, note="Should roll back")
 
-    services['cost_entry_query']._session.expire_all()
+    services["session"].expire_all()
     unchanged = services['cost_entry_query'].get_entry(item.id)
     assert unchanged.status.value == "submitted"
 
@@ -194,7 +194,7 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
     with pytest.raises(RuntimeError, match="simulated audit failure"):
         approvals.approve_and_apply(request.id, note="Should roll back")
 
-    services['cost_entry_query']._session.expire_all()
+    services["session"].expire_all()
     unchanged = services['cost_entry_query'].get_entry(item.id)
     assert unchanged.status.value == "submitted"
 

@@ -1,12 +1,8 @@
-"""PM-owned port for pulling Procurement commitment and receipt-accrual
-financial-source facts from Inventory/Procurement.
+"""Unwired, future-facing Procurement financial-source query boundary.
 
-Mirrors `gateway.task.reservation.TaskReservationGateway`, but currently has zero
-implementations: Inventory/Procurement delivers these facts exclusively through the
-push-based outbox/inbox event path (see `ProcurementFinancialDispatcher` and
-`application.financials.integration.procurement_consumer`), not through this pull contract.
-Retained as a declared, forward-looking alternative -- not wired into any runtime
-composition today.
+PM currently consumes neutral Procurement facts through its durable event/inbox
+path, not this pull contract. Procurement operations will belong to a future
+Procurement module. This declaration is not a second production truth path.
 """
 
 from __future__ import annotations

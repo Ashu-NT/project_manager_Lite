@@ -1,16 +1,8 @@
-"""PM-owned port for the task-material-reservation capability Inventory/
-Procurement provides.
+"""PM-owned boundary for a future Inventory reservation capability.
 
-Mirrors the `ProcurementFinancialSourceProvider` pattern
-(`gateway/procurement/financial_source.py`): PM defines the shape it needs, and
-Inventory/Procurement's `ReservationService` already satisfies it structurally (same
-method names, same keyword arguments) -- Python's `Protocol` typing is structural, not
-nominal, so no import in either direction is required.
-
-Reservation records themselves (`StockReservation`) remain Inventory-owned
-and are deliberately not re-typed here -- PM's existing reservation
-serializer reads them defensively via `getattr`, the correct way to consume
-a record shape it does not own.
+Inventory will own reservation operations and records. PM declares only the
+capability shape consumed by its Tasks adapter; no operational Inventory or
+Procurement implementation is introduced by this gateway.
 """
 
 from __future__ import annotations
@@ -20,12 +12,7 @@ from typing import Any, Protocol
 
 
 class TaskReservationGateway(Protocol):
-    """What PM's desktop Tasks API needs from a stock-reservation service.
-
-    Matches `inventory_procurement.application.inventory.reservation_service
-    .ReservationService.list_reservations`/`.create_reservation` exactly --
-    intentionally, since that class already implements this shape and needs
-    no change."""
+    """Optional reservation capability supplied to PM by composition."""
 
     def list_reservations(
         self,
