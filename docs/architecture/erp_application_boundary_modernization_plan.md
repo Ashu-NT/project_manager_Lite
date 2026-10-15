@@ -935,8 +935,8 @@ deleted after test callers migrated. ResourceService remains for active
 catalog reads and commands. The focused Resource/context/composition slice
 passed 52 tests; the guard/domain/desktop slice passed 26 tests. Scoped
 Mypy and Ruff F/I passed. Pylance/Pyright CLI is not installed in the
-environment, so editor diagnostics were not independently run. A4 remains
-open: TaskService still has 45 methods and 16 constructor inputs, and
+environment, so editor diagnostics were not independently run. At this checkpoint A4 remained
+open: TaskService still had 45 methods and 16 constructor inputs, and
 Portfolio/other consumers have not yet been migrated to narrow capabilities.
 The PostgreSQL security slice was invoked but all 14 tests skipped because
 the required live test database was not configured for this run; it is not
@@ -946,9 +946,11 @@ claimed as fresh RLS evidence for this cut.
 the PM-owned application service families, not Platform services consumed by
 PM. A service is not a defect merely because it remains a service: retain
 actual orchestration, policy, calculation, and transaction coordination.
-The open rows below are implementation work, not closure claims.
+This is a historical checkpoint, superseded by the completed PM named-service
+inventory and final verification below. Its open rows described implementation
+work at that time, not the current production architecture.
 
-| PM family | Current boundary | A4 disposition |
+| PM family | Boundary at this checkpoint | Disposition at this checkpoint |
 | --- | --- | --- |
 | Projects | `ProjectService` commands and two still-used lookups; `ProjectQueryHandler` directly exposed | Keep guarded command facade while active callers need it; migrate remaining lookups only with their scope/module checks, then remove dead forwards. |
 | Tasks | `TaskService` remains 45 methods/16 constructor inputs; composed command/query capabilities are already separately exposed | Continue caller-by-caller removal of ordinary delegates. Keep approval-participant, scheduling-constraint, resource-leveling, and pending-event/UoW operations until shared-transaction equivalence is proven. |
@@ -964,11 +966,12 @@ The open rows below are implementation work, not closure claims.
 | Data import | PM importer coordinates schema, validation, and Project/Task writes through existing capabilities | Retain as an infrastructure adapter/orchestrator; do not bypass feature commands or their module guards. |
 | Finance | Budget, Forecast, Changes, Configuration, Rates, Actuals, Commitments, Planned Cost, Billing, handoff, Finance read/performance/workspace services | Retain separate canonical business authorities and existing governed command/read boundaries. No blanket handler rewrite or second financial formula path. |
 
-The immediate A4 migration backlog is therefore Task ordinary delegates,
+At that checkpoint, the immediate A4 migration backlog was Task ordinary delegates,
 Resource command delegates, Project Resource, Portfolio, and Collaboration.
 Register migration is complete. Closure requires migrated production consumers and removal of
 superseded paths, not just constructing handlers in composition. The other
-families above are explicitly reviewed and intentionally retained.
+families above were explicitly reviewed and initially retained. Their final
+disposition is recorded in the completed inventory below.
 
 **A4 Register command cut (2026-10-13).** PM composition constructs one
 `RegisterLifecycleHandler`, exposes it in a typed `RegisterComposition`, and
@@ -1111,14 +1114,15 @@ This closes the named Platform backlog, not unrelated PM/A4/A5/A6 work.
 No future Accounting/Procurement/Inventory operations or transport framework
 were introduced, and no commit was made by the agent.
 
-## PM Named-Service Capability Cutover: In Progress
+## PM Named-Service Capability Cutover: Complete
 
 The requested PM inventory contains 22 boundaries: Projects and Tasks (2),
 Finance (13 when Forecast generation/versions and Billing profile/preparation
 are counted separately), Resources (4), and Scheduling/baselines (3).
 All named production facades below have been retired. Final integrated
-verification is still in progress; implementation status is not a phase
-closure claim.
+verification passed on 2026-10-15. This closes the named PM handler cutover,
+its Finance DTO regrouping, and the module-owned graph follow-up; it does not
+claim unrelated repository-wide lint-policy cleanup or new product capabilities.
 
 | Existing boundary | Current migration status |
 | --- | --- |
@@ -1200,17 +1204,71 @@ worktree:
 | All affected test files, architecture/schema guards, composition, Project/Resource/Scheduling/Finance contracts and desktop/UI regressions | 672 | 0 | 0 |
 | Live PostgreSQL runtime-role RLS, Finance performance Reader, governed commands, approved-Time posting and activity/history scope | 37 | 0 | 0 |
 
-All 5,982 repository tests collect successfully. The full repository suite was
-not executed. Scoped Ruff F/I and compilation cover all changed Python files;
+At that earlier checkpoint, all 5,982 repository tests collected successfully.
+The full repository suite was not executed. Scoped Ruff F/I and compilation covered all changed Python files;
 Mypy covers all 78 changed production Python files; `git diff --check` is green.
 Standalone Pylance/Pyright remains unavailable. Those earlier checks certified
 the initial seven retired paths only. Their then-open 15 boundaries have now
 been migrated as described in the current inventory; final verification of
 the combined implementation must not reuse the earlier counts as evidence.
 
-PM/A4 remains IN PROGRESS. No Finance business-semantic change, future
-Accounting/Procurement/Inventory operation, additional runtime graph or commit
-is authorized by this progress record.
+PM named-service/A4 cutover is COMPLETE. No Finance business-semantic change,
+future Accounting/Procurement/Inventory operation, additional session/handler
+graph or agent commit was introduced.
+
+### Final Closure Evidence (2026-10-15)
+
+| Final verification scope | Passed | Failed | Skipped |
+| --- | ---: | ---: | ---: |
+| Entire PM backend suite, four isolated file shards plus serial timing files | 1,923 | 0 | 1 |
+| Entire Platform backend suite, four isolated file shards | 1,832 | 0 | 5 |
+| Entire PM QML/controller/presenter/context/route suite | 792 | 0 | 0 |
+| Shared QML primitives and application shell | 367 | 0 | 0 |
+| Architecture and application/module composition | 227 | 0 | 0 |
+| Live PostgreSQL integration, RLS, concurrency, recovery and performance | 250 | 0 | 0 |
+
+Shard coverage was reconciled against collection: all 1,924 PM and 1,837
+Platform cases were included exactly once. The PM skip is the explicitly
+opt-in large-scale workflow (PM_RUN_PERF_TESTS); the five Platform skips
+require the intentionally absent Inventory-owned storeroom scope resolver.
+They are not implemented by PM to make tests pass. Separate PostgreSQL
+10k/50k performance fixtures passed with their original thresholds.
+
+Earlier broad runs exposed obsolete query/session probes, participant facade
+attribute names, desktop fixtures missing governed command injection, an
+incorrect Task lookup capability, and builtin-exception expectations. These
+were migrated to the actual handler/UoW owners without adding compatibility
+attributes or bypassing transactions/authorization. Whitespace-sensitive
+invitation event guards now inspect AST event calls; the Forecast generation
+test has real input evidence rather than skipping any BusinessRuleError.
+
+Two later source-inspection failures were traced to cached line numbers while
+source formatting was in progress. Fresh focused tests passed, and the complete
+frozen-source shard rerun above is green. PostgreSQL and Gantt timing thresholds
+also failed under competing test load; isolated final reruns passed without
+raising limits or changing financial/authorization behavior.
+
+PostgreSQL uses the existing reproducible Docker environment, fresh Alembic
+schema, and the non-owner app_runtime role with NOSUPERUSER/NOBYPASSRLS and real
+tenant/organization session context. SQLite remains the fast unit-test backend.
+No PostgreSQL installation, production schema reset, or new module was added.
+
+Mypy passed 729 application/API/composition source files using
+--follow-imports=silent --ignore-missing-imports. Repository-wide Ruff F/I,
+changed-file full configured Ruff rules, Python compilation, changed shared
+QML control lint and git diff --check passed. Standalone Pylance/Pyright was
+not available and is not claimed. The broader repository Ruff caveat is
+recorded below; the full repository test suite was not run.
+
+Production retired-symbol/path searches are clean. TaskService and its
+forwarding facade are gone, rather than reduced to another forwarding layer.
+The module guard and shared Project create/update validation support remain
+intentional mixins; typed CQRS query partitions remain query composition,
+not old operation services. Domain calculators, policies, transaction/UoW
+orchestration and infrastructure import adapters retain their distinct roles.
+No generic command bus, global service locator, dynamic forwarding or second
+financial authority was introduced. Existing user work/commits were preserved;
+the agent made no commit.
 
 ### Current Integration Corrections
 
@@ -1282,6 +1340,14 @@ raise ConfigurationError with code DUPLICATE_RUNTIME_DEPENDENCY instead of
 silently replacing another owner's instance. Regression tests prove identity,
 database-free export and collision rejection.
 
+Quality scope: repository-wide Ruff F/I is clean. The broader configured Ruff
+profile was also run and reports 748 remaining findings (predominantly unused
+unpacked test variables, broad exception handling and date/time policy).
+It is not reported as globally clean. Newly moved DTO exports and empty
+type-checking blocks were corrected; changed files pass the full configured
+rules. Broad historical lint-policy remediation is not a business-handler
+or composition-cutover change.
+
 ### Transport-Neutral Error Contract
 
 Core exceptions remain under core/platform/common/exceptions.py and contain
@@ -1339,5 +1405,7 @@ contract; desktop behavior and existing permissions are unchanged; old
 operation mixins/DTO paths are deleted after caller migration; all affected
 focused, broad, PostgreSQL/RLS, architecture and static gates are green.
 
-This document authorizes no implementation by itself. The team should review
-A1/A2 contract naming and cutover scope before work begins.
+The user approved implementation of the migration gates and the recorded
+follow-up decisions. Completed scope and its verification are recorded above;
+this does not authorize speculative business-semantic changes, a FastAPI
+implementation or future Accounting/Procurement/Inventory operations.
