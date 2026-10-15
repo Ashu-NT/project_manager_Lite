@@ -24,7 +24,7 @@ from src.core.modules.project_management.application.financials.budgets.budget_e
     BudgetStatusChangeType,
     BudgetVersionCreated,
 )
-from src.core.modules.project_management.application.financials.shared.successor_models import (
+from src.core.modules.project_management.application.financials.governance.successors.dto import (
     ApprovedFinancialLineAdjustment,
     ApprovedFinancialSuccessorResult,
 )

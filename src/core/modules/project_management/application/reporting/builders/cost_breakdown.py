@@ -11,12 +11,12 @@ from datetime import date
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
-    CostBreakdownEngine,
-)
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.cost.dto import (
     CostBreakdownRow,
     CostSourceBreakdown,
+)
+from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
+    CostBreakdownEngine,
 )
 from src.core.modules.project_management.application.reporting.builders.access import (
     ReportingAccessPolicy,

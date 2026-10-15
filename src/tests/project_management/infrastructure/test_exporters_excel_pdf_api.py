@@ -13,10 +13,12 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
     ResourceLoadRow,
     TaskVarianceRow,
 )
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.cost.dto import (
     CostBreakdownRow,
     CostSourceBreakdown,
     CostSourceRow,
+)
+from src.core.modules.project_management.application.financials.earned_value.dto import (
     EarnedValueMetrics,
     EvmSeriesPoint,
 )

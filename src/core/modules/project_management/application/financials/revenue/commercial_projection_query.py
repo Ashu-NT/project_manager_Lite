@@ -9,7 +9,7 @@ from decimal import Decimal
 from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostControlTotals,
 )
-from src.core.modules.project_management.application.financials.models.finance_models import (
+from src.core.modules.project_management.application.financials.revenue.dto import (
     ProjectCommercialProjection,
 )
 from src.core.modules.project_management.application.financials.revenue.profitability_calculator import (

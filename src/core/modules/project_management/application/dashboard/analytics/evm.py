@@ -5,7 +5,7 @@ from decimal import Decimal
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     DashboardEVM,
 )
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.earned_value.dto import (
     EarnedValueMetrics,
 )
 from src.core.modules.project_management.contracts.ports.dashboard.dashboard_queries import (

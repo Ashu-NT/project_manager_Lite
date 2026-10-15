@@ -354,9 +354,11 @@ def test_different_organization_project_scoped_hint_is_not_delivered_to_a_scoped
 
 
 def _create_card_and_line(services, **card_kwargs):
-    rate_card_service = services["rate_card_service"]
-    card = rate_card_service.create_rate_card(name=_unique("P22 Card"), **card_kwargs)
-    line = rate_card_service.create_line(
+    commands = services["finance_governance_commands"]
+    card = commands.rate_card(
+        lambda handler: handler.create_rate_card(name=_unique("P22 Card"), **card_kwargs)
+    )
+    line = commands.rate_line(lambda handler: handler.create_line(
         card.id,
         rate_type=RateType.COST,
         unit="HOUR",
@@ -364,7 +366,7 @@ def _create_card_and_line(services, **card_kwargs):
         rate_currency="USD",
         origin=RateLineOrigin.CONFIGURED,
         resource_id=_unique("P22-RES"),
-    )
+    ))
     return card, line
 
 
@@ -377,9 +379,16 @@ def _seed_project(services):
 def test_create_rate_card_produces_exactly_one_list_hint(services):
     hints = _spy_hints(services)
 
-    rate_card_service = services["rate_card_service"]
-    card = rate_card_service.create_rate_card(name=_unique("P22 Org Card"))
+    commands = services["finance_governance_commands"]
 
+    def create_card(handler):
+        card = handler.create_rate_card(name=_unique("P22 Org Card"))
+        assert _rate_card_hints(hints) == [], "invalidation must wait for the boundary commit"
+        return card
+
+    card = commands.rate_card(create_card)
+
+    assert card.id in {item.id for item in services["rate_card_query"].list_rate_cards()}
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
     assert rate_hints[0].scope_code == RATE_CARD_LIST_SCOPE_CODE
@@ -392,10 +401,10 @@ def test_create_project_specific_rate_card_produces_project_scoped_list_hint(ser
     project = _seed_project(services)
     hints = _spy_hints(services)
 
-    rate_card_service = services["rate_card_service"]
-    card = rate_card_service.create_rate_card(
+    commands = services["finance_governance_commands"]
+    card = commands.rate_card(lambda handler: handler.create_rate_card(
         name=_unique("P22 Project Card"), project_id=project.id
-    )
+    ))
 
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
@@ -415,13 +424,15 @@ def test_project_a_specific_deactivation_refreshes_project_a_list_not_project_b(
 
     project_a = _seed_project(services)
     project_b = _seed_project(services)
-    rate_card_service = services["rate_card_service"]
-    card = rate_card_service.create_rate_card(
+    commands = services["finance_governance_commands"]
+    card = commands.rate_card(lambda handler: handler.create_rate_card(
         name=_unique("P22 Project A Card"), project_id=project_a.id
-    )
+    ))
     hints = _spy_hints(services)
 
-    rate_card_service.deactivate_rate_card(card.id, expected_version=card.version)
+    commands.rate_card(
+        lambda handler: handler.deactivate_rate_card(card.id, expected_version=card.version)
+    )
 
     rate_hints = _rate_card_hints(hints)
     list_hint = next(h for h in rate_hints if h.scope_code == RATE_CARD_LIST_SCOPE_CODE)
@@ -443,8 +454,10 @@ def test_deactivate_rate_card_produces_both_hints(services):
     card, _line = _create_card_and_line(services)
     hints = _spy_hints(services)
 
-    rate_card_service = services["rate_card_service"]
-    deactivated = rate_card_service.deactivate_rate_card(card.id, expected_version=card.version)
+    commands = services["finance_governance_commands"]
+    deactivated = commands.rate_card(
+        lambda handler: handler.deactivate_rate_card(card.id, expected_version=card.version)
+    )
 
     assert deactivated.is_active is False
     rate_hints = _rate_card_hints(hints)
@@ -454,13 +467,15 @@ def test_deactivate_rate_card_produces_both_hints(services):
 
 def test_deactivate_rate_card_true_no_op_produces_zero_hints(services):
     card, _line = _create_card_and_line(services)
-    rate_card_service = services["rate_card_service"]
-    deactivated = rate_card_service.deactivate_rate_card(card.id, expected_version=card.version)
+    commands = services["finance_governance_commands"]
+    deactivated = commands.rate_card(
+        lambda handler: handler.deactivate_rate_card(card.id, expected_version=card.version)
+    )
     hints = _spy_hints(services)
 
-    unchanged = rate_card_service.deactivate_rate_card(
+    unchanged = commands.rate_card(lambda handler: handler.deactivate_rate_card(
         deactivated.id, expected_version=deactivated.version
-    )
+    ))
 
     assert unchanged.version == deactivated.version, "true no-op: no synthetic version bump"
     assert _rate_card_hints(hints) == []
@@ -470,11 +485,11 @@ def test_create_line_produces_exactly_one_detail_hint(services):
     card, _line = _create_card_and_line(services)
     hints = _spy_hints(services)
 
-    rate_card_service = services["rate_card_service"]
-    line = rate_card_service.create_line(
+    commands = services["finance_governance_commands"]
+    line = commands.rate_line(lambda handler: handler.create_line(
         card.id, rate_type=RateType.COST, unit="HOUR", rate_amount=Decimal(60),
         rate_currency="USD", resource_id=_unique("P22-RES2"),
-    )
+    ))
 
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
@@ -485,12 +500,12 @@ def test_create_line_produces_exactly_one_detail_hint(services):
 
 def test_update_line_true_no_op_produces_zero_hints(services):
     card, line = _create_card_and_line(services)
-    rate_card_service = services["rate_card_service"]
+    commands = services["finance_governance_commands"]
     hints = _spy_hints(services)
 
-    unchanged = rate_card_service.update_line(
+    unchanged = commands.rate_line(lambda handler: handler.update_line(
         line.id, expected_version=line.version, rate_amount=line.rate_amount,
-    )
+    ))
 
     assert unchanged.version == line.version, "true no-op: no synthetic version bump"
     assert _rate_card_hints(hints) == []
@@ -498,14 +513,18 @@ def test_update_line_true_no_op_produces_zero_hints(services):
 
 def test_update_line_real_change_produces_exactly_one_detail_hint(services):
     card, line = _create_card_and_line(services)
-    rate_card_service = services["rate_card_service"]
+    commands = services["finance_governance_commands"]
     hints = _spy_hints(services)
 
-    updated = rate_card_service.update_line(
+    updated = commands.rate_line(lambda handler: handler.update_line(
         line.id, expected_version=line.version, rate_amount=Decimal(75),
-    )
+    ))
 
     assert updated.rate_amount == Decimal(75)
+    saved_line = next(
+        item for item in services["rate_card_query"].list_lines(card.id) if item.id == line.id
+    )
+    assert saved_line.rate_amount == Decimal(75)
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
     assert rate_hints[0].scope_code == RATE_CARD_DETAIL_SCOPE_CODE
@@ -514,10 +533,12 @@ def test_update_line_real_change_produces_exactly_one_detail_hint(services):
 
 def test_deactivate_line_produces_exactly_one_detail_hint(services):
     card, line = _create_card_and_line(services)
-    rate_card_service = services["rate_card_service"]
+    commands = services["finance_governance_commands"]
     hints = _spy_hints(services)
 
-    deactivated = rate_card_service.deactivate_line(line.id, expected_version=line.version)
+    deactivated = commands.rate_line(
+        lambda handler: handler.deactivate_line(line.id, expected_version=line.version)
+    )
 
     assert deactivated.is_active is False
     rate_hints = _rate_card_hints(hints)
@@ -527,13 +548,15 @@ def test_deactivate_line_produces_exactly_one_detail_hint(services):
 
 def test_deactivate_line_true_no_op_produces_zero_hints(services):
     card, line = _create_card_and_line(services)
-    rate_card_service = services["rate_card_service"]
-    deactivated = rate_card_service.deactivate_line(line.id, expected_version=line.version)
+    commands = services["finance_governance_commands"]
+    deactivated = commands.rate_line(
+        lambda handler: handler.deactivate_line(line.id, expected_version=line.version)
+    )
     hints = _spy_hints(services)
 
-    unchanged = rate_card_service.deactivate_line(
+    unchanged = commands.rate_line(lambda handler: handler.deactivate_line(
         deactivated.id, expected_version=deactivated.version
-    )
+    ))
 
     assert unchanged.version == deactivated.version
     assert _rate_card_hints(hints) == []
@@ -554,7 +577,9 @@ def test_rate_card_uses_the_canonical_finance_governance_unit_of_work(services):
 
     type(commands._uow_factory).create = _spy_create
     try:
-        services["rate_card_service"].create_rate_card(name=_unique("P22 UoW Card"))
+        commands.rate_card(
+            lambda handler: handler.create_rate_card(name=_unique("P22 UoW Card"))
+        )
     finally:
         type(commands._uow_factory).create = original_create
 

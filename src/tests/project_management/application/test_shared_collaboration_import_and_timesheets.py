@@ -14,7 +14,11 @@ from src.core.platform.application.master_data.employee.dto import (
 from src.core.platform.application.master_data.site.dto import (
     SiteCreateCommand,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    UnsupportedOperationError,
+    ValidationError,
+)
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
@@ -314,8 +318,9 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
             ),
             encoding="utf-8",
         )
-        with pytest.raises(ValueError, match="Unsupported import type: costs"):
+        with pytest.raises(UnsupportedOperationError, match="Unsupported import type: costs") as caught:
             importer.import_csv("costs", tmp / "costs.csv")
+        assert caught.value.code == "IMPORT_TYPE_UNSUPPORTED"
 
         (tmp / "projects_update.csv").write_text(
             "\n".join(

@@ -15,6 +15,7 @@ import pytest
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def _desktop_api(services):
@@ -85,8 +86,9 @@ class TestApply:
         api = _desktop_api(services)
         project = services['project_create'].create_project("Desktop API Leveling No Preview", "")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(BusinessRuleError, match="Preview resource leveling before applying it") as caught:
             api.apply_resource_leveling(project.id)
+        assert caught.value.code == "LEVELING_PREVIEW_REQUIRED"
 
     def test_apply_consumes_the_cached_proposal_so_a_second_apply_without_a_new_preview_raises(self, services):
         api = _desktop_api(services)
@@ -96,5 +98,6 @@ class TestApply:
 
         api.apply_resource_leveling(project.id)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(BusinessRuleError, match="Preview resource leveling before applying it") as caught:
             api.apply_resource_leveling(project.id)
+        assert caught.value.code == "LEVELING_PREVIEW_REQUIRED"

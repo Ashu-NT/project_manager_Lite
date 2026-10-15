@@ -679,7 +679,7 @@ def test_budget_approval_uses_one_immutable_command_result_for_both_outcomes() -
 def test_guard_detectors_reject_deliberately_broken_in_memory_examples() -> None:
     bad_contract = """
 from typing import Protocol
-from src.core.modules.project_management.application.financials.models.finance_models import FinanceSnapshot
+from src.core.modules.project_management.application.financials.dto import FinanceSnapshot
 class BrokenReader(Protocol):
     def read(self, *, tenant_id: str) -> FinanceSnapshot: ...
 """

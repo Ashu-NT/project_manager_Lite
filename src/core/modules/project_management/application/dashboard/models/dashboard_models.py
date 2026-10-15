@@ -12,7 +12,7 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
     ProjectKPI,
     ResourceLoadRow,
 )
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.cost.dto import (
     CostSourceBreakdown,
 )
 from src.core.modules.project_management.application.risk import (

@@ -10,7 +10,7 @@ from src.core.modules.project_management.application.dashboard.analytics.evm imp
 from src.core.modules.project_management.application.dashboard.widgets.professional import (
     DashboardScheduleHealthWidget,
 )
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.earned_value.dto import (
     EarnedValueMetrics,
 )
 

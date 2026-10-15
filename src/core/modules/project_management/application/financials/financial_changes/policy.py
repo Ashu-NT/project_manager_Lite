@@ -14,7 +14,7 @@ from src.core.modules.project_management.application.financials.financial_change
     FinancialChangeChanged,
     FinancialChangeEventType,
 )
-from src.core.modules.project_management.application.financials.shared.successor_models import (
+from src.core.modules.project_management.application.financials.governance.successors.dto import (
     ApprovedFinancialLineAdjustment,
     ApprovedFinancialSuccessorResult,
 )

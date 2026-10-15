@@ -15,12 +15,12 @@ from src.core.modules.project_management.application.financials.earned_value.can
     CanonicalEarnedValueCalculator,
     EvmCalculationInput,
 )
-from src.core.modules.project_management.application.financials.earned_value.evm_series import (
-    EarnedValueSeriesCalculator,
-)
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.earned_value.dto import (
     EarnedValueMetrics,
     EvmSeriesPoint,
+)
+from src.core.modules.project_management.application.financials.earned_value.evm_series import (
+    EarnedValueSeriesCalculator,
 )
 from src.core.modules.project_management.application.reporting.builders.access import (
     ReportingAccessPolicy,

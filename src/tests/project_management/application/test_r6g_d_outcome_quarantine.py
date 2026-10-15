@@ -6,6 +6,7 @@ import pytest
 from src.core.modules.project_management.application.financials.accounting.outcome_quarantine import (
     AccountingOutcomeQuarantine,
 )
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.contract.port.integration.accounting_outcomes import (
     AuthenticatedAccountingConnection,
     IngressRejectionReason,
@@ -76,5 +77,8 @@ def test_quarantine_is_caller_transactional_and_scoped(request):
 def test_provider_error_text_cannot_be_a_reason(request):
     _, _, _, repository = request.getfixturevalue("delivery_store")
     service = AccountingOutcomeQuarantine(repository=repository, clock=_Clock())
-    with pytest.raises(ValueError, match="typed"):
+    with pytest.raises(ValidationError, match="typed") as caught:
         service.record(_ingress(), reason="api-secret=private")
+    assert caught.value.code == "ACCOUNTING_QUARANTINE_REASON_INVALID"
+    assert str(caught.value) == "A typed Accounting quarantine reason is required."
+    assert "api-secret=private" not in str(caught.value)

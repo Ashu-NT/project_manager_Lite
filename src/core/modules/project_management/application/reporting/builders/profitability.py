@@ -7,11 +7,11 @@ from datetime import UTC, date, datetime
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.models.finance_models import (
-    ProjectCommercialProjection,
-)
 from src.core.modules.project_management.application.financials.revenue.commercial_projection_query import (
     CommercialProjectionQuery,
+)
+from src.core.modules.project_management.application.financials.revenue.dto import (
+    ProjectCommercialProjection,
 )
 from src.core.modules.project_management.application.reporting.builders.access import (
     ReportingAccessPolicy,

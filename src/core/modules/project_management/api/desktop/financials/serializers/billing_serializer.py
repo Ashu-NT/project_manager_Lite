@@ -7,7 +7,7 @@ from src.core.modules.project_management.api.desktop.financials.models.billing i
     FinancialBillingScheduleLineDto,
     FinancialCommercialProjectionDto,
 )
-from src.core.modules.project_management.application.financials.models.finance_models import (
+from src.core.modules.project_management.application.financials.revenue.dto import (
     ProjectCommercialProjection,
 )
 from src.core.modules.project_management.domain.financials.billing_preparation import (

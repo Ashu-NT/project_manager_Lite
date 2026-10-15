@@ -57,6 +57,8 @@ import tempfile
 import time
 from pathlib import Path
 
+import pytest
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QCoreApplication
@@ -89,15 +91,14 @@ Window {
 
         property bool toolbarShown: true
 
-        Rectangle {
+        PINNED_TOOLBAR_TYPE {
             id: pinnedToolbar
             objectName: "pinnedToolbar"
-            property bool detailPagePinned: true
+            PINNED_TOOLBAR_PROPERTY
             visible: page.toolbarShown
             height: visible ? implicitHeight : 0
             width: parent ? parent.width : page.width
             implicitHeight: 42
-            color: "red"
         }
 
         Rectangle {
@@ -118,9 +119,18 @@ def _settle(app, *, seconds: float = 1.0) -> None:
         time.sleep(0.02)
 
 
-def test_pinned_toolbar_visibility_and_width_survive_section_switches(qapp) -> None:
+@pytest.mark.parametrize("toolbar_type", ["Rectangle", "AppWidgets.DetailTabBar"])
+def test_pinned_toolbar_visibility_and_width_survive_section_switches(qapp, toolbar_type) -> None:
     qml_path = Path(tempfile.mktemp(suffix=".qml"))
-    qml_path.write_text(_PROBE_QML, encoding="utf-8")
+    qml_path.write_text(
+        _PROBE_QML.replace("PINNED_TOOLBAR_TYPE", toolbar_type).replace(
+            "PINNED_TOOLBAR_PROPERTY",
+            "property bool detailPagePinned: true"
+            if toolbar_type == "Rectangle"
+            else "detailPagePinned: true",
+        ),
+        encoding="utf-8",
+    )
 
     engine = create_qml_engine()
     try:

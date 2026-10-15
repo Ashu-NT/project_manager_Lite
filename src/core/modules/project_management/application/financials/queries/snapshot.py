@@ -22,7 +22,7 @@ from src.core.modules.project_management.application.financials.cost.engines.lab
 from src.core.modules.project_management.application.financials.cost.engines.project_finance_ledger import (
     build_project_finance_ledger_rows,
 )
-from src.core.modules.project_management.application.financials.models.finance_models import (
+from src.core.modules.project_management.application.financials.dto import (
     FinancePeriodRow,
     FinanceReconciliation,
     FinanceSnapshot,

@@ -23,13 +23,6 @@ from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 from src.ui_qml.shell.qml_registry import build_qml_route_registry
 
-OUT_DIR = Path(
-    os.environ.get(
-        "VISUAL_QA_OUT_DIR",
-        r"C:\Users\ashu\AppData\Local\Temp\claude\C--Users-ashu-Desktop-PersonalProjects-project-manager-Lite\56b4eb6f-df78-4d92-8f14-a6dc0a538ab0\scratchpad\visual_qa",
-    )
-)
-
 SIZES = {
     "1600x1000": (1600, 1000),
     "1366x768": (1366, 768),
@@ -84,8 +77,10 @@ def _build_shell(services, *, theme_mode: str):
 
 
 @pytest.mark.parametrize("theme_mode", ["light", "dark"])
-def test_capture_navigation_shell_screenshots(qapp, services, theme_mode) -> None:
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+def test_capture_navigation_shell_screenshots(qapp, services, theme_mode, tmp_path) -> None:
+    configured_output = os.environ.get("VISUAL_QA_OUT_DIR")
+    output_dir = Path(configured_output) if configured_output else tmp_path / "visual_qa"
+    output_dir.mkdir(parents=True, exist_ok=True)
     messages: list[str] = []
     previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
 
@@ -101,31 +96,31 @@ def test_capture_navigation_shell_screenshots(qapp, services, theme_mode) -> Non
             assert item is not None
 
             # -- Overview: global sidebar only ---------------------------
-            saved = _grab(qapp, item, OUT_DIR / f"overview_{theme_mode}_{size_name}.png")
+            saved = _grab(qapp, item, output_dir / f"overview_{theme_mode}_{size_name}.png")
             assert saved, f"overview_{theme_mode}_{size_name} failed to save"
 
             # -- Platform: global + context sidebar, Overview -------------
             shell_context.selectRoute("platform.workspace")
             _settle(qapp)
-            saved = _grab(qapp, item, OUT_DIR / f"platform_overview_{theme_mode}_{size_name}.png")
+            saved = _grab(qapp, item, output_dir / f"platform_overview_{theme_mode}_{size_name}.png")
             assert saved, f"platform_overview_{theme_mode}_{size_name} failed to save"
 
             # -- Platform: a grouped child destination --------------------
             platform_catalog.selectDestination("sites")
             _settle(qapp)
-            saved = _grab(qapp, item, OUT_DIR / f"platform_sites_{theme_mode}_{size_name}.png")
+            saved = _grab(qapp, item, output_dir / f"platform_sites_{theme_mode}_{size_name}.png")
             assert saved, f"platform_sites_{theme_mode}_{size_name} failed to save"
 
             # -- Project Management: global + context sidebar, Overview ---
             shell_context.selectRoute("project_management.workspace")
             _settle(qapp)
-            saved = _grab(qapp, item, OUT_DIR / f"pm_overview_{theme_mode}_{size_name}.png")
+            saved = _grab(qapp, item, output_dir / f"pm_overview_{theme_mode}_{size_name}.png")
             assert saved, f"pm_overview_{theme_mode}_{size_name} failed to save"
 
             # -- Project Management: a grouped child destination -----------
             pm_catalog.pmNavigation.selectWorkspace("projects")
             _settle(qapp)
-            saved = _grab(qapp, item, OUT_DIR / f"pm_projects_{theme_mode}_{size_name}.png")
+            saved = _grab(qapp, item, output_dir / f"pm_projects_{theme_mode}_{size_name}.png")
             assert saved, f"pm_projects_{theme_mode}_{size_name} failed to save"
 
         relevant = [

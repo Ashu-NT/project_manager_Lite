@@ -79,9 +79,7 @@ def _do_bulk_delete(controller, ids: list[str]) -> None:
 
 
 def _do_bulk_set_status(controller, ids: list[str], status: str) -> None:
-    # One backend transaction for the whole selection -- see
-    # ProjectService.bulk_set_status() for why -- instead of the N separate
-    # transactions calling set_project_status() once per id would cost.
+    # The status handler applies the whole selection in one transaction.
     controller._projects_workspace_presenter.bulk_set_project_status(ids, status)
 
 

@@ -8,7 +8,11 @@ import pytest
 from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
     SqlAlchemyTaskRepository,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    UnsupportedOperationError,
+    ValidationError,
+)
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
     TimeEntryORM,
 )
@@ -124,16 +128,18 @@ def test_legacy_combined_cost_import_is_rejected_after_command_cutover(services,
         ],
     )
 
-    with pytest.raises(ValueError, match="Unsupported import type: costs"):
+    with pytest.raises(UnsupportedOperationError, match="Unsupported import type: costs") as caught:
         importer.import_csv("costs", csv_path)
+    assert caught.value.code == "IMPORT_TYPE_UNSUPPORTED"
 
 
 def test_import_csv_rejects_unknown_entity_types(services, workspace_dir):
     importer = services["data_import_service"]
     csv_path = _write_csv(workspace_dir, "noop.csv", ["name", "placeholder"])
 
-    with pytest.raises(ValueError, match="Unsupported import type"):
+    with pytest.raises(UnsupportedOperationError, match="Unsupported import type") as caught:
         importer.import_csv("vendors", csv_path)
+    assert caught.value.code == "IMPORT_TYPE_UNSUPPORTED"
 
 
 def test_initialize_timesheet_is_idempotent_for_legacy_hours(services):

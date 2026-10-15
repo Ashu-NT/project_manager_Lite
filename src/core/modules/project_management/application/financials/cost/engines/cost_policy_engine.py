@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from src.core.modules.project_management.application.financials.models.finance_models import (
+from src.core.modules.project_management.application.financials.cost.dto import (
     CostSourceBreakdown,
     CostSourceRow,
     LaborDetailsResult,

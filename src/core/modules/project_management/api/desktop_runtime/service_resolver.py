@@ -28,7 +28,7 @@ from src.core.modules.project_management.application.financials import (
     ProjectFinancePerformanceQuery,
     ProjectFinanceWorkspaceQuery,
 )
-from src.core.modules.project_management.application.financials.governance import (
+from src.core.modules.project_management.application.financials.governance.command_boundary import (
     FinanceGovernanceCommandBoundary,
 )
 from src.core.modules.project_management.application.portfolio.commands import (

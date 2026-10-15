@@ -12,7 +12,7 @@ from src.core.modules.project_management.application.financials import (
     FinanceSnapshot,
     ProjectFinanceLedgerRow,
 )
-from src.core.modules.project_management.application.financials.models import (
+from src.core.modules.project_management.application.financials.cost.dto import (
     CostSourceBreakdown,
 )
 

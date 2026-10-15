@@ -16,7 +16,7 @@ from src.core.modules.project_management.application.financials.cost.entries.com
     ProjectCostEntryPostingCommandHandler,
     ProjectCostEntryReviewCommandHandler,
 )
-from src.core.modules.project_management.application.financials.governance import (
+from src.core.modules.project_management.application.financials.governance.command_boundary import (
     FinanceGovernanceCommandBoundary,
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (

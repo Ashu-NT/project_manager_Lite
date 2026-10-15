@@ -89,7 +89,7 @@ class _QuickActionCandidate:
 # module-accessibility prerequisite (if any), and an existing, distinct,
 # registered shell route -- never invented. "Create project" is the only
 # candidate with all three verified as a distinct destination:
-#   permission: ProjectService.create_project -> require_permission(...,
+#   permission: ProjectCreateHandler.create_project -> require_permission(...,
 #       "project.manage") (projects/commands/create.py)
 #   module: gated on "project_management" via accessible_module_codes
 #   route: "project_management.projects", a real registered QmlRoute

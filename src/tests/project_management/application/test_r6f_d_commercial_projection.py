@@ -13,11 +13,11 @@ from src.core.modules.project_management.api.desktop.financials.models.billing i
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
     serialize_commercial_projection,
 )
-from src.core.modules.project_management.application.financials.models.finance_models import (
-    ProjectCommercialProjection,
-)
 from src.core.modules.project_management.application.financials.revenue.commercial_projection_query import (
     CommercialProjectionQuery,
+)
+from src.core.modules.project_management.application.financials.revenue.dto import (
+    ProjectCommercialProjection,
 )
 from src.core.modules.project_management.application.financials.revenue.profitability_calculator import (
     ProfitabilityInputs,

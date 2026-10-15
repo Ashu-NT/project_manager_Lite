@@ -24,6 +24,7 @@ def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"],
         cost_entry_query=services['cost_entry_query'],
+        finance_governance_commands=services["finance_governance_commands"],
     )
 
 

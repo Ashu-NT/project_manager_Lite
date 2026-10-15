@@ -10,12 +10,12 @@ from datetime import date
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
-    LaborCostEngine,
-)
-from src.core.modules.project_management.application.financials.models.finance_models import (
+from src.core.modules.project_management.application.financials.cost.dto import (
     LaborDetailsResult,
     LaborResourceRow,
+)
+from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
+    LaborCostEngine,
 )
 from src.core.modules.project_management.application.reporting.builders.access import (
     ReportingAccessPolicy,

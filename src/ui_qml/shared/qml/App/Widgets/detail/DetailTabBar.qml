@@ -8,6 +8,7 @@ Item {
 
     property var tabs: []
     property int currentIndex: 0
+    property bool detailPagePinned: false
 
     signal tabSelected(int index)
 

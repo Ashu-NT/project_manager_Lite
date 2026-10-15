@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from src.core.modules.project_management.application.financials.models.finance_models import (
+from src.core.modules.project_management.application.financials.cost.dto import (
     LaborAssignmentRow,
     LaborDetailsResult,
     LaborResourceRow,

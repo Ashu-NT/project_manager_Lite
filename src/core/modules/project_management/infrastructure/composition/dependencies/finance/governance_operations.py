@@ -32,7 +32,7 @@ from src.core.modules.project_management.application.financials.forecasts.comman
     ForecastLifecycleCommands,
     ForecastLineCommands,
 )
-from src.core.modules.project_management.application.financials.governance import (
+from src.core.modules.project_management.application.financials.governance.command_boundary import (
     FinanceGovernanceOperations,
 )
 from src.core.modules.project_management.application.financials.invoicing.commands import (

@@ -13,7 +13,7 @@ from src.core.modules.project_management.application.common.clock import SystemC
 from src.core.modules.project_management.application.financials.accounting.commands.request import (
     AccountingHandoffRequestCommandHandler,
 )
-from src.core.modules.project_management.application.financials.governance import (
+from src.core.modules.project_management.application.financials.governance.command_boundary import (
     FinanceGovernanceCommandBoundary,
 )
 from src.core.modules.project_management.application.financials.invoicing.evidence_builder import (

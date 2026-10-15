@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 
-from PySide6.QtCore import QByteArray, QSettings
+from PySide6.QtCore import QByteArray, QObject, QSettings, Signal
 
 import main_qt
 import src.ui_qml.modules.project_management.controllers.common.workspace_controller_base as pm_workspace_controller_base
@@ -239,8 +239,11 @@ def test_main_qt_loads_theme_from_settings_before_qml_shell(repo_workspace, serv
 
     calls: list[tuple[str, object, object]] = []
 
-    class _FakeApp:
+    class _FakeApp(QObject):
+        aboutToQuit = Signal()
+
         def __init__(self, _argv):
+            super().__init__()
             calls.append(("app", None, None))
 
         def setWindowIcon(self, _icon):
@@ -251,6 +254,7 @@ def test_main_qt_loads_theme_from_settings_before_qml_shell(repo_workspace, serv
 
         def exec(self):
             calls.append(("exec", None, None))
+            self.aboutToQuit.emit()
             return 0
 
     class _FakeSessionController:
@@ -303,8 +307,11 @@ def test_main_qt_skip_login_does_not_bypass_unauthenticated_services(
     runtime_services = dict(anonymous_services)
     runtime_services["desktop_api_registry"] = object()
 
-    class _FakeApp:
+    class _FakeApp(QObject):
+        aboutToQuit = Signal()
+
         def __init__(self, _argv):
+            super().__init__()
             calls.append(("app", None, None))
 
         def setWindowIcon(self, _icon):
@@ -315,6 +322,7 @@ def test_main_qt_skip_login_does_not_bypass_unauthenticated_services(
 
         def exec(self):
             calls.append(("exec", None, None))
+            self.aboutToQuit.emit()
             return 0
 
     def _fake_prompt_for_login_qml(*, services, user_session):

@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.financials.governance import (
+from src.core.modules.project_management.application.financials.governance.command_boundary import (
     FinanceGovernanceCommandBoundary,
     FinanceGovernanceOperations,
 )
