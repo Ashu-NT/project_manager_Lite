@@ -232,7 +232,7 @@ def test_cross_tenant_context_cannot_read_another_tenants_approval_request(tmp_p
 
     with factory_b.create(context=_context("as-tenant-b")) as uow_b:
         assert uow_b.approvals.get(request.id) is None
-        assert uow_b.services["approval_queries"].list_by_status() == []
+        assert uow_b.approvals.list_by_status() == []
 
     with factory_a.create(context=_context("as-tenant-a-verify")) as uow_a_verify:
         reloaded = uow_a_verify.approvals.get(request.id)

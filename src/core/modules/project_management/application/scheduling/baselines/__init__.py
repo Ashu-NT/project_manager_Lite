@@ -12,9 +12,9 @@ from src.core.modules.project_management.application.scheduling.baselines.querie
 )
 
 __all__ = [
-    "BaselineComparisonReport",
-    "BaselineComparisonQueryHandler",
-    "BaselineQueryHandler",
     "BaselineCommandHandler",
+    "BaselineComparisonQueryHandler",
+    "BaselineComparisonReport",
+    "BaselineQueryHandler",
     "TaskVariance",
 ]

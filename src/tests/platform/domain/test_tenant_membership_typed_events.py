@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import ast
 import inspect
-from dataclasses import fields, is_dataclass
+import textwrap
+from dataclasses import FrozenInstanceError, fields, is_dataclass
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -502,7 +504,7 @@ def test_domain_event_context_is_passed_separately_and_never_duplicated_onto_the
     services,
 ):
     recorder = _Recorder(services)
-    _target, accepted = _issue_and_accept(
+    _target, _accepted = _issue_and_accept(
         services, username=_unique_code("p5d2-context")
     )
 
@@ -554,10 +556,9 @@ def test_membership_events_are_frozen_slotted_kw_only_with_exactly_the_approved_
         instance = event_type(
             membership_id="m", tenant_id="t", user_id="u", occurred_at=datetime.now(UTC)
         )
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             instance.membership_id = "changed"  # frozen
-        with pytest.raises(AttributeError):
-            instance.__dict__  # slots -- no instance __dict__ exists
+        assert not hasattr(instance, "__dict__")
 
 
 def test_membership_events_never_carry_forbidden_fields():
@@ -590,6 +591,22 @@ def test_no_disapproved_membership_event_names_exist_anywhere_in_the_events_modu
         assert forbidden not in source
 
 
+def _recorded_event_types(handler) -> set[str]:
+    tree = ast.parse(textwrap.dedent(inspect.getsource(handler)))
+    return {
+        node.args[0].func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "uow"
+        and node.func.attr == "record_event"
+        and node.args
+        and isinstance(node.args[0], ast.Call)
+        and isinstance(node.args[0].func, ast.Name)
+    }
+
+
 def test_issue_invitation_source_never_records_activated():
     """`issue_invitation` covers both the fresh-invite AND reinvite (`removed -> invited`)
     branches -- neither may ever record `TenantMembershipActivated` (section 24/25)."""
@@ -597,9 +614,8 @@ def test_issue_invitation_source_never_records_activated():
         TenantInvitationCommandHandler,
     )
 
-    source = inspect.getsource(TenantInvitationCommandHandler.issue_invitation)
-    assert "uow.record_event(TenantInvitationChanged(" in source
-    assert "TenantMembershipActivated" not in source
+    recorded = _recorded_event_types(TenantInvitationCommandHandler.issue_invitation)
+    assert recorded == {"TenantInvitationChanged"}
 
 
 def test_revoke_invitation_source_never_records_a_membership_event():
@@ -607,6 +623,5 @@ def test_revoke_invitation_source_never_records_a_membership_event():
         TenantInvitationCommandHandler,
     )
 
-    source = inspect.getsource(TenantInvitationCommandHandler.revoke_invitation)
-    assert "uow.record_event(TenantInvitationChanged(" in source
-    assert "TenantMembershipActivated" not in source
+    recorded = _recorded_event_types(TenantInvitationCommandHandler.revoke_invitation)
+    assert recorded == {"TenantInvitationChanged"}

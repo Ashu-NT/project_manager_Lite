@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -66,6 +67,15 @@ class GlobalOverviewServiceBundle:
     global_overview_service: GlobalOverviewService
     global_overview_desktop_api: GlobalOverviewDesktopApi
     platform_notification_desktop_api: PlatformNotificationDesktopApi
+
+    def runtime_bindings(self) -> dict[str, Any]:
+        """Export existing composed capabilities for application runtime assembly."""
+        return {
+            'action_center_service': self.action_center_service,
+            'global_overview_service': self.global_overview_service,
+            'global_overview_desktop_api': self.global_overview_desktop_api,
+            'platform_notification_desktop_api': self.platform_notification_desktop_api,
+        }
 
 
 def approval_action_target_scope():

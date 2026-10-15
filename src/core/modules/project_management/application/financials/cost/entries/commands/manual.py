@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -73,9 +72,6 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.domain.finance import Money
 from src.core.shared.time.clock import CalendarClock
-
-if TYPE_CHECKING:
-    pass
 
 
 class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin):

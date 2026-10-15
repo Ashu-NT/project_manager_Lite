@@ -310,7 +310,7 @@ def test_approved_events_two_targets_never_coalesce_but_repeats_of_each_do():
 
 
 def test_create_forecast_produces_exactly_one_planning_hint(services):
-    project, code = _seed_project_and_cost_code(services)
+    project, _code = _seed_project_and_cost_code(services)
     hints = _spy_hints(services)
 
     forecast = services["finance_governance_commands"].forecast_lifecycle(
@@ -437,24 +437,25 @@ def test_generate_draft_produces_exactly_one_planning_hint(services):
     project, code = _seed_project_and_cost_code(services)
     hints = _spy_hints(services)
 
-    from src.core.platform.common.exceptions import BusinessRuleError
+    from src.core.modules.project_management.application.financials.forecasts.generation_models import (
+        ManualEtcEstimate,
+    )
 
-    try:
-        services["finance_governance_commands"].forecast_generation(
-            lambda handler: handler.generate_draft(
-                project.id,
-                name="Auto",
-                as_of_date=date(2026, 8, 11),
-                generated_by="admin",
-            )
+    services["finance_governance_commands"].forecast_generation(
+        lambda handler: handler.generate_draft(
+            project.id,
+            name="Generated draft",
+            as_of_date=date(2026, 8, 11),
+            generated_by="admin",
+            manual_estimates=(
+                ManualEtcEstimate(
+                    cost_code_id=code.id,
+                    amount=Decimal("10.00"),
+                    description="Remaining manual ETC",
+                ),
+            ),
         )
-    except BusinessRuleError:
-        # No financial sources to snapshot in this minimal fixture -- the point of this test
-        # is that IF generation succeeds, it produces exactly one planning hint; a source-less
-        # fixture is still a meaningful proof that generation never touches approved_basis.
-        pytest.skip(
-            "no financial sources available to generate a draft in this minimal fixture"
-        )
+    )
 
     forecast_hints = _forecast_hints(hints)
     assert len(forecast_hints) == 1
@@ -559,7 +560,7 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
             target_line_id=forecast_line.id,
             expected_change_version=change.row_version,
         )
-    ).impact
+    )
     change = changes.get_change(change.id)
     change = services["finance_governance_commands"].financial_change_submission(
         lambda handler: handler.submit_change(

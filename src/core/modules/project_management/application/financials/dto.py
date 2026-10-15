@@ -108,4 +108,4 @@ class FinanceSnapshot:
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
 
 
-__all__ = ['FinancePeriodRow', 'FinanceAnalyticsRow', 'FinanceReconciliation', 'FinanceSnapshot']
+__all__ = ['FinanceAnalyticsRow', 'FinancePeriodRow', 'FinanceReconciliation', 'FinanceSnapshot']

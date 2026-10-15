@@ -425,7 +425,7 @@ class ScheduleChangeImpactQueryHandler:
 
 
 __all__ = [
-    "ScheduleChangeImpactReport",
     "ScheduleChangeImpactQueryHandler",
+    "ScheduleChangeImpactReport",
     "TaskImpact",
 ]

@@ -97,7 +97,7 @@ def test_participant_apply_approves_entry_on_the_supplied_session(services, sess
 
     ProjectCostApprovalParticipant().apply(request, deps)
 
-    approved = deps.cost_entry_service._entry_repo.get(entry.id)
+    approved = deps.cost_entry_commands._entry_repo.get(entry.id)
     assert approved.status == ProjectCostEntryStatus.APPROVED
 
 
@@ -150,17 +150,17 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         deps_a = _deps(services, session_a)
         deps_b = _deps(services, session_b)
 
-        assert deps_a.cost_entry_service._session is session_a
-        assert deps_b.cost_entry_service._session is session_b
-        assert deps_a.cost_entry_service._entry_repo.session is session_a
-        assert deps_b.cost_entry_service._entry_repo.session is session_b
-        assert deps_a.cost_entry_service is not deps_b.cost_entry_service
-        assert deps_a.cost_entry_service._enterprise_audit_service is not (
-            deps_b.cost_entry_service._enterprise_audit_service
+        assert deps_a.cost_entry_commands._session is session_a
+        assert deps_b.cost_entry_commands._session is session_b
+        assert deps_a.cost_entry_commands._entry_repo.session is session_a
+        assert deps_b.cost_entry_commands._entry_repo.session is session_b
+        assert deps_a.cost_entry_commands is not deps_b.cost_entry_commands
+        assert deps_a.cost_entry_commands._enterprise_audit_service is not (
+            deps_b.cost_entry_commands._enterprise_audit_service
         )
-        assert deps_a.cost_entry_service._enterprise_audit_service._session is session_a
-        assert deps_b.cost_entry_service._enterprise_audit_service._session is session_b
-        assert deps_a.cost_entry_service._approval_commands is None, (
+        assert deps_a.cost_entry_commands._enterprise_audit_service._session is session_a
+        assert deps_b.cost_entry_commands._enterprise_audit_service._session is session_b
+        assert deps_a.cost_entry_commands._approval_commands is None, (
             "the apply path must never reach back into ApprovalCommandHandler"
         )
     finally:
@@ -170,6 +170,6 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
 
 def test_dependencies_factory_never_opens_its_own_session(services, session):
     deps = _deps(services, session)
-    assert deps.cost_entry_service._session is session, (
+    assert deps.cost_entry_commands._session is session, (
         "the factory must use the supplied Session, never a fresh one"
     )

@@ -5,4 +5,4 @@ from src.core.modules.project_management.application.scheduling.forecasting.quer
     TaskImpact,
 )
 
-__all__ = ["ScheduleChangeImpactReport", "ScheduleChangeImpactQueryHandler", "TaskImpact"]
+__all__ = ["ScheduleChangeImpactQueryHandler", "ScheduleChangeImpactReport", "TaskImpact"]

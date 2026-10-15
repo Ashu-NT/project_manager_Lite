@@ -37,4 +37,4 @@ from src.core.modules.project_management.application.tasks.task_unit_of_work_sco
     TaskUowScope,
 )
 
-__all__ = ["TaskLookupQueryHandler", "TaskHierarchyQueryHandler", "TaskDeletionCommandHandler", "TaskProgressCommandHandler", "ApprovedScheduleChangeHandler", "TaskHierarchyCommandHandler", "TaskSchedulingConstraintHandler", "ResourceLevelingCommandHandler", "TaskLifecycleCommandHandler", "TaskDependencyCommandHandler", "TaskDependencyQueryHandler", "TaskUowScope"]
+__all__ = ["ApprovedScheduleChangeHandler", "ResourceLevelingCommandHandler", "TaskDeletionCommandHandler", "TaskDependencyCommandHandler", "TaskDependencyQueryHandler", "TaskHierarchyCommandHandler", "TaskHierarchyQueryHandler", "TaskLifecycleCommandHandler", "TaskLookupQueryHandler", "TaskProgressCommandHandler", "TaskSchedulingConstraintHandler", "TaskUowScope"]

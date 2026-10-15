@@ -115,4 +115,4 @@ class LaborDetailsResult:
         return not self.unresolved_rates
 
 
-__all__ = ['ProjectFinanceLedgerRow', 'CostSourceRow', 'CostSourceBreakdown', 'CostBreakdownRow', 'LaborAssignmentRow', 'LaborResourceRow', 'PlannedLaborResourceRow', 'LaborDetailsResult']
+__all__ = ['CostBreakdownRow', 'CostSourceBreakdown', 'CostSourceRow', 'LaborAssignmentRow', 'LaborDetailsResult', 'LaborResourceRow', 'PlannedLaborResourceRow', 'ProjectFinanceLedgerRow']

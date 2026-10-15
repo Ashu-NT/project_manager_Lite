@@ -41,4 +41,4 @@ class EarnedValueMetrics:
     notes: str | None = None
 
 
-__all__ = ['EvmSeriesPoint', 'EarnedValueMetrics']
+__all__ = ['EarnedValueMetrics', 'EvmSeriesPoint']

@@ -233,8 +233,8 @@ class PortfolioResourcePoolQueryHandler:
 
 
 __all__ = [
-    "PortfolioResourcePoolReport",
     "PortfolioResourcePoolQueryHandler",
+    "PortfolioResourcePoolReport",
     "ResourceDemandEntry",
     "ResourcePoolSummary",
 ]

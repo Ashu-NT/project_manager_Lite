@@ -167,4 +167,4 @@ class BaselineComparisonQueryHandler:
         return -(self._calendar.working_days_between(current_date, baseline_date) - 1)
 
 
-__all__ = ["BaselineComparisonReport", "BaselineComparisonQueryHandler", "TaskVariance"]
+__all__ = ["BaselineComparisonQueryHandler", "BaselineComparisonReport", "TaskVariance"]

@@ -1259,6 +1259,29 @@ integration boundaries use the existing module-level gateway package, not
 internal ports. Canonical event payloads remain distinct from synchronous
 gateway capabilities; this grouping does not create a second fact-delivery path.
 
+### Module-Owned Composition Graph
+
+The central ServiceGraph no longer repeats the complete Platform and PM
+dependency inventories. It aggregates the already-built PlatformServiceBundle,
+ProjectManagementServiceBundle, GlobalOverviewServiceBundle and the
+application-owned IntegrationRuntimeBundle, plus the shared Session reference.
+ServiceGraph is reduced from 690 lines/168 fields to 43 lines/5 fields.
+
+Each owner explicitly exports its existing runtime bindings: Platform 82,
+PM 89, integration runtime 7 and Overview 4, plus the application's Session
+binding: the same 183 public runtime dependency names. No handler, repository,
+SQLAlchemy session or graph is reconstructed during export. The existing
+desktop runtime dictionary remains an active adapter input, not a second
+application dependency graph or a handler-owned service locator.
+
+The application container assembles these bundles and cross-module runtimes;
+module-owned bootstrap remains responsible for constructing module handlers.
+There are no flat forwarding properties, dynamic __getattr__, compatibility
+facades or duplicate module graph types. Duplicate exported dependency names
+raise ConfigurationError with code DUPLICATE_RUNTIME_DEPENDENCY instead of
+silently replacing another owner's instance. Regression tests prove identity,
+database-free export and collision rejection.
+
 ### Transport-Neutral Error Contract
 
 Core exceptions remain under core/platform/common/exceptions.py and contain

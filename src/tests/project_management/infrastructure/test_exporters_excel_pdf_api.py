@@ -33,7 +33,7 @@ from src.core.modules.project_management.infrastructure.reporting import (
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
     MAX_PROJECT_FINANCE_LEDGER_EXPORT_ROWS,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
@@ -84,7 +84,7 @@ def _setup_report_project(services):
     assignment = services['task_assignment_commands'].assign_resource(t1.id, res.id, allocation_percent=50.0)
     services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
 
-    baseline = services['baseline_commands'].create_baseline(pid, "Baseline Export", rate_as_of=date.today())
+    baseline = services['baseline_commands'].create_baseline(pid, "Baseline Export", rate_as_of=date(2026, 1, 31))
     services['baseline_commands'].submit_baseline(baseline.id, submitted_by="admin")
     services['baseline_commands'].approve_baseline(baseline.id, approved_by="admin")
     services['task_progress_commands'].update_progress(t1.id, percent_complete=50.0)
@@ -432,10 +432,11 @@ def test_excel_export_omits_finance_sections_without_finance_read(services, tmp_
 
 
 def test_project_finance_ledger_export_page_rejects_unbounded_requests():
-    with pytest.raises(ValueError, match="non-negative"):
+    with pytest.raises(ValidationError, match="non-negative") as caught:
         ProjectFinanceLedgerQuery(offset=-1, limit=1)
+    assert caught.value.code == "FINANCE_LEDGER_OFFSET_INVALID"
 
-    with pytest.raises(ValueError, match="between 1"):
+    with pytest.raises(ValidationError, match="between 1"):
         ProjectFinanceLedgerQuery(
             offset=0,
             limit=MAX_PROJECT_FINANCE_LEDGER_EXPORT_ROWS + 1,

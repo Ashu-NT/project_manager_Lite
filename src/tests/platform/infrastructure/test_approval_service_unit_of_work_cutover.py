@@ -121,8 +121,8 @@ def test_approve_and_apply_shares_one_session_across_approvals_repo_and_particip
 
     def _spy_dependencies_factory(uow_session):
         deps = dependencies_factory(uow_session)
-        seen["deps_session"] = deps.budget_service._session
-        seen["deps_repo_session"] = deps.budget_service._budget_repo.session
+        seen["deps_session"] = deps.budget_commands._session
+        seen["deps_repo_session"] = deps.budget_commands._budget_repo.session
         return deps
 
     services["approval_participants"].apply_handlers["budget.approve"] = (handler, _spy_dependencies_factory)

@@ -43,10 +43,10 @@ from src.core.modules.project_management.application.resources.queries.resource_
 __all__ = [
     "AssignmentSkillValidator",
     "AssignmentValidationResult",
-    "PortfolioResourcePoolReport",
     "PortfolioResourcePoolQueryHandler",
-    "ProjectResourceQueryHandler",
+    "PortfolioResourcePoolReport",
     "ProjectResourceCommandHandler",
+    "ProjectResourceQueryHandler",
     "ResourceCapabilityCommandHandler",
     "ResourceDemandEntry",
     "ResourceLoadEngine",

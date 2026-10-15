@@ -107,95 +107,95 @@ def test_service_graph_builder_wires_all_services(session):
     graph = build_service_graph(session)
 
     assert isinstance(graph, ServiceGraph)
-    assert isinstance(graph.platform_runtime_query, PlatformRuntimeQueryHandler)
-    assert isinstance(graph.module_catalog_service, ModuleCatalogQueryHandler)
-    assert isinstance(graph.module_entitlement_commands, ModuleEntitlementCommandHandler)
-    assert isinstance(graph.time_entry_commands, TimeEntryCommandHandler)
-    assert isinstance(graph.time_entry_queries, TimeEntryQueryHandler)
-    assert isinstance(graph.approval_commands, ApprovalCommandHandler)
-    assert isinstance(graph.approval_queries, ApprovalQueryHandler)
-    assert isinstance(graph.auth.authentication, AuthenticationHandler)
-    assert isinstance(graph.role_assignment_commands, RoleAssignmentHandler)
-    assert isinstance(graph.organization_commands, OrganizationCommandHandler)
-    assert isinstance(graph.organization_lifecycle, OrganizationLifecycleCommandHandler)
-    assert isinstance(graph.organization_query, OrganizationQueryHandler)
-    assert isinstance(graph.document_commands, DocumentCommandHandler)
-    assert isinstance(graph.document_structure_commands, DocumentStructureCommandHandler)
-    assert isinstance(graph.document_query, DocumentQueryHandler)
-    assert isinstance(graph.document_attachment_commands, DocumentAttachmentCommandHandler)
-    assert isinstance(graph.document_attachment_query, DocumentAttachmentQueryHandler)
-    assert isinstance(graph.party_commands, PartyCommandHandler)
-    assert isinstance(graph.party_query, PartyQueryHandler)
-    assert isinstance(graph.department_commands, DepartmentCommandHandler)
-    assert isinstance(graph.department_query, DepartmentQueryHandler)
-    assert isinstance(graph.site_commands, SiteCommandHandler)
-    assert isinstance(graph.site_query, SiteQueryHandler)
-    assert isinstance(graph.employee_commands, EmployeeCommandHandler)
-    assert isinstance(graph.employee_query, EmployeeQueryHandler)
-    assert isinstance(graph.master_data_import_runtime, CsvImportRuntime)
-    assert isinstance(graph.master_data_export_runtime, ExportRuntime)
-    assert isinstance(graph.access_service, AccessControlService)
-    assert isinstance(graph.enterprise_audit_service, EnterpriseAuditService)
-    assert isinstance(graph.collaboration_comment_commands, CollaborationCommentCommandHandler)
-    assert isinstance(graph.collaboration_inbox_query, CollaborationInboxQueryHandler)
-    assert isinstance(graph.project_query, ProjectQueryHandler)
-    assert isinstance(graph.task_lookup_query, TaskLookupQueryHandler)
-    assert isinstance(graph.timesheet_workspace_query, TimesheetWorkspaceQueryHandler)
-    assert isinstance(graph.timesheet_workspace_commands, TimesheetWorkspaceCommandHandler)
-    assert isinstance(graph.timesheet_review_query, TimesheetReviewQueryHandler)
-    assert isinstance(graph.resource_query, ResourceQueryHandler)
-    assert isinstance(graph.resource_master_commands, ResourceMasterCommandHandler)
-    assert isinstance(graph.finance_snapshot_query, FinanceSnapshotQueryHandler)
+    assert isinstance(graph.platform.platform_runtime_query, PlatformRuntimeQueryHandler)
+    assert isinstance(graph.platform.module_catalog_service, ModuleCatalogQueryHandler)
+    assert isinstance(graph.platform.module_entitlement_commands, ModuleEntitlementCommandHandler)
+    assert isinstance(graph.project_management.time_entry_commands, TimeEntryCommandHandler)
+    assert isinstance(graph.project_management.time_entry_queries, TimeEntryQueryHandler)
+    assert isinstance(graph.platform.approval_commands, ApprovalCommandHandler)
+    assert isinstance(graph.platform.approval_queries, ApprovalQueryHandler)
+    assert isinstance(graph.platform.auth.authentication, AuthenticationHandler)
+    assert isinstance(graph.platform.role_assignment_commands, RoleAssignmentHandler)
+    assert isinstance(graph.platform.organization_commands, OrganizationCommandHandler)
+    assert isinstance(graph.platform.organization_lifecycle, OrganizationLifecycleCommandHandler)
+    assert isinstance(graph.platform.organization_query, OrganizationQueryHandler)
+    assert isinstance(graph.platform.document_commands, DocumentCommandHandler)
+    assert isinstance(graph.platform.document_structure_commands, DocumentStructureCommandHandler)
+    assert isinstance(graph.platform.document_query, DocumentQueryHandler)
+    assert isinstance(graph.platform.document_attachment_commands, DocumentAttachmentCommandHandler)
+    assert isinstance(graph.platform.document_attachment_query, DocumentAttachmentQueryHandler)
+    assert isinstance(graph.platform.party_commands, PartyCommandHandler)
+    assert isinstance(graph.platform.party_query, PartyQueryHandler)
+    assert isinstance(graph.platform.department_commands, DepartmentCommandHandler)
+    assert isinstance(graph.platform.department_query, DepartmentQueryHandler)
+    assert isinstance(graph.platform.site_commands, SiteCommandHandler)
+    assert isinstance(graph.platform.site_query, SiteQueryHandler)
+    assert isinstance(graph.platform.employee_commands, EmployeeCommandHandler)
+    assert isinstance(graph.platform.employee_query, EmployeeQueryHandler)
+    assert isinstance(graph.platform.master_data_import_runtime, CsvImportRuntime)
+    assert isinstance(graph.platform.master_data_export_runtime, ExportRuntime)
+    assert isinstance(graph.platform.access_service, AccessControlService)
+    assert isinstance(graph.platform.enterprise_audit_service, EnterpriseAuditService)
+    assert isinstance(graph.project_management.collaboration_comment_commands, CollaborationCommentCommandHandler)
+    assert isinstance(graph.project_management.collaboration_inbox_query, CollaborationInboxQueryHandler)
+    assert isinstance(graph.project_management.project_query, ProjectQueryHandler)
+    assert isinstance(graph.project_management.task_lookup_query, TaskLookupQueryHandler)
+    assert isinstance(graph.project_management.timesheet_workspace_query, TimesheetWorkspaceQueryHandler)
+    assert isinstance(graph.project_management.timesheet_workspace_commands, TimesheetWorkspaceCommandHandler)
+    assert isinstance(graph.project_management.timesheet_review_query, TimesheetReviewQueryHandler)
+    assert isinstance(graph.project_management.resource_query, ResourceQueryHandler)
+    assert isinstance(graph.project_management.resource_master_commands, ResourceMasterCommandHandler)
+    assert isinstance(graph.project_management.finance_snapshot_query, FinanceSnapshotQueryHandler)
     # work_calendar_engine is now GlobalCalendarShim (enterprise-backed)
-    assert hasattr(graph, "work_calendar_engine") and graph.work_calendar_engine is not None
-    assert isinstance(graph.work_calendar_engine, CalendarProtocol)
-    assert isinstance(graph.scheduling_engine, SchedulingEngine)
-    assert isinstance(graph.project_kpi_report, ProjectKpiReportBuilder)
-    assert isinstance(graph.earned_value_report, EarnedValueReportBuilder)
-    assert isinstance(graph.baseline_query, BaselineQueryHandler)
-    assert isinstance(graph.project_dashboard_query, ProjectDashboardQueryHandler)
-    assert isinstance(graph.portfolio_dashboard_query, PortfolioDashboardQueryHandler)
-    assert isinstance(graph.portfolio_intake_commands, PortfolioIntakeCommandHandler)
-    assert isinstance(graph.portfolio_executive_query, PortfolioExecutiveQueryHandler)
-    assert isinstance(graph.register_query, RegisterQueryHandler)
-    assert isinstance(graph.project_resource_query, ProjectResourceQueryHandler)
-    assert isinstance(graph.data_import_service, DataImportService)
+    assert hasattr(graph.project_management, "work_calendar_engine") and graph.project_management.work_calendar_engine is not None
+    assert isinstance(graph.project_management.work_calendar_engine, CalendarProtocol)
+    assert isinstance(graph.project_management.scheduling_engine, SchedulingEngine)
+    assert isinstance(graph.project_management.project_kpi_report, ProjectKpiReportBuilder)
+    assert isinstance(graph.project_management.earned_value_report, EarnedValueReportBuilder)
+    assert isinstance(graph.project_management.baseline_query, BaselineQueryHandler)
+    assert isinstance(graph.project_management.project_dashboard_query, ProjectDashboardQueryHandler)
+    assert isinstance(graph.project_management.portfolio_dashboard_query, PortfolioDashboardQueryHandler)
+    assert isinstance(graph.project_management.portfolio_intake_commands, PortfolioIntakeCommandHandler)
+    assert isinstance(graph.project_management.portfolio_executive_query, PortfolioExecutiveQueryHandler)
+    assert isinstance(graph.project_management.register_query, RegisterQueryHandler)
+    assert isinstance(graph.project_management.project_resource_query, ProjectResourceQueryHandler)
+    assert isinstance(graph.project_management.data_import_service, DataImportService)
 
     as_dict = graph.as_dict()
-    assert as_dict["approval_commands"] is graph.approval_commands
-    assert as_dict["approval_queries"] is graph.approval_queries
-    assert as_dict["authentication"] is graph.auth.authentication
-    assert as_dict["principal_builder"] is graph.auth.principals
-    assert as_dict["platform_runtime_query"] is graph.platform_runtime_query
-    assert as_dict["organization_query"] is graph.organization_query
-    assert as_dict["document_query"] is graph.document_query
-    assert as_dict["party_query"] is graph.party_query
-    assert as_dict["department_query"] is graph.department_query
-    assert as_dict["site_query"] is graph.site_query
-    assert as_dict["employee_query"] is graph.employee_query
-    assert as_dict["master_data_import_runtime"] is graph.master_data_import_runtime
-    assert as_dict["master_data_export_runtime"] is graph.master_data_export_runtime
-    assert as_dict["module_catalog_service"] is graph.module_catalog_service
-    assert as_dict["time_entry_commands"] is graph.time_entry_commands
-    assert as_dict["time_entry_queries"] is graph.time_entry_queries
-    assert as_dict["access_service"] is graph.access_service
-    assert as_dict["enterprise_audit_service"] is graph.enterprise_audit_service
-    assert as_dict["collaboration_comment_commands"] is graph.collaboration_comment_commands
-    assert as_dict["collaboration_inbox_query"] is graph.collaboration_inbox_query
-    assert as_dict["project_dashboard_query"] is graph.project_dashboard_query
-    assert as_dict["portfolio_dashboard_query"] is graph.portfolio_dashboard_query
-    assert as_dict["resource_query"] is graph.resource_query
-    assert as_dict["earned_value_report"] is graph.earned_value_report
-    assert as_dict["finance_snapshot_query"] is graph.finance_snapshot_query
-    assert as_dict["portfolio_intake_commands"] is graph.portfolio_intake_commands
-    assert as_dict["portfolio_executive_query"] is graph.portfolio_executive_query
-    assert as_dict["register_query"] is graph.register_query
-    assert as_dict["project_resource_query"] is graph.project_resource_query
-    assert as_dict["timesheet_workspace_query"] is graph.timesheet_workspace_query
+    assert as_dict["approval_commands"] is graph.platform.approval_commands
+    assert as_dict["approval_queries"] is graph.platform.approval_queries
+    assert as_dict["authentication"] is graph.platform.auth.authentication
+    assert as_dict["principal_builder"] is graph.platform.auth.principals
+    assert as_dict["platform_runtime_query"] is graph.platform.platform_runtime_query
+    assert as_dict["organization_query"] is graph.platform.organization_query
+    assert as_dict["document_query"] is graph.platform.document_query
+    assert as_dict["party_query"] is graph.platform.party_query
+    assert as_dict["department_query"] is graph.platform.department_query
+    assert as_dict["site_query"] is graph.platform.site_query
+    assert as_dict["employee_query"] is graph.platform.employee_query
+    assert as_dict["master_data_import_runtime"] is graph.platform.master_data_import_runtime
+    assert as_dict["master_data_export_runtime"] is graph.platform.master_data_export_runtime
+    assert as_dict["module_catalog_service"] is graph.platform.module_catalog_service
+    assert as_dict["time_entry_commands"] is graph.project_management.time_entry_commands
+    assert as_dict["time_entry_queries"] is graph.project_management.time_entry_queries
+    assert as_dict["access_service"] is graph.platform.access_service
+    assert as_dict["enterprise_audit_service"] is graph.platform.enterprise_audit_service
+    assert as_dict["collaboration_comment_commands"] is graph.project_management.collaboration_comment_commands
+    assert as_dict["collaboration_inbox_query"] is graph.project_management.collaboration_inbox_query
+    assert as_dict["project_dashboard_query"] is graph.project_management.project_dashboard_query
+    assert as_dict["portfolio_dashboard_query"] is graph.project_management.portfolio_dashboard_query
+    assert as_dict["resource_query"] is graph.project_management.resource_query
+    assert as_dict["earned_value_report"] is graph.project_management.earned_value_report
+    assert as_dict["finance_snapshot_query"] is graph.project_management.finance_snapshot_query
+    assert as_dict["portfolio_intake_commands"] is graph.project_management.portfolio_intake_commands
+    assert as_dict["portfolio_executive_query"] is graph.project_management.portfolio_executive_query
+    assert as_dict["register_query"] is graph.project_management.register_query
+    assert as_dict["project_resource_query"] is graph.project_management.project_resource_query
+    assert as_dict["timesheet_workspace_query"] is graph.project_management.timesheet_workspace_query
     assert as_dict["session"] is session
-    assert graph.timesheet_workspace_commands._time_entries is graph.time_entry_commands
-    assert graph.timesheet_workspace_commands._entry_queries is graph.time_entry_queries
-    assert graph.timesheet_workspace_commands._period_transitions is graph.timesheet_period_transitions
+    assert graph.project_management.timesheet_workspace_commands._time_entries is graph.project_management.time_entry_commands
+    assert graph.project_management.timesheet_workspace_commands._entry_queries is graph.project_management.time_entry_queries
+    assert graph.project_management.timesheet_workspace_commands._period_transitions is graph.project_management.timesheet_period_transitions
 
 
 def test_project_management_legacy_service_roots_are_removed():

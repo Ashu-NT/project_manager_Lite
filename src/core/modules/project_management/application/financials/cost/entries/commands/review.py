@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -42,9 +41,6 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.shared.time.clock import CalendarClock
-
-if TYPE_CHECKING:
-    pass
 
 
 class ProjectCostEntryReviewCommandHandler(ProjectManagementModuleGuardMixin):
