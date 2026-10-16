@@ -11,6 +11,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_cards import (
+    FinancialCreateRateCardCommand,
+    FinancialVersionedRateCardCommand,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_lines import (
+    FinancialAddRateLineCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateLineCommand,
+)
 from src.core.modules.project_management.application.financials.rate_cards.event_handlers.view_invalidation import (
     RATE_CARD_CATEGORY,
     RATE_CARD_DETAIL_SCOPE_CODE,
@@ -28,7 +37,6 @@ from src.core.modules.project_management.application.projects.dto.commands.proje
     ProjectCreateCommand,
 )
 from src.core.modules.project_management.domain.financials.rate_cards import (
-    RateLineOrigin,
     RateType,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -86,7 +94,11 @@ def test_created_maps_to_list_target_only():
 
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            project_id=None,
+            occurred_at=now,
         ),
         _context("c1"),
     )
@@ -107,7 +119,11 @@ def test_created_project_specific_maps_to_project_scoped_list_target():
 
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id="p1", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            project_id="p1",
+            occurred_at=now,
         ),
         _context("c1"),
     )
@@ -132,7 +148,11 @@ def test_deactivated_maps_to_both_list_and_detail_targets():
 
     handler(
         RateCardDeactivated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id="p1", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            project_id="p1",
+            occurred_at=now,
         ),
         _context("c1"),
     )
@@ -140,13 +160,17 @@ def test_deactivated_maps_to_both_list_and_detail_targets():
     scope_codes = {h.scope_code for h in channel.notified}
     assert scope_codes == {RATE_CARD_LIST_SCOPE_CODE, RATE_CARD_DETAIL_SCOPE_CODE}
 
-    list_hint = next(h for h in channel.notified if h.scope_code == RATE_CARD_LIST_SCOPE_CODE)
+    list_hint = next(
+        h for h in channel.notified if h.scope_code == RATE_CARD_LIST_SCOPE_CODE
+    )
     assert isinstance(list_hint.scope, ResourceScope)
     assert list_hint.scope.entity_type == "project"
     assert list_hint.scope.entity_id == "p1"
     assert list_hint.entity_id == "p1"
 
-    detail_hint = next(h for h in channel.notified if h.scope_code == RATE_CARD_DETAIL_SCOPE_CODE)
+    detail_hint = next(
+        h for h in channel.notified if h.scope_code == RATE_CARD_DETAIL_SCOPE_CODE
+    )
     assert isinstance(detail_hint.scope, ResourceScope)
     assert detail_hint.scope.module_code == "project_management"
     assert detail_hint.scope.entity_type == "rate_card"
@@ -160,11 +184,17 @@ def test_deactivated_org_wide_list_hint_stays_organization_scope():
 
     handler(
         RateCardDeactivated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            project_id=None,
+            occurred_at=now,
         ),
         _context("c1"),
     )
-    list_hint = next(h for h in channel.notified if h.scope_code == RATE_CARD_LIST_SCOPE_CODE)
+    list_hint = next(
+        h for h in channel.notified if h.scope_code == RATE_CARD_LIST_SCOPE_CODE
+    )
     assert isinstance(list_hint.scope, OrganizationScope)
     assert list_hint.entity_id == "c1"
 
@@ -179,13 +209,21 @@ def test_project_a_and_project_b_list_hints_are_distinct_scopes():
 
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o1", rate_card_id="ca", project_id="project-a", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="ca",
+            project_id="project-a",
+            occurred_at=now,
         ),
         _context("tx"),
     )
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o1", rate_card_id="cb", project_id="project-b", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="cb",
+            project_id="project-b",
+            occurred_at=now,
         ),
         _context("tx"),
     )
@@ -204,20 +242,29 @@ def test_org_wide_and_project_specific_list_hints_in_same_transaction_do_not_col
 
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c-org", project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c-org",
+            project_id=None,
+            occurred_at=now,
         ),
         _context("tx"),
     )
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c-proj-a", project_id="project-a", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c-proj-a",
+            project_id="project-a",
+            occurred_at=now,
         ),
         _context("tx"),
     )
     assert len(channel.notified) == 2
     org_hints = [h for h in channel.notified if isinstance(h.scope, OrganizationScope)]
     project_hints = [
-        h for h in channel.notified
+        h
+        for h in channel.notified
         if isinstance(h.scope, ResourceScope) and h.scope.entity_type == "project"
     ]
     assert len(org_hints) == 1
@@ -233,17 +280,27 @@ def test_two_project_a_specific_changes_same_transaction_coalesce_to_one_list_hi
 
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id="project-a", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            project_id="project-a",
+            occurred_at=now,
         ),
         context,
     )
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c2", project_id="project-a", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c2",
+            project_id="project-a",
+            occurred_at=now,
         ),
         context,
     )
-    assert len(channel.notified) == 1, "same project-A list target within one transaction coalesces"
+    assert len(channel.notified) == 1, (
+        "same project-A list target within one transaction coalesces"
+    )
 
 
 def test_line_events_map_to_detail_target_only():
@@ -253,16 +310,28 @@ def test_line_events_map_to_detail_target_only():
 
     for event in (
         RateCardLineAdded(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", rate_line_id="l1",
-            project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            rate_line_id="l1",
+            project_id=None,
+            occurred_at=now,
         ),
         RateCardLineUpdated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", rate_line_id="l1",
-            project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            rate_line_id="l1",
+            project_id=None,
+            occurred_at=now,
         ),
         RateCardLineDeactivated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", rate_line_id="l1",
-            project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            rate_line_id="l1",
+            project_id=None,
+            occurred_at=now,
         ),
     ):
         channel.notified.clear()
@@ -279,36 +348,58 @@ def test_dedupe_by_target_within_one_transaction():
 
     handler(
         RateCardLineAdded(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", rate_line_id="l1",
-            project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            rate_line_id="l1",
+            project_id=None,
+            occurred_at=now,
         ),
         context,
     )
     handler(
         RateCardLineUpdated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", rate_line_id="l2",
-            project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            rate_line_id="l2",
+            project_id=None,
+            occurred_at=now,
         ),
         context,
     )
-    assert len(channel.notified) == 1, "same card detail target within one transaction coalesces"
+    assert len(channel.notified) == 1, (
+        "same card detail target within one transaction coalesces"
+    )
 
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o1", rate_card_id="c2", project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c2",
+            project_id=None,
+            occurred_at=now,
         ),
         context,
     )
-    assert len(channel.notified) == 2, "a distinct target within the same transaction is separate"
+    assert len(channel.notified) == 2, (
+        "a distinct target within the same transaction is separate"
+    )
 
     handler(
         RateCardLineAdded(
-            tenant_id="t1", organization_id="o1", rate_card_id="c1", rate_line_id="l3",
-            project_id=None, occurred_at=now,
+            tenant_id="t1",
+            organization_id="o1",
+            rate_card_id="c1",
+            rate_line_id="l3",
+            project_id=None,
+            occurred_at=now,
         ),
         _context("same-tx"),
     )
-    assert len(channel.notified) == 3, "a new transaction is never coalesced with the previous one"
+    assert len(channel.notified) == 3, (
+        "a new transaction is never coalesced with the previous one"
+    )
 
 
 def test_deactivated_two_targets_never_coalesce_but_repeats_of_each_do():
@@ -316,7 +407,11 @@ def test_deactivated_two_targets_never_coalesce_but_repeats_of_each_do():
     handler = build_rate_card_view_invalidation_handler(channel)
     now = datetime.now(UTC)
     event = RateCardDeactivated(
-        tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id="p1", occurred_at=now,
+        tenant_id="t1",
+        organization_id="o1",
+        rate_card_id="c1",
+        project_id="p1",
+        occurred_at=now,
     )
     context = _context("tx-a")
 
@@ -324,7 +419,9 @@ def test_deactivated_two_targets_never_coalesce_but_repeats_of_each_do():
     assert len(channel.notified) == 2
 
     handler(event, context)
-    assert len(channel.notified) == 2, "same two targets repeated in one transaction coalesce"
+    assert len(channel.notified) == 2, (
+        "same two targets repeated in one transaction coalesce"
+    )
 
     handler(event, _context("tx-a"))
     assert len(channel.notified) == 4, "a new transaction re-notifies both targets"
@@ -342,7 +439,11 @@ def test_different_organization_project_scoped_hint_is_not_delivered_to_a_scoped
 
     handler(
         RateCardCreated(
-            tenant_id="t1", organization_id="o2", rate_card_id="c1", project_id="project-a", occurred_at=now,
+            tenant_id="t1",
+            organization_id="o2",
+            rate_card_id="c1",
+            project_id="project-a",
+            occurred_at=now,
         ),
         _context("c1"),
     )
@@ -356,25 +457,53 @@ def test_different_organization_project_scoped_hint_is_not_delivered_to_a_scoped
 # ---------------------------------------------------------------------------
 
 
+def _saved_card(services, card_id):
+    return next(
+        card
+        for card in services["rate_card_query"].list_rate_cards(include_inactive=True)
+        if card.id == card_id
+    )
+
+
+def _saved_line(services, result):
+    return next(
+        line
+        for line in services["rate_card_query"].list_lines(
+            result.rate_card_id, include_inactive=True
+        )
+        if line.id == result.rate_line_id
+    )
+
+
 def _create_card_and_line(services, **card_kwargs):
     commands = services["finance_governance_commands"]
     card = commands.rate_card(
-        lambda handler: handler.create_rate_card(name=_unique("P22 Card"), **card_kwargs)
+        lambda handler: handler.create_rate_card(
+            FinancialCreateRateCardCommand(name=_unique("P22 Card"), **card_kwargs)
+        )
     )
-    line = commands.rate_line(lambda handler: handler.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(50),
-        rate_currency="USD",
-        origin=RateLineOrigin.CONFIGURED,
-        resource_id=_unique("P22-RES"),
-    ))
+    line = commands.rate_line(
+        lambda handler: handler.create_line(
+            FinancialAddRateLineCommand(
+                rate_card_id=card.rate_card_id,
+                rate_type=RateType.COST.value,
+                unit="HOUR",
+                rate_amount=str(Decimal(50)),
+                rate_currency="USD",
+                resource_id=_unique("P22-RES"),
+                expected_card_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
+    )
     return card, line
 
 
 def _seed_project(services):
-    return services['project_create'].create_project(ProjectCreateCommand(name=_unique("P22 Rate Card Project"), financial_currency_code="USD"))
+    return services["project_create"].create_project(
+        ProjectCreateCommand(
+            name=_unique("P22 Rate Card Project"), financial_currency_code="USD"
+        )
+    )
 
 
 def test_create_rate_card_produces_exactly_one_list_hint(services):
@@ -383,17 +512,23 @@ def test_create_rate_card_produces_exactly_one_list_hint(services):
     commands = services["finance_governance_commands"]
 
     def create_card(handler):
-        card = handler.create_rate_card(name=_unique("P22 Org Card"))
-        assert _rate_card_hints(hints) == [], "invalidation must wait for the boundary commit"
+        card = handler.create_rate_card(
+            FinancialCreateRateCardCommand(name=_unique("P22 Org Card"))
+        )
+        assert _rate_card_hints(hints) == [], (
+            "invalidation must wait for the boundary commit"
+        )
         return card
 
     card = commands.rate_card(create_card)
 
-    assert card.id in {item.id for item in services["rate_card_query"].list_rate_cards()}
+    assert card.rate_card_id in {
+        item.id for item in services["rate_card_query"].list_rate_cards()
+    }
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
     assert rate_hints[0].scope_code == RATE_CARD_LIST_SCOPE_CODE
-    assert rate_hints[0].entity_id == card.id
+    assert rate_hints[0].entity_id == card.rate_card_id
 
 
 def test_create_project_specific_rate_card_produces_project_scoped_list_hint(services):
@@ -403,9 +538,13 @@ def test_create_project_specific_rate_card_produces_project_scoped_list_hint(ser
     hints = _spy_hints(services)
 
     commands = services["finance_governance_commands"]
-    card = commands.rate_card(lambda handler: handler.create_rate_card(
-        name=_unique("P22 Project Card"), project_id=project.id
-    ))
+    card = commands.rate_card(
+        lambda handler: handler.create_rate_card(
+            FinancialCreateRateCardCommand(
+                name=_unique("P22 Project Card"), project_id=project.id
+            )
+        )
+    )
 
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
@@ -415,10 +554,12 @@ def test_create_project_specific_rate_card_produces_project_scoped_list_hint(ser
     assert hint.scope.entity_type == "project"
     assert hint.scope.entity_id == project.id
     assert hint.entity_id == project.id
-    assert card.project_id == project.id
+    assert _saved_card(services, card.rate_card_id).project_id == project.id
 
 
-def test_project_a_specific_deactivation_refreshes_project_a_list_not_project_b(services):
+def test_project_a_specific_deactivation_refreshes_project_a_list_not_project_b(
+    services,
+):
     """End-to-end proof of P22-FIX's central requirement: Project A's card change list-hint
     scope is distinct from Project B's -- a subscription scoped to Project B never matches it."""
     from src.core.shared.events.view_invalidation import ExactResource
@@ -426,13 +567,22 @@ def test_project_a_specific_deactivation_refreshes_project_a_list_not_project_b(
     project_a = _seed_project(services)
     project_b = _seed_project(services)
     commands = services["finance_governance_commands"]
-    card = commands.rate_card(lambda handler: handler.create_rate_card(
-        name=_unique("P22 Project A Card"), project_id=project_a.id
-    ))
+    card = commands.rate_card(
+        lambda handler: handler.create_rate_card(
+            FinancialCreateRateCardCommand(
+                name=_unique("P22 Project A Card"), project_id=project_a.id
+            )
+        )
+    )
     hints = _spy_hints(services)
 
     commands.rate_card(
-        lambda handler: handler.deactivate_rate_card(card.id, expected_version=card.version)
+        lambda handler: handler.deactivate_rate_card(
+            FinancialVersionedRateCardCommand(
+                card.rate_card_id,
+                expected_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
     )
 
     rate_hints = _rate_card_hints(hints)
@@ -457,28 +607,47 @@ def test_deactivate_rate_card_produces_both_hints(services):
 
     commands = services["finance_governance_commands"]
     deactivated = commands.rate_card(
-        lambda handler: handler.deactivate_rate_card(card.id, expected_version=card.version)
+        lambda handler: handler.deactivate_rate_card(
+            FinancialVersionedRateCardCommand(
+                card.rate_card_id,
+                expected_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
     )
 
-    assert deactivated.is_active is False
+    assert _saved_card(services, deactivated.rate_card_id).is_active is False
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 2
-    assert {h.scope_code for h in rate_hints} == {RATE_CARD_LIST_SCOPE_CODE, RATE_CARD_DETAIL_SCOPE_CODE}
+    assert {h.scope_code for h in rate_hints} == {
+        RATE_CARD_LIST_SCOPE_CODE,
+        RATE_CARD_DETAIL_SCOPE_CODE,
+    }
 
 
 def test_deactivate_rate_card_true_no_op_produces_zero_hints(services):
     card, _line = _create_card_and_line(services)
     commands = services["finance_governance_commands"]
     deactivated = commands.rate_card(
-        lambda handler: handler.deactivate_rate_card(card.id, expected_version=card.version)
+        lambda handler: handler.deactivate_rate_card(
+            FinancialVersionedRateCardCommand(
+                card.rate_card_id,
+                expected_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
     )
     hints = _spy_hints(services)
 
-    unchanged = commands.rate_card(lambda handler: handler.deactivate_rate_card(
-        deactivated.id, expected_version=deactivated.version
-    ))
+    unchanged = commands.rate_card(
+        lambda handler: handler.deactivate_rate_card(
+            FinancialVersionedRateCardCommand(
+                deactivated.rate_card_id, expected_version=deactivated.version
+            )
+        )
+    )
 
-    assert unchanged.version == deactivated.version, "true no-op: no synthetic version bump"
+    assert unchanged.version == deactivated.version, (
+        "true no-op: no synthetic version bump"
+    )
     assert _rate_card_hints(hints) == []
 
 
@@ -487,16 +656,25 @@ def test_create_line_produces_exactly_one_detail_hint(services):
     hints = _spy_hints(services)
 
     commands = services["finance_governance_commands"]
-    line = commands.rate_line(lambda handler: handler.create_line(
-        card.id, rate_type=RateType.COST, unit="HOUR", rate_amount=Decimal(60),
-        rate_currency="USD", resource_id=_unique("P22-RES2"),
-    ))
+    line = commands.rate_line(
+        lambda handler: handler.create_line(
+            FinancialAddRateLineCommand(
+                rate_card_id=card.rate_card_id,
+                rate_type=RateType.COST.value,
+                unit="HOUR",
+                rate_amount=str(Decimal(60)),
+                rate_currency="USD",
+                resource_id=_unique("P22-RES2"),
+                expected_card_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
+    )
 
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
     assert rate_hints[0].scope_code == RATE_CARD_DETAIL_SCOPE_CODE
-    assert rate_hints[0].entity_id == card.id
-    assert line.rate_card_id == card.id
+    assert rate_hints[0].entity_id == card.rate_card_id
+    assert line.rate_card_id == card.rate_card_id
 
 
 def test_update_line_true_no_op_produces_zero_hints(services):
@@ -504,9 +682,16 @@ def test_update_line_true_no_op_produces_zero_hints(services):
     commands = services["finance_governance_commands"]
     hints = _spy_hints(services)
 
-    unchanged = commands.rate_line(lambda handler: handler.update_line(
-        line.id, expected_version=line.version, rate_amount=line.rate_amount,
-    ))
+    unchanged = commands.rate_line(
+        lambda handler: handler.update_line(
+            FinancialUpdateRateLineCommand(
+                rate_line_id=line.rate_line_id,
+                expected_version=line.version,
+                rate_amount=str(_saved_line(services, line).rate_amount),
+                expected_card_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
+    )
 
     assert unchanged.version == line.version, "true no-op: no synthetic version bump"
     assert _rate_card_hints(hints) == []
@@ -517,19 +702,28 @@ def test_update_line_real_change_produces_exactly_one_detail_hint(services):
     commands = services["finance_governance_commands"]
     hints = _spy_hints(services)
 
-    updated = commands.rate_line(lambda handler: handler.update_line(
-        line.id, expected_version=line.version, rate_amount=Decimal(75),
-    ))
+    updated = commands.rate_line(
+        lambda handler: handler.update_line(
+            FinancialUpdateRateLineCommand(
+                rate_line_id=line.rate_line_id,
+                expected_version=line.version,
+                rate_amount=str(Decimal(75)),
+                expected_card_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
+    )
 
-    assert updated.rate_amount == Decimal(75)
+    assert _saved_line(services, updated).rate_amount == Decimal(75)
     saved_line = next(
-        item for item in services["rate_card_query"].list_lines(card.id) if item.id == line.id
+        item
+        for item in services["rate_card_query"].list_lines(card.rate_card_id)
+        if item.id == line.rate_line_id
     )
     assert saved_line.rate_amount == Decimal(75)
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
     assert rate_hints[0].scope_code == RATE_CARD_DETAIL_SCOPE_CODE
-    assert rate_hints[0].entity_id == card.id
+    assert rate_hints[0].entity_id == card.rate_card_id
 
 
 def test_deactivate_line_produces_exactly_one_detail_hint(services):
@@ -538,10 +732,16 @@ def test_deactivate_line_produces_exactly_one_detail_hint(services):
     hints = _spy_hints(services)
 
     deactivated = commands.rate_line(
-        lambda handler: handler.deactivate_line(line.id, expected_version=line.version)
+        lambda handler: handler.deactivate_line(
+            FinancialVersionedRateLineCommand(
+                line.rate_line_id,
+                expected_version=line.version,
+                expected_card_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
     )
 
-    assert deactivated.is_active is False
+    assert _saved_line(services, deactivated).is_active is False
     rate_hints = _rate_card_hints(hints)
     assert len(rate_hints) == 1
     assert rate_hints[0].scope_code == RATE_CARD_DETAIL_SCOPE_CODE
@@ -551,13 +751,25 @@ def test_deactivate_line_true_no_op_produces_zero_hints(services):
     card, line = _create_card_and_line(services)
     commands = services["finance_governance_commands"]
     deactivated = commands.rate_line(
-        lambda handler: handler.deactivate_line(line.id, expected_version=line.version)
+        lambda handler: handler.deactivate_line(
+            FinancialVersionedRateLineCommand(
+                line.rate_line_id,
+                expected_version=line.version,
+                expected_card_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
     )
     hints = _spy_hints(services)
 
-    unchanged = commands.rate_line(lambda handler: handler.deactivate_line(
-        deactivated.id, expected_version=deactivated.version
-    ))
+    unchanged = commands.rate_line(
+        lambda handler: handler.deactivate_line(
+            FinancialVersionedRateLineCommand(
+                deactivated.rate_line_id,
+                expected_version=deactivated.version,
+                expected_card_version=_saved_card(services, card.rate_card_id).version,
+            )
+        )
+    )
 
     assert unchanged.version == deactivated.version
     assert _rate_card_hints(hints) == []
@@ -579,14 +791,18 @@ def test_rate_card_uses_the_canonical_finance_governance_unit_of_work(services):
     type(commands._uow_factory).create = _spy_create
     try:
         commands.rate_card(
-            lambda handler: handler.create_rate_card(name=_unique("P22 UoW Card"))
+            lambda handler: handler.create_rate_card(
+                FinancialCreateRateCardCommand(name=_unique("P22 UoW Card"))
+            )
         )
     finally:
         type(commands._uow_factory).create = original_create
 
     assert len(seen_uows) == 1
     assert hasattr(seen_uows[0], "rate_cards")
-    assert hasattr(seen_uows[0], "forecasts"), "the SAME governance UoW class, not a new one"
+    assert hasattr(seen_uows[0], "forecasts"), (
+        "the SAME governance UoW class, not a new one"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -610,7 +826,9 @@ def test_financials_controller_list_stale_invalidates_costs(services):
     assert controller._invalidated_destinations == {"costs"}
 
 
-def test_financials_controller_detail_stale_invalidates_costs_only_if_selected(services):
+def test_financials_controller_detail_stale_invalidates_costs_only_if_selected(
+    services,
+):
     from src.application.runtime import build_desktop_api_registry
     from src.ui_qml.modules.project_management.context import (
         ProjectManagementWorkspaceCatalog,
@@ -624,13 +842,17 @@ def test_financials_controller_detail_stale_invalidates_costs_only_if_selected(s
     controller._request_domain_refresh = lambda: None
 
     controller.onRateCardDetailStale("card-2")
-    assert controller._invalidated_destinations == set(), "non-selected card must not invalidate"
+    assert controller._invalidated_destinations == set(), (
+        "non-selected card must not invalidate"
+    )
 
     controller.onRateCardDetailStale("card-1")
     assert controller._invalidated_destinations == {"costs"}
 
 
-def test_financials_controller_list_stale_for_project_invalidates_costs_only_if_selected_project(services):
+def test_financials_controller_list_stale_for_project_invalidates_costs_only_if_selected_project(
+    services,
+):
     """P22-FIX: the project-scoped list stale path must be gated by the currently selected
     project, mirroring on_forecast_planning_stale's established pattern -- unlike the org-wide
     rateCardListStale path, which stays unconditional."""
@@ -647,7 +869,9 @@ def test_financials_controller_list_stale_for_project_invalidates_costs_only_if_
     controller._request_domain_refresh = lambda: None
 
     controller.onRateCardListStaleForProject("project-b")
-    assert controller._invalidated_destinations == set(), "non-selected project must not invalidate"
+    assert controller._invalidated_destinations == set(), (
+        "non-selected project must not invalidate"
+    )
 
     controller.onRateCardListStaleForProject("project-a")
     assert controller._invalidated_destinations == {"costs"}
@@ -664,7 +888,9 @@ def test_rate_card_adapter_dispatches_org_vs_project_list_hints_to_distinct_sign
         RateCardViewInvalidationAdapter,
     )
 
-    adapter = RateCardViewInvalidationAdapter(channel=None, tenant_id="t1", organization_id="o1")
+    adapter = RateCardViewInvalidationAdapter(
+        channel=None, tenant_id="t1", organization_id="o1"
+    )
     org_calls = []
     project_calls = []
     adapter.rateCardListStale.connect(org_calls.append)
@@ -682,8 +908,11 @@ def test_rate_card_adapter_dispatches_org_vs_project_list_hints_to_distinct_sign
     adapter._on_hint(
         _Hint(
             scope=_ResScope(
-                tenant_id="t1", organization_id="o1", module_code="project_management",
-                entity_type="project", entity_id="project-a",
+                tenant_id="t1",
+                organization_id="o1",
+                module_code="project_management",
+                entity_type="project",
+                entity_id="project-a",
             ),
             category=RATE_CARD_CATEGORY,
             scope_code=RATE_CARD_LIST_SCOPE_CODE,

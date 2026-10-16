@@ -28,10 +28,8 @@ from src.core.modules.project_management.api.desktop.tasks.models.task import (
     TaskDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
-    TaskResourceTimeBreakdownDesktopDto,
     TaskTimeEntriesPageDesktopDto,
     TaskTimeEntryDesktopDto,
-    TaskTimeSummaryDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
@@ -51,11 +49,9 @@ __all__ = [
     "TaskDesktopDto",
     "TaskProjectOptionDescriptor",
     "TaskProjectResourceOptionDescriptor",
-    "TaskResourceTimeBreakdownDesktopDto",
     "TaskSkillRequirementDesktopDto",
     "TaskStatusDescriptor",
     "TaskTimeEntriesPageDesktopDto",
     "TaskTimeEntryDesktopDto",
-    "TaskTimeSummaryDesktopDto",
     "build_project_management_tasks_desktop_api",
 ]

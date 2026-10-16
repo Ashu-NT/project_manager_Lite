@@ -25,9 +25,6 @@ from src.core.modules.project_management.api.desktop.financials.models import (
     FinancialManualActualOptionsDto,
     FinancialPeriodRowDto,
     FinancialProfileDto,
-    FinancialRateCardDetailDto,
-    FinancialRateTableRecordDto,
-    FinancialRateWorkspaceDto,
 )
 from src.core.modules.project_management.application.financials.budgets.dto.responses.mutations import (
     FinancialBudgetLineMutationDto,
@@ -137,10 +134,7 @@ __all__ = [
     "FinancialPeriodRowDto",
     "FinancialPostActualCommand",
     "FinancialProfileDto",
-    "FinancialRateCardDetailDto",
     "FinancialRateMutationDto",
-    "FinancialRateTableRecordDto",
-    "FinancialRateWorkspaceDto",
     "FinancialRemoveChangeImpactCommand",
     "FinancialRemoveDraftBillingLineCommand",
     "FinancialReverseActualCommand",

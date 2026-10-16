@@ -9,6 +9,14 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_hierarchy import (
+    TaskWbsMoveCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskBulkStatusCommand,
+    TaskProgressCommand,
+)
+from src.core.modules.project_management.application.tasks.mappers.task import map_task
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskAssignmentReadItem,
@@ -104,14 +112,11 @@ class _FakeCollaborationService:
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
 
-    def query_task_comments_page(self, task_id: str, *, page: int = 1, page_size: int = 25) -> SimpleNamespace:
-        rows = [comment for comment in self._comments if comment.task_id == task_id]
-        for comment in rows:
-            comment.parent_author_username = ""
-            comment.parent_comment_id = None
-            comment.reply_count = 0
-        start = (page - 1) * page_size
-        return SimpleNamespace(items=tuple(rows[start:start + page_size]), total=len(rows), page=page, page_size=page_size)
+    def query_task_comments_page(self, task_id: str, *, page: int = 1, page_size: int = 25):
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import (
+            comment_page,
+        )
+        return comment_page(self._comments, task_id, page=page, page_size=page_size)
 
     def list_comment_documents_for_ids(self, task_id: str, comment_ids: tuple[str, ...]) -> dict[str, list[SimpleNamespace]]:
         visible = {comment.id for comment in self._comments if comment.task_id == task_id}
@@ -146,7 +151,7 @@ class _FakeCollaborationService:
                 task_name="Cable Pull",
                 project_id="proj-1",
                 project_name="Plant Upgrade",
-                username="planner",
+                user_id="user-alex", username="planner",
                 display_name="Alex Taylor",
                 activity="reviewing",
                 last_seen_at=datetime(2026, 5, 1, 9, 35),
@@ -167,9 +172,13 @@ class _FakeCollaborationService:
             can_manage=bool(task_id),
         )
 
-    def post_comment(
-        self, *, task_id: str, body: str, attachments=(), linked_document_ids=(), parent_comment_id=None, submission_id=None
-    ) -> SimpleNamespace:
+    def post_comment(self, command):
+        task_id, body = command.task_id, command.body
+        attachments, linked_document_ids = command.attachments, command.linked_document_ids
+        parent_comment_id = command.parent_comment_id
+        task_id, body = command.task_id, command.body
+        attachments, linked_document_ids = command.attachments, command.linked_document_ids
+        parent_comment_id = command.parent_comment_id
         self.posted_comments.append(
             {
                 "task_id": task_id,
@@ -201,30 +210,26 @@ class _FakeCollaborationService:
                 file_name="",
             )
         ]
-        return comment
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import (
+            comment_response,
+        )
+        return comment_response(comment)
 
-    def edit_comment(
-        self,
-        comment_id: str,
-        body: str,
-        *,
-        expected_revision: int | None = None,
-    ) -> SimpleNamespace:
+    def edit_comment(self, command) -> SimpleNamespace:
+        comment_id, body, expected_revision = command.comment_id, command.body, command.expected_revision
         comment = next(comment for comment in self._comments if comment.id == comment_id)
         assert expected_revision == comment.version
         comment.body = body
         comment.updated_at = datetime(2026, 5, 1, 11, 0)
         comment.version += 1
         self.edited_comment_ids.append(comment_id)
-        return comment
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import (
+            comment_response,
+        )
+        return comment_response(comment)
 
-    def delete_comment(
-        self,
-        comment_id: str,
-        *,
-        expected_revision: int | None = None,
-        reason: str | None = None,
-    ) -> SimpleNamespace:
+    def delete_comment(self, command) -> SimpleNamespace:
+        comment_id, expected_revision, reason = command.comment_id, command.expected_revision, command.reason
         comment = next(comment for comment in self._comments if comment.id == comment_id)
         assert expected_revision == comment.version
         comment.deleted_at = datetime(2026, 5, 1, 11, 5)
@@ -232,28 +237,42 @@ class _FakeCollaborationService:
         comment.deletion_reason = reason
         comment.version += 1
         self.deleted_comment_ids.append(comment_id)
-        return comment
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import (
+            comment_response,
+        )
+        return comment_response(comment)
 
-    def react_to_comment(self, comment_id: str, emoji: str) -> SimpleNamespace:
+    def react_to_comment(self, command) -> SimpleNamespace:
+        comment_id, emoji = command.comment_id, command.emoji
         comment = next(comment for comment in self._comments if comment.id == comment_id)
         reactions = dict(getattr(comment, "reactions", {}) or {})
         reactions[emoji] = ["user-alex"]
         comment.reactions = reactions
         comment.version += 1
         self.added_reactions.append((comment_id, emoji))
-        return comment
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import (
+            comment_response,
+        )
+        return comment_response(comment)
 
-    def remove_reaction(self, comment_id: str, emoji: str) -> SimpleNamespace:
+    def remove_reaction(self, command) -> SimpleNamespace:
+        comment_id, emoji = command.comment_id, command.emoji
         comment = next(comment for comment in self._comments if comment.id == comment_id)
         reactions = dict(getattr(comment, "reactions", {}) or {})
         reactions.pop(emoji, None)
         comment.reactions = reactions
         comment.version += 1
         self.removed_reactions.append((comment_id, emoji))
-        return comment
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import (
+            comment_response,
+        )
+        return comment_response(comment)
 
 
 class _FakeTaskService:
+    def query_task_responses(self, project_id):
+        return tuple(map_task(task, project_name="") for task in self.list_tasks_for_project(project_id))
+
     def get_task_time_summary(self, task_id):
         return None
 
@@ -276,15 +295,12 @@ class _FakeTaskService:
     def get_task(self, task_id: str) -> SimpleNamespace | None:
         return self._tasks.get(task_id)
 
-    def move_task(
-        self,
-        task_id: str,
-        *,
-        parent_task_id: str | None,
-        wbs_code: str | None = None,
-        sort_order: int | None = None,
-        expected_version: int | None = None,
-    ) -> SimpleNamespace:
+    def move_task(self, command: TaskWbsMoveCommand):
+        task_id = command.task_id
+        parent_task_id = command.parent_task_id
+        wbs_code = command.wbs_code
+        sort_order = command.sort_order
+        expected_version = command.expected_version
         task = self._tasks[task_id]
         if expected_version is not None and task.version != expected_version:
             raise ValueError("Task version is stale.")
@@ -294,20 +310,17 @@ class _FakeTaskService:
         if sort_order is not None:
             task.sort_order = sort_order
         task.version += 1
-        return task
+        return map_task(task, project_name="")
 
     def set_status(self, task_id: str, status: TaskStatus) -> None:
         task = self._tasks[task_id]
         task.status = status
         task.version += 1
 
-    def set_tasks_status(
-        self,
-        task_ids: tuple[str, ...],
-        status: TaskStatus,
-        *,
-        reopen_percent_complete: float | None = None,
-    ) -> list[SimpleNamespace]:
+    def set_tasks_status(self, command: TaskBulkStatusCommand):
+        task_ids = command.task_ids
+        status = TaskStatus(command.status)
+        reopen_percent_complete = command.reopen_percent_complete
         changed: list[SimpleNamespace] = []
         for task_id in task_ids:
             task = self._tasks.get(task_id)
@@ -319,18 +332,14 @@ class _FakeTaskService:
                 task.percent_complete = reopen_percent_complete
             self.set_status(task_id, status)
             changed.append(task)
-        return changed
+        return [map_task(task, project_name="") for task in changed]
 
-    def update_progress(
-        self,
-        task_id: str,
-        *,
-        percent_complete: float | None = None,
-        actual_start: date | None = None,
-        actual_end: date | None = None,
-        status: TaskStatus | None = None,
-        expected_version: int | None = None,
-    ) -> SimpleNamespace:
+    def update_progress(self, command: TaskProgressCommand):
+        task_id = command.task_id
+        percent_complete = command.percent_complete
+        actual_start = command.actual_start
+        actual_end = command.actual_end
+        status = TaskStatus(command.status) if command.status is not None else None
         task = self._tasks[task_id]
         if percent_complete is not None:
             task.percent_complete = float(percent_complete)
@@ -341,7 +350,7 @@ class _FakeTaskService:
         if status is not None:
             task.status = status
         task.version += 1
-        return task
+        return map_task(task, project_name="")
 
     def delete_task(self, task_id: str) -> None:
         del self._tasks[task_id]

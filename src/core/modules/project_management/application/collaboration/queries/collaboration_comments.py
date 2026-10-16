@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
 from src.core.modules.project_management.application.collaboration.dto.responses.comments import (
-    TaskCommentPageResponseDto,
-)
-from src.core.modules.project_management.application.collaboration.mappers.comments import (
-    map_comment,
+    TaskCommentActionContext,
 )
 from src.core.modules.project_management.application.collaboration.utils.visibility import (
     CollaborationVisibilityPolicy,
@@ -38,13 +33,6 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 
 
-@dataclass(frozen=True)
-class TaskCommentActionContext:
-    principal_user_id: str
-    can_read: bool
-    can_manage: bool
-
-
 class CollaborationCommentQueryHandler(ProjectManagementModuleGuardMixin):
     """Bounded task-discussion reads: comment pages, mention candidates, action context."""
 
@@ -65,10 +53,12 @@ class CollaborationCommentQueryHandler(ProjectManagementModuleGuardMixin):
 
     def query_task_comments_page(
         self, task_id: str, *, page: int = 1, page_size: int = 25
-    ) -> TaskCommentPageResponseDto:
+    ) -> TaskDetailCommentReadPage:
         task = self._policy.require_task(task_id)
         require_permission(
-            self._user_session, "collaboration.read", operation_label="view task collaboration"
+            self._user_session,
+            "collaboration.read",
+            operation_label="view task collaboration",
         )
         require_project_permission(
             self._user_session,
@@ -96,16 +86,17 @@ class CollaborationCommentQueryHandler(ProjectManagementModuleGuardMixin):
         )
         if normalized_page != result.page:
             result = read(normalized_page)
-        return TaskCommentPageResponseDto(
-            items=tuple(map_comment(comment, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or "")) for comment in result.items),
-            total=result.total, page=result.page, page_size=result.page_size,
-        )
+        return result
 
     def list_mention_candidates(
         self, task_id: str, *, query: str = "", limit: int = 50
     ) -> list[CollaborationMentionCandidate]:
         task = self._policy.require_task(task_id)
-        require_permission(self._user_session, "collaboration.read", operation_label="view mention candidates")
+        require_permission(
+            self._user_session,
+            "collaboration.read",
+            operation_label="view mention candidates",
+        )
         require_project_permission(
             self._user_session,
             task.project_id,
@@ -151,4 +142,4 @@ class CollaborationCommentQueryHandler(ProjectManagementModuleGuardMixin):
         )
 
 
-__all__ = ["CollaborationCommentQueryHandler", "TaskCommentActionContext"]
+__all__ = ["CollaborationCommentQueryHandler"]

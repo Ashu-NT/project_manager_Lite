@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import calendar
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementTimesheetsDesktopApi,
@@ -12,6 +12,19 @@ from src.core.modules.project_management.application.timesheets.dto.commands.tim
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
 )
+from src.core.modules.project_management.contracts.reads.timesheets import (
+    TimesheetEntryFact,
+    TimesheetPeriodFact,
+)
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
+
+_STATUS_LABELS = {
+    TimesheetPeriodStatus.OPEN: "Open",
+    TimesheetPeriodStatus.SUBMITTED: "Awaiting Review",
+    TimesheetPeriodStatus.APPROVED: "Approved",
+    TimesheetPeriodStatus.REJECTED: "Returned",
+    TimesheetPeriodStatus.LOCKED: "Locked",
+}
 
 _WORKSPACE = {
     "routeId": "project_management.timesheets",
@@ -72,7 +85,7 @@ def _owner_setup_state(
     }
 
 
-def _period_map(period) -> dict[str, object]:
+def _period_map(period: TimesheetPeriodFact) -> dict[str, object]:
     return {
         "ownerAvailable": True,
         "resourceSelected": True,
@@ -84,18 +97,18 @@ def _period_map(period) -> dict[str, object]:
         "workerType": period.worker_type,
         "periodStart": period.period_start.isoformat(),
         "periodEnd": period.period_end.isoformat(),
-        "periodLabel": period.period_label,
-        "status": period.status,
-        "statusLabel": period.status_label,
+        "periodLabel": f"{period.period_start:%d %b %Y} - {period.period_end:%d %b %Y}",
+        "status": period.status.value,
+        "statusLabel": _STATUS_LABELS[period.status],
         "version": period.version,
-        "totalHours": period.total_hours,
-        "totalHoursLabel": period.total_hours_label,
+        "totalHours": float(period.total_hours),
+        "totalHoursLabel": f"{float(period.total_hours):.2f}h",
         "entryCount": period.entry_count,
         "projectCount": period.project_count,
         "taskCount": period.task_count,
-        "submittedAtLabel": period.submitted_at_label,
-        "decidedAtLabel": period.decided_at_label,
-        "returnReason": period.return_reason,
+        "submittedAtLabel": period.submitted_at.strftime("%Y-%m-%d %H:%M") if period.submitted_at else "-",
+        "decidedAtLabel": period.decided_at.strftime("%Y-%m-%d %H:%M") if period.decided_at else "-",
+        "returnReason": period.decision_note if period.can_view_return_reason else "",
         "canAddEntry": period.can_add_entry,
         "canEditEntry": period.can_edit_entry,
         "canDeleteEntry": period.can_delete_entry,
@@ -106,21 +119,21 @@ def _period_map(period) -> dict[str, object]:
     }
 
 
-def _entry_map(entry) -> dict[str, object]:
+def _entry_map(entry: TimesheetEntryFact) -> dict[str, object]:
     return {
         "id": entry.entry_id,
         "entryId": entry.entry_id,
         "assignmentId": entry.assignment_id,
-        "date": entry.work_date_label,
+        "date": entry.work_date.strftime("%d %b %Y"),
         "workDate": entry.work_date.isoformat(),
         "project": entry.project_name,
-        "projectId": entry.project_id,
+        "projectId": entry.project_id or "",
         "projectCode": entry.project_code,
         "task": entry.task_name,
-        "taskId": entry.task_id,
+        "taskId": entry.task_id or "",
         "taskCode": entry.task_code,
-        "hours": entry.hours_label,
-        "hoursValue": entry.hours,
+        "hours": f"{float(entry.hours):.2f}h",
+        "hoursValue": float(entry.hours),
         "description": entry.description,
         "activityType": entry.activity_type,
         "version": entry.version,
@@ -157,9 +170,11 @@ class ResourceTimesheetsPresenter:
         history_page_size: int,
     ) -> dict[str, object]:
         access = self._desktop_api.get_timesheet_workspace_access()
-        available = tuple(access.available_scopes)
-        resolved_scope = scope if scope in available else access.default_scope
-        target_resource_id = access.mine_resource_id if resolved_scope == "mine" else resource_id
+        available = tuple(scope.value for scope in access.available_scopes)
+        resolved_scope = scope if scope in available else access.default_scope.value
+        target_resource_id = (
+            access.mine_resource.resource_id if access.mine_resource else ""
+        ) if resolved_scope == "mine" else resource_id
         resource_page_result = None
         if resolved_scope in {"team", "all"}:
             resource_page_result = self._desktop_api.list_timesheet_resources_page(
@@ -202,7 +217,8 @@ class ResourceTimesheetsPresenter:
                 sort_direction=sort_direction,
                 history_page_size=history_page_size,
             )
-            state["period"].update(
+            period_state = cast(dict[str, object], state["period"])
+            period_state.update(
                 {
                     "ownerAvailable": resolved_scope != "mine",
                     "resourceSelected": False,
@@ -210,7 +226,7 @@ class ResourceTimesheetsPresenter:
                         "Resource setup required" if resolved_scope == "mine" else "Select a Resource"
                     ),
                     "setupMessage": (
-                        state["period"]["setupMessage"]
+                        period_state["setupMessage"]
                         if resolved_scope == "mine"
                         else "Search for and select an eligible Resource to view its Timesheet."
                     ),
@@ -250,8 +266,8 @@ class ResourceTimesheetsPresenter:
             "entryTotal": entries.total,
             "entryPage": entries.page,
             "entryPageSize": entries.page_size,
-            "entrySortKey": entries.sort_key,
-            "entrySortDirection": entries.sort_direction,
+            "entrySortKey": entries.sort.key,
+            "entrySortDirection": entries.sort.direction.value,
             "history": [_period_map(item) for item in history.items],
             "historyTotal": history.total,
             "historyPage": history.page,

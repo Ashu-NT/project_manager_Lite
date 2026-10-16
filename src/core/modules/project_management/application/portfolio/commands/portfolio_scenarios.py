@@ -13,6 +13,12 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scen
     PortfolioScenarioCreateCommand,
     PortfolioScenarioUpdateCommand,
 )
+from src.core.modules.project_management.application.portfolio.dto.responses.scenarios import (
+    PortfolioScenarioResponse,
+)
+from src.core.modules.project_management.application.portfolio.mappers.scenarios import (
+    map_scenario,
+)
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioScenarioChanged,
     PortfolioScenarioChangeType,
@@ -55,7 +61,7 @@ class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def create_scenario(self, command: PortfolioScenarioCreateCommand) -> PortfolioScenario:
+    def create_scenario(self, command: PortfolioScenarioCreateCommand) -> PortfolioScenarioResponse:
         project_ids = list(command.project_ids)
         intake_item_ids = list(command.intake_item_ids)
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio scenario")
@@ -111,9 +117,9 @@ class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
                 )
             )
             uow.commit()
-        return scenario
+        return map_scenario(scenario)
 
-    def update_scenario(self, command: PortfolioScenarioUpdateCommand) -> PortfolioScenario:
+    def update_scenario(self, command: PortfolioScenarioUpdateCommand) -> PortfolioScenarioResponse:
         project_ids = None if command.project_ids is None else list(command.project_ids)
         intake_item_ids = None if command.intake_item_ids is None else list(command.intake_item_ids)
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio scenario")
@@ -193,7 +199,7 @@ class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
                 )
             )
             uow.commit()
-        return candidate
+        return map_scenario(candidate)
 
 
 __all__ = ["PortfolioScenarioCommandHandler"]

@@ -1,4 +1,6 @@
+from datetime import datetime
 from decimal import Decimal
+from src.core.modules.project_management.domain.enums import DependencyType
 from types import SimpleNamespace
 
 from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
@@ -93,22 +95,22 @@ class _FakePortfolioDesktopApi:
             SimpleNamespace(
                 id="scn-1",
                 name="Q3 Balanced Plan",
-                budget_limit_label="EUR 500,000.00",
-                capacity_limit_label="280.0%",
+                budget_limit=Decimal("500000"),
+                capacity_limit_percent=280.0,
                 project_ids=("proj-1",),
                 intake_item_ids=("intake-1",),
                 notes="Protect active execution first.",
-                created_at_label="2026-05-01 09:00",
+                created_at=datetime(2026, 5, 1, 9, 0),
             ),
             SimpleNamespace(
                 id="scn-2",
                 name="Aggressive Expansion",
-                budget_limit_label="EUR 650,000.00",
-                capacity_limit_label="340.0%",
+                budget_limit=Decimal("650000"),
+                capacity_limit_percent=340.0,
                 project_ids=("proj-1", "proj-2"),
                 intake_item_ids=("intake-1", "intake-2"),
                 notes="Pull intake forward if labor opens up.",
-                created_at_label="2026-05-02 10:30",
+                created_at=datetime(2026, 5, 2, 10, 30),
             ),
         )
 
@@ -117,15 +119,15 @@ class _FakePortfolioDesktopApi:
             scenario_id=scenario_id,
             scenario_name="Q3 Balanced Plan",
             summary="Within budget with moderate capacity headroom.",
-            selected_projects_label="1",
-            selected_intake_items_label="1",
-            total_budget_label="EUR 180,000.00",
-            budget_limit_label="EUR 500,000.00",
-            total_capacity_label="40.0%",
-            capacity_limit_label="280.0%",
-            available_capacity_label="240.0%",
-            intake_score_label="27",
-            status_label="Within limits",
+            selected_projects=1,
+            selected_intake_items=1,
+            total_budget=Decimal("180000"),
+            budget_limit=Decimal("500000"),
+            total_capacity_percent=40.0,
+            capacity_limit_percent=280.0,
+            available_capacity_percent=240.0,
+            intake_composite_score=27,
+            over_budget=False, over_capacity=False,
         )
 
     def compare_scenarios(self, base_scenario_id, candidate_scenario_id):
@@ -133,11 +135,11 @@ class _FakePortfolioDesktopApi:
             base_scenario_name="Q3 Balanced Plan",
             candidate_scenario_name="Aggressive Expansion",
             summary="Candidate adds one more intake item and one more project.",
-            budget_delta_label="+EUR 95,000.00",
-            capacity_delta_label="+15.0%",
-            selected_projects_delta_label="+1",
-            selected_intake_items_delta_label="+1",
-            intake_score_delta_label="+22",
+            budget_delta=Decimal("95000"),
+            capacity_delta_percent=15.0,
+            selected_projects_delta=1,
+            selected_intake_items_delta=1,
+            intake_score_delta=22,
             added_project_names=("Warehouse Retrofit",),
             removed_project_names=(),
             added_intake_titles=("Warehouse HVAC Refresh",),
@@ -150,21 +152,21 @@ class _FakePortfolioDesktopApi:
                 project_id="proj-1",
                 project_name="Plant Upgrade",
                 pressure_label="Hot",
-                project_status_label="Active",
+                project_status="ACTIVE",
                 late_tasks=2,
                 critical_tasks=1,
-                peak_utilization_label="118.0%",
-                cost_variance_label="-EUR 8,500.00",
+                peak_utilization_percent=118.0,
+                cost_variance=Decimal("-8500"),
             ),
             SimpleNamespace(
                 project_id="proj-2",
                 project_name="Warehouse Retrofit",
                 pressure_label="Watch",
-                project_status_label="Planned",
+                project_status="PLANNED",
                 late_tasks=0,
                 critical_tasks=0,
-                peak_utilization_label="82.0%",
-                cost_variance_label="+EUR 1,200.00",
+                peak_utilization_percent=82.0,
+                cost_variance=Decimal("1200"),
             ),
         )
 
@@ -195,11 +197,11 @@ class _FakePortfolioDesktopApi:
                 predecessor_project_name="Plant Upgrade",
                 successor_project_name="Warehouse Retrofit",
                 pressure_label="Watch",
-                dependency_type_label="Finish -> Start",
-                predecessor_project_status_label="Active",
-                successor_project_status_label="Planned",
+                dependency_type=DependencyType.FINISH_TO_START,
+                predecessor_project_status="ACTIVE",
+                successor_project_status="PLANNED",
                 summary="Warehouse cutover waits for line shutdown lessons learned.",
-                created_at_label="2026-05-03 08:45",
+                created_at=datetime(2026, 5, 3, 8, 45),
             ),
         )
 
@@ -227,7 +229,7 @@ class _FakePortfolioDesktopApi:
         assert limit == 12
         return (
             SimpleNamespace(
-                occurred_at_label="2026-05-03 08:45",
+                occurred_at=datetime(2026, 5, 3, 8, 45),
                 project_name="Plant Upgrade",
                 actor_username="alex",
                 action_label="Baseline created",
@@ -253,7 +255,7 @@ def test_project_management_workspace_catalog_exposes_typed_portfolio_controller
     assert controller.templateOptions[0]["label"] == "Balanced PMO"
     assert controller.intakeItems["items"][0]["title"] == "Packaging Line Expansion"
     assert controller.evaluation["title"] == "Scenario Evaluation: Q3 Balanced Plan"
-    assert controller.comparison["fields"][0]["value"] == "+EUR 95,000.00"
+    assert controller.comparison["fields"][0]["value"] == "+95,000.00"
 
     controller.setIntakeStatusFilter("APPROVED")
 

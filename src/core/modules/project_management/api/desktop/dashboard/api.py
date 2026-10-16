@@ -1,95 +1,114 @@
-"""ProjectManagementDashboardDesktopApi — thin desktop dashboard facade."""
-
+"""Thin access to dashboard application queries; QML formatting belongs to presenters."""
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
-    build_empty_overview,
-    build_overview_from_dashboard_data,
+from collections.abc import Sequence
+from datetime import date, datetime
+
+from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
+    CollaborationInboxQueryHandler,
 )
-from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
-    fmt_date,
+from src.core.modules.project_management.application.dashboard import (
+    DashboardData,
+    PortfolioDashboardQueryHandler,
+    ProjectDashboardQueryHandler,
 )
-from src.core.modules.project_management.api.desktop.dashboard.models.overview import (
-    ProjectDashboardOverviewDescriptor,
+from src.core.modules.project_management.application.financials.earned_value.dto.responses.earned_value import (
+    EvmSeriesPoint,
 )
-from src.core.modules.project_management.api.desktop.dashboard.models.snapshot import (
-    ProjectDashboardSnapshotDescriptor,
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
 )
-from src.core.modules.project_management.api.desktop.dashboard.models.tables import (
-    ProjectDashboardOperationalTableDescriptor,
-    ProjectDashboardTableColumnDescriptor,
-    ProjectDashboardTableRowDescriptor,
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryHandler,
 )
-from src.core.modules.project_management.api.desktop.dashboard.services.dashboard_snapshot_service import (
-    DashboardSnapshotService,
+from src.core.modules.project_management.application.reporting.builders.evm import (
+    EarnedValueReportBuilder,
 )
+from src.core.modules.project_management.application.scheduling.baselines.queries.catalog import (
+    BaselineQueryHandler,
+)
+from src.core.modules.project_management.application.scheduling.dto.responses.baselines import (
+    SchedulingBaselineVarianceRowDto,
+)
+from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
+    TaskWorkspacePageQueryHandler,
+)
+from src.core.modules.project_management.contracts.reads.tasks.models import (
+    TaskWorkspaceReadPage,
+)
+from src.core.modules.project_management.domain.collaboration import (
+    CollaborationInboxItem,
+)
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    ProjectBaseline,
+)
+from src.core.platform.application.approval.dto.responses.requests import (
+    ApprovalRequestResponse,
+)
+from src.core.platform.application.approval.queries import ApprovalQueryHandler
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
-
-_COL = ProjectDashboardTableColumnDescriptor
-
-_DELAYED_TASKS_COLUMNS = (
-    _COL("taskName", "Task", 3, 220, True),
-    _COL("projectName", "Project", 2, 160, True),
-    _COL("finish", "Finish", 1, 108, True),
-    _COL("owner", "Owner", 2, 140),
-    _COL("statusLabel", "Status", 0, 96, False, True, "status"),
+from src.core.platform.common.exceptions import ConfigurationError
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import (
+    SupportsModuleEntitlements,
 )
 
 
 class ProjectManagementDashboardDesktopApi:
-    """Thin facade — all orchestration delegates to DashboardSnapshotService."""
-
     def __init__(
-        self,
-        *,
-        project_service=None,
-        project_dashboard=None,
-        portfolio_dashboard=None,
-        baseline_query=None,
-        earned_value_report=None,
-        collaboration_inbox_query=None,
-        approval_queries=None,
-        task_workspace_query=None,
-        module_catalog_service=None,
+        self, *, project_service: ProjectQueryHandler | None = None, project_dashboard: ProjectDashboardQueryHandler | None = None, portfolio_dashboard: PortfolioDashboardQueryHandler | None = None,
+        baseline_query: BaselineQueryHandler | None = None, earned_value_report: EarnedValueReportBuilder | None = None, collaboration_inbox_query: CollaborationInboxQueryHandler | None = None,
+        approval_queries: ApprovalQueryHandler | None = None, task_workspace_query: TaskWorkspacePageQueryHandler | None = None, module_catalog_service: SupportsModuleEntitlements | None = None,
     ) -> None:
-        self._snapshot_service = DashboardSnapshotService(
-            project_service=project_service,
-            project_dashboard=project_dashboard,
-            portfolio_dashboard=portfolio_dashboard,
-            baseline_query=baseline_query,
-            earned_value_report=earned_value_report,
-            collaboration_inbox_query=collaboration_inbox_query,
-            approval_queries=approval_queries,
-        )
+        self._project_service = project_service
+        self._project_dashboard = project_dashboard
+        self._portfolio_dashboard = portfolio_dashboard
+        self._baseline_query = baseline_query
+        self._earned_value_report = earned_value_report
+        self._collaboration_inbox_query = collaboration_inbox_query
+        self._approval_queries = approval_queries
         self._task_workspace_query = task_workspace_query
         self._module_catalog_service = module_catalog_service
 
-    def build_empty_overview(self) -> ProjectDashboardOverviewDescriptor:
-        return build_empty_overview()
+    @property
+    def is_connected(self) -> bool:
+        return self._project_dashboard is not None and self._portfolio_dashboard is not None
 
-    def build_overview_from_dashboard_data(
-        self, *, project_name: str, dashboard_data
-    ) -> ProjectDashboardOverviewDescriptor:
-        return build_overview_from_dashboard_data(
-            project_name=project_name, dashboard_data=dashboard_data
-        )
+    @property
+    def has_activity_feed(self) -> bool:
+        return self._collaboration_inbox_query is not None
 
-    def build_snapshot(
-        self,
-        *,
-        project_id: str | None = None,
-        baseline_id: str | None = None,
-        period_key: str | None = None,
-        view_key: str | None = None,
-    ) -> ProjectDashboardSnapshotDescriptor:
-        return self._snapshot_service.build_snapshot(
-            project_id=project_id,
-            baseline_id=baseline_id,
-            period_key=period_key,
-            view_key=view_key,
-        )
+    def list_projects(self) -> Sequence[ProjectResponse]:
+        return () if self._project_service is None else self._project_service.list_projects()
+
+    def list_baselines(self, project_id: str) -> Sequence[ProjectBaseline]:
+        return () if self._baseline_query is None else self._baseline_query.list_baselines(project_id)
+
+    def get_dashboard_data(self, project_id: str, *, baseline_id: str | None = None, include_evm: bool = True) -> DashboardData:
+        if self._project_dashboard is None:
+            raise ConfigurationError("Project dashboard query is not connected.")
+        return self._project_dashboard.get_dashboard_data(project_id, baseline_id=baseline_id, include_evm=include_evm)
+
+    def get_portfolio_data(self) -> DashboardData:
+        if self._portfolio_dashboard is None:
+            raise ConfigurationError("Portfolio dashboard query is not connected.")
+        return self._portfolio_dashboard.get_portfolio_data()
+
+    def get_approved_baseline(self, project_id: str) -> ProjectBaseline | None:
+        return None if self._baseline_query is None else self._baseline_query.get_approved_baseline(project_id)
+
+    def list_variance_records(self, baseline_id: str) -> Sequence[SchedulingBaselineVarianceRowDto]:
+        return () if self._baseline_query is None else self._baseline_query.query_variance_responses(baseline_id)
+
+    def get_evm_series(self, project_id: str, *, baseline_id: str | None = None, as_of: date | None = None) -> Sequence[EvmSeriesPoint]:
+        return () if self._earned_value_report is None else self._earned_value_report.get_evm_series(project_id, baseline_id=baseline_id, as_of=as_of)
+
+    def list_recent_activity(self, *, project_id: str | None = None, created_since: datetime | None = None, limit: int = 120) -> Sequence[CollaborationInboxItem]:
+        return () if self._collaboration_inbox_query is None else self._collaboration_inbox_query.list_recent_activity(project_id=project_id, created_since=created_since, limit=limit)
+
+    def list_pending(self, *, project_id: str | None = None, limit: int = 120) -> Sequence[ApprovalRequestResponse]:
+        return () if self._approval_queries is None else self._approval_queries.list_requests(status="PENDING", project_id=project_id, limit=limit)
 
     def list_delayed_tasks_page(
         self,
@@ -100,7 +119,7 @@ class ProjectManagementDashboardDesktopApi:
         page_size: int = 25,
         sort_key: str = "endDateLabel",
         sort_direction: str = "asc",
-    ) -> ProjectDashboardOperationalTableDescriptor:
+    ) -> TaskWorkspaceReadPage | None:
         """Overview's "Delays" tab: SCALABLE (overdue tasks scale with task
         volume, not inherently bounded) -- authoritatively server-paginated
         by reusing Tasks' own workspace query handler (schedule="overdue")
@@ -114,49 +133,11 @@ class ProjectManagementDashboardDesktopApi:
             operation_label="query workspace page",
         )
         if self._task_workspace_query is None:
-            return ProjectDashboardOperationalTableDescriptor(
-                id="delayed_tasks", title="Delays",
-                collection_semantics="complete", supports_search=True, supports_pagination=True,
-                columns=_DELAYED_TASKS_COLUMNS,
-                page=page, page_size=page_size, sort_key=sort_key, sort_direction=sort_direction, search_text=search_text,
-            )
-        result = self._task_workspace_query.query_workspace_page(
-            project_id=project_id,
-            search_text=search_text,
-            status="all",
-            priority="all",
-            schedule="overdue",
-            page=page,
-            page_size=page_size,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-        )
-        return ProjectDashboardOperationalTableDescriptor(
-            id="delayed_tasks", title="Delays",
-            subtitle="Every currently overdue task across the accessible scope, not a curated preview.",
-            empty_state="No tasks are currently overdue.",
-            collection_semantics="complete", supports_search=True, supports_pagination=True,
-            columns=_DELAYED_TASKS_COLUMNS,
-            rows=tuple(
-                ProjectDashboardTableRowDescriptor(
-                    id=item.id, route_id="project_management.tasks",
-                    state={"taskId": item.id, "projectId": item.project_id},
-                    values={
-                        "taskName": item.name,
-                        "projectName": item.project_name,
-                        "finish": fmt_date(item.end_date),
-                        "owner": "Unassigned",
-                        "statusLabel": "Overdue",
-                    },
-                )
-                for item in result.items
-            ),
-            page=result.page,
-            page_size=result.page_size,
-            total_count=result.filtered_total,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-            search_text=search_text,
+            return None
+        return self._task_workspace_query.query_workspace_page(
+            project_id=project_id, search_text=search_text, status="all", priority="all",
+            schedule="overdue", page=page, page_size=page_size,
+            sort_key=sort_key, sort_direction=sort_direction,
         )
 
 

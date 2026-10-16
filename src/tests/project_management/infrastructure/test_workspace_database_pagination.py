@@ -323,24 +323,8 @@ def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
 
 def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -> None:
     project = services['project_create'].create_project(ProjectCreateCommand(name="WBS Database Paging"))
-    root = services['task_lifecycle_commands'].create_task(
-        project.id,
-        "Summary Delivery",
-        start_date=date(2026, 5, 1),
-        duration_days=5,
-        status=TaskStatus.TODO,
-        wbs_code="1",
-    )
-    child = services['task_lifecycle_commands'].create_task(
-        project.id,
-        "Blocked Work Package",
-        start_date=date(2026, 5, 2),
-        duration_days=2,
-        status=TaskStatus.BLOCKED,
-        priority=95,
-        parent_task_id=root.id,
-        wbs_code="1.1",
-    )
+    root = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Summary Delivery", start_date=date(2026, 5, 1), duration_days=5, status=TaskStatus.TODO, wbs_code="1"))
+    child = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Blocked Work Package", start_date=date(2026, 5, 2), duration_days=2, status=TaskStatus.BLOCKED, priority=95, parent_task_id=root.id, wbs_code="1.1"))
 
     first_page = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
@@ -376,12 +360,8 @@ def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -
 
 def test_task_workspace_milestones_only_filter(services) -> None:
     project = services['project_create'].create_project(ProjectCreateCommand(name="Milestone Filter Project"))
-    services['task_lifecycle_commands'].create_task(
-        project.id, "Regular Task", start_date=date(2026, 5, 1), duration_days=5
-    )
-    milestone = services['task_lifecycle_commands'].create_task(
-        project.id, "Handover", start_date=date(2026, 5, 5), duration_days=5, is_milestone=True
-    )
+    services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Regular Task", start_date=date(2026, 5, 1), duration_days=5))
+    milestone = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Handover", start_date=date(2026, 5, 5), duration_days=5, is_milestone=True))
 
     all_page = services["task_workspace_query"].query_workspace_page(project_id=project.id, page=1, page_size=25)
     milestones_page = services["task_workspace_query"].query_workspace_page(
@@ -397,9 +377,9 @@ def test_task_workspace_milestones_only_filter(services) -> None:
 
 def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
     project = services['project_create'].create_project(ProjectCreateCommand(name="Task Sort Project"))
-    alpha = services['task_lifecycle_commands'].create_task(project.id, "Alpha Task", wbs_code="1")
-    beta = services['task_lifecycle_commands'].create_task(project.id, "Beta Task", wbs_code="2")
-    gamma = services['task_lifecycle_commands'].create_task(project.id, "Gamma Task", wbs_code="3")
+    alpha = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Alpha Task", wbs_code="1"))
+    beta = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Beta Task", wbs_code="2"))
+    gamma = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Gamma Task", wbs_code="3"))
 
     ascending_first = services["task_workspace_query"].query_workspace_page(
         project_id=project.id,
@@ -632,12 +612,7 @@ def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
 
 def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> None:
     project = services['project_create'].create_project(ProjectCreateCommand(name="Timesheet Database Paging"))
-    task = services['task_lifecycle_commands'].create_task(
-        project.id,
-        "Database review task",
-        start_date=date(2026, 6, 1),
-        duration_days=5,
-    )
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Database review task", start_date=date(2026, 6, 1), duration_days=5))
     resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Database Reviewer", role="Engineer"))
     assignment = services['task_assignment_commands'].assign_resource(
         task.id,
@@ -677,7 +652,7 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
         ("Maya Reviewer", alpha_project, 7),
         ("Zoe Reviewer", beta_project, 8),
     ):
-        task = services['task_lifecycle_commands'].create_task(project.id, f"{name} Task")
+        task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name=f"{name} Task"))
         resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=name, role="Engineer"))
         assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id)
         period_start = date(2026, month, 1)

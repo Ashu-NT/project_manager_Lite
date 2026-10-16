@@ -5,6 +5,8 @@ previously selected row must clear the selection, never substitute a different p
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from src.ui_qml.modules.project_management.presenters.projects.selection import (
     resolve_selected_project_id,
 )
@@ -12,7 +14,7 @@ from src.ui_qml.modules.project_management.presenters.projects.selection import 
 
 class _FakeProject:
     def __init__(self, project_id: str) -> None:
-        self.id = project_id
+        self.project = SimpleNamespace(id=project_id)
 
 
 def test_selection_clears_rather_than_reassigning_when_not_on_current_page() -> None:

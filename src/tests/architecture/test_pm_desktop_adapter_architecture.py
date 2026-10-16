@@ -6,6 +6,7 @@ from pathlib import Path
 from src.tests.path_rewrites import REPO_ROOT
 
 DESKTOP_ROOT = REPO_ROOT / "src/core/modules/project_management/api/desktop"
+DASHBOARD_PRESENTATION_ROOT = REPO_ROOT / "src/ui_qml/modules/project_management/presenters/dashboard"
 APPLICATION_ROOTS = (
     REPO_ROOT / "src/core/modules/project_management/application",
     REPO_ROOT / "src/core/platform/application",
@@ -25,9 +26,11 @@ KNOWN_REPOSITORY_IMPORTS: set[str] = set()
 KNOWN_PRIVATE_COLLABORATOR_ACCESS: set[str] = set()
 KNOWN_APPLICATION_CONSTRUCTION: set[str] = set()
 KNOWN_PRIVATE_MODULE_IMPORTS: set[str] = set()
-APPLICATION_POLICY_CALLS = frozenset({
-    "src.core.platform.application.tenant.modules.authorization.require_module_enabled",
-})
+APPLICATION_POLICY_CALLS = frozenset(
+    {
+        "src.core.platform.application.tenant.modules.authorization.require_module_enabled",
+    }
+)
 
 
 def _python_files(root: Path) -> tuple[Path, ...]:
@@ -93,7 +96,9 @@ def _private_access_for_tree(path_label: str, tree: ast.AST) -> set[str]:
             isinstance(node, ast.Attribute)
             and node.attr.startswith("_")
             and not node.attr.startswith("__")
-            and not (isinstance(node.value, ast.Name) and node.value.id in {"self", "cls"})
+            and not (
+                isinstance(node.value, ast.Name) and node.value.id in {"self", "cls"}
+            )
         ):
             violations.add(f"{path_label}:{node.attr}")
     return violations
@@ -121,7 +126,11 @@ def _application_construction_for_tree(path_label: str, tree: ast.AST) -> set[st
             f".dto.{kind}." in qualified_name
             for kind in ("commands", "queries", "responses")
         )
-        if qualified_name and qualified_name not in APPLICATION_POLICY_CALLS and not is_dto:
+        if (
+            qualified_name
+            and qualified_name not in APPLICATION_POLICY_CALLS
+            and not is_dto
+        ):
             violations.add(f"{path_label}:{qualified_name}")
     return violations
 
@@ -129,7 +138,9 @@ def _application_construction_for_tree(path_label: str, tree: ast.AST) -> set[st
 def _application_construction_violations() -> set[str]:
     violations: set[str] = set()
     for path in _python_files(DESKTOP_ROOT):
-        violations.update(_application_construction_for_tree(_relative(path), _tree(path)))
+        violations.update(
+            _application_construction_for_tree(_relative(path), _tree(path))
+        )
     return violations
 
 
@@ -156,7 +167,9 @@ def _desktop_import_violations(root: Path) -> set[str]:
     violations: set[str] = set()
     for path in _python_files(root):
         for _local_name, qualified_name in _imports(_tree(path)):
-            if ".api.desktop." in qualified_name or qualified_name.endswith(".api.desktop"):
+            if ".api.desktop." in qualified_name or qualified_name.endswith(
+                ".api.desktop"
+            ):
                 violations.add(f"{_relative(path)}:{qualified_name}")
     return violations
 
@@ -173,7 +186,9 @@ def test_desktop_adds_no_application_object_construction() -> None:
     assert _application_construction_violations() == KNOWN_APPLICATION_CONSTRUCTION
 
 
-def test_application_construction_guard_allows_payload_mapping_not_handler_construction() -> None:
+def test_application_construction_guard_allows_payload_mapping_not_handler_construction() -> (
+    None
+):
     tree = ast.parse(
         "from src.core.platform.application.tenant.modules.authorization import require_module_enabled\n"
         "from src.core.modules.project_management.application.tasks.service import TaskService\n"
@@ -235,14 +250,17 @@ def test_dead_pm_calendar_mutation_surface_stays_deleted() -> None:
 
 
 def test_resource_rate_and_certification_policy_stays_out_of_adapters() -> None:
-    resource_api_source = (DESKTOP_ROOT / "resources/api.py").read_text(encoding="utf-8")
+    resource_api_source = (DESKTOP_ROOT / "resources/api.py").read_text(
+        encoding="utf-8"
+    )
     importer_source = (
         REPO_ROOT
         / "src/core/modules/project_management/infrastructure/importers/resources/csv/"
         "resource_csv_importer.py"
     ).read_text(encoding="utf-8")
     certification_source = (
-        REPO_ROOT / "src/ui_qml/modules/project_management/presenters/resources/certifications_builder.py"
+        REPO_ROOT
+        / "src/ui_qml/modules/project_management/presenters/resources/certifications_builder.py"
     ).read_text(encoding="utf-8")
 
     for source in (resource_api_source, importer_source):
@@ -258,6 +276,7 @@ def test_resource_rate_and_certification_policy_stays_out_of_adapters() -> None:
     from src.core.modules.project_management.application.resources.mappers.capabilities import (
         map_resource_certification,
     )
+
     assert ".status_on(" in getsource(map_resource_certification)
     assert ".status_on(" not in certification_source
     assert "expiry < today" not in certification_source
@@ -266,9 +285,9 @@ def test_resource_rate_and_certification_policy_stays_out_of_adapters() -> None:
 
 def test_scheduling_lifecycle_and_calendar_policy_stays_with_its_owners() -> None:
     scheduling_root = DESKTOP_ROOT / "scheduling"
-    baseline_source = (
-        scheduling_root / "formatters/baseline_formatter.py"
-    ).read_text(encoding="utf-8")
+    baseline_source = (scheduling_root / "formatters/baseline_formatter.py").read_text(
+        encoding="utf-8"
+    )
     schedule_source = (
         scheduling_root / "serializers/schedule_serializer.py"
     ).read_text(encoding="utf-8")
@@ -296,18 +315,18 @@ def test_scheduling_lifecycle_and_calendar_policy_stays_with_its_owners() -> Non
 
 def test_register_triage_policy_stays_out_of_desktop_adapters() -> None:
     register_root = DESKTOP_ROOT / "register"
-    builder_source = (
-        register_root / "builders/entry_list_builder.py"
-    ).read_text(encoding="utf-8")
-    serializer_source = (
-        register_root / "serializers/entry_serializer.py"
-    ).read_text(encoding="utf-8")
+    builder_source = (register_root / "builders/entry_list_builder.py").read_text(
+        encoding="utf-8"
+    )
+    adapter_sources = tuple(
+        path.read_text(encoding="utf-8") for path in register_root.rglob("*.py")
+    )
     query_source = (
         REPO_ROOT
         / "src/core/modules/project_management/application/risk/queries/register_query.py"
     ).read_text(encoding="utf-8")
     dashboard_source = (
-        DESKTOP_ROOT / "dashboard/builders/operational_table_builder.py"
+        DASHBOARD_PRESENTATION_ROOT / "builders/operational_table_builder.py"
     ).read_text(encoding="utf-8")
 
     assert "sorted(" not in builder_source
@@ -318,22 +337,28 @@ def test_register_triage_policy_stays_out_of_desktop_adapters() -> None:
     from src.core.modules.project_management.application.risk.mappers.entries import (
         map_register_entry,
     )
+
     assert "entry.is_overdue_on(as_of)" in getsource(map_register_entry)
-    assert ".is_overdue_on(" not in serializer_source
+    assert all(".is_overdue_on(" not in source for source in adapter_sources)
     assert ".triage_key(" in query_source
     assert not (register_root / "utils/register_status_utils.py").exists()
     assert "register_service" not in dashboard_source
-    assert "sorted(" not in dashboard_source.split("def _build_high_risks_table", 1)[1].split("def ", 1)[0]
+    assert (
+        "sorted("
+        not in dashboard_source.split("def _build_high_risks_table", 1)[1].split(
+            "def ", 1
+        )[0]
+    )
     assert 'getattr(dashboard_data, "high_risks"' in dashboard_source
 
 
 def test_resource_utilization_policy_stays_out_of_desktop_adapters() -> None:
     source_paths = (
-        DESKTOP_ROOT / "dashboard/builders/chart_builder.py",
-        DESKTOP_ROOT / "dashboard/builders/health_card_builder.py",
-        DESKTOP_ROOT / "dashboard/builders/operational_table_builder.py",
-        DESKTOP_ROOT / "dashboard/builders/overview_builder.py",
-        DESKTOP_ROOT / "dashboard/builders/panel_builder.py",
+        DASHBOARD_PRESENTATION_ROOT / "builders/chart_builder.py",
+        DASHBOARD_PRESENTATION_ROOT / "builders/health_card_builder.py",
+        DASHBOARD_PRESENTATION_ROOT / "builders/operational_table_builder.py",
+        DASHBOARD_PRESENTATION_ROOT / "builders/overview_builder.py",
+        DASHBOARD_PRESENTATION_ROOT / "builders/panel_builder.py",
         DESKTOP_ROOT / "scheduling/serializers/resource_load_serializer.py",
     )
     sources = tuple(path.read_text(encoding="utf-8") for path in source_paths)
@@ -344,9 +369,7 @@ def test_resource_utilization_policy_stays_out_of_desktop_adapters() -> None:
     assert all("peak_util >= 90.0" not in source for source in sources)
     assert any('getattr(r, "is_overloaded"' in source for source in sources)
     assert "utilization_status_label" in sources[-1]
-    assert not (
-        DESKTOP_ROOT / "scheduling/formatters/status_formatter.py"
-    ).exists()
+    assert not (DESKTOP_ROOT / "scheduling/formatters/status_formatter.py").exists()
 
 
 def test_da0_scanners_detect_synthetic_violations() -> None:
@@ -358,9 +381,7 @@ def test_da0_scanners_detect_synthetic_violations() -> None:
     assert _repository_imports_for_tree(path_label, repository_tree)
 
     private_tree = ast.parse('repo = getattr(service, "_repo", None)')
-    assert _private_access_for_tree(path_label, private_tree) == {
-        "synthetic.py:_repo"
-    }
+    assert _private_access_for_tree(path_label, private_tree) == {"synthetic.py:_repo"}
 
     construction_tree = ast.parse(
         "from src.core.modules.project_management.application.tasks import TaskService\n"

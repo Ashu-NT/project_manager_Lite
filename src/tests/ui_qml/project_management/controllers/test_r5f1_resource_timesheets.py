@@ -11,6 +11,12 @@ from src.core.modules.project_management.application.projects.dto.commands.proje
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
+from src.core.modules.project_management.application.timesheets.dto.commands.time_entries import (
+    TimesheetEntryCreateCommand,
+)
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetScope,
 )
@@ -37,12 +43,7 @@ def _build_resource_timesheet(services):
     )
     resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Timesheet Owner", role="Engineer", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
     project = services['project_create'].create_project(ProjectCreateCommand(name="R5F1 Delivery"))
-    task = services['task_lifecycle_commands'].create_task(
-        project.id,
-        "Owner Workflow",
-        start_date=date(2026, 8, 1),
-        duration_days=20,
-    )
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Owner Workflow", start_date=date(2026, 8, 1), duration_days=20))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id)
     return employee, resource, project, task, assignment
 
@@ -101,28 +102,14 @@ def test_resource_mutations_deny_another_resource_and_enforce_selected_period(se
     _, owner_resource, _, _, owner_assignment = _build_resource_timesheet(services)
     other = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Another Resource", role="Engineer"))
     project = services['project_create'].create_project(ProjectCreateCommand(name="Other Work"))
-    task = services['task_lifecycle_commands'].create_task(project.id, "Other Task")
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Other Task"))
     other_assignment = services['task_assignment_commands'].assign_resource(task.id, other.id)
 
     with pytest.raises(BusinessRuleError, match="does not belong"):
-        services["timesheet_workspace_commands"].add_timesheet_entry(
-            other_assignment.id,
-            scope=TimesheetScope.MINE,
-            resource_id=owner_resource.id,
-            period_start=date(2026, 8, 1),
-            entry_date=date(2026, 8, 5),
-            hours=4,
-        )
+        services["timesheet_workspace_commands"].add_timesheet_entry(TimesheetEntryCreateCommand(assignment_id=other_assignment.id, entry_date=date(2026, 8, 5), hours=4), scope=TimesheetScope.MINE, resource_id=owner_resource.id, period_start=date(2026, 8, 1))
 
     with pytest.raises(Exception, match="selected reporting period"):
-        services["timesheet_workspace_commands"].add_timesheet_entry(
-            owner_assignment.id,
-            scope=TimesheetScope.MINE,
-            resource_id=owner_resource.id,
-            period_start=date(2026, 8, 1),
-            entry_date=date(2026, 9, 1),
-            hours=4,
-        )
+        services["timesheet_workspace_commands"].add_timesheet_entry(TimesheetEntryCreateCommand(assignment_id=owner_assignment.id, entry_date=date(2026, 9, 1), hours=4), scope=TimesheetScope.MINE, resource_id=owner_resource.id, period_start=date(2026, 8, 1))
 
 
 def test_resource_submit_is_versioned_and_populates_review_queue(services) -> None:
@@ -248,31 +235,16 @@ def test_reviewer_permission_does_not_grant_timesheet_edit_other(services) -> No
         )
     )
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        services["timesheet_workspace_commands"].add_timesheet_entry(
-            assignment.id,
-            scope=TimesheetScope.ALL,
-            resource_id=assignment.resource_id,
-            period_start=date(2026, 8, 1),
-            entry_date=date(2026, 8, 4),
-            hours=4,
-        )
+        services["timesheet_workspace_commands"].add_timesheet_entry(TimesheetEntryCreateCommand(assignment_id=assignment.id, entry_date=date(2026, 8, 4), hours=4), scope=TimesheetScope.ALL, resource_id=assignment.resource_id, period_start=date(2026, 8, 1))
 
 
 def test_external_without_login_supports_governed_delegated_lifecycle(services) -> None:
     external = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Delegated Contractor", role="Consultant", kind=ResourceKind.PERSON, worker_type=WorkerType.EXTERNAL))
     project = services['project_create'].create_project(ProjectCreateCommand(name="Delegated Delivery"))
-    task = services['task_lifecycle_commands'].create_task(project.id, "Consulting")
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Consulting"))
     assignment = services['task_assignment_commands'].assign_resource(task.id, external.id)
 
-    entry = services["timesheet_workspace_commands"].add_timesheet_entry(
-        assignment.id,
-        scope=TimesheetScope.ALL,
-        resource_id=external.id,
-        period_start=date(2026, 8, 1),
-        entry_date=date(2026, 8, 7),
-        hours=6,
-        note="Entered by timekeeper",
-    )
+    entry = services["timesheet_workspace_commands"].add_timesheet_entry(TimesheetEntryCreateCommand(assignment_id=assignment.id, entry_date=date(2026, 8, 7), hours=6, note="Entered by timekeeper"), scope=TimesheetScope.ALL, resource_id=external.id, period_start=date(2026, 8, 1))
     before = services["timesheet_workspace_query"].get_timesheet_period(
         scope=TimesheetScope.ALL,
         resource_id=external.id,
@@ -297,8 +269,8 @@ def test_team_selector_uses_explicit_project_scope(services) -> None:
     out_team = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Out Team", role="Engineer", kind=ResourceKind.PERSON))
     team_project = services['project_create'].create_project(ProjectCreateCommand(name="Team Project"))
     other_project = services['project_create'].create_project(ProjectCreateCommand(name="Other Project"))
-    team_task = services['task_lifecycle_commands'].create_task(team_project.id, "Team Task")
-    other_task = services['task_lifecycle_commands'].create_task(other_project.id, "Other Task")
+    team_task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=team_project.id, name="Team Task"))
+    other_task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=other_project.id, name="Other Task"))
     services['task_assignment_commands'].assign_resource(team_task.id, in_team.id)
     services['task_assignment_commands'].assign_resource(other_task.id, out_team.id)
     original = services["user_session"].principal

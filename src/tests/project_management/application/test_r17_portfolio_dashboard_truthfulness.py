@@ -5,10 +5,10 @@ from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
-from src.core.modules.project_management.api.desktop.dashboard.builders.operational_table_builder import (
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.operational_table_builder import (
     build_operational_tables,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.overview_builder import (
     build_contextual_overview,
 )
 from src.core.modules.project_management.application.dashboard.reporting.portfolio import (

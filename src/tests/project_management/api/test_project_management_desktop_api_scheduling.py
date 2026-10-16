@@ -16,12 +16,21 @@ from src.core.modules.project_management.application.projects.dto.responses.proj
 from src.core.modules.project_management.application.projects.mappers.project import (
     map_project_response,
 )
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    ProjectCalendarAdapter,
+)
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
 )
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineCreateCommand,
     SchedulingBaselineDeleteCommand,
+)
+from src.core.modules.project_management.application.scheduling.dto.commands.working_days import (
+    SchedulingWorkingDayCalculationCommand,
+)
+from src.core.modules.project_management.application.scheduling.mappers.baselines import (
+    map_baseline_comparison,
 )
 from src.core.modules.project_management.domain.enums import (
     ProjectStatus,
@@ -67,6 +76,11 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
         scheduling_engine=scheduling_engine,
         work_calendar_service=work_calendar_service,
         work_calendar_engine=work_calendar_engine,
+        project_calendar_adapter=ProjectCalendarAdapter(SimpleNamespace(
+            calculate_working_days=lambda command: SimpleNamespace(
+                end_date=work_calendar_engine.add_working_days(command.start_date, command.working_days)
+            )
+        )),
         baseline_query=baseline_service, baseline_commands=baseline_service,
         baseline_compare_report=reporting_service,
         project_kpi_report=reporting_service,
@@ -77,7 +91,7 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert api.get_calendar_snapshot().working_days[0].label == "Mon"
 
     calculation = api.calculate_working_days(
-        SimpleNamespace(start_date=date(2026, 5, 4), working_days=3)
+        SchedulingWorkingDayCalculationCommand(start_date=date(2026, 5, 4), working_days=3)
     )
 
     assert calculation.result_date == date(2026, 5, 7)
@@ -317,6 +331,9 @@ class _FakeBaselineService:
 
 
 class _FakeReportingService:
+    def compare_baseline_responses(self, **kwargs):
+        return tuple(map_baseline_comparison(row) for row in self.compare_baselines(**kwargs).rows)
+
     def compare_baselines(
         self,
         *,

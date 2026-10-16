@@ -5,7 +5,7 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationRecordViewModel,
 )
 
-from .formatting import iso_datetime
+from .formatting import body_preview, iso_datetime, mentions_label
 
 
 def build_inbox_collection(
@@ -28,8 +28,8 @@ def build_inbox_collection(
                 title=item.task_name,
                 status_label="Unread" if item.unread else "Read",
                 subtitle=item.project_name,
-                supporting_text=item.body_preview or item.mentions_label,
-                meta_text=f"{item.created_at_label} | @{item.author_username}",
+                supporting_text=body_preview(item) or mentions_label(item.mentions),
+                meta_text=f"{item.created_at.strftime('%Y-%m-%d %H:%M')} | @{item.author_username}",
                 can_primary_action=item.unread,
                 state={
                     "panelId": "inbox",

@@ -1,13 +1,18 @@
 from dataclasses import asdict
 from datetime import UTC, datetime
 
-from src.core.modules.project_management.api.desktop.collaboration.serializers.collaboration_serializers import (
-    serialize_inbox_item,
-    serialize_task_comment,
+from src.core.modules.project_management.application.collaboration.mappers.comments import (
+    map_comment,
 )
 from src.core.modules.project_management.domain.collaboration import (
     CollaborationInboxItem,
     TaskComment,
+)
+from src.ui_qml.modules.project_management.presenters.collaboration.formatting import (
+    body_preview,
+)
+from src.ui_qml.modules.project_management.presenters.tasks.collaboration_mapper import (
+    to_collaboration_comment_record_view_model,
 )
 
 
@@ -22,16 +27,21 @@ def test_deleted_task_dto_hides_all_content_and_actions():
     comment.attachments = ["private-file.txt"]
     comment.mentions = ["private-person"]
     comment.reactions = {"like": ["private-person"]}
-    dto = serialize_task_comment(
-        comment,
+    dto = to_collaboration_comment_record_view_model(
+        map_comment(comment, principal_user_id="author"),
         linked_documents=[],
         can_manage=True,
         can_read=True,
         principal_user_id="author",
     )
-    assert dto.is_deleted
-    assert dto.body == "This comment was deleted."
-    assert dto.attachments == dto.mentions == dto.reactions == ()
+    assert dto.state["isDeleted"]
+    assert dto.subtitle == "This comment was deleted."
+    assert (
+        dto.state["attachments"]
+        == dto.state["mentions"]
+        == dto.state["reactions"]
+        == []
+    )
     assert "private" not in str(asdict(dto))
 
 
@@ -51,6 +61,5 @@ def test_inbox_dto_preserves_typed_tombstone_without_original_body():
         is_deleted=True,
         deleted_at=now,
     )
-    dto = serialize_inbox_item(item)
-    assert dto.is_deleted and dto.deleted_at == now
-    assert dto.body_preview == "This comment was deleted."
+    assert item.is_deleted and item.deleted_at == now
+    assert body_preview(item) == "This comment was deleted."

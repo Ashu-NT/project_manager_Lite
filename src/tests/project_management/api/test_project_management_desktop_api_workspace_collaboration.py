@@ -9,6 +9,13 @@ from src.core.modules.project_management.application.collaboration.dto.commands.
     TaskCollaborationPostCommand,
 )
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
+from src.ui_qml.modules.project_management.presenters.collaboration.formatting import (
+    format_document_option_label,
+)
+from src.ui_qml.modules.project_management.presenters.tasks.collaboration_mapper import (
+    to_collaboration_comment_record_view_model,
+    to_collaboration_presence_record_view_model,
+)
 
 EXPECTED_PM_WORKSPACE_KEYS = [
     "projects",
@@ -65,10 +72,13 @@ def test_project_management_collaboration_desktop_api_exposes_purpose_queries() 
     context = api.list_context_options()
 
     assert inbox.total == 1
-    assert inbox.items[0].mentions_label == "@planner"
+    assert inbox.items[0].mentions == ["planner"]
     assert activity[0].unread is False
-    assert presence[0].who_label == "Alex Taylor (@planner)"
-    assert presence[0].activity_label == "Reviewing"
+    assert (
+        to_collaboration_presence_record_view_model(presence[0]).title
+        == "Alex Taylor (@planner)"
+    )
+    assert presence[0].activity == "reviewing"
     assert context.projects == (("proj-1", "Plant Upgrade"),)
 
     api.mark_task_mentions_read("task-1")
@@ -78,29 +88,41 @@ def test_project_management_collaboration_desktop_api_exposes_purpose_queries() 
     task_snapshot = api.build_task_snapshot("task-1")
 
     assert task_snapshot.comments[1].author_username == "jamie"
-    assert task_snapshot.comments[1].linked_documents_label == (
+    records = tuple(
+        to_collaboration_comment_record_view_model(
+            comment,
+            linked_documents=task_snapshot.linked_documents.get(comment.id, ()),
+            principal_user_id=task_snapshot.action_context.principal_user_id,
+            can_manage=task_snapshot.action_context.can_manage,
+            can_read=task_snapshot.action_context.can_read,
+        )
+        for comment in task_snapshot.comments
+    )
+    assert ", ".join(records[1].state["linkedDocuments"]) == (
         "procedure.pdf [General | File], ticket-123 [General | Reference]"
     )
-    assert [comment.comment_id for comment in task_snapshot.comments] == [
+    assert [comment.id for comment in task_snapshot.comments] == [
         "comment-reply-1",
         "comment-1",
     ]
     assert task_snapshot.comments[1].reply_count == 1
-    assert task_snapshot.comments[1].can_edit is True
-    assert task_snapshot.comments[1].reactions[0].reacted_by_current_user is True
-    assert task_snapshot.comments[0].thread_depth == 1
+    assert records[1].state["canEdit"] is True
+    assert records[1].state["reactions"][0]["reactedByCurrentUser"] is True
+    assert records[0].state["threadDepth"] == 1
     assert task_snapshot.comments[0].parent_author_username == "jamie"
-    assert task_snapshot.comments[0].can_edit is False
+    assert records[0].state["canEdit"] is False
     assert task_snapshot.comment_total == 2
-    assert task_snapshot.mention_options[0].value == "everyone"
-    assert task_snapshot.mention_options[1].value == "planner"
-    assert [option.value for option in api.search_task_mention_options("task-1", "plan")] == [
-        "everyone", "planner"
-    ]
-    assert task_snapshot.document_options[0].label == "PM-LINK-001 - Shared Method Statement"
-    assert [option.value for option in api.search_task_document_options("task-1", "check")] == [
-        "doc-2"
-    ]
+    assert task_snapshot.mention_candidates[0].handle == "planner"
+    assert [
+        option.handle for option in api.search_task_mention_options("task-1", "plan")
+    ] == ["planner"]
+    assert (
+        format_document_option_label(task_snapshot.documents[0])
+        == "PM-LINK-001 - Shared Method Statement"
+    )
+    assert [
+        option.id for option in api.search_task_document_options("task-1", "check")
+    ] == ["doc-2"]
 
     posted = api.post_task_comment(
         TaskCollaborationPostCommand(
@@ -113,8 +135,8 @@ def test_project_management_collaboration_desktop_api_exposes_purpose_queries() 
     )
 
     assert posted.author_username == "alex"
-    assert posted.attachments == ("handover.txt",)
-    assert posted.linked_documents == ("Commissioning Checklist [General | Reference]",)
+    assert tuple(posted.attachments) == ("handover.txt",)
+    assert posted is service._comments[-1]
     assert service.posted_comments[-1]["task_id"] == "task-1"
 
     api.touch_task_presence("task-1", activity="editing")
@@ -144,6 +166,10 @@ class _FakeCollaborationService:
                 reactions={"\N{THUMBS UP SIGN}": ["user-alex"]},
                 parent_author_username="",
                 reply_count=1,
+                updated_at=None,
+                deleted_at=None,
+                deletion_reason=None,
+                version=1,
             ),
             SimpleNamespace(
                 id="comment-reply-1",
@@ -158,6 +184,10 @@ class _FakeCollaborationService:
                 reactions={},
                 parent_author_username="jamie",
                 reply_count=0,
+                updated_at=None,
+                deleted_at=None,
+                deletion_reason=None,
+                version=1,
             ),
         ]
         self._comment_documents: dict[str, list[SimpleNamespace]] = {
@@ -265,7 +295,9 @@ class _FakeCollaborationService:
     def list_comment_documents_for_ids(
         self, task_id: str, comment_ids: tuple[str, ...]
     ) -> dict[str, list[SimpleNamespace]]:
-        valid_ids = {comment.id for comment in self._comments if comment.task_id == task_id}
+        valid_ids = {
+            comment.id for comment in self._comments if comment.task_id == task_id
+        }
         return {
             comment_id: list(documents)
             for comment_id, documents in self._comment_documents.items()
@@ -279,7 +311,9 @@ class _FakeCollaborationService:
             return []
         candidates = [
             SimpleNamespace(handle="planner", label="@planner  Alex Taylor  Planner"),
-            SimpleNamespace(handle="supervisor", label="@supervisor  Jordan Blake  Supervisor"),
+            SimpleNamespace(
+                handle="supervisor", label="@supervisor  Jordan Blake  Supervisor"
+            ),
         ]
         return [item for item in candidates if query.lower() in item.handle][:limit]
 
@@ -300,8 +334,10 @@ class _FakeCollaborationService:
             ),
         ]
         return tuple(
-            item for item in documents
-            if query.lower() in item.title.lower() or query.lower() in item.document_code.lower()
+            item
+            for item in documents
+            if query.lower() in item.title.lower()
+            or query.lower() in item.document_code.lower()
         )[:limit]
 
     def list_task_presence(self, task_id: str) -> list[SimpleNamespace]:

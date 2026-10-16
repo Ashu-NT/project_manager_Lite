@@ -25,11 +25,5 @@ from src.core.modules.project_management.api.desktop.timesheets.models.review im
 from src.core.modules.project_management.api.desktop.timesheets.models.snapshots import (
     TimesheetAssignmentSnapshotDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.timesheets.models.workspace import (
-    ResourceTimesheetEntryDesktopDto,
-    ResourceTimesheetEntryPageDesktopDto,
-    ResourceTimesheetHistoryPageDesktopDto,
-    ResourceTimesheetPeriodDesktopDto,
-)
 
-__all__ = ['ProjectManagementTimesheetsDesktopApi', 'ResourceTimesheetEntryDesktopDto', 'ResourceTimesheetEntryPageDesktopDto', 'ResourceTimesheetHistoryPageDesktopDto', 'ResourceTimesheetPeriodDesktopDto', 'TimesheetAssignmentOptionDescriptor', 'TimesheetAssignmentSnapshotDesktopDto', 'TimesheetEntryDesktopDto', 'TimesheetOptionDescriptor', 'TimesheetPeriodOptionDescriptor', 'TimesheetPeriodSummaryDesktopDto', 'TimesheetProjectOptionDescriptor', 'TimesheetReviewDetailDesktopDto', 'TimesheetReviewPageDesktopDto', 'build_project_management_timesheets_desktop_api']
+__all__ = ['ProjectManagementTimesheetsDesktopApi', 'TimesheetAssignmentOptionDescriptor', 'TimesheetAssignmentSnapshotDesktopDto', 'TimesheetEntryDesktopDto', 'TimesheetOptionDescriptor', 'TimesheetPeriodOptionDescriptor', 'TimesheetPeriodSummaryDesktopDto', 'TimesheetProjectOptionDescriptor', 'TimesheetReviewDetailDesktopDto', 'TimesheetReviewPageDesktopDto', 'build_project_management_timesheets_desktop_api']

@@ -54,8 +54,9 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
     listed = api.list_resources()
 
     assert created.worker_type == "EXTERNAL"
-    assert listed[0].hourly_rate_label == "EUR 95.00"
-    assert listed[0].capacity_label == "110.0%"
+    assert created is resource_service.get_resource(created.id)
+    assert listed[0].hourly_rate == Decimal(95)
+    assert listed[0].capacity_percent == 110.0
 
     employee_resource = api.create_resource(
         ResourceCreateCommand(
@@ -77,7 +78,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
     )
 
     assert employee_resource.name == "Alex Taylor"
-    assert employee_resource.employee_context == "Operations | Plant North"
+    assert employee_resource.employee_id == "emp-1"
 
     updated = api.update_resource(
         ResourceUpdateCommand(
@@ -102,7 +103,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
 
     assert updated.name == "Electrical Crew A"
     assert updated.cost_type == "EQUIPMENT"
-    assert updated.hourly_rate_label == "USD 105.00"
+    assert updated.hourly_rate == Decimal(105)
 
     toggled = api.deactivate_resource(
         ResourceLifecycleCommand(
@@ -112,7 +113,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
     )
 
     assert toggled.is_active is False
-    assert toggled.active_label == "Inactive"
+    assert toggled is resource_service.get_resource(created.id)
 
     assert {resource.id for resource in api.list_resources()} == {
         created.id,

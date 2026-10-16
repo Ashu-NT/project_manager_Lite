@@ -36,6 +36,7 @@ from src.ui_qml.modules.project_management.view_models.projects import (
 )
 
 from .activity_builder import build_project_activity_page
+from .import_preview_mapper import build_import_preview, build_import_staging_result
 from .project_command_handler import (
     bulk_set_project_status,
     create_project,
@@ -378,14 +379,18 @@ class ProjectProjectsWorkspacePresenter:
     def preview_import(
         self, *, file_path: str, source_format: str
     ) -> dict[str, object]:
-        return preview_import(
-            self._import_sessions,
-            file_path=local_path_from_qml_file_url(file_path),
-            source_format=source_format,
+        return build_import_preview(
+            preview_import(
+                self._import_sessions,
+                file_path=local_path_from_qml_file_url(file_path),
+                source_format=source_format,
+            )
         )
 
     def execute_import(self, *, session_id: str) -> dict[str, object]:
-        return execute_import(self._import_sessions, session_id=session_id)
+        return build_import_staging_result(
+            execute_import(self._import_sessions, session_id=session_id)
+        )
 
 
 __all__ = ["ProjectProjectsWorkspacePresenter"]

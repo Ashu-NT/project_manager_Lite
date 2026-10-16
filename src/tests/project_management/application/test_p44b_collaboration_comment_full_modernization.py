@@ -13,6 +13,14 @@ from src.core.modules.project_management.application.collaboration.collaboration
     TaskCommentReactionChangeType,
     TaskCommentReadStateChanged,
 )
+from src.core.modules.project_management.application.collaboration.dto.commands.comment_reactions import (
+    TaskCollaborationReactionCommand,
+)
+from src.core.modules.project_management.application.collaboration.dto.commands.task_comments import (
+    TaskCollaborationDeleteCommand,
+    TaskCollaborationEditCommand,
+    TaskCollaborationPostCommand,
+)
 from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
     COLLABORATION_WORKSPACE_SCOPE_CODE,
     TASK_COMMENT_CATEGORY,
@@ -21,6 +29,9 @@ from src.core.modules.project_management.application.collaboration.event_handler
 )
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
 )
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
@@ -51,8 +62,13 @@ def test_task_comment_changed_maps_to_task_and_workspace_targets(change_type):
     handler = build_task_comment_view_invalidation_handler(channel)
     handler(
         TaskCommentChanged(
-            tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-            comment_id="c1", change_type=change_type, occurred_at=datetime.now(UTC),
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            task_id="task1",
+            comment_id="c1",
+            change_type=change_type,
+            occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -67,8 +83,13 @@ def test_reaction_changed_maps_to_task_target_only(change_type):
     handler = build_task_comment_view_invalidation_handler(channel)
     handler(
         TaskCommentReactionChanged(
-            tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-            comment_id="c1", change_type=change_type, occurred_at=datetime.now(UTC),
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            task_id="task1",
+            comment_id="c1",
+            change_type=change_type,
+            occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -80,8 +101,12 @@ def test_read_state_changed_maps_to_task_target_only():
     handler = build_task_comment_view_invalidation_handler(channel)
     handler(
         TaskCommentReadStateChanged(
-            tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-            comment_id="c1", occurred_at=datetime.now(UTC),
+            tenant_id="t1",
+            organization_id="o1",
+            project_id="p1",
+            task_id="task1",
+            comment_id="c1",
+            occurred_at=datetime.now(UTC),
         ),
         DomainEventContext(correlation_id="c1"),
     )
@@ -92,16 +117,25 @@ def test_dedupe_by_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_task_comment_view_invalidation_handler(channel)
     event = TaskCommentChanged(
-        tenant_id="t1", organization_id="o1", project_id="p1", task_id="task1",
-        comment_id="c1", change_type=TaskCommentChangeType.CREATED, occurred_at=datetime.now(UTC),
+        tenant_id="t1",
+        organization_id="o1",
+        project_id="p1",
+        task_id="task1",
+        comment_id="c1",
+        change_type=TaskCommentChangeType.CREATED,
+        occurred_at=datetime.now(UTC),
     )
     context = DomainEventContext(correlation_id="same-trace")
     handler(event, context)
     handler(event, context)
-    assert len(channel.notified) == 2, "two distinct targets, each coalesced within one tx"
+    assert len(channel.notified) == 2, (
+        "two distinct targets, each coalesced within one tx"
+    )
 
     handler(event, DomainEventContext(correlation_id="same-trace"))
-    assert len(channel.notified) == 4, "a separate commit with the same trace must notify again"
+    assert len(channel.notified) == 4, (
+        "a separate commit with the same trace must notify again"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -133,14 +167,21 @@ def _audit_rows_for(services, entity_id: str):
         AuditEntryORM,
     )
 
-    return services["session"].execute(
-        select(AuditEntryORM).where(AuditEntryORM.entity_id == entity_id)
-    ).scalars().all()
+    return (
+        services["session"]
+        .execute(select(AuditEntryORM).where(AuditEntryORM.entity_id == entity_id))
+        .scalars()
+        .all()
+    )
 
 
 def _setup(services):
-    project = services['project_create'].create_project(ProjectCreateCommand(name="P44B collaboration project"))
-    task = services['task_lifecycle_commands'].create_task(project.id, "P44B collaboration task")
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(name="P44B collaboration project")
+    )
+    task = services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(project_id=project.id, name="P44B collaboration task")
+    )
     return project, task
 
 
@@ -148,25 +189,37 @@ def test_post_comment_produces_both_targets_and_atomic_audit(services):
     _, task = _setup(services)
     hints = _spy_hints(services)
 
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Hello durable world")
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="Hello durable world")
+    )
 
     comment_hints = _comment_hints(hints)
-    assert {h.scope_code for h in comment_hints} == {TASK_COMMENT_SCOPE_CODE, COLLABORATION_WORKSPACE_SCOPE_CODE}
+    assert {h.scope_code for h in comment_hints} == {
+        TASK_COMMENT_SCOPE_CODE,
+        COLLABORATION_WORKSPACE_SCOPE_CODE,
+    }
     rows = _audit_rows_for(services, comment.id)
     assert [row.operation for row in rows] == ["create"]
 
 
 def test_edit_comment_produces_hints_and_audit(services):
     _, task = _setup(services)
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Original")
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="Original")
+    )
     hints = _spy_hints(services)
 
     edited = services["collaboration_comment_commands"].edit_comment(
-        comment.id, "Edited body", expected_revision=comment.version
+        TaskCollaborationEditCommand(
+            comment_id=comment.id, body="Edited body", expected_revision=comment.version
+        )
     )
 
     comment_hints = _comment_hints(hints)
-    assert {h.scope_code for h in comment_hints} == {TASK_COMMENT_SCOPE_CODE, COLLABORATION_WORKSPACE_SCOPE_CODE}
+    assert {h.scope_code for h in comment_hints} == {
+        TASK_COMMENT_SCOPE_CODE,
+        COLLABORATION_WORKSPACE_SCOPE_CODE,
+    }
     assert edited.body == "Edited body"
     rows = _audit_rows_for(services, comment.id)
     assert sorted(row.operation for row in rows) == ["create", "update"]
@@ -174,16 +227,23 @@ def test_edit_comment_produces_hints_and_audit(services):
 
 def test_delete_comment_produces_hints_and_audit(services):
     _, task = _setup(services)
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Delete me")
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="Delete me")
+    )
     hints = _spy_hints(services)
 
     deleted = services["collaboration_comment_commands"].delete_comment(
-        comment.id, expected_revision=comment.version,
+        TaskCollaborationDeleteCommand(
+            comment_id=comment.id, expected_revision=comment.version
+        )
     )
 
     comment_hints = _comment_hints(hints)
-    assert {h.scope_code for h in comment_hints} == {TASK_COMMENT_SCOPE_CODE, COLLABORATION_WORKSPACE_SCOPE_CODE}
-    assert deleted.is_deleted is True
+    assert {h.scope_code for h in comment_hints} == {
+        TASK_COMMENT_SCOPE_CODE,
+        COLLABORATION_WORKSPACE_SCOPE_CODE,
+    }
+    assert deleted.deleted_at is not None
     rows = _audit_rows_for(services, comment.id)
     assert sorted(row.operation for row in rows) == ["create", "delete"]
 
@@ -191,53 +251,93 @@ def test_delete_comment_produces_hints_and_audit(services):
 def test_mutable_comment_requires_revision_before_edit_or_first_delete(services):
     _, task = _setup(services)
     comment = services["collaboration_comment_commands"].post_comment(
-        task_id=task.id, body="Keep this revision",
+        TaskCollaborationPostCommand(
+            task_id=task.id,
+            body="Keep this revision",
+        )
     )
     with pytest.raises(ValidationError) as edit_error:
-        services["collaboration_comment_commands"].edit_comment(comment.id, "Unsafe overwrite")
+        services["collaboration_comment_commands"].edit_comment(
+            TaskCollaborationEditCommand(
+                comment_id=comment.id, body="Unsafe overwrite", expected_revision=None
+            )
+        )
     assert edit_error.value.code == "COLLABORATION_COMMENT_REVISION_REQUIRED"
     with pytest.raises(ValidationError) as delete_error:
-        services["collaboration_comment_commands"].delete_comment(comment.id)
+        services["collaboration_comment_commands"].delete_comment(
+            TaskCollaborationDeleteCommand(
+                comment_id=comment.id, expected_revision=None
+            )
+        )
     assert delete_error.value.code == "COLLABORATION_COMMENT_REVISION_REQUIRED"
-    assert services["collaboration_comment_query"].query_task_comments_page(task.id).items[0].body == "Keep this revision"
+    assert (
+        services["collaboration_comment_query"]
+        .query_task_comments_page(task.id)
+        .items[0]
+        .body
+        == "Keep this revision"
+    )
 
 
-def test_plain_comment_post_and_edit_do_not_scan_mention_candidates(monkeypatch, services):
+def test_plain_comment_post_and_edit_do_not_scan_mention_candidates(
+    monkeypatch, services
+):
     _, task = _setup(services)
     visibility_policy = services["collaboration_comment_commands"]._policy
 
     def unexpected_lookup(_project_id, **_kwargs):
         raise AssertionError("Plain comments must not load project mention candidates")
 
-    monkeypatch.setattr(visibility_policy, "mention_candidates_for_project", unexpected_lookup)
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="No mentions here")
-    edited = services["collaboration_comment_commands"].edit_comment(
-        comment.id, "Still no mentions", expected_revision=comment.version,
+    monkeypatch.setattr(
+        visibility_policy, "mention_candidates_for_project", unexpected_lookup
     )
-    assert edited.mentioned_user_ids == []
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="No mentions here")
+    )
+    edited = services["collaboration_comment_commands"].edit_comment(
+        TaskCollaborationEditCommand(
+            comment_id=comment.id,
+            body="Still no mentions",
+            expected_revision=comment.version,
+        )
+    )
+    assert (
+        services["collaboration_comment_commands"]
+        ._comment_repo.get(edited.id)
+        .mentioned_user_ids
+        == []
+    )
 
 
 def test_react_and_remove_reaction_produce_task_scoped_hints_only(services):
     _, task = _setup(services)
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="React to me")
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="React to me")
+    )
     hints = _spy_hints(services)
 
-    reacted = services["collaboration_comment_engagement"].react_to_comment(comment.id, "👍")
+    reacted = services["collaboration_comment_engagement"].react_to_comment(
+        TaskCollaborationReactionCommand(comment_id=comment.id, emoji="👍")
+    )
     react_hints = _comment_hints(hints)
     assert {h.scope_code for h in react_hints} == {TASK_COMMENT_SCOPE_CODE}
-    assert "👍" in reacted.reactions
+    assert "👍" in [reaction.emoji for reaction in reacted.reactions]
 
     hints2 = _spy_hints(services)
-    unreacted = services["collaboration_comment_engagement"].remove_reaction(comment.id, "👍")
+    unreacted = services["collaboration_comment_engagement"].remove_reaction(
+        TaskCollaborationReactionCommand(comment_id=comment.id, emoji="👍")
+    )
     unreact_hints = _comment_hints(hints2)
     assert {h.scope_code for h in unreact_hints} == {TASK_COMMENT_SCOPE_CODE}
-    assert "👍" not in unreacted.reactions
+    assert "👍" not in [reaction.emoji for reaction in unreacted.reactions]
 
 
 def test_mark_task_mentions_read_produces_task_scoped_hint_only(services):
     principal = services["user_session"].principal
     _, task = _setup(services)
-    services["collaboration_comment_commands"].post_comment(task_id=task.id, body=f"Hey @{principal.username}")
+    services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body=f"Hey @{principal.username}")
+    )
     hints = _spy_hints(services)
 
     services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
@@ -254,39 +354,64 @@ def test_mark_task_mentions_read_produces_task_scoped_hint_only(services):
 def test_mark_task_mentions_read_is_a_true_no_op_when_already_read(services):
     principal = services["user_session"].principal
     _, task = _setup(services)
-    services["collaboration_comment_commands"].post_comment(task_id=task.id, body=f"Hey @{principal.username}")
+    services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body=f"Hey @{principal.username}")
+    )
     services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
 
     hints = _spy_hints(services)
     services["collaboration_comment_engagement"].mark_task_mentions_read(task.id)
 
-    assert _comment_hints(hints) == [], "already-read is a true no-op: zero write/audit/event"
+    assert _comment_hints(hints) == [], (
+        "already-read is a true no-op: zero write/audit/event"
+    )
 
 
 def test_delete_comment_is_a_true_no_op_when_already_deleted(services):
     _, task = _setup(services)
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Delete me once")
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="Delete me once")
+    )
     services["collaboration_comment_commands"].delete_comment(
-        comment.id, expected_revision=comment.version,
+        TaskCollaborationDeleteCommand(
+            comment_id=comment.id, expected_revision=comment.version
+        )
     )
 
     hints = _spy_hints(services)
-    redeleted = services["collaboration_comment_commands"].delete_comment(comment.id)
+    redeleted = services["collaboration_comment_commands"].delete_comment(
+        TaskCollaborationDeleteCommand(comment_id=comment.id, expected_revision=None)
+    )
 
-    assert _comment_hints(hints) == [], "repeated delete is a true no-op: zero write/audit/event"
-    assert redeleted.is_deleted is True
+    assert _comment_hints(hints) == [], (
+        "repeated delete is a true no-op: zero write/audit/event"
+    )
+    assert redeleted.deleted_at is not None
 
 
 def test_reaction_repeat_is_a_true_no_op(services):
     _, task = _setup(services)
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="React twice")
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="React twice")
+    )
 
-    services["collaboration_comment_engagement"].react_to_comment(comment.id, "👍")
+    services["collaboration_comment_engagement"].react_to_comment(
+        TaskCollaborationReactionCommand(comment_id=comment.id, emoji="👍")
+    )
     hints = _spy_hints(services)
-    reacted_again = services["collaboration_comment_engagement"].react_to_comment(comment.id, "👍")
+    reacted_again = services["collaboration_comment_engagement"].react_to_comment(
+        TaskCollaborationReactionCommand(comment_id=comment.id, emoji="👍")
+    )
 
     assert _comment_hints(hints) == [], "repeated reaction must not write or emit again"
-    assert len(reacted_again.reactions["👍"]) == 1, "the reactor set itself IS data-level idempotent"
+    assert (
+        next(
+            reaction.count
+            for reaction in reacted_again.reactions
+            if reaction.emoji == "👍"
+        )
+        == 1
+    ), "the reactor set itself IS data-level idempotent"
 
 
 # ---------------------------------------------------------------------------
@@ -308,18 +433,25 @@ def test_audit_failure_rolls_back_post_comment_permanently(services, monkeypatch
     monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(RuntimeError):
-        services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Should never persist")
+        services["collaboration_comment_commands"].post_comment(
+            TaskCollaborationPostCommand(task_id=task.id, body="Should never persist")
+        )
 
     assert _comment_hints(hints) == []
     monkeypatch.undo()
-    assert services["collaboration_comment_query"].query_task_comments_page(task.id).items == ()
+    assert (
+        services["collaboration_comment_query"].query_task_comments_page(task.id).items
+        == ()
+    )
 
 
 def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
     _, task = _setup(services)
     hints = _spy_hints(services)
 
-    dispatcher = services["collaboration_comment_commands"]._uow_factory._transactional_dispatcher
+    dispatcher = services[
+        "collaboration_comment_commands"
+    ]._uow_factory._transactional_dispatcher
 
     def _raising_handler(event, uow) -> None:
         raise RuntimeError("simulated transactional handler failure")
@@ -327,10 +459,17 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
     dispatcher.subscribe(TaskCommentChanged, _raising_handler)
 
     with pytest.raises(RuntimeError):
-        services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Should never persist either")
+        services["collaboration_comment_commands"].post_comment(
+            TaskCollaborationPostCommand(
+                task_id=task.id, body="Should never persist either"
+            )
+        )
 
     assert _comment_hints(hints) == []
-    assert services["collaboration_comment_query"].query_task_comments_page(task.id).items == ()
+    assert (
+        services["collaboration_comment_query"].query_task_comments_page(task.id).items
+        == ()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -340,12 +479,18 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
 
 def test_stale_edit_raises_and_produces_zero_hints_and_zero_write(services):
     _, task = _setup(services)
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Original")
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="Original")
+    )
     hints = _spy_hints(services)
 
     with pytest.raises(ConcurrencyError):
         services["collaboration_comment_commands"].edit_comment(
-            comment.id, "Should not apply", expected_revision=comment.version + 1
+            TaskCollaborationEditCommand(
+                comment_id=comment.id,
+                body="Should not apply",
+                expected_revision=comment.version + 1,
+            )
         )
 
     assert _comment_hints(hints) == []
@@ -355,12 +500,16 @@ def test_stale_edit_raises_and_produces_zero_hints_and_zero_write(services):
 
 def test_stale_delete_raises_and_produces_zero_hints_and_zero_write(services):
     _, task = _setup(services)
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Do not delete")
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="Do not delete")
+    )
     hints = _spy_hints(services)
 
     with pytest.raises(ConcurrencyError):
         services["collaboration_comment_commands"].delete_comment(
-            comment.id, expected_revision=comment.version + 1
+            TaskCollaborationDeleteCommand(
+                comment_id=comment.id, expected_revision=comment.version + 1
+            )
         )
 
     assert _comment_hints(hints) == []
@@ -368,23 +517,31 @@ def test_stale_delete_raises_and_produces_zero_hints_and_zero_write(services):
     assert reloaded.is_deleted is False
 
 
-def test_two_independent_sessions_concurrent_edit_second_writer_gets_canonical_error(services):
+def test_two_independent_sessions_concurrent_edit_second_writer_gets_canonical_error(
+    services,
+):
     """Two independent UoWs race on the same comment; the final persisted body must reflect only
     the winner."""
     _, task = _setup(services)
-    comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Race me")
+    comment = services["collaboration_comment_commands"].post_comment(
+        TaskCollaborationPostCommand(task_id=task.id, body="Race me")
+    )
 
     winner = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     loser = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
     assert winner.version == loser.version
 
     services["collaboration_comment_commands"].edit_comment(
-        winner.id, "Winner body", expected_revision=winner.version
+        TaskCollaborationEditCommand(
+            comment_id=winner.id, body="Winner body", expected_revision=winner.version
+        )
     )
 
     with pytest.raises(ConcurrencyError):
         services["collaboration_comment_commands"].edit_comment(
-            loser.id, "Loser body", expected_revision=loser.version
+            TaskCollaborationEditCommand(
+                comment_id=loser.id, body="Loser body", expected_revision=loser.version
+            )
         )
 
     reloaded = services["collaboration_comment_commands"]._comment_repo.get(comment.id)
@@ -398,7 +555,13 @@ def test_two_independent_sessions_concurrent_edit_second_writer_gets_canonical_e
 
 def test_edit_unknown_comment_is_rejected_with_zero_write(services):
     with pytest.raises(NotFoundError):
-        services["collaboration_comment_commands"].edit_comment("not-a-real-comment-id", "New body")
+        services["collaboration_comment_commands"].edit_comment(
+            TaskCollaborationEditCommand(
+                comment_id="not-a-real-comment-id",
+                body="New body",
+                expected_revision=None,
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -408,7 +571,10 @@ def test_edit_unknown_comment_is_rejected_with_zero_write(services):
 
 def test_durable_comment_commands_source_never_names_collaboration_changed():
     for module in ("collaboration_comments.py", "collaboration_comment_engagement.py"):
-        path = "src/core/modules/project_management/application/collaboration/commands/" + module
+        path = (
+            "src/core/modules/project_management/application/collaboration/commands/"
+            + module
+        )
         with open(path, "r", encoding="utf-8") as fh:
             source = fh.read()
         assert "collaboration_changed" not in source

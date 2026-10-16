@@ -28,6 +28,10 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_pro
     TaskBulkStatusCommand,
     TaskProgressCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.responses.task import (
+    TaskResponseDto,
+)
+from src.core.modules.project_management.application.tasks.mappers.task import map_task
 from src.core.modules.project_management.domain.enums import (
     DependencyType,
     TaskStatus,
@@ -40,6 +44,9 @@ from src.core.modules.project_management.domain.tasks.task import (
 
 
 class _FakeTaskService:
+    def query_task_responses(self, project_id: str) -> tuple[TaskResponseDto, ...]:
+        return tuple(map_task(task, project_name="") for task in self.list_tasks_for_project(project_id))
+
     def __init__(self) -> None:
         self._tasks: dict[str, Task] = {}
         self._assignments: dict[str, TaskAssignment] = {}
@@ -53,7 +60,7 @@ class _FakeTaskService:
     def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
         self._project_resource_lookup[project_resource_id] = resource_id
 
-    def create_task(self, command: TaskCreateCommand) -> Task:
+    def create_task(self, command: TaskCreateCommand) -> TaskResponseDto:
         project_id = command.project_id
         name = command.name
         code = command.code
@@ -101,9 +108,9 @@ class _FakeTaskService:
         self._next_id += 1
         self._tasks[task.id] = task
         self.set_tasks_status(TaskBulkStatusCommand((task.id,), command.status))
-        return task
+        return map_task(task, project_name="")
 
-    def move_task(self, command: TaskWbsMoveCommand) -> Task:
+    def move_task(self, command: TaskWbsMoveCommand) -> TaskResponseDto:
         task_id = command.task_id
         parent_task_id = command.parent_task_id
         wbs_code = command.wbs_code
@@ -118,7 +125,7 @@ class _FakeTaskService:
         if sort_order is not None:
             task.sort_order = sort_order
         task.version += 1
-        return task
+        return map_task(task, project_name="")
 
     def create_assignment(
         self,
@@ -208,7 +215,7 @@ class _FakeTaskService:
     def remove_dependency(self, dependency_id: str) -> None:
         del self._dependencies[dependency_id]
 
-    def update_task(self, command: TaskUpdateCommand) -> Task:
+    def update_task(self, command: TaskUpdateCommand) -> TaskResponseDto:
         task_id = command.task_id
         expected_version = command.expected_version
         name = command.name
@@ -245,9 +252,9 @@ class _FakeTaskService:
             task.duration_days = 0
         task.end_date = _derive_end_date(task.start_date, task.duration_days)
         task.version += 1
-        return task
+        return map_task(task, project_name="")
 
-    def update_task_scheduling_constraint(self, command: TaskConstraintUpdateCommand) -> Task:
+    def update_task_scheduling_constraint(self, command: TaskConstraintUpdateCommand) -> TaskResponseDto:
         task_id = command.task_id
         constraint_type = constraint_type_value(command.constraint_type)
         constraint_date = command.constraint_date
@@ -267,14 +274,14 @@ class _FakeTaskService:
         updated = replace(task, constraint_type=constraint_type, constraint_date=constraint_date)
         updated.version = task.version + 1
         self._tasks[task_id] = updated
-        return updated
+        return map_task(updated, project_name="")
 
     def _set_status(self, task_id: str, status: TaskStatus) -> None:
         task = self._tasks[task_id]
         task.status = status
         task.version += 1
 
-    def set_tasks_status(self, command: TaskBulkStatusCommand) -> list[Task]:
+    def set_tasks_status(self, command: TaskBulkStatusCommand) -> list[TaskResponseDto]:
         task_ids = command.task_ids
         status = task_status(command.status)
         reopen_percent_complete = command.reopen_percent_complete
@@ -289,9 +296,9 @@ class _FakeTaskService:
                 task.percent_complete = reopen_percent_complete
             self._set_status(task_id, status)
             changed.append(task)
-        return changed
+        return [map_task(task, project_name="") for task in changed]
 
-    def update_progress(self, command: TaskProgressCommand) -> Task:
+    def update_progress(self, command: TaskProgressCommand) -> TaskResponseDto:
         task_id = command.task_id
         percent_complete = command.percent_complete
         actual_start = command.actual_start
@@ -310,7 +317,7 @@ class _FakeTaskService:
         if status is not None:
             task.status = status
         task.version += 1
-        return task
+        return map_task(task, project_name="")
 
     def delete_task(self, task_id: str) -> None:
         del self._tasks[task_id]

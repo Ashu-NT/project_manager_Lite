@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
@@ -13,23 +12,24 @@ from src.core.modules.project_management.application.financials.budgets.dto.comm
 from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
     FinancialAddBudgetLineCommand,
 )
-from src.core.modules.project_management.application.financials.budgets.dto.responses.budget_approval import (
-    BudgetApprovalOutcome,
-    BudgetApprovalResult,
+from src.core.modules.project_management.application.financials.budgets.dto.responses.mutations import (
+    FinancialBudgetLineMutationDto,
+    FinancialBudgetMutationDto,
 )
-from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 
 
 class _BudgetLifecycleCommands:
     def __init__(self, calls) -> None:
         self.calls = calls
 
-    def create_budget(self, command: FinancialCreateBudgetVersionCommand):
+    def create_budget(
+        self, command: FinancialCreateBudgetVersionCommand
+    ) -> FinancialBudgetMutationDto:
         self.calls.append(("create_budget", (command,), {}))
-        return SimpleNamespace(
-            id="budget-1",
+        return FinancialBudgetMutationDto(
+            budget_id="budget-1",
             project_id=command.project_id,
-            status=BudgetStatus.DRAFT,
+            status="draft",
             row_version=1,
         )
 
@@ -38,22 +38,27 @@ class _BudgetLineCommands:
     def __init__(self, calls) -> None:
         self.calls = calls
 
-    def add_line(self, command: FinancialAddBudgetLineCommand):
+    def add_line(
+        self, command: FinancialAddBudgetLineCommand
+    ) -> FinancialBudgetLineMutationDto:
         self.calls.append(("add_line", (command,), {}))
-        return SimpleNamespace(id="line-1", budget_id=command.budget_id, row_version=1)
+        return FinancialBudgetLineMutationDto(
+            budget_line_id="line-1", budget_id=command.budget_id, row_version=1
+        )
 
 
 class _BudgetApprovalCommands:
     def __init__(self, calls) -> None:
         self.calls = calls
 
-    def request_budget_approval(self, command: FinancialVersionedBudgetCommand):
+    def request_budget_approval(
+        self, command: FinancialVersionedBudgetCommand
+    ) -> FinancialBudgetMutationDto:
         self.calls.append(("request_budget_approval", (command,), {}))
-        return BudgetApprovalResult(
-            outcome=BudgetApprovalOutcome.PENDING_APPROVAL,
+        return FinancialBudgetMutationDto(
             budget_id=command.budget_id,
             project_id="project-1",
-            budget_status=BudgetStatus.SUBMITTED,
+            status="submitted",
             row_version=command.expected_version,
             approval_request_id="approval-1",
         )
@@ -110,7 +115,9 @@ def test_typed_budget_commands_route_through_governance_boundary() -> None:
         )
     )
 
-    assert line.budget_id == created.budget_id
+    assert created == FinancialBudgetMutationDto("budget-1", "project-1", "draft", 1)
+    assert line == FinancialBudgetLineMutationDto("line-1", created.budget_id, 1)
+    assert requested.status == "submitted"
     assert requested.approval_request_id == "approval-1"
     assert boundary.command_count == 3
     create_call = next(call for call in boundary.calls if call[0] == "create_budget")

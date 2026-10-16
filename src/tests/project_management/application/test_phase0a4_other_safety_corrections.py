@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from datetime import date
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import TaskCreateCommand
 
 import pytest
 
@@ -75,10 +76,10 @@ def test_create_project_dependency_denies_caller_without_project_scope(services)
 def _seed_diagnostics_tasks(services):
     project = services['project_create'].create_project(ProjectCreateCommand(name="Diagnostics Auth Project"))
     predecessor = services['task_lifecycle_commands'].create_task(
-        project.id, "Predecessor", start_date=date(2026, 3, 2), duration_days=3
+        TaskCreateCommand(project.id, "Predecessor", start_date=date(2026, 3, 2), duration_days=3)
     )
     successor = services['task_lifecycle_commands'].create_task(
-        project.id, "Successor", start_date=date(2026, 3, 5), duration_days=3
+        TaskCreateCommand(project.id, "Successor", start_date=date(2026, 3, 5), duration_days=3)
     )
     return project, predecessor, successor
 
@@ -122,9 +123,7 @@ def test_get_dependency_diagnostics_denies_caller_without_project_scope(services
 
 
 def test_capacity_pool_builder_propagates_failure_instead_of_swallowing(services, monkeypatch):
-    from src.core.modules.project_management.api.desktop.portfolio.builders.capacity_pool_builder import (
-        build_capacity_pool,
-    )
+    from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import PortfolioExecutiveQueryHandler
 
     pool_service = services["portfolio_resource_pool_query"]
 
@@ -134,19 +133,19 @@ def test_capacity_pool_builder_propagates_failure_instead_of_swallowing(services
     monkeypatch.setattr(pool_service, "get_pool_report", _boom)
 
     with pytest.raises(RuntimeError, match="forced failure"):
-        build_capacity_pool(pool_service)
+        services["portfolio_executive_query"].query_capacity_pool()
 
 
 def test_dashboard_pending_approvals_propagates_failure_instead_of_swallowing():
-    from src.core.modules.project_management.api.desktop.dashboard.services.dashboard_snapshot_service import (
-        DashboardSnapshotService,
+    from src.ui_qml.modules.project_management.presenters.dashboard.workspace_snapshot_builder import (
+        DashboardWorkspaceBuilder,
     )
 
     class _BoomApprovalCommandHandler:
         def list_pending(self, *_args, **_kwargs):
             raise RuntimeError("forced failure for Phase 0A.4 broad-exception test")
 
-    service = DashboardSnapshotService.__new__(DashboardSnapshotService)
+    service = DashboardWorkspaceBuilder.__new__(DashboardWorkspaceBuilder)
     service._approval_queries = _BoomApprovalCommandHandler()
 
     with pytest.raises(RuntimeError, match="forced failure"):

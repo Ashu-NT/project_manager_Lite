@@ -65,12 +65,12 @@ def build_workspace_state(
     parent_tasks = desktop_api.list_tasks(parent_project_id) if parent_project_id else ()
     return TaskCatalogWorkspaceViewModel(
         overview=build_overview(
-            total=task_page.total,
+            total=task_page.summary.total,
             filtered_total=task_page.filtered_total,
-            in_progress=task_page.in_progress,
-            blocked=task_page.blocked,
-            done=task_page.done,
-            overdue=task_page.overdue,
+            in_progress=task_page.summary.in_progress,
+            blocked=task_page.summary.blocked,
+            done=task_page.summary.done,
+            overdue=task_page.summary.overdue,
             collaboration_workspace_snapshot=None,
             collaboration_snapshot=None,
             has_selected_task=bool(resolved_task_id),
@@ -101,8 +101,8 @@ def build_workspace_state(
         total_count=task_page.filtered_total,
         page=task_page.page,
         page_size=task_page.page_size,
-        sort_key=task_page.sort_key,
-        sort_direction=task_page.sort_direction,
+        sort_key=task_page.sort.key,
+        sort_direction=task_page.sort.direction.value,
         selected_task_id=resolved_task_id,
         selected_task_detail=build_detail_view_model(
             desktop_api,
@@ -112,7 +112,7 @@ def build_workspace_state(
         ),
         empty_state=build_empty_state(
             project_options=options.project_options,
-            total=task_page.total,
+            total=task_page.summary.total,
             filtered_total=task_page.filtered_total,
             search_text=filters.search_text,
             status_filter=filters.status_filter,

@@ -6,10 +6,6 @@ from src.core.modules.project_management.api.desktop.register.api import (
 from src.core.modules.project_management.api.desktop.register.factories.register_api_factory import (
     build_project_management_register_desktop_api,
 )
-from src.core.modules.project_management.api.desktop.register.models.entries import (
-    RegisterCatalogPageDesktopDto,
-    RegisterEntryDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.register.models.options import (
     RegisterEntrySeverityDescriptor,
     RegisterEntryStatusDescriptor,
@@ -19,8 +15,6 @@ from src.core.modules.project_management.api.desktop.register.models.options imp
 
 __all__ = [
     "ProjectManagementRegisterDesktopApi",
-    "RegisterCatalogPageDesktopDto",
-    "RegisterEntryDesktopDto",
     "RegisterEntrySeverityDescriptor",
     "RegisterEntryStatusDescriptor",
     "RegisterEntryTypeDescriptor",

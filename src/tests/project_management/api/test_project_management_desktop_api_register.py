@@ -1,5 +1,6 @@
 
 from datetime import date
+from src.core.modules.project_management.application.risk.mappers.entries import map_register_entry
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_register_desktop_api,
@@ -80,8 +81,8 @@ def test_project_management_register_desktop_api_mutates_register_entries() -> N
 
     listed = api.list_entries()
 
-    assert created.project_name == "Plant Upgrade"
-    assert listed[0].severity_label == "Critical"
+    assert created.project_id == project_alpha.id
+    assert listed[0].severity == "CRITICAL"
     assert listed[0].is_overdue is True
 
     updated = api.update_entry(
@@ -103,7 +104,7 @@ def test_project_management_register_desktop_api_mutates_register_entries() -> N
 
     assert updated.title == "Critical supplier dependency mitigated"
     assert updated.status == "MITIGATED"
-    assert api.list_entries(project_id=project_beta.id)[0].project_name == "Warehouse Retrofit"
+    assert api.list_entries(project_id=project_beta.id)[0].project_id == project_beta.id
 
     api.delete_entry(RegisterEntryDeleteCommand(created.id))
 
@@ -175,7 +176,7 @@ class _FakeRegisterService:
             and (status is None or entry.status == status)
             and (severity is None or entry.severity == severity)
         ]
-        return sorted(entries, key=lambda entry: entry.triage_key(date.today()))
+        return [map_register_entry(entry, project_name_by_id={}, as_of=date.today()) for entry in sorted(entries, key=lambda entry: entry.triage_key(date.today()))]
 
     def create_entry(self, command: RegisterEntryCreateCommand) -> RegisterEntry:
         project_id = command.project_id
@@ -206,7 +207,7 @@ class _FakeRegisterService:
         )
         self._next_id += 1
         self._entries[entry.id] = entry
-        return entry
+        return map_register_entry(entry, project_name_by_id={}, as_of=date.today())
 
     def update_entry(self, command: RegisterEntryUpdateCommand) -> RegisterEntry:
         entry_id = command.entry_id

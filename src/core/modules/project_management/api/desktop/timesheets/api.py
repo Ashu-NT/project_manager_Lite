@@ -29,11 +29,6 @@ from src.core.modules.project_management.api.desktop.timesheets.models.review im
 from src.core.modules.project_management.api.desktop.timesheets.models.snapshots import (
     TimesheetAssignmentSnapshotDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.timesheets.models.workspace import (
-    ResourceTimesheetEntryPageDesktopDto,
-    ResourceTimesheetHistoryPageDesktopDto,
-    ResourceTimesheetPeriodDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.timesheets.serializers.entry_serializer import (
     serialize_entry,
 )
@@ -43,10 +38,6 @@ from src.core.modules.project_management.api.desktop.timesheets.serializers.peri
 from src.core.modules.project_management.api.desktop.timesheets.serializers.review_serializer import (
     serialize_review_detail,
     serialize_review_summary,
-)
-from src.core.modules.project_management.api.desktop.timesheets.serializers.workspace_serializer import (
-    serialize_resource_entry,
-    serialize_resource_period,
 )
 from src.core.modules.project_management.api.desktop.timesheets.utils.status_utils import (
     coerce_queue_status,
@@ -72,12 +63,13 @@ from src.core.modules.project_management.application.timesheets.dto.commands.tim
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
 )
-from src.core.modules.project_management.application.timesheets.dto.responses.workspace import (
-    TimesheetResourcePageResponseDto,
-    TimesheetWorkspaceAccessResponseDto,
-)
 from src.core.modules.project_management.contracts.reads.timesheets import (
+    TimesheetEntryReadPage,
+    TimesheetHistoryReadPage,
+    TimesheetPeriodFact,
+    TimesheetResourceReadPage,
     TimesheetScope,
+    TimesheetWorkspaceAccessFact,
 )
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
@@ -152,7 +144,7 @@ class ProjectManagementTimesheetsDesktopApi:
             task_lookup_query=self._task_lookup_query,
         )
 
-    def get_timesheet_workspace_access(self) -> TimesheetWorkspaceAccessResponseDto:
+    def get_timesheet_workspace_access(self) -> TimesheetWorkspaceAccessFact:
         return _connected(self._workspace_query).get_timesheet_workspace_access()
 
     def list_timesheet_resources_page(
@@ -162,7 +154,7 @@ class ProjectManagementTimesheetsDesktopApi:
         search_text: str = "",
         page: int = 1,
         page_size: int = 20,
-    ) -> TimesheetResourcePageResponseDto:
+    ) -> TimesheetResourceReadPage:
         result = _connected(self._workspace_query).query_timesheet_resources(
             scope=scope,
             search_text=search_text,
@@ -194,13 +186,11 @@ class ProjectManagementTimesheetsDesktopApi:
         scope: TimesheetScope | str,
         resource_id: str | None,
         period_start: date,
-    ) -> ResourceTimesheetPeriodDesktopDto:
-        return serialize_resource_period(
-            _connected(self._workspace_query).get_timesheet_period(
-                scope=scope,
-                resource_id=resource_id,
-                period_start=period_start,
-            )
+    ) -> TimesheetPeriodFact:
+        return _connected(self._workspace_query).get_timesheet_period(
+            scope=scope,
+            resource_id=resource_id,
+            period_start=period_start,
         )
 
     def list_resource_timesheet_entries_page(
@@ -216,7 +206,7 @@ class ProjectManagementTimesheetsDesktopApi:
         page_size: int = 25,
         sort_key: str = "date",
         sort_direction: str = "desc",
-    ) -> ResourceTimesheetEntryPageDesktopDto:
+    ) -> TimesheetEntryReadPage:
         result = _connected(self._workspace_query).query_timesheet_entries(
             scope=scope,
             resource_id=resource_id,
@@ -229,14 +219,7 @@ class ProjectManagementTimesheetsDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return ResourceTimesheetEntryPageDesktopDto(
-            items=tuple(serialize_resource_entry(item) for item in result.items),
-            total=result.total,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
-        )
+        return result
 
     def list_resource_timesheet_history_page(
         self,
@@ -245,19 +228,14 @@ class ProjectManagementTimesheetsDesktopApi:
         resource_id: str | None,
         page: int = 1,
         page_size: int = 12,
-    ) -> ResourceTimesheetHistoryPageDesktopDto:
+    ) -> TimesheetHistoryReadPage:
         result = _connected(self._workspace_query).query_timesheet_history(
             scope=scope,
             resource_id=resource_id,
             page=page,
             page_size=page_size,
         )
-        return ResourceTimesheetHistoryPageDesktopDto(
-            items=tuple(serialize_resource_period(item) for item in result.items),
-            total=result.total,
-            page=result.page,
-            page_size=result.page_size,
-        )
+        return result
 
     def add_resource_time_entry(
         self,
@@ -308,7 +286,7 @@ class ProjectManagementTimesheetsDesktopApi:
         period_start: date,
         expected_version: int,
         note: str = "",
-    ) -> ResourceTimesheetPeriodDesktopDto:
+    ) -> TimesheetPeriodFact:
         _connected(self._workspace_commands).submit_resource_timesheet_period(
             scope=scope,
             resource_id=resource_id,

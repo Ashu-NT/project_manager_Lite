@@ -113,7 +113,7 @@ def harness(monkeypatch):
     policy = MagicMock()
     policy.organization_id.return_value = "org"
     policy.scope.return_value = scope
-    policy.accessible_projects.return_value = [SimpleNamespace(id="p1", name="One"), SimpleNamespace(id="p2", name="Two")]
+    policy.accessible_projects.return_value = [SimpleNamespace(id="p1", name="One", status="ACTIVE"), SimpleNamespace(id="p2", name="Two", status="ACTIVE")]
     policy.validate_project_ids.side_effect = lambda ids: sorted(set(ids))
     policy.validate_intake_ids.side_effect = lambda ids: sorted(set(ids))
     template = PortfolioScoringTemplate.create(organization_id="org", name="Balanced")
@@ -135,7 +135,7 @@ def test_portfolio_create_commands_preserve_decimal_zero_and_scope(harness):
     scenario = scenarios.create_scenario(PortfolioScenarioCreateCommand("Zero", Decimal(0), 0, ("p2", "p1")))
     assert scenario.budget_limit == Decimal(0)
     assert scenario.capacity_limit_percent == 0
-    assert scenario.project_ids == ["p1", "p2"]
+    assert scenario.project_ids == ("p1", "p2")
     h.policy.validate_project_ids.assert_called_once_with(["p1", "p2"])
     assert h.uow.commit.call_count == 2
     assert h.uow.record_event.call_count == 2
@@ -163,8 +163,8 @@ def test_portfolio_dependency_and_template_commands_use_operation_uows(harness):
     dependencies = PortfolioDependencyCommandHandler(dependency_repo=h.repo, policy=h.policy, uow_factory=h.factory)
     dependency = dependencies.create_project_dependency(PortfolioDependencyCreateCommand("p1", "p2", summary="Delivery"))
     h.repo.get.return_value = dependency
-    dependencies.remove_project_dependency(PortfolioDependencyRemoveCommand(dependency.id))
-    h.uow.dependencies.delete.assert_called_once_with(dependency.id)
+    dependencies.remove_project_dependency(PortfolioDependencyRemoveCommand(dependency.dependency_id))
+    h.uow.dependencies.delete.assert_called_once_with(dependency.dependency_id)
     templates = PortfolioTemplateCommandHandler(scoring_template_repo=h.repo, policy=h.policy, uow_factory=h.factory)
     template = templates.create_scoring_template(PortfolioTemplateCreateCommand("New", activate=False))
     h.repo.get.return_value = h.uow.scoring_templates.add.call_args.args[0]
@@ -235,7 +235,7 @@ def test_baseline_commands_preserve_valuation_date_lifecycle_and_uow(harness, mo
 @pytest.mark.parametrize(("method", "command", "handler_slot", "serializer"), [
     ("create_intake_item", PortfolioIntakeCreateCommand("Intake", "Sponsor"), "portfolio_intake_commands", None),
     ("update_intake_item_status", PortfolioIntakeUpdateCommand("i1", status="APPROVED"), "portfolio_intake_commands", None),
-    ("create_scenario", PortfolioScenarioCreateCommand("Scenario"), "portfolio_scenario_commands", "serialize_scenario"),
+    ("create_scenario", PortfolioScenarioCreateCommand("Scenario"), "portfolio_scenario_commands", None),
     ("create_scoring_template", PortfolioTemplateCreateCommand("Template"), "portfolio_template_commands", None),
     ("activate_scoring_template", PortfolioTemplateActivateCommand("t1"), "portfolio_template_commands", None),
 ])
@@ -261,7 +261,6 @@ def test_portfolio_desktop_passes_same_command_to_injected_handler(monkeypatch, 
 ])
 def test_register_desktop_passes_same_command(monkeypatch, method, command):
     handler = MagicMock()
-    monkeypatch.setattr("src.core.modules.project_management.api.desktop.register.api.serialize_entry", lambda entry, **kwargs: entry)
     api = ProjectManagementRegisterDesktopApi(register_lifecycle_commands=handler)
     assert getattr(api, method)(command) is getattr(handler, method).return_value
     getattr(handler, method).assert_called_once_with(command)

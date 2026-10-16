@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TypeVar
 
 from src.core.modules.project_management.api.desktop.portfolio.builders.option_builder import (
@@ -10,45 +9,15 @@ from src.core.modules.project_management.api.desktop.portfolio.builders.option_b
     build_intake_status_options,
     build_project_options,
 )
-from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import (
-    PortfolioDependencyDesktopDto,
-    PortfolioDependencyPageDto,
-)
-from src.core.modules.project_management.api.desktop.portfolio.models.executive import (
-    PortfolioExecutiveDesktopSnapshot,
-)
-from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import (
-    PortfolioHeatmapDesktopDto,
-    PortfolioHeatmapPageDto,
-)
 from src.core.modules.project_management.api.desktop.portfolio.models.options import (
     PortfolioOptionDescriptor,
     PortfolioProjectOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.portfolio.models.recent_actions import (
-    PortfolioRecentActionDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.portfolio.models.scenarios import (
-    PortfolioScenarioComparisonDesktopDto,
-    PortfolioScenarioDesktopDto,
-    PortfolioScenarioEvaluationDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.portfolio.serializers.dependency_serializer import (
-    serialize_dependency,
-)
-from src.core.modules.project_management.api.desktop.portfolio.serializers.heatmap_serializer import (
-    serialize_heatmap_row,
-)
-from src.core.modules.project_management.api.desktop.portfolio.serializers.recent_action_serializer import (
-    serialize_recent_action,
-)
-from src.core.modules.project_management.api.desktop.portfolio.serializers.scenario_serializer import (
-    serialize_comparison,
-    serialize_evaluation,
-    serialize_scenario,
-)
 from src.core.modules.project_management.api.desktop.portfolio.utils.intake_status_utils import (
     coerce_intake_status,
+)
+from src.core.modules.project_management.application.common.pagination import (
+    PaginatedResult,
 )
 from src.core.modules.project_management.application.portfolio.commands import (
     PortfolioDependencyCommandHandler,
@@ -74,9 +43,15 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scor
 from src.core.modules.project_management.application.portfolio.dto.responses.capacity import (
     PortfolioCapacityResourceDto,
 )
+from src.core.modules.project_management.application.portfolio.dto.responses.executive import (
+    PortfolioExecutiveSnapshot,
+)
 from src.core.modules.project_management.application.portfolio.dto.responses.intake import (
     PortfolioIntakePageResponse,
     PortfolioIntakeResponse,
+)
+from src.core.modules.project_management.application.portfolio.dto.responses.scenarios import (
+    PortfolioScenarioResponse,
 )
 from src.core.modules.project_management.application.portfolio.dto.responses.templates import (
     PortfolioTemplateResponseDto,
@@ -88,13 +63,17 @@ from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioScenarioQueryHandler,
     PortfolioTemplateQueryHandler,
 )
-from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
-    TOP_AT_RISK_PROJECTS_LIMIT,
-)
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.portfolio import (
+    PortfolioExecutiveRow,
+    PortfolioProjectDependencyView,
+    PortfolioRecentAction,
+    PortfolioScenarioComparison,
+    PortfolioScenarioEvaluation,
+)
 from src.core.platform.common.exceptions import ConfigurationError
 
 
@@ -188,13 +167,10 @@ class ProjectManagementPortfolioDesktopApi:
         page_size: int = 25,
         sort_key: str = "updatedAt",
         sort_direction: str = "desc",
-    ) -> PortfolioDependencyPageDto:
+    ) -> PaginatedResult[PortfolioProjectDependencyView]:
         service = self._portfolio_dependency_query
         if service is None:
-            return PortfolioDependencyPageDto(
-                page=page, page_size=page_size, sort_key=sort_key,
-                sort_direction=sort_direction, search_text=search_text,
-            )
+            return PortfolioExecutiveQueryHandler.empty_page(page=page, page_size=page_size)
         result = service.list_project_dependencies_page(
             search_text=search_text,
             page=page,
@@ -202,17 +178,9 @@ class ProjectManagementPortfolioDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return PortfolioDependencyPageDto(
-            items=tuple(serialize_dependency(row) for row in result.items),
-            total=result.total or 0,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-            search_text=search_text,
-        )
+        return result
 
-    def list_scenarios(self) -> tuple[PortfolioScenarioDesktopDto, ...]:
+    def list_scenarios(self) -> tuple[PortfolioScenarioResponse, ...]:
         service = self._portfolio_scenario_query
         if service is None:
             return ()
@@ -220,37 +188,33 @@ class ProjectManagementPortfolioDesktopApi:
             service.list_scenarios(),
             key=lambda s: ((s.name or "").casefold(), s.created_at),
         )
-        return tuple(serialize_scenario(s) for s in rows)
+        return tuple(rows)
 
-    def evaluate_scenario(self, scenario_id: str) -> PortfolioScenarioEvaluationDesktopDto:
-        return serialize_evaluation(
-            _require(self._portfolio_scenario_query).evaluate_scenario(str(scenario_id or "").strip())
-        )
+    def evaluate_scenario(self, scenario_id: str) -> PortfolioScenarioEvaluation:
+        return _require(self._portfolio_scenario_query).evaluate_scenario(str(scenario_id or "").strip())
 
     def compare_scenarios(
         self, base_scenario_id: str, candidate_scenario_id: str
-    ) -> PortfolioScenarioComparisonDesktopDto:
-        return serialize_comparison(
-            _require(self._portfolio_scenario_query).compare_scenarios(
+    ) -> PortfolioScenarioComparison:
+        return _require(self._portfolio_scenario_query).compare_scenarios(
                 str(base_scenario_id or "").strip(),
                 str(candidate_scenario_id or "").strip(),
-            )
         )
 
-    def list_heatmap(self) -> tuple[PortfolioHeatmapDesktopDto, ...]:
+    def list_heatmap(self) -> tuple[PortfolioExecutiveRow, ...]:
         service = self._portfolio_executive_query
         if service is None:
             return ()
-        return tuple(serialize_heatmap_row(row) for row in service.list_portfolio_heatmap())
+        return tuple(service.list_portfolio_heatmap())
 
-    def list_top_at_risk_projects(self) -> tuple[PortfolioHeatmapDesktopDto, ...]:
+    def list_top_at_risk_projects(self) -> tuple[PortfolioExecutiveRow, ...]:
         """Bounded/top_n analytical projection -- ranks pressure across the
         complete authorized project scope. Never derived from a paginated
         Heatmap page; see PortfolioExecutiveQueryHandler.list_top_at_risk_projects."""
         service = self._portfolio_executive_query
         if service is None:
             return ()
-        return tuple(serialize_heatmap_row(row) for row in service.list_top_at_risk_projects())
+        return tuple(service.list_top_at_risk_projects())
 
     def list_heatmap_page(
         self,
@@ -261,13 +225,10 @@ class ProjectManagementPortfolioDesktopApi:
         page_size: int = 25,
         sort_key: str = "projectName",
         sort_direction: str = "asc",
-    ) -> PortfolioHeatmapPageDto:
+    ) -> PaginatedResult[PortfolioExecutiveRow]:
         service = self._portfolio_executive_query
         if service is None:
-            return PortfolioHeatmapPageDto(
-                page=page, page_size=page_size, sort_key=sort_key,
-                sort_direction=sort_direction, search_text=search_text,
-            )
+            return PaginatedResult(items=[], page=page, page_size=page_size, total=0)
         normalized_status = _coerce_project_status(status)
         result = service.list_portfolio_heatmap_page(
             search_text=search_text,
@@ -277,49 +238,30 @@ class ProjectManagementPortfolioDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return PortfolioHeatmapPageDto(
-            items=tuple(serialize_heatmap_row(row) for row in result.items),
-            total=result.total or 0,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-            search_text=search_text,
-        )
+        return result
 
-    def get_executive_snapshot(self) -> PortfolioExecutiveDesktopSnapshot:
+    def get_executive_snapshot(self) -> PortfolioExecutiveSnapshot:
         """Portfolio-wide aggregates for the Executive tab. Computes the full
         accessible-scope heatmap once and derives both the bounded Top At-Risk
         ranking and the hot-project count from that single scan -- see
-        PortfolioExecutiveDesktopSnapshot."""
+        PortfolioExecutiveSnapshot."""
         executive = self._portfolio_executive_query
         dependencies = self._portfolio_dependency_query
         if executive is None or dependencies is None:
-            return PortfolioExecutiveDesktopSnapshot()
-        heatmap_rows = executive.list_portfolio_heatmap()
-        dependency_rows = dependencies.list_project_dependencies(heatmap_rows=heatmap_rows)
-        hot_count = sum(1 for row in heatmap_rows if row.pressure_label == "Hot")
-        return PortfolioExecutiveDesktopSnapshot(
-            heatmap=tuple(serialize_heatmap_row(row) for row in heatmap_rows),
-            dependencies=tuple(serialize_dependency(row) for row in dependency_rows),
-            top_at_risk_projects=tuple(
-                serialize_heatmap_row(row) for row in heatmap_rows[:TOP_AT_RISK_PROJECTS_LIMIT]
-            ),
-            hot_project_count=hot_count,
-            dependency_count=len(dependency_rows),
-        )
+            return PortfolioExecutiveQueryHandler.empty_snapshot()
+        return executive.get_executive_snapshot(dependencies)
 
-    def list_dependencies(self) -> tuple[PortfolioDependencyDesktopDto, ...]:
+    def list_dependencies(self) -> tuple[PortfolioProjectDependencyView, ...]:
         service = self._portfolio_dependency_query
         if service is None:
             return ()
-        return tuple(serialize_dependency(row) for row in service.list_project_dependencies())
+        return tuple(service.list_project_dependencies())
 
-    def list_recent_actions(self, *, limit: int = 12) -> tuple[PortfolioRecentActionDesktopDto, ...]:
+    def list_recent_actions(self, *, limit: int = 12) -> tuple[PortfolioRecentAction, ...]:
         service = self._portfolio_executive_query
         if service is None:
             return ()
-        return tuple(serialize_recent_action(row) for row in service.list_recent_pm_actions(limit=limit))
+        return tuple(service.list_recent_pm_actions(limit=limit))
 
     def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioTemplateResponseDto:
         return _require(self._portfolio_template_commands).create_scoring_template(command)
@@ -330,27 +272,14 @@ class ProjectManagementPortfolioDesktopApi:
     def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeResponse:
         return _require(self._portfolio_intake_commands).create_intake_item(command)
 
-    def create_scenario(self, command: PortfolioScenarioCreateCommand) -> PortfolioScenarioDesktopDto:
-        return serialize_scenario(
-            _require(self._portfolio_scenario_commands).create_scenario(command)
-        )
+    def create_scenario(self, command: PortfolioScenarioCreateCommand) -> PortfolioScenarioResponse:
+        return _require(self._portfolio_scenario_commands).create_scenario(command)
 
-    def create_project_dependency(self, command: PortfolioDependencyCreateCommand) -> PortfolioDependencyDesktopDto:
-        dependency = _require(self._portfolio_dependency_commands).create_project_dependency(command)
-        normalized_summary = (command.summary or "").strip()
-        for row in sorted(
-            _require(self._portfolio_dependency_query).list_project_dependencies(),
-            key=lambda item: getattr(item, "created_at", datetime.min),  # noqa: DTZ901 - fallback only
-            reverse=True,
-        ):
-            if (
-                row.predecessor_project_id == dependency.predecessor_project_id
-                and row.successor_project_id == dependency.successor_project_id
-                and row.dependency_type == dependency.dependency_type
-                and (row.summary or "").strip() == normalized_summary
-            ):
-                return serialize_dependency(row)
-        raise RuntimeError("The created portfolio dependency could not be reloaded.")
+    def create_project_dependency(self, command: PortfolioDependencyCreateCommand) -> PortfolioProjectDependencyView:
+        return _require(self._portfolio_dependency_commands).create_project_dependency(
+            command,
+            query=_require(self._portfolio_dependency_query),
+        )
 
     def remove_project_dependency(self, command: PortfolioDependencyRemoveCommand) -> None:
         _require(self._portfolio_dependency_commands).remove_project_dependency(command)

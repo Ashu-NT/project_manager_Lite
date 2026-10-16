@@ -23,33 +23,41 @@ def build_resource_availability_state(
     )
     return ResourceAvailabilityViewModel(
         resource_id=dto.resource_id,
-        start_date=dto.start_date,
-        end_date=dto.end_date,
-        from_date_label=dto.from_date_label,
-        to_date_label=dto.to_date_label,
-        calendar_source_label=dto.calendar_source_label,
-        capacity_percent=dto.capacity_percent,
-        base_capacity_hours=dto.base_capacity_hours,
-        effective_capacity_hours=dto.effective_capacity_hours,
-        planned_commitment_hours=dto.planned_commitment_hours,
-        allocated_planned_hours=dto.allocated_planned_hours,
-        remaining_capacity_hours=dto.remaining_capacity_hours,
-        utilization_percent=dto.utilization_percent,
-        utilization_label=dto.utilization_label,
+        start_date=dto.start_date.isoformat(),
+        end_date=dto.end_date.isoformat(),
+        from_date_label=dto.start_date.strftime("%d %b %Y"),
+        to_date_label=dto.end_date.strftime("%d %b %Y"),
+        calendar_source_label=" -> ".join(dto.calendar_source_chain),
+        capacity_percent=float(dto.capacity_percent),
+        base_capacity_hours=float(dto.base_capacity_hours),
+        effective_capacity_hours=float(dto.effective_capacity_hours),
+        planned_commitment_hours=float(dto.planned_commitment_hours),
+        allocated_planned_hours=float(dto.allocated_planned_hours),
+        remaining_capacity_hours=float(dto.remaining_capacity_hours),
+        utilization_percent=None
+        if dto.utilization_percent is None
+        else float(dto.utilization_percent),
+        utilization_label="N/A"
+        if dto.utilization_percent is None
+        else f"{dto.utilization_percent:.1f}%",
         overallocated=dto.overallocated,
-        conflict_days=dto.conflict_days,
+        conflict_days=len(dto.conflict_dates),
         project_count=dto.project_count,
         assignment_count=dto.assignment_count,
         days=tuple(
             ResourceAvailabilityDayViewModel(
-                work_date=day.work_date,
-                date_label=day.date_label,
-                base_capacity_hours=day.base_capacity_hours,
-                effective_capacity_hours=day.effective_capacity_hours,
-                planned_commitment_hours=day.planned_commitment_hours,
-                remaining_capacity_hours=day.remaining_capacity_hours,
-                utilization_percent=day.utilization_percent,
-                utilization_label=day.utilization_label,
+                work_date=day.work_date.isoformat(),
+                date_label=day.work_date.strftime("%d %b"),
+                base_capacity_hours=float(day.base_capacity_hours),
+                effective_capacity_hours=float(day.effective_capacity_hours),
+                planned_commitment_hours=float(day.planned_commitment_hours),
+                remaining_capacity_hours=float(day.remaining_capacity_hours),
+                utilization_percent=None
+                if day.utilization_percent is None
+                else float(day.utilization_percent),
+                utilization_label="N/A"
+                if day.utilization_percent is None
+                else f"{day.utilization_percent:.1f}%",
                 overallocated=day.overallocated,
                 assignment_count=day.assignment_count,
             )

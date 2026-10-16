@@ -1,0 +1,185 @@
+"""Chart builders — EVM trend, burndown, resource load, portfolio charts."""
+
+from __future__ import annotations
+
+import logging
+from datetime import date
+from decimal import Decimal
+from typing import Any
+
+from src.ui_qml.modules.project_management.presenters.dashboard.formatters.number_formatter import (
+    fmt_float,
+    fmt_int,
+    fmt_percent,
+)
+from src.ui_qml.modules.project_management.presenters.dashboard.formatters.period_formatter import (
+    fmt_period_axis_label,
+    period_cutoff_date,
+)
+from src.ui_qml.modules.project_management.view_models.dashboard import (
+    ProjectDashboardChartPointViewModel,
+    ProjectDashboardChartViewModel,
+)
+
+logger = logging.getLogger(__name__)
+
+_PT = ProjectDashboardChartPointViewModel
+
+
+def build_preview_charts() -> tuple[ProjectDashboardChartViewModel, ...]:
+    _msg = "Project-management dashboard desktop API is not connected in this QML preview."
+    return (
+        ProjectDashboardChartViewModel(title="Burndown / Status Rollup", subtitle="Burndown or portfolio rollup appears here once the dashboard API is connected.", chart_type="line", empty_state=_msg),
+        ProjectDashboardChartViewModel(title="Resource Load", subtitle="Resource utilization bars appear here once the dashboard API is connected.", chart_type="bar", empty_state=_msg),
+    )
+
+
+def build_charts_from_dashboard_data(
+    *,
+    dashboard_data: Any,
+    selected_period_key: str,
+    portfolio_mode: bool,
+    earned_value_report=None,
+) -> tuple[ProjectDashboardChartViewModel, ...]:
+    if portfolio_mode:
+        return (
+            _build_portfolio_status_chart(dashboard_data=dashboard_data),
+            _build_portfolio_cost_chart(dashboard_data=dashboard_data),
+            _build_resource_chart(dashboard_data=dashboard_data, portfolio_mode=True),
+        )
+    project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
+    baseline_id = getattr(getattr(dashboard_data, "evm", None), "baseline_id", None)
+    evm_series = _filtered_evm_series(
+        project_id=project_id,
+        baseline_id=baseline_id,
+        selected_period_key=selected_period_key,
+        earned_value_report=earned_value_report,
+    )
+    return (
+        _build_schedule_trend_chart(
+            dashboard_data=dashboard_data,
+            selected_period_key=selected_period_key,
+            evm_series=evm_series,
+        ),
+        _build_cost_trend_chart(
+            dashboard_data=dashboard_data,
+            selected_period_key=selected_period_key,
+            evm_series=evm_series,
+        ),
+        _build_resource_chart(dashboard_data=dashboard_data, portfolio_mode=False),
+    )
+
+
+def _filtered_evm_series(*, project_id: str, baseline_id: str | None, selected_period_key: str, earned_value_report=None) -> tuple[Any, ...]:
+    if earned_value_report is None or not project_id:
+        return ()
+    try:
+        get_series = getattr(earned_value_report, "get_evm_series", None)
+        if not callable(get_series):
+            return ()
+        series = tuple(get_series(project_id, baseline_id=baseline_id or None, as_of=date.today()) or ())  # noqa: DTZ011
+    except Exception:
+        logger.exception("Failed to load EVM series for project_id=%s, baseline_id=%s, period=%s", project_id, baseline_id, selected_period_key,)
+        return ()
+    cutoff = period_cutoff_date(selected_period_key)
+    if cutoff is None:
+        return series
+    filtered = tuple(p for p in series if getattr(p, "period_end", cutoff) >= cutoff)
+    return filtered or series[-6:]
+
+
+def _build_portfolio_status_chart(*, dashboard_data: Any) -> ProjectDashboardChartViewModel:
+    portfolio = getattr(dashboard_data, "portfolio", None)
+    rollup = tuple(getattr(portfolio, "status_rollup", []) or []) if portfolio is not None else ()
+    return ProjectDashboardChartViewModel(
+        title="Portfolio Status", subtitle="Cross-project delivery status counts.", chart_type="bar",
+        empty_state="No portfolio status data is available yet.",
+        points=tuple(_PT(label=str(r.status_label or "").replace("_", " ").title(), value=float(r.project_count or 0), value_label=fmt_int(r.project_count), supporting_text="Projects", tone="accent") for r in rollup),
+    )
+
+
+def _build_portfolio_cost_chart(*, dashboard_data: Any) -> ProjectDashboardChartViewModel:
+    rankings = sorted(
+            getattr(
+                getattr(dashboard_data, "portfolio", None),
+                "project_rankings",
+                [],
+            )
+            or [],
+        key=lambda row: abs(row.cost_variance or 0),
+        reverse=True,
+    )
+    return ProjectDashboardChartViewModel(
+        title="Cost Pressure", subtitle="Top 8 projects with the highest variance pressure.", chart_type="bar",
+        empty_state="No project cost-pressure rows are available yet.",
+        points=tuple(_PT(label=r.project_name, value=float(abs(r.cost_variance or 0.0)), value_label=fmt_float(r.cost_variance, 0), supporting_text=f"Late {fmt_int(r.late_tasks)} | Critical {fmt_int(r.critical_tasks)}", tone="danger" if float(r.cost_variance or 0.0) > 0.0 else "accent") for r in rankings[:8]),
+    )
+
+
+def _build_schedule_trend_chart(
+    *,
+    dashboard_data: Any,
+    selected_period_key: str,
+    evm_series: tuple[Any, ...] = (),
+) -> ProjectDashboardChartViewModel:
+    series = evm_series
+    if series:
+        series_length = len(series)
+        return ProjectDashboardChartViewModel(
+            title="Schedule Trend", subtitle="Earned value against planned value across the selected period.", chart_type="line",
+            points=tuple(_PT(label=fmt_period_axis_label(p.period_end, selected_period_key=selected_period_key, series_length=series_length), value=float(p.EV), value_label=fmt_float(p.EV, 0), supporting_text=p.period_end.strftime("%Y-%m-%d"), target_value=float(p.PV), tone="danger" if p.SPI is not None and p.SPI < Decimal("0.95") else "accent") for p in series if p.EV is not None and p.PV is not None),
+        )
+    return _build_burndown_fallback_chart(dashboard_data)
+
+
+def _build_cost_trend_chart(
+    *,
+    dashboard_data: Any,
+    selected_period_key: str,
+    evm_series: tuple[Any, ...] = (),
+) -> ProjectDashboardChartViewModel:
+    series = evm_series
+    if series:
+        series_length = len(series)
+        return ProjectDashboardChartViewModel(
+            title="Cost Trend", subtitle="Actual cost against earned value across the selected period.", chart_type="line",
+            points=tuple(_PT(label=fmt_period_axis_label(p.period_end, selected_period_key=selected_period_key, series_length=series_length), value=float(p.AC), value_label=fmt_float(p.AC, 0), supporting_text=p.period_end.strftime("%Y-%m-%d"), target_value=float(p.EV), tone="danger" if p.AC > p.EV else "accent") for p in series if p.AC is not None and p.EV is not None),
+        )
+    sources = getattr(dashboard_data, "cost_sources", None)
+    source_rows = tuple(getattr(sources, "rows", []) or []) if sources is not None else ()
+    return ProjectDashboardChartViewModel(
+        title="Cost Trend", subtitle="Top 8 budget lines by source order; actual cost against plan.", chart_type="bar",
+        empty_state="No cost-trend data is available yet for this project.",
+        points=tuple(_PT(label=r.source_label, value=float(r.actual or 0.0), value_label=fmt_float(r.actual, 0), supporting_text=f"Planned {fmt_float(r.planned, 0)}", target_value=float(r.planned or 0.0), tone="danger" if float(r.actual or 0.0) > float(r.planned or 0.0) else "accent") for r in source_rows[:8]),
+    )
+
+
+def _build_burndown_fallback_chart(dashboard_data: Any) -> ProjectDashboardChartViewModel:
+    points = tuple(getattr(dashboard_data, "burndown", []) or [])
+    if not points:
+        return ProjectDashboardChartViewModel(title="Schedule Trend", subtitle="Remaining tasks over time against the ideal trend.", chart_type="line", empty_state="No schedule-trend data is available yet for this project.")
+    start_value = float(getattr(points[0], "remaining_tasks", 0) or 0)
+    denominator = max(len(points) - 1, 1)
+    return ProjectDashboardChartViewModel(
+        title="Schedule Trend", subtitle="Remaining tasks over time against the ideal trend.", chart_type="line",
+        points=tuple(_PT(label=p.day.strftime("%d %b"), value=float(p.remaining_tasks or 0), value_label=fmt_int(p.remaining_tasks), supporting_text=p.day.strftime("%Y-%m-%d"), target_value=(start_value * (1.0 - (idx / denominator))) if len(points) > 1 else 0.0, tone="accent") for idx, p in enumerate(points)),
+    )
+
+
+def _build_resource_chart(*, dashboard_data: Any, portfolio_mode: bool) -> ProjectDashboardChartViewModel:
+    rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
+    title = "Cross-project Resource Load" if portfolio_mode else "Resource Load"
+    subtitle = "Up to 8 resources with peak utilization context."
+    if not rows:
+        return ProjectDashboardChartViewModel(title=title, subtitle=subtitle, chart_type="bar", empty_state="No resource-load data is available yet.")
+
+    def _util(r):
+        return float(getattr(r, "utilization_percent", r.total_allocation_percent) or 0.0)
+
+    return ProjectDashboardChartViewModel(
+        title=title, subtitle=subtitle, chart_type="bar",
+        points=tuple(_PT(label=r.resource_name, value=_util(r), value_label=fmt_percent(_util(r), 0), supporting_text=f"Alloc {fmt_float(r.total_allocation_percent, 0)}% / Cap {fmt_float(r.capacity_percent, 0)}% | Tasks {fmt_int(r.tasks_count)}", target_value=100.0, tone="danger" if bool(getattr(r, "is_overloaded", False)) else "accent") for r in rows[:8]),
+    )
+
+
+__all__ = ["build_charts_from_dashboard_data", "build_preview_charts"]

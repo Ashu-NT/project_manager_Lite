@@ -1,6 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import ast
+from importlib.util import resolve_name
 from pathlib import Path
 
 from src.tests.path_rewrites import REPO_ROOT
@@ -30,6 +31,69 @@ def _imports_from(path: Path) -> list[str]:
     return imports
 
 
+def _is_immutable_read_contract(
+    module: str, name: str, seen: frozenset[tuple[str, str]] = frozenset()
+) -> bool:
+    """Resolve a named DTO export without importing its Reader/composition graph."""
+    key = (module, name)
+    if key in seen:
+        return False
+    source = ROOT.joinpath(*module.split(".")).with_suffix(".py")
+    package = module.rpartition(".")[0]
+    if not source.is_file():
+        source = ROOT.joinpath(*module.split("."), "__init__.py")
+        package = module
+    if not source.is_file():
+        return False
+    for node in ast.parse(source.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.ClassDef) and node.name == name:
+            frozen = any(
+                isinstance(decorator, ast.Call)
+                and any(
+                    keyword.arg == "frozen"
+                    and isinstance(keyword.value, ast.Constant)
+                    and keyword.value.value is True
+                    for keyword in decorator.keywords
+                )
+                and isinstance(decorator.func, ast.Name)
+                and decorator.func.id == "dataclass"
+                for decorator in node.decorator_list
+            )
+            enum = any(
+                isinstance(base, ast.Name) and base.id in {"Enum", "StrEnum", "IntEnum"}
+                for base in node.bases
+            )
+            return frozen or enum
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if (alias.asname or alias.name) != name:
+                    continue
+                origin = node.module or ""
+                if node.level:
+                    origin = resolve_name("." * node.level + origin, package)
+                return _is_immutable_read_contract(origin, alias.name, seen | {key})
+    return False
+
+
+def _read_contract_import_violations(path: Path) -> list[tuple[str, str]]:
+    violations = []
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.ImportFrom) and ".contracts.reads" in (
+            node.module or ""
+        ):
+            module = node.module or ""
+            for alias in node.names:
+                if not _is_immutable_read_contract(module, alias.name):
+                    violations.append(
+                        (str(path.relative_to(ROOT)), f"{module}.{alias.name}")
+                    )
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if ".contracts.reads" in alias.name:
+                    violations.append((str(path.relative_to(ROOT)), alias.name))
+    return violations
+
+
 def test_core_does_not_import_qml_or_widget_ui() -> None:
     violations: list[tuple[str, str]] = []
 
@@ -47,6 +111,7 @@ def test_qml_python_layer_does_not_import_legacy_widget_ui_or_infrastructure() -
     violations: list[tuple[str, str]] = []
 
     for path in _python_files(UI_QML_ROOT):
+        violations.extend(_read_contract_import_violations(path))
         for imported in _imports_from(path):
             if imported == "src.ui" or imported.startswith("src.ui."):
                 violations.append((str(path.relative_to(ROOT)), imported))
@@ -54,12 +119,19 @@ def test_qml_python_layer_does_not_import_legacy_widget_ui_or_infrastructure() -
                 violations.append((str(path.relative_to(ROOT)), imported))
             if ".repositories" in imported or imported.endswith(".repositories"):
                 violations.append((str(path.relative_to(ROOT)), imported))
-            # Immutable DTO model modules are consumable across the API boundary;
-            # Reader interfaces and persistence implementations remain forbidden.
-            if (".contracts.reads" in imported and ".models" not in imported) or ".persistence.reads" in imported:
+            if ".persistence.reads" in imported:
                 violations.append((str(path.relative_to(ROOT)), imported))
 
     assert not violations, f"QML Python layer imports forbidden layers: {violations}"
+
+
+def test_qml_read_contract_guard_distinguishes_dtos_from_readers() -> None:
+    module = "src.core.modules.project_management.contracts.reads.timesheets"
+    assert _is_immutable_read_contract(module, "TimesheetResourceReadPage")
+    assert not _is_immutable_read_contract(module, "TimesheetWorkspaceReader")
+    module = "src.core.modules.project_management.contracts.reads.register"
+    assert _is_immutable_read_contract(module, "RegisterCatalogReadPage")
+    assert not _is_immutable_read_contract(module, "RegisterCatalogReader")
 
 
 def test_qml_python_layer_does_not_use_qt_widgets() -> None:
@@ -67,7 +139,9 @@ def test_qml_python_layer_does_not_use_qt_widgets() -> None:
 
     for path in _python_files(UI_QML_ROOT):
         for imported in _imports_from(path):
-            if imported == "PySide6.QtWidgets" or imported.startswith("PySide6.QtWidgets."):
+            if imported == "PySide6.QtWidgets" or imported.startswith(
+                "PySide6.QtWidgets."
+            ):
                 violations.append((str(path.relative_to(ROOT)), imported))
 
     assert not violations, f"QML Python layer imports QtWidgets: {violations}"
@@ -133,7 +207,9 @@ def test_qml_workspace_controller_properties_use_typed_controller_types() -> Non
             if "controller" in stripped.lower():
                 violations.append(f"{path.relative_to(ROOT)}:{lineno}:{stripped}")
 
-    assert not violations, f"QML controller properties still use generic QtObject: {violations}"
+    assert not violations, (
+        f"QML controller properties still use generic QtObject: {violations}"
+    )
 
 
 def test_project_management_qml_does_not_use_generic_pm_catalog_var_binding() -> None:
@@ -148,7 +224,9 @@ def test_project_management_qml_does_not_use_generic_pm_catalog_var_binding() ->
             if stripped.startswith("property var pmCatalog"):
                 violations.append(f"{path.relative_to(ROOT)}:{lineno}:{stripped}")
 
-    assert not violations, f"Project management QML still uses generic pmCatalog bindings: {violations}"
+    assert not violations, (
+        f"Project management QML still uses generic pmCatalog bindings: {violations}"
+    )
 
 
 def test_project_management_qml_uses_shared_buttons_for_workspace_actions() -> None:
@@ -164,7 +242,9 @@ def test_project_management_qml_uses_shared_buttons_for_workspace_actions() -> N
             if stripped.startswith("Button {"):
                 violations.append(f"{path.relative_to(ROOT)}:{lineno}:{stripped}")
 
-    assert not violations, f"Project management QML still uses raw Button controls: {violations}"
+    assert not violations, (
+        f"Project management QML still uses raw Button controls: {violations}"
+    )
 
 
 def test_project_management_qml_has_no_noop_sort_handlers() -> None:
@@ -182,7 +262,9 @@ def test_project_management_qml_has_no_noop_sort_handlers() -> None:
             if snippet in text:
                 violations.append(f"{path.relative_to(ROOT)}:{snippet}")
 
-    assert not violations, f"Project management QML still has dead sort handlers: {violations}"
+    assert not violations, (
+        f"Project management QML still has dead sort handlers: {violations}"
+    )
 
 
 def test_project_management_qml_has_no_noop_export_handlers() -> None:
@@ -200,7 +282,9 @@ def test_project_management_qml_has_no_noop_export_handlers() -> None:
             if snippet in text:
                 violations.append(f"{path.relative_to(ROOT)}:{snippet}")
 
-    assert not violations, f"Project management QML still has dead export handlers: {violations}"
+    assert not violations, (
+        f"Project management QML still has dead export handlers: {violations}"
+    )
 
 
 def test_project_management_controllers_have_no_pass_export_methods() -> None:
@@ -214,7 +298,9 @@ def test_project_management_controllers_have_no_pass_export_methods() -> None:
             if stripped.startswith("def export") and lines[index + 1].strip() == "pass":
                 violations.append(f"{path.relative_to(ROOT)}:{index + 1}")
 
-    assert not violations, f"Project management controllers still have dead export methods: {violations}"
+    assert not violations, (
+        f"Project management controllers still have dead export methods: {violations}"
+    )
 
 
 def test_project_management_qml_has_no_raw_standard_button_dialogs() -> None:
@@ -226,4 +312,6 @@ def test_project_management_qml_has_no_raw_standard_button_dialogs() -> None:
         if "standardButtons:" in text:
             violations.append(str(path.relative_to(ROOT)))
 
-    assert not violations, f"Project management QML still uses raw standardButtons dialogs: {violations}"
+    assert not violations, (
+        f"Project management QML still uses raw standardButtons dialogs: {violations}"
+    )

@@ -32,7 +32,7 @@ def build_detail_view_model(
     return TaskDetailViewModel(
         id=task.id,
         title=task.name,
-        status_label=task.status_label,
+        status_label=task.status.replace("_", " ").title(),
         subtitle=task.project_name or "Project task",
         description=task.description or "No task description has been added yet.",
         fields=(

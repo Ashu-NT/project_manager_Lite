@@ -1,49 +1,65 @@
 from __future__ import annotations
 
-from typing import Any
-
+from src.core.modules.project_management.api.desktop.resources.formatters.enum_formatter import (
+    format_enum_label,
+)
+from src.core.modules.project_management.contracts.reads.resources.models import (
+    ResourceCatalogReadItem,
+)
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceRecordViewModel,
 )
 
 
-def to_resource_record_view_model(resource: Any) -> ResourceRecordViewModel:
+def to_resource_record_view_model(
+    resource: ResourceCatalogReadItem,
+) -> ResourceRecordViewModel:
+    worker_type_label = format_enum_label(resource.worker_type)
+    active_label = "Active" if resource.is_active else "Inactive"
+    capacity_label = f"{resource.capacity_percent:.1f}%"
     state = {
-        "resourceId": resource.id,
+        "resourceId": resource.resource_id,
         "resourceCode": resource.code,
         "role": resource.role,
         "kind": resource.kind,
-        "kindLabel": resource.kind_label,
+        "kindLabel": format_enum_label(resource.kind),
         "workerType": resource.worker_type,
-        "workerTypeLabel": resource.worker_type_label,
+        "workerTypeLabel": worker_type_label,
         "costType": resource.cost_type,
-        "costTypeLabel": resource.cost_type_label,
+        "costTypeLabel": format_enum_label(resource.cost_type),
         "organizationId": resource.organization_id,
         "organization": resource.organization_label,
         "departmentId": resource.department_id or "",
-        "department": resource.department,
+        "department": resource.department_label,
         "siteId": resource.site_id or "",
-        "site": resource.site,
+        "site": resource.site_label,
         "employeeId": resource.employee_id or "",
         "employeeName": resource.employee_name,
         "isActive": resource.is_active,
-        "activeLabel": resource.active_label,
+        "activeLabel": active_label,
         "capacityPercent": resource.capacity_percent,
-        "capacityLabel": resource.capacity_label,
+        "capacityLabel": capacity_label,
         "version": resource.version,
     }
-    subtitle = " | ".join(
-        value for value in (resource.role, resource.worker_type_label) if value
-    ) or "No role assigned"
+    subtitle = (
+        " | ".join(value for value in (resource.role, worker_type_label) if value)
+        or "No role assigned"
+    )
     context = " | ".join(
-        value for value in (resource.organization_label, resource.department, resource.site) if value
+        value
+        for value in (
+            resource.organization_label,
+            resource.department_label,
+            resource.site_label,
+        )
+        if value
     )
     return ResourceRecordViewModel(
-        id=resource.id,
+        id=resource.resource_id,
         title=resource.name,
-        status_label=resource.active_label,
+        status_label=active_label,
         subtitle=subtitle,
-        supporting_text=f"Capacity modifier {resource.capacity_label}",
+        supporting_text=f"Capacity modifier {capacity_label}",
         meta_text=context,
         state=state,
     )

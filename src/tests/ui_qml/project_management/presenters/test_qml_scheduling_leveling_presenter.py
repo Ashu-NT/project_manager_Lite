@@ -20,6 +20,9 @@ from src.core.modules.project_management.application.projects.dto.commands.proje
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.presenters.scheduling.leveling_builder import (
     build_resource_leveling_state,
@@ -39,8 +42,8 @@ def _desktop_api(services):
 
 def _make_overload(services, name: str):
     project = services['project_create'].create_project(ProjectCreateCommand(name=name, description=""))
-    task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-    task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+    task_b = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Task B", start_date=date(2026, 9, 7), duration_days=3))
+    task_c = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Task C", start_date=date(2026, 9, 7), duration_days=3))
     resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Presenter Dev", role="Developer", hourly_rate=100.0))
     services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
     services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
@@ -58,7 +61,7 @@ class TestBuildResourceLevelingState:
     def test_conflict_free_project_reports_no_moves_with_an_explanatory_empty_state(self, services):
         api = _desktop_api(services)
         project = services['project_create'].create_project(ProjectCreateCommand(name="Presenter Leveling No Conflicts", description=""))
-        services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
+        services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Solo Task", start_date=date(2026, 9, 7), duration_days=2))
 
         state = build_resource_leveling_state(api, project.id)
 
@@ -85,14 +88,8 @@ class TestBuildResourceLevelingState:
     def test_unresolved_conflict_is_reported_never_silently_dropped(self, services):
         api = _desktop_api(services)
         project = services['project_create'].create_project(ProjectCreateCommand(name="Presenter Leveling Unresolved", description=""))
-        task_1 = services['task_lifecycle_commands'].create_task(
-            project.id, "Pinned One", start_date=date(2026, 9, 7), duration_days=3,
-            constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
-        )
-        task_2 = services['task_lifecycle_commands'].create_task(
-            project.id, "Pinned Two", start_date=date(2026, 9, 7), duration_days=3,
-            constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
-        )
+        task_1 = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Pinned One", start_date=date(2026, 9, 7), duration_days=3, constraint_type="must_start_on", constraint_date=date(2026, 9, 7)))
+        task_2 = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Pinned Two", start_date=date(2026, 9, 7), duration_days=3, constraint_type="must_start_on", constraint_date=date(2026, 9, 7)))
         resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Presenter Unresolved Dev", role="Developer", hourly_rate=100.0))
         services['task_assignment_commands'].assign_resource(task_1.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_2.id, resource.id, allocation_percent=60.0)

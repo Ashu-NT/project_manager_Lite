@@ -1563,6 +1563,72 @@ failures are not mislabeled as successful business results. No FastAPI
 implementation, HTTP schema hierarchy or generic catch-and-swallow layer is
 introduced by this contract.
 
+### PM Vertical Contract Cutover — Projects
+
+Projects now passes canonical application responses and Reader facts directly
+through the desktop API. Catalog/detail/resource/activity reads retain their
+original immutable result objects; writes return the owning handler's result
+without a post-command reload. Bulk status changes no longer issue a second
+per-project query. Manager references remain User identities and approved
+Budget visibility, amount and currency remain server-authored.
+
+Project/resource labels, date/money formatting, joined resource context and
+import-preview dictionaries belong to Projects presenters. Resource context is
+loaded in one batch rather than per row. Parsed import rows, validation issues,
+preview and staging results are application DTOs. The file adapter returns the
+original preview, and presenters build its bounded QML view. Existing import
+execution remains staging-only; this structural migration does not implement
+new task persistence.
+
+Retired Projects API Desktop DTO models, serializers, builders and formatters
+and their empty directories are removed. No compatibility exports are retained.
+Canonical Reader contracts remain under contracts/reads, not copied into a
+second response hierarchy. Immutable model imports at the UI boundary are
+permitted; Reader interface and persistence imports remain prohibited.
+
+Verification on 2026-10-16: focused Projects/API/presenter/manager/Budget/history
+and import-parser/error tests: 126 passed. Focused Projects Mypy: 47 files clean.
+This is not certification of the other PM feature verticals; their independent
+traces and migrations follow below as verified.
+
+### PM Vertical Trace — Finance
+
+The trace follows each current destination from its owning application handler
+or canonical Reader through desktop API, presenter/controller and QML. It does
+not equate moving a serializer with completing a vertical cutover.
+
+| Finance entity/surface | Current boundary classification |
+| --- | --- |
+| Rate cards and rate lines | Canonical Reader facts now pass through the API unchanged; presenters create QML models. Six combined Rate/Forecast desktop response clones and four obsolete model/serializer files are removed. |
+| Forecast versions and lines | Canonical Reader page/detail facts pass through; existing command DTOs and governed writes remain unchanged. |
+| Financial profile, cost codes and restrictions | Canonical reads still have API presentation mapping; further vertical migration remains. |
+| Budget versions and lines | Canonical reads still have API presentation mapping; further vertical migration remains. |
+| Planned-cost versions and lines | Canonical reads still have API presentation mapping; further vertical migration remains. |
+| Financial Changes and impacts | Canonical reads still have API presentation mapping; further vertical migration remains. |
+| Overview | Canonical reads still have API presentation mapping; further vertical migration remains. |
+| Billing profiles, schedules, preparations, lines and sources | Canonical reads/application mutation results still have API presentation mapping; further vertical migration remains. |
+| Accounting Status | Canonical reads still have API presentation mapping; no Accounting authority or transport changes in this DTO migration. |
+| EVM, variance, baselines and Cost Phasing | Canonical analytical authorities are retained; API presentation mapping remains to migrate. |
+| Actual-cost entries | Application response DTOs remain authoritative; residual API presentation mapping remains to trace/migrate separately. |
+| Commitments | Detail mapping still consumes domain-backed facts; summary uses canonical overview facts. No new Procurement authority. |
+| Posting failures, Commercial Projection and performance reports | Application presentation mapping remains; calculation/availability authorities are not replaced or duplicated. |
+| Project/task/resource/department/cost-code/risk/change-target selectors | Residual selector presentation mapping remains. |
+| Finance activity | Platform audit facts feed the existing Finance activity presenter/controller/QML; unchanged by this cut. |
+
+This inventory explicitly leaves the remaining Finance cutovers open. It does
+not certify all PM/Platform DTO migration or reopen the closed Finance feature
+program. Rate/Forecast regression evidence is recorded with the integrated
+verification below after shared imports are stable.
+
+### PM Vertical Trace — Shared/Downstream Surfaces
+
+| Surface | Authority and disposition |
+| --- | --- |
+| Global Overview contributors | PM Action Center and module-summary contributors return the existing shared Global Overview DTO contracts through application-owned contributor interfaces. These are distinct cross-module summaries, not copies of a PM entity response. No second DTO hierarchy is introduced. |
+| Reporting/exports | Application report builders own access checks and delegate to canonical financial/scheduling authorities. EVM results reuse earned-value application response types. Concrete PDF/Excel/PNG rendering contexts and export artifacts remain infrastructure/transport concerns, not application entity DTO replacements. Residual Finance API report presentation is tracked in the Finance table. |
+| Desktop workspace navigation | Workspace descriptors contain desktop route/title/summary metadata only. They do not serialize domain entities or Reader pages; retaining this interface-specific descriptor is intentional. |
+| Common API presentation helpers | Still required by unmigrated features. They are not evidence that those features completed their DTO cutover. Delete only after their last real consumer migrates. |
+
 ## Risk and Verification Matrix
 
 | Risk | Required proof before closing affected gate |
@@ -1572,7 +1638,7 @@ introduced by this contract.
 | Approved-Time, financial integrations and notifications | Exact duplicate/changed duplicate behavior, outbox/inbox transaction neutrality, service identity, privacy recipient recheck, post-commit invalidation |
 | Project/Resource/Employee and Party coordination | Platform remains master of Employee/Party core data; PM keeps its own Resource/Project state; IDs and eligibility validated server-side |
 | Finance basis/Decimal/availability | Existing R6 Budget/Forecast/Actual/EVM/Cost Phasing/Billing/Commercial/Accounting handoff parity; no unavailable-to-zero or float regression |
-| Desktop and future HTTP contract drift | Compare same use-case result through desktop serializer and a neutral contract test; HTTP schema remains independently versioned when implemented |
+| Desktop and future HTTP contract drift | Assert canonical Reader/application result identity through the thin desktop API and verify presenter view models; HTTP schemas remain separate when implemented |
 | Query performance | SQL-side sort/page/count, deterministic tie-breakers, bounded reader queries and no N+1 in presenters/controllers |
 
 Definition of done is behavioral and architectural: no application import

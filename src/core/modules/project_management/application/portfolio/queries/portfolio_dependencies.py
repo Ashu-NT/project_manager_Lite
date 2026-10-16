@@ -92,6 +92,28 @@ class PortfolioDependencyQueryHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
+    def dependency_view(self, dependency, *, predecessor, successor) -> PortfolioProjectDependencyView:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view portfolio project dependencies"
+        )
+        require_permission(self._user_session, "portfolio.read", operation_label="view portfolio project dependencies")
+        self._policy.organization_id(operation_label="view portfolio dependencies")
+        facts = self._heatmap_reader.read_facts(
+            tenant_id=scope.tenant_id, organization_id=scope.organization_id,
+            project_ids=(predecessor.id, successor.id), as_of=date.today(),
+        )
+        pressure = {row.project_id: row.pressure_label for row in self._heatmap_calculator.compute_rows(facts)}
+        return PortfolioProjectDependencyView(
+            dependency_id=dependency.id,
+            predecessor_project_id=predecessor.id, predecessor_project_name=predecessor.name,
+            predecessor_project_status=getattr(predecessor.status, "value", str(predecessor.status)),
+            successor_project_id=successor.id, successor_project_name=successor.name,
+            successor_project_status=getattr(successor.status, "value", str(successor.status)),
+            dependency_type=dependency.dependency_type, summary=dependency.summary,
+            pressure_label=_combine_dependency_pressure(pressure.get(predecessor.id, "Stable"), pressure.get(successor.id, "Stable")),
+            created_at=dependency.created_at,
+        )
+
     def list_project_dependencies(
         self,
         *,

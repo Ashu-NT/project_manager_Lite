@@ -1,6 +1,9 @@
 from datetime import date
 from types import SimpleNamespace
 
+from src.core.modules.project_management.application.scheduling.mappers.baselines import (
+    map_baseline_comparison,
+)
 from src.core.modules.project_management.domain.enums import (
     TaskStatus,
 )
@@ -56,6 +59,9 @@ class _FakeBaselineService:
 
 
 class _FakeReportingService:
+    def compare_baseline_responses(self, **kwargs):
+        return tuple(map_baseline_comparison(row) for row in self.compare_baselines(**kwargs).rows)
+
     def __init__(self, rows_by_key: dict[tuple[str, str, str, bool], list[SimpleNamespace]]) -> None:
         self._rows_by_key = rows_by_key
 

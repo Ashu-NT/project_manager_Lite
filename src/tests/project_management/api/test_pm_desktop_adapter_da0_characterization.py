@@ -4,17 +4,17 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
-from src.core.modules.project_management.api.desktop.dashboard.builders.chart_builder import (
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.chart_builder import (
     _build_resource_chart,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.operational_table_builder import (
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.operational_table_builder import (
     _build_high_risks_table,
     _build_resource_overloads_table,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.overview_builder import (
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.overview_builder import (
     overloaded_resource_count,
 )
-from src.core.modules.project_management.api.desktop.dashboard.builders.panel_builder import (
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.panel_builder import (
     _build_resource_overload_panel,
 )
 from src.core.modules.project_management.api.desktop.projects.api import (

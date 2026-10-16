@@ -80,7 +80,7 @@ def test_resource_command_reaches_composed_handler_and_returns_response(
     monkeypatch.setattr(handler, "create_resource", capture)
     api = ProjectManagementResourcesDesktopApi(resource_master_commands=handler)
     desktop = api.create_resource(command)
-    assert desktop.id == observed[0].id
+    assert desktop is observed[0]
     assert desktop.name == "Boundary resource"
     assert observed[0].hourly_rate == Decimal("12.5")
     with pytest.raises(FrozenInstanceError):
@@ -134,7 +134,7 @@ def test_certification_dates_are_normalized_inside_composed_handler(
 
     monkeypatch.setattr(handler, "add_resource_certification", capture)
     desktop = ProjectManagementResourcesDesktopApi(resource_capability_commands=handler).add_resource_certification(command)
-    assert desktop.issued_date == "2026-01-02"
+    assert desktop.issued_date == date(2026, 1, 2)
 
 
 def test_project_resource_command_identity_and_application_response(

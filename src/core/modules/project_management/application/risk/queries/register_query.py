@@ -53,12 +53,12 @@ _ACTIVE_STATUSES = {
 
 
 from src.core.modules.project_management.application.risk.dto.responses.entries import (
-    RegisterCatalogResponseDto,
     RegisterEntryResponseDto,
+    RegisterCatalogResponseDto,
 )
 from src.core.modules.project_management.application.risk.mappers.entries import (
-    map_register_catalog,
     map_register_entry,
+    map_register_catalog,
 )
 
 
@@ -210,7 +210,7 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
             project_id_getter=lambda entry: entry.project_id,
         )
         triage_date = as_of or date.today()  # noqa: DTZ011
-        return [map_register_entry(entry, project_name_by_id={}, as_of=date.today()) for entry in sorted(scoped_rows, key=lambda entry: entry.triage_key(triage_date))]
+        return [map_register_entry(entry, project_name_by_id={}, as_of=triage_date) for entry in sorted(scoped_rows, key=lambda entry: entry.triage_key(triage_date))]
 
     def get_project_summary(self, project_id: str) -> RegisterProjectSummary:
         items = self._project_entries(

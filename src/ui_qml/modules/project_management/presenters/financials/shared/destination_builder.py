@@ -369,7 +369,14 @@ def build_destination_state(
             line_search=forecast_line_search,
             line_source_type=forecast_line_source_type,
         )
-        views = build_forecast_workspace_views(forecast)
+        views = build_forecast_workspace_views(
+            forecast,
+            version_search=forecast_version_search,
+            version_status=forecast_version_status,
+            generation_mode=forecast_generation_mode,
+            line_search=forecast_line_search,
+            line_source_type=forecast_line_source_type,
+        )
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
@@ -489,7 +496,16 @@ def build_destination_state(
             line_status=rate_line_status,
             line_effective_status=rate_line_effective_status,
         )
-        views = build_rate_workspace_views(rates)
+        views = build_rate_workspace_views(
+            rates,
+            card_search=rate_card_search,
+            card_scope=rate_card_scope,
+            card_status=rate_card_status,
+            line_search=rate_line_search,
+            line_rate_type=rate_line_rate_type,
+            line_status=rate_line_status,
+            line_effective_status=rate_line_effective_status,
+        )
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,

@@ -8,6 +8,8 @@ def resolve_selected_resource_id(
     filtered_resources: Any,
 ) -> str:
     normalized_id = (selected_resource_id or "").strip()
-    if normalized_id and any(resource.id == normalized_id for resource in filtered_resources):
+    if normalized_id and any(
+        resource.resource_id == normalized_id for resource in filtered_resources
+    ):
         return normalized_id
     return ""

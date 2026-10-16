@@ -124,8 +124,8 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
     assert listed_templates[0].is_active is True
     assert listed_intake[0].title == "Packaging Line Expansion"
     assert evaluation.scenario_name == "Q3 Balanced Plan"
-    assert evaluation.status_label == "Within limits"
-    assert comparison.added_project_names == ("Warehouse Retrofit",)
+    assert evaluation.over_budget is False and evaluation.over_capacity is False
+    assert tuple(comparison.added_project_names) == ("Warehouse Retrofit",)
     assert dependency.summary == "Warehouse cutover depends on line shutdown lessons learned."
     assert api.list_heatmap()[0].pressure_label in {"Stable", "Watch", "Hot"}
     assert api.list_recent_actions(limit=5)[0].action_label == "Dependency created"

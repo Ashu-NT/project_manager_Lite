@@ -22,18 +22,6 @@ class TaskDependencyDesktopDto:
 
 
 @dataclass(frozen=True)
-class TaskDependencyPageDesktopDto:
-    items: tuple[TaskDependencyDesktopDto, ...] = ()
-    filtered_total: int = 0
-    predecessor_total: int = 0
-    successor_total: int = 0
-    page: int = 1
-    page_size: int = 25
-    sort_key: str = "linkedTask"
-    sort_direction: str = "asc"
-
-
-@dataclass(frozen=True)
 class TaskDependencyImpactRowDesktopDto:
     task_id: str
     task_name: str
@@ -67,5 +55,4 @@ __all__ = [
     "TaskDependencyDesktopDto",
     "TaskDependencyImpactPreviewDesktopDto",
     "TaskDependencyImpactRowDesktopDto",
-    "TaskDependencyPageDesktopDto",
 ]

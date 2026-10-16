@@ -8,6 +8,10 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskProgressCommand,
+)
+from src.core.modules.project_management.application.tasks.mappers.task import map_task
 from src.core.modules.project_management.domain.enums import (
     DependencyType,
     TaskStatus,
@@ -148,6 +152,9 @@ class _FakeCollaborationService:
 
 
 class _FakeTaskService:
+    def query_task_responses(self, project_id):
+        return tuple(map_task(task, project_name="") for task in self.list_tasks_for_project(project_id))
+
     def get_task_time_summary(self, task_id):
         return None
 
@@ -171,7 +178,12 @@ class _FakeTaskService:
         task.status = status
         task.version += 1
 
-    def update_progress(self, task_id, *, percent_complete=None, actual_start=None, actual_end=None, status=None, expected_version=None) -> SimpleNamespace:
+    def update_progress(self, command: TaskProgressCommand):
+        task_id = command.task_id
+        percent_complete = command.percent_complete
+        actual_start = command.actual_start
+        actual_end = command.actual_end
+        status = TaskStatus(command.status) if command.status is not None else None
         task = self._tasks[task_id]
         if percent_complete is not None:
             task.percent_complete = float(percent_complete)
@@ -182,7 +194,7 @@ class _FakeTaskService:
         if status is not None:
             task.status = status
         task.version += 1
-        return task
+        return map_task(task, project_name="")
 
     def delete_task(self, task_id: str) -> None:
         del self._tasks[task_id]

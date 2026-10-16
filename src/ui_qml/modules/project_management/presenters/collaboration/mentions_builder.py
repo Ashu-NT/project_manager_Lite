@@ -5,7 +5,7 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationRecordViewModel,
 )
 
-from .formatting import iso_datetime
+from .formatting import iso_datetime, mentions_label
 
 
 def build_mentions_collection(
@@ -25,12 +25,10 @@ def build_mentions_collection(
                 title=item.task_name,
                 status_label="Unread" if item.unread else "Read",
                 subtitle=" | ".join(
-                    value
-                    for value in (item.task_name, item.project_name)
-                    if value
+                    value for value in (item.task_name, item.project_name) if value
                 ),
-                supporting_text=f"From @{item.author_username} | {item.mentions_label}",
-                meta_text=item.created_at_label,
+                supporting_text=f"From @{item.author_username} | {mentions_label(item.mentions)}",
+                meta_text=item.created_at.strftime("%Y-%m-%d %H:%M"),
                 can_primary_action=item.unread,
                 state={
                     "panelId": "mentions",
@@ -40,7 +38,7 @@ def build_mentions_collection(
                     "taskId": item.task_id,
                     "commentId": item.comment_id,
                     "actorUsername": item.author_username,
-                    "mentionsLabel": item.mentions_label,
+                    "mentionsLabel": mentions_label(item.mentions),
                     "unread": item.unread,
                     "createdAt": iso_datetime(item.created_at),
                 },

@@ -12,16 +12,6 @@ from src.core.modules.project_management.api.desktop.common.dependency_presentat
     dependency_direction,
     dependency_type_label,
 )
-from src.core.modules.project_management.api.desktop.common.detail_pages import (
-    DetailActivityDesktopDto,
-    DetailActivityPageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
-    TaskScheduleImpactOverviewDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
-    serialize_task_schedule_overview,
-)
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
     build_assignment_preview,
 )
@@ -39,12 +29,10 @@ from src.core.modules.project_management.api.desktop.tasks.builders.status_optio
 )
 from src.core.modules.project_management.api.desktop.tasks.models.assignment import (
     TaskAssignmentDesktopDto,
-    TaskAssignmentPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
     TaskDependencyDesktopDto,
     TaskDependencyImpactPreviewDesktopDto,
-    TaskDependencyPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.options import (
     TaskConstraintOptionDescriptor,
@@ -58,11 +46,9 @@ from src.core.modules.project_management.api.desktop.tasks.models.skill import (
 )
 from src.core.modules.project_management.api.desktop.tasks.models.task import (
     TaskDesktopDto,
-    TaskWorkspacePageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
     TaskTimeEntriesPageDesktopDto,
-    TaskTimeSummaryDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
@@ -85,7 +71,6 @@ from src.core.modules.project_management.api.desktop.tasks.serializers.task_seri
 )
 from src.core.modules.project_management.api.desktop.tasks.serializers.time_summary_serializer import (
     serialize_task_time_entries_page,
-    serialize_task_time_summary,
 )
 from src.core.modules.project_management.api.desktop.tasks.services.access_resolution_service import (
     project_rows_for_task_scope,
@@ -108,7 +93,11 @@ from src.core.modules.project_management.application.resources.catalog.assignmen
     AssignmentSkillValidator,
 )
 from src.core.modules.project_management.application.scheduling.dto.responses.change_impact import (
+    DownstreamExposureDto,
     ScheduleImpactReportDto,
+)
+from src.core.modules.project_management.application.scheduling.dto.responses.overview import (
+    TaskScheduleOverviewResponseDto,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
@@ -162,6 +151,15 @@ from src.core.modules.project_management.application.tasks.queries.task_detail_p
 )
 from src.core.modules.project_management.application.tasks.queries.task_workspace_page import (
     TaskWorkspacePageQueryHandler,
+)
+from src.core.modules.project_management.contracts.reads.tasks import (
+    TaskActivityPage,
+    TaskAssignmentReadPage,
+    TaskDependencyReadPage,
+    TaskWorkspaceReadPage,
+)
+from src.core.modules.project_management.contracts.reads.tasks.models import (
+    TaskTimeSummaryFact,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.gateway.task.reservation import (
@@ -288,7 +286,7 @@ class ProjectManagementTasksDesktopApi:
         page_size: int = 25,
         sort_key: str = "wbsCode",
         sort_direction: str = "asc",
-    ) -> TaskWorkspacePageDesktopDto:
+    ) -> TaskWorkspaceReadPage:
         if self._task_workspace_query is None:
             raise ConfigurationError("Project management tasks desktop API is not connected.")
         require_module_enabled(
@@ -308,47 +306,7 @@ class ProjectManagementTasksDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return TaskWorkspacePageDesktopDto(
-            items=tuple(
-                TaskDesktopDto(
-                    id=item.id,
-                    project_id=item.project_id,
-                    project_name=item.project_name,
-                    name=item.name,
-                    code=item.code,
-                    description=item.description,
-                    status=item.status,
-                    status_label=item.status.replace("_", " ").title(),
-                    start_date=item.start_date,
-                    end_date=item.end_date,
-                    duration_days=item.duration_days,
-                    priority=item.priority,
-                    percent_complete=item.percent_complete,
-                    actual_start=item.actual_start,
-                    actual_end=item.actual_end,
-                    deadline=item.deadline,
-                    version=item.version,
-                    parent_task_id=item.parent_task_id,
-                    wbs_code=item.wbs_code,
-                    sort_order=item.sort_order,
-                    is_summary=item.is_summary,
-                    hierarchy_depth=item.hierarchy_depth,
-                    child_count=item.child_count,
-                    is_milestone=item.is_milestone,
-                )
-                for item in result.items
-            ),
-            filtered_total=result.filtered_total,
-            total=result.summary.total,
-            in_progress=result.summary.in_progress,
-            blocked=result.summary.blocked,
-            done=result.summary.done,
-            overdue=result.summary.overdue,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
-        )
+        return result
 
     def create_task(self, command: TaskCreateCommand) -> TaskDesktopDto:
         task = self._require_task_capability(self._task_lifecycle_commands).create_task(command)
@@ -495,25 +453,13 @@ class ProjectManagementTasksDesktopApi:
         self, task_id: str, *, search_text: str = "", response_status: str = "all",
         page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
         sort_direction: str = "asc",
-    ) -> TaskAssignmentPageDesktopDto:
+    ) -> TaskAssignmentReadPage:
         result = self._require_task_detail_query().query_task_assignments_page(
             task_id, search_text=search_text, response_status=response_status,
             page=page, page_size=page_size, sort_key=sort_key, sort_direction=sort_direction)
-        return TaskAssignmentPageDesktopDto(items=tuple(TaskAssignmentDesktopDto(
-            id=item.assignment_id, task_id=task_id, resource_id=item.resource_id,
-            resource_name=item.resource_name, resource_code=item.resource_code, role=item.role,
-            allocation_percent=float(item.allocation_percent), hours_logged=str(item.actual_hours),
-            project_resource_id=item.project_resource_id, response_status=item.response_status,
-            response_status_label=item.response_status.replace("_", " ").title(),
-            allocated_planned_hours=str(item.planned_hours), version=item.version,
-            remaining_planned_hours_label=str(item.planned_hours - item.actual_hours),
-            can_manage=item.can_manage, can_accept=item.can_accept,
-            can_decline=item.can_decline,
-        ) for item in result.items), filtered_total=result.filtered_total,
-            page=result.page, page_size=result.page_size, sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value)
+        return result
 
-    def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryDesktopDto | None:
+    def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryFact | None:
         """Task-scoped planned/actual/remaining/overrun totals plus the
         per-resource breakdown for Task Detail -> Time -> Overview.
         None when the task can't be resolved."""
@@ -522,7 +468,7 @@ class ProjectManagementTasksDesktopApi:
         fact = self._require_task_assignment_commands().get_task_time_summary(task_id)
         if fact is None:
             return None
-        return serialize_task_time_summary(fact)
+        return fact
 
     def list_task_time_entries(
         self,
@@ -676,41 +622,20 @@ class ProjectManagementTasksDesktopApi:
         self, task_id: str, *, search_text: str = "", direction: str = "all",
         dependency_type: str = "all", page: int = 1, page_size: int = 25,
         sort_key: str = "linkedTask", sort_direction: str = "asc",
-    ) -> TaskDependencyPageDesktopDto:
+    ) -> TaskDependencyReadPage:
         result = self._require_task_detail_query().query_task_dependencies_page(
             task_id, search_text=search_text, direction=direction,
             dependency_type=dependency_type, page=page, page_size=page_size,
             sort_key=sort_key, sort_direction=sort_direction)
-        type_labels = {"FS": "Finish to Start", "FF": "Finish to Finish",
-                       "SS": "Start to Start", "SF": "Start to Finish"}
-        return TaskDependencyPageDesktopDto(items=tuple(TaskDependencyDesktopDto(
-            id=item.dependency_id, direction=item.direction,
-            direction_label=item.direction.title(), linked_task_id=item.linked_task_id,
-            linked_task_name=item.linked_task_name, linked_task_code=item.linked_task_code,
-            linked_task_status=item.linked_task_status,
-            linked_task_start=item.linked_task_start.isoformat() if item.linked_task_start else "",
-            linked_task_end=item.linked_task_end.isoformat() if item.linked_task_end else "",
-            dependency_type=item.dependency_type,
-            dependency_type_label=type_labels.get(item.dependency_type, item.dependency_type),
-            lag_days=item.lag_days, relationship_label="", version=item.version,
-        ) for item in result.items), filtered_total=result.filtered_total,
-            predecessor_total=result.predecessor_total, successor_total=result.successor_total,
-            page=result.page, page_size=result.page_size, sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value)
+        return result
 
     def list_task_activity_page(
         self, task_id: str, *, search_text: str = "", category: str = "all",
         page: int = 1, page_size: int = 25,
-    ) -> DetailActivityPageDesktopDto:
+    ) -> TaskActivityPage:
         result = self._require_task_detail_query().query_task_activity_page(
             task_id, search_text=search_text, category=category, page=page, page_size=page_size)
-        return DetailActivityPageDesktopDto(items=tuple(DetailActivityDesktopDto(
-            id=item.activity_id, occurred_at=item.occurred_at, actor_id=item.actor_id,
-            action=item.action, entity_type=item.entity_type, summary=item.summary,
-            details=item.details,
-            actor_kind=item.actor_kind, actor_display=item.actor_display,
-        ) for item in result.items), filtered_total=result.filtered_total,
-            page=result.page, page_size=result.page_size)
+        return result
 
     def create_dependency(
         self,
@@ -875,7 +800,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         task_id: str,
         project_id: str,
-    ) -> TaskScheduleImpactOverviewDesktopDto:
+    ) -> TaskScheduleOverviewResponseDto:
         """Task Detail -> Schedule Impact's always-visible current-state
         facts (position, criticality, float, drivers, conflicts,
         downstream exposure) -- no hypothetical simulation, safe to load
@@ -883,7 +808,7 @@ class ProjectManagementTasksDesktopApi:
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
         if not normalized_task_id or not normalized_project_id:
-            return serialize_task_schedule_overview(
+            return self._unavailable_schedule_overview(
                 normalized_task_id, unavailable_reason="missing_task_or_project_id"
             )
         if self._schedule_change_impact_query is None:
@@ -894,7 +819,7 @@ class ProjectManagementTasksDesktopApi:
                 normalized_task_id,
                 normalized_project_id,
             )
-            return serialize_task_schedule_overview(
+            return self._unavailable_schedule_overview(
                 normalized_task_id, unavailable_reason="service_not_configured"
             )
         try:
@@ -907,7 +832,7 @@ class ProjectManagementTasksDesktopApi:
                 normalized_task_id,
                 normalized_project_id,
             )
-            return serialize_task_schedule_overview(
+            return self._unavailable_schedule_overview(
                 normalized_task_id, unavailable_reason="error"
             )
         logger.debug(
@@ -917,7 +842,19 @@ class ProjectManagementTasksDesktopApi:
             overview.is_available,
             overview.unavailable_reason,
         )
-        return serialize_task_schedule_overview(normalized_task_id, overview)
+        return overview
+
+    @staticmethod
+    def _unavailable_schedule_overview(
+        task_id: str, *, unavailable_reason: str
+    ) -> TaskScheduleOverviewResponseDto:
+        return TaskScheduleOverviewResponseDto(
+            task_id=task_id, is_available=False, unavailable_reason=unavailable_reason,
+            current_start=None, current_finish=None, is_critical=False, is_infeasible=False,
+            total_float_days=None, free_float_days=None, baseline_finish=None,
+            schedule_variance_days=None, drivers=(), dependency_conflicts=(),
+            actual_variances=(), downstream=DownstreamExposureDto(0, 0, 0, 0),
+        )
 
     def preview_task_schedule_impact(
         self,

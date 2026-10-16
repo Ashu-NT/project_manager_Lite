@@ -1,1 +1,0 @@
-"""Application timesheets responses package."""

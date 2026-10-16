@@ -16,14 +16,19 @@ from src.core.modules.project_management.api.desktop.projects.import_preview imp
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
-from src.core.modules.project_management.application.projects.dto.responses.import_preview import (ImportPreviewModel, ImportValidationIssue, ImportValidationSeverity)
+from src.core.modules.project_management.application.projects.dto.responses.import_preview import (
+    ImportPreviewModel,
+    ImportValidationIssue,
+    ImportValidationSeverity,
+)
+from src.core.modules.project_management.application.resources.commands.project_resource_commands import (
+    ProjectResourceCommandHandler,
+)
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConfigurationError,
-    DomainError,
     NotFoundError,
-    UnsupportedOperationError,
     ValidationError,
 )
 
@@ -50,7 +55,19 @@ from src.core.platform.common.exceptions import (
     ],
 )
 def test_project_input_errors(method, argument, code):
-    api = ProjectManagementProjectsDesktopApi()
+    commands = ProjectResourceCommandHandler(
+        project_resource_repo=Mock(),
+        resource_repo=Mock(),
+        project_repo=Mock(),
+        user_session=None,
+        activity_service=None,
+        tenant_context_service=None,
+        task_repo=None,
+        assignment_repo=None,
+        financial_profile_repo=None,
+        shared_uow_factory=None,
+    )
+    api = ProjectManagementProjectsDesktopApi(project_resource_commands=commands)
     with pytest.raises(ValidationError) as caught:
         getattr(api, method)(argument)
     assert caught.value.code == code
@@ -139,22 +156,25 @@ def test_missing_wiring_uses_configuration_error(operation):
     assert result.error.category == "domain"
 
 
-def test_configuration_override_and_project_reload_invariant():
+def test_configuration_override_and_project_command_result_pass_through():
     assert ConfigurationError("missing", code="CUSTOM").code == "CUSTOM"
     query = Mock()
-    query.get_project.return_value = None
+    status = Mock()
     api = ProjectManagementProjectsDesktopApi(
-        project_status=Mock(), project_query=query
+        project_status=status, project_query=query
     )
-    with pytest.raises(RuntimeError, match="could not be reloaded") as caught:
-        api.set_project_status("p", "ACTIVE")
-    assert not isinstance(caught.value, DomainError)
+    assert api.set_project_status("p", "ACTIVE") is status.set_status.return_value
+    assert query.mock_calls == []
 
 
-def test_unsupported_project_resource_operation_is_not_missing_wiring():
-    api = ProjectManagementProjectsDesktopApi(project_resource_commands=object())
-    with pytest.raises(UnsupportedOperationError):
+def test_project_resource_operation_preserves_application_rejection():
+    commands = Mock(spec=ProjectResourceCommandHandler)
+    rejection = BusinessRuleError("Cannot remove assigned resource.")
+    commands.delete.side_effect = rejection
+    api = ProjectManagementProjectsDesktopApi(project_resource_commands=commands)
+    with pytest.raises(BusinessRuleError) as caught:
         api.remove_project_resource("assignment")
+    assert caught.value is rejection
 
 
 def test_import_errors_are_canonical_and_filesystem_message_is_safe(tmp_path):
@@ -192,5 +212,5 @@ def test_invalid_import_preview_is_business_rejection_and_retains_session():
     assert caught.value.code == "IMPORT_PREVIEW_HAS_ERRORS"
     assert sessions["s"] is preview
     preview.issues.clear()
-    assert execute_import(sessions, session_id="s")["ok"]
+    assert execute_import(sessions, session_id="s").staged_count == 0
     assert not sessions

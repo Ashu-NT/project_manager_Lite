@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from src.core.modules.project_management.application.projects.dto.responses.import_preview import (ImportPreviewModel)
-from src.core.modules.project_management.infrastructure.importers.models.import_models import (ImportParser)
+from src.core.modules.project_management.application.projects.dto.responses.import_preview import (
+    ImportPreviewModel,
+    ProjectImportStagingResult,
+)
+from src.core.modules.project_management.infrastructure.importers.models.import_models import (
+    ImportParser,
+)
 from src.core.modules.project_management.infrastructure.importers.scheduling.mpp.mpp_parser import (
     MSProjectXmlParser,
 )
@@ -14,7 +19,6 @@ from src.core.modules.project_management.infrastructure.importers.scheduling.pri
 )
 from src.core.modules.project_management.infrastructure.importers.services.validation import (
     ImportValidationService,
-    ImportValidationSeverity,
 )
 from src.core.modules.project_management.infrastructure.importers.utils.csv_parser import (
     CsvImportParser,
@@ -37,7 +41,7 @@ def preview_import(
     *,
     file_path: str,
     source_format: str,
-) -> dict[str, object]:
+) -> ImportPreviewModel:
     normalized_format = (source_format or "csv").strip().lower()
     parser_cls = _PARSERS.get(normalized_format)
     if parser_cls is None:
@@ -60,14 +64,14 @@ def preview_import(
     issues = svc.validate(rows)
     preview = svc.build_preview(rows, issues)
     import_sessions[preview.session_id] = preview
-    return serialize_import_preview(preview)
+    return preview
 
 
 def execute_import(
     import_sessions: dict[str, object],
     *,
     session_id: str,
-) -> dict[str, object]:
+) -> ProjectImportStagingResult:
     normalized_id = (session_id or "").strip()
     preview = import_sessions.get(normalized_id)
     if not isinstance(preview, ImportPreviewModel):
@@ -82,39 +86,4 @@ def execute_import(
             code="IMPORT_PREVIEW_HAS_ERRORS",
         )
     del import_sessions[normalized_id]
-    return {
-        "ok": True,
-        "importedCount": preview.valid_rows,
-        "message": f"Import accepted. {preview.valid_rows} task(s) staged for this project.",
-    }
-
-
-def serialize_import_preview(preview) -> dict[str, object]:
-    error_row_numbers = {
-        issue.row_number
-        for issue in preview.issues
-        if issue.severity == ImportValidationSeverity.ERROR
-    }
-    rows_view = []
-    for row in preview.rows[:50]:
-        rows_view.append({
-            "rowNumber": row.row_number,
-            "name": str(
-                row.mapped_data.get("name") or row.mapped_data.get("task_name") or ""
-            ),
-            "startDate": str(row.mapped_data.get("start_date") or ""),
-            "endDate": str(
-                row.mapped_data.get("end_date") or row.mapped_data.get("finish_date") or ""
-            ),
-            "hasErrors": row.has_errors or row.row_number in error_row_numbers,
-        })
-    return {
-        "sessionId": preview.session_id,
-        "totalRows": preview.total_rows,
-        "validRows": preview.valid_rows,
-        "errorRows": preview.error_rows,
-        "warningRows": preview.warning_rows,
-        "canCommit": preview.can_commit,
-        "rows": rows_view,
-        "issueCount": len(preview.issues),
-    }
+    return ProjectImportStagingResult(staged_count=preview.valid_rows)

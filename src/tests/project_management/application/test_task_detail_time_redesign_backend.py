@@ -19,6 +19,12 @@ from src.core.modules.project_management.application.projects.dto.commands.proje
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
+    TaskAssignmentCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
 
 
 def _setup_project_resource(services, *, planned_hours: float = 100.0):
@@ -35,16 +41,16 @@ def test_task_time_summary_aggregates_across_all_assignments_on_the_task(service
     ps, rs, prs, project, alice, pr_alice = _setup_project_resource(services)
     bob = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Bob Smith", hourly_rate=60.0))
     pr_bob = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=bob.id, planned_hours=100.0))
-    task = services['task_lifecycle_commands'].create_task(project.id, "Electrical Design")
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Electrical Design"))
 
-    a1 = services['task_assignment_commands'].assign_project_resource(
+    a1 = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(
         task_id=task.id, project_resource_id=pr_alice.id,
         allocation_percent=50.0, allocated_planned_hours=Decimal(32),
-    )
-    a2 = services['task_assignment_commands'].assign_project_resource(
+    ))
+    a2 = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(
         task_id=task.id, project_resource_id=pr_bob.id,
         allocation_percent=40.0, allocated_planned_hours=Decimal(24),
-    )
+    ))
     services["time_entry_commands"].add_time_entry(a1.id, entry_date=date(2026, 8, 16), hours=18.0, note="Wiring")
     services["time_entry_commands"].add_time_entry(a2.id, entry_date=date(2026, 8, 17), hours=20.0, note="Docs")
 
@@ -55,23 +61,23 @@ def test_task_time_summary_aggregates_across_all_assignments_on_the_task(service
     )
     summary = api.get_task_time_summary(task.id)
 
-    assert summary.planned_hours_label == "56.0 h"
-    assert summary.actual_hours_label == "38.0 h"
-    assert summary.remaining_hours_label == "18.0 h"
-    assert summary.has_overrun is False
+    assert summary.planned_hours == Decimal("56.0")
+    assert summary.actual_hours == Decimal("38.0")
+    assert summary.remaining_hours == Decimal("18.0")
+    assert summary.overrun_hours == 0
     assert summary.assignment_count == 2
     breakdown_by_resource = {row.resource_name: row for row in summary.resource_breakdown}
-    assert breakdown_by_resource["Alice Brown"].actual_hours_label == "18.0 h"
-    assert breakdown_by_resource["Bob Smith"].actual_hours_label == "20.0 h"
+    assert breakdown_by_resource["Alice Brown"].actual_hours == Decimal("18.0")
+    assert breakdown_by_resource["Bob Smith"].actual_hours == Decimal("20.0")
 
 
 def test_task_time_summary_reports_overrun_when_actual_exceeds_planned(services):
     ps, rs, prs, project, alice, pr_alice = _setup_project_resource(services, planned_hours=10.0)
-    task = services['task_lifecycle_commands'].create_task(project.id, "Overrun Task")
-    assignment = services['task_assignment_commands'].assign_project_resource(
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Overrun Task"))
+    assignment = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(
         task_id=task.id, project_resource_id=pr_alice.id,
         allocation_percent=100.0, allocated_planned_hours=Decimal(8),
-    )
+    ))
     services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 8, 16), hours=6.0, note="Work")
     services["time_entry_commands"].add_time_entry(assignment.id, entry_date=date(2026, 8, 17), hours=6.0, note="More work")
 
@@ -82,32 +88,32 @@ def test_task_time_summary_reports_overrun_when_actual_exceeds_planned(services)
     )
     summary = api.get_task_time_summary(task.id)
 
-    assert summary.planned_hours_label == "8.0 h"
-    assert summary.actual_hours_label == "12.0 h"
-    assert summary.has_overrun is True
-    assert summary.overrun_hours_label == "4.0 h"
-    assert summary.remaining_hours_label == "0.0 h"
+    assert summary.planned_hours == Decimal("8.0")
+    assert summary.actual_hours == Decimal("12.0")
+    assert summary.overrun_hours > 0
+    assert summary.overrun_hours == Decimal("4.0")
+    assert summary.remaining_hours == Decimal("0.0")
     assert summary.burn_status == "OVERRUN"
     row = summary.resource_breakdown[0]
-    assert row.has_overrun is True
-    assert row.overrun_hours_label == "4.0 h"
+    assert row.overrun_hours > 0
+    assert row.overrun_hours == Decimal("4.0")
 
 
 def test_task_time_summary_and_entries_are_task_scoped_not_resource_wide(services):
     """The same resource logs time against two different tasks -- Task A's figures must
     reflect only Task A's hours, never the resource's combined total."""
     ps, rs, prs, project, alice, pr_alice = _setup_project_resource(services, planned_hours=100.0)
-    task_a = services['task_lifecycle_commands'].create_task(project.id, "Task A")
-    task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B")
+    task_a = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Task A"))
+    task_b = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Task B"))
 
-    assignment_a = services['task_assignment_commands'].assign_project_resource(
+    assignment_a = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(
         task_id=task_a.id, project_resource_id=pr_alice.id,
         allocation_percent=50.0, allocated_planned_hours=Decimal(20),
-    )
-    assignment_b = services['task_assignment_commands'].assign_project_resource(
+    ))
+    assignment_b = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(
         task_id=task_b.id, project_resource_id=pr_alice.id,
         allocation_percent=50.0, allocated_planned_hours=Decimal(50),
-    )
+    ))
     services["time_entry_commands"].add_time_entry(assignment_a.id, entry_date=date(2026, 8, 16), hours=18.0, note="Task A work")
     services["time_entry_commands"].add_time_entry(assignment_b.id, entry_date=date(2026, 8, 16), hours=42.0, note="Task B work")
 
@@ -120,8 +126,8 @@ def test_task_time_summary_and_entries_are_task_scoped_not_resource_wide(service
     summary_a = api.get_task_time_summary(task_a.id)
     summary_b = api.get_task_time_summary(task_b.id)
 
-    assert summary_a.actual_hours_label == "18.0 h"
-    assert summary_b.actual_hours_label == "42.0 h"
+    assert summary_a.actual_hours == Decimal("18.0")
+    assert summary_b.actual_hours == Decimal("42.0")
 
     entries_a = api.list_task_time_entries(task_a.id, page=1, page_size=25)
     entries_b = api.list_task_time_entries(task_b.id, page=1, page_size=25)
@@ -134,11 +140,11 @@ def test_task_time_summary_and_entries_are_task_scoped_not_resource_wide(service
 
 def test_list_task_time_entries_paginates_authoritatively(services):
     ps, rs, prs, project, alice, pr_alice = _setup_project_resource(services, planned_hours=1000.0)
-    task = services['task_lifecycle_commands'].create_task(project.id, "Many Entries Task")
-    assignment = services['task_assignment_commands'].assign_project_resource(
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Many Entries Task"))
+    assignment = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(
         task_id=task.id, project_resource_id=pr_alice.id,
         allocation_percent=100.0, allocated_planned_hours=Decimal(500),
-    )
+    ))
     base_date = date(2026, 8, 1)
     for i in range(7):
         services["time_entry_commands"].add_time_entry(
@@ -169,14 +175,14 @@ def test_list_task_time_entries_filters_by_resource(services):
     ps, rs, prs, project, alice, pr_alice = _setup_project_resource(services, planned_hours=100.0)
     bob = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Bob Smith", hourly_rate=55.0))
     pr_bob = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=bob.id, planned_hours=100.0))
-    task = services['task_lifecycle_commands'].create_task(project.id, "Filter Task")
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Filter Task"))
 
-    a1 = services['task_assignment_commands'].assign_project_resource(
+    a1 = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(
         task_id=task.id, project_resource_id=pr_alice.id, allocation_percent=50.0
-    )
-    a2 = services['task_assignment_commands'].assign_project_resource(
+    ))
+    a2 = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(
         task_id=task.id, project_resource_id=pr_bob.id, allocation_percent=50.0
-    )
+    ))
     services["time_entry_commands"].add_time_entry(a1.id, entry_date=date(2026, 8, 16), hours=3.0, note="Alice work")
     services["time_entry_commands"].add_time_entry(a2.id, entry_date=date(2026, 8, 16), hours=4.0, note="Bob work")
 

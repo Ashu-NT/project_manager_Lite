@@ -14,6 +14,12 @@ from src.core.modules.project_management.api.desktop.tasks.api import (
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_dependencies import (
+    TaskDependencyCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 
 
@@ -30,14 +36,14 @@ def _desktop_api(services):
 def test_get_task_schedule_overview_reports_current_facts(services):
     sched = services["scheduling_engine"]
     project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Desktop API Overview", description=""))
-    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
+    a = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Task A", description="", start_date=date(2024, 1, 1), duration_days=2))
     sched.recalculate_project_schedule(project.id)
     api = _desktop_api(services)
 
     dto = api.get_task_schedule_overview(a.id, project.id)
 
     assert dto.is_available is True
-    assert dto.current_start_label == "2024-01-01"
+    assert dto.current_start == date(2024, 1, 1)
     assert dto.is_critical is True
 
 
@@ -47,7 +53,7 @@ def test_get_task_schedule_overview_is_unavailable_without_project_id(services):
     dto = api.get_task_schedule_overview("some-task", "")
 
     assert dto.is_available is False
-    assert dto.current_start_label == "--"
+    assert dto.current_start is None
     assert dto.downstream.direct_successor_count == 0
 
 
@@ -62,7 +68,7 @@ def test_get_task_schedule_overview_is_unavailable_without_impact_service(servic
 def test_preview_task_schedule_impact_uses_working_day_delay_not_calendar_days(services):
     project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Desktop API Preview", description=""))
     # Friday
-    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 5), duration_days=1)
+    a = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Task A", description="", start_date=date(2024, 1, 5), duration_days=1))
     api = _desktop_api(services)
 
     dto = api.preview_task_schedule_impact(a.id, project.id, delay_working_days=1)
@@ -78,9 +84,12 @@ def test_preview_task_schedule_impact_uses_working_day_delay_not_calendar_days(s
 def test_preview_task_schedule_impact_reports_affected_downstream_tasks(services):
     sched = services["scheduling_engine"]
     project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Desktop API Downstream", description=""))
-    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
-    b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
-    services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+    a = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Task A", description="", start_date=date(2024, 1, 1), duration_days=2))
+    b = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Task B", description="", duration_days=2))
+    services['task_dependency_commands'].add_dependency(TaskDependencyCreateCommand(
+        task_id=a.id, linked_task_id=b.id, relationship_direction="SUCCESSOR",
+        dependency_type=DependencyType.FINISH_TO_START.value, lag_days=0,
+    ))
     sched.recalculate_project_schedule(project.id)
     api = _desktop_api(services)
 
@@ -94,7 +103,7 @@ def test_preview_task_schedule_impact_reports_affected_downstream_tasks(services
 
 def test_preview_task_schedule_impact_is_unavailable_for_task_without_start_date(services):
     project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Desktop API No Start", description=""))
-    a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", duration_days=2)
+    a = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Task A", description="", duration_days=2))
     api = _desktop_api(services)
 
     dto = api.preview_task_schedule_impact(a.id, project.id, delay_working_days=1)

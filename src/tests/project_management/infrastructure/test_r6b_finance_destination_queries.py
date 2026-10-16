@@ -90,6 +90,9 @@ from src.core.platform.api.desktop.history.audit.models.audit_entry import (
     AuditEntryDto,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.ui_qml.modules.project_management.presenters.financials.forecasts.forecast_workspace_builder import (
+    build_forecast_workspace_views,
+)
 from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
     build_destination_state,
     build_shell_state,
@@ -224,11 +227,19 @@ def test_planning_planned_cost_tab_uses_bounded_reader_facade_only() -> None:
 
 def test_planning_forecast_tab_uses_bounded_reader_facade_only() -> None:
     api = MagicMock()
-    from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
-        FinancialForecastWorkspaceDto,
+    from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
+        FinancePageFacts,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.forecasts.models.forecast_facts import (
+        FinanceForecastWorkspaceFacts,
     )
 
-    api.get_forecast_workspace.return_value = FinancialForecastWorkspaceDto()
+    api.get_forecast_workspace.return_value = FinanceForecastWorkspaceFacts(
+        selected_forecast_id="",
+        selected_forecast=None,
+        versions=FinancePageFacts((), 0, 1, 50, "revision", "desc"),
+        lines=FinancePageFacts((), 0, 1, 50, "title", "asc"),
+    )
     build_destination_state(
         api,
         destination="planning",
@@ -269,7 +280,9 @@ def test_planning_forecast_tab_uses_bounded_reader_facade_only() -> None:
 def test_budget_reader_pages_versions_and_selected_lines_authoritatively(
     services,
 ) -> None:
-    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B budget reader", financial_currency_code="USD"))
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(name="R6B budget reader", financial_currency_code="USD")
+    )
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             FinancialCreateCostCodeCommand(code="R6B-BUDGET", name="R6B Budget")
@@ -284,6 +297,7 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(
             )
         )
     )
+    first = services["budget_query"].get_budget(first.budget_id)
     services["finance_governance_commands"].budget_lines(
         lambda handler: handler.add_line(
             FinancialAddBudgetLineCommand(
@@ -304,6 +318,7 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(
             )
         )
     )
+    first = services["budget_query"].get_budget(first.budget_id)
     services["finance_governance_commands"].budget_approval(
         lambda handler: handler.reject_budget(
             first.id,
@@ -317,6 +332,7 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(
             FinancialCreateBudgetVersionCommand(project.id, "Zulu", currency_code="USD")
         )
     )
+    second = services["budget_query"].get_budget(second.budget_id)
     services["finance_governance_commands"].budget_lines(
         lambda handler: handler.add_line(
             FinancialAddBudgetLineCommand(
@@ -380,7 +396,11 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(
 def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     services,
 ) -> None:
-    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B planned-cost reader", financial_currency_code="USD"))
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(
+            name="R6B planned-cost reader", financial_currency_code="USD"
+        )
+    )
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             FinancialCreateCostCodeCommand(code="R6B-LABOR", name="R6B Labor")
@@ -399,8 +419,20 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     task = services["task_lifecycle_commands"].create_task(
         TaskCreateCommand(project.id, "R6B Engineering", wbs_code="1.1")
     )
-    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="R6B Engineer", hourly_rate=Decimal(50), currency_code="USD"))
-    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, hourly_rate=Decimal(50), currency_code="USD", planned_hours=Decimal(20)))
+    resource = services["resource_master_commands"].create_resource(
+        ResourceCreateCommand(
+            name="R6B Engineer", hourly_rate=Decimal(50), currency_code="USD"
+        )
+    )
+    project_resource = services["project_resource_commands"].add_to_project(
+        ProjectResourceAssignCommand(
+            project_id=project.id,
+            resource_id=resource.id,
+            hourly_rate=Decimal(50),
+            currency_code="USD",
+            planned_hours=Decimal(20),
+        )
+    )
     assignment = services["task_assignment_commands"].assign_project_resource(
         TaskAssignmentCreateCommand(
             task_id=task.id,
@@ -424,7 +456,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     services["finance_governance_commands"].rate_line(
         lambda handler: handler.create_line(
             FinancialAddRateLineCommand(
-                rate_card.id,
+                rate_card.rate_card_id,
                 rate_type=RateType.COST,
                 unit="HOUR",
                 rate_amount=str(Decimal(60)),
@@ -504,7 +536,11 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
 def test_profile_partial_commands_preserve_omitted_fields_and_allow_explicit_clears(
     services,
 ) -> None:
-    project = services["project_create"].create_project(ProjectCreateCommand(name="Partial profile boundary", financial_currency_code="USD"))
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(
+            name="Partial profile boundary", financial_currency_code="USD"
+        )
+    )
     boundary = services["finance_governance_commands"]
     original = services["financial_configuration_query"].get_profile(project.id)
     configured = boundary.financial_profile(
@@ -570,7 +606,9 @@ def test_profile_partial_commands_preserve_omitted_fields_and_allow_explicit_cle
 
 
 def _seed_forecast_reader(services):
-    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B forecast reader", financial_currency_code="USD"))
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(name="R6B forecast reader", financial_currency_code="USD")
+    )
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             FinancialCreateCostCodeCommand(code="R6B-ETC", name="R6B ETC")
@@ -628,6 +666,7 @@ def _seed_forecast_reader(services):
             )
         )
     )
+    first = services["forecast_version_query"].get_forecast(first.forecast_id)
     first = services["finance_governance_commands"].forecast_approval(
         lambda handler: handler.approve_forecast(
             first.id,
@@ -753,13 +792,15 @@ def test_forecast_reader_rejects_wrong_scope_and_serializes_decimal_strings(
         page_size=1,
     )
     assert dto.selected_forecast_id == first.id
-    assert isinstance(dto.versions[0].state["totalEtc"], str)
-    assert dto.selected_forecast.fields[0][1] == "USD 150.35"
-    assert Decimal(dto.lines[0].state["amount"]) in {
+    assert isinstance(dto.versions.items[0].total_etc, Decimal)
+    views = build_forecast_workspace_views(dto)
+    assert isinstance(views["forecast_versions"].items[0].state["totalEtc"], str)
+    assert views["selected_forecast"].fields[0].value == "USD 150.35"
+    assert Decimal(views["forecast_lines"].items[0].state["amount"]) in {
         Decimal("100.25"),
         Decimal("50.10"),
     }
-    assert isinstance(dto.lines[0].state["amount"], str)
+    assert isinstance(views["forecast_lines"].items[0].state["amount"], str)
 
 
 @pytest.mark.parametrize(
@@ -1381,7 +1422,9 @@ def test_enterprise_audit_projection_filters_module_workspace_and_operation(
 def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(
     services,
 ) -> None:
-    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B bounded overview", financial_currency_code="USD"))
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(name="R6B bounded overview", financial_currency_code="USD")
+    )
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             FinancialCreateCostCodeCommand(code="R6B-OVERVIEW", name="R6B Overview")
@@ -1395,6 +1438,7 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(
             )
         )
     )
+    budget = services["budget_query"].get_budget(budget.budget_id)
     services["finance_governance_commands"].budget_lines(
         lambda handler: handler.add_line(
             FinancialAddBudgetLineCommand(
@@ -1415,6 +1459,7 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(
             )
         )
     )
+    budget = services["budget_query"].get_budget(budget.budget_id)
     services["finance_governance_commands"].budget_approval(
         lambda handler: handler.approve_budget(
             budget.id,
@@ -1453,6 +1498,7 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(
             )
         )
     )
+    forecast = services["forecast_version_query"].get_forecast(forecast.forecast_id)
     services["finance_governance_commands"].forecast_approval(
         lambda handler: handler.approve_forecast(
             forecast.id,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from datetime import datetime
 
 from src.ui_qml.modules.project_management.presenters.portfolio.action_mapper import (
     to_recent_action_activity_item,
@@ -9,7 +10,7 @@ from src.ui_qml.modules.project_management.presenters.portfolio.action_mapper im
 
 def _recent_action(**overrides) -> SimpleNamespace:
     fields = dict(
-        occurred_at_label="2026-03-05 14:30",
+        occurred_at=datetime(2026, 3, 5, 14, 30),
         project_name="Project Apollo",
         actor_username="ada",
         action_label="Project Updated",

@@ -1,6 +1,10 @@
 from datetime import date
 from types import SimpleNamespace
 
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskProgressCommand,
+)
+from src.core.modules.project_management.application.tasks.mappers.task import map_task
 from src.core.modules.project_management.domain.enums import (
     DependencyType,
     TaskStatus,
@@ -8,6 +12,9 @@ from src.core.modules.project_management.domain.enums import (
 
 
 class _FakeTaskService:
+    def query_task_responses(self, project_id):
+        return tuple(map_task(task, project_name="") for task in self.list_tasks_for_project(project_id))
+
     def __init__(self, tasks: list[SimpleNamespace] | None = None) -> None:
         self._tasks = {
             task.id: task
@@ -32,16 +39,12 @@ class _FakeTaskService:
         task.status = status
         task.version += 1
 
-    def update_progress(
-        self,
-        task_id: str,
-        *,
-        percent_complete: float | None = None,
-        actual_start: date | None = None,
-        actual_end: date | None = None,
-        status: TaskStatus | None = None,
-        expected_version: int | None = None,
-    ) -> SimpleNamespace:
+    def update_progress(self, command: TaskProgressCommand):
+        task_id = command.task_id
+        percent_complete = command.percent_complete
+        actual_start = command.actual_start
+        actual_end = command.actual_end
+        status = TaskStatus(command.status) if command.status is not None else None
         task = self._tasks[task_id]
         if percent_complete is not None:
             task.percent_complete = float(percent_complete)
@@ -52,7 +55,7 @@ class _FakeTaskService:
         if status is not None:
             task.status = status
         task.version += 1
-        return task
+        return map_task(task, project_name="")
 
     def delete_task(self, task_id: str) -> None:
         del self._tasks[task_id]

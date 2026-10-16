@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
-
+from src.core.modules.project_management.application.risk.dto.responses.entries import RegisterEntryResponseDto
 from src.ui_qml.modules.project_management.view_models.register import (
     RegisterDetailFieldViewModel,
     RegisterDetailViewModel,
@@ -11,7 +10,7 @@ from .entry_mapper import build_entry_state
 from .workspace_mode import WorkspaceMode
 
 
-def build_detail_view_model(entry: Any, *, workspace_mode: WorkspaceMode) -> RegisterDetailViewModel:
+def build_detail_view_model(entry: RegisterEntryResponseDto | None, *, workspace_mode: WorkspaceMode) -> RegisterDetailViewModel:
     if entry is None:
         return RegisterDetailViewModel(
             title="No entry selected",
@@ -30,8 +29,8 @@ def build_detail_view_model(entry: Any, *, workspace_mode: WorkspaceMode) -> Reg
     return RegisterDetailViewModel(
         id=entry.id,
         title=entry.title,
-        status_label=entry.severity_label,
-        subtitle=" | ".join(value for value in subtitle_values if value),
+        status_label=str(state["severityLabel"]),
+        subtitle=" | ".join(str(value) for value in subtitle_values if value),
         description=entry.description or "No description has been captured yet.",
         fields=(
             RegisterDetailFieldViewModel(
@@ -40,10 +39,10 @@ def build_detail_view_model(entry: Any, *, workspace_mode: WorkspaceMode) -> Reg
             ),
             RegisterDetailFieldViewModel(
                 label="Due date",
-                value=entry.due_date_label,
+                value=str(state["dueDateLabel"]),
                 supporting_text=(
                     "Entry is overdue."
-                    if entry.is_overdue
+                    if state["isOverdue"]
                     else "No escalation due date has been set."
                     if entry.due_date is None
                     else ""

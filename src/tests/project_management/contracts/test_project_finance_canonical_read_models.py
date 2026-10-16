@@ -8,6 +8,37 @@ import pytest
 from openpyxl import load_workbook
 from sqlalchemy import select
 
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
+    FinancialCreateBudgetVersionCommand,
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
+    FinancialAddBudgetLineCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_posting import (
+    FinancialPostActualCommand,
+    FinancialReverseActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_review import (
+    FinancialDecideActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
+    FinancialVersionedActualCommand,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
+    FinancialVersionedForecastCommand,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_cards import (
+    FinancialCreateRateCardCommand,
+    FinancialVersionedRateCardCommand,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_lines import (
+    FinancialAddRateLineCommand,
+)
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
 )
@@ -18,6 +49,12 @@ from src.core.modules.project_management.application.scheduling.dto.commands.bas
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
     SchedulingBaselineSubmitCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskProgressCommand,
 )
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
@@ -52,9 +89,10 @@ def _report_sources(services) -> reporting_api.ProjectReportSources:
     )
 
 
-
 def _become_independent_decider(services) -> None:
-    user = services["user_registration"].register_user("independent-cost-decider", "StrongPass123", role_names=["finance_controller"])
+    user = services["user_registration"].register_user(
+        "independent-cost-decider", "StrongPass123", role_names=["finance_controller"]
+    )
     services["user_session"].set_principal(services["principal_builder"].build(user))
 
 
@@ -65,88 +103,152 @@ def _login(services, username: str, password: str) -> None:
 
 def _approved_controls(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(ProjectCreateCommand(name="Canonical finance read model", financial_currency_code=organization.base_currency))
-    code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
-        code="D4-CONTROL",
-        name="D.4 control",
-    ))
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(
+            name="Canonical finance read model",
+            financial_currency_code=organization.base_currency,
+        )
+    )
+    code = services["finance_governance_commands"].cost_code(
+        lambda handler: handler.create_cost_code(
+            FinancialCreateCostCodeCommand(
+                code="D4-CONTROL",
+                name="D.4 control",
+            )
+        )
+    )
 
-    services['budget_query']
-    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "Approved budget"))
-    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        description="Authorized scope",
-        amount=Decimal(100),
-        expected_budget_version=budget.row_version,
-    ))
-    budget = services['budget_query'].get_budget(budget.id)
-    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
-        budget.id, "admin", expected_version=budget.row_version
-    ))
-    result = services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
-        budget.id, approved_by="admin", expected_version=budget.row_version
-    ))
-    budget = services['budget_query'].get_budget(result.budget_id)
+    services["budget_query"]
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.create_budget(
+            FinancialCreateBudgetVersionCommand(project.id, "Approved budget")
+        )
+    )
+    budget = services["budget_query"].get_budget(budget.budget_id)
+    services["finance_governance_commands"].budget_lines(
+        lambda handler: handler.add_line(
+            FinancialAddBudgetLineCommand(
+                budget_id=budget.id,
+                cost_code_id=code.id,
+                description="Authorized scope",
+                amount=str(Decimal(100)),
+                expected_parent_version=budget.row_version,
+                currency_code=budget.currency_code,
+            )
+        )
+    )
+    budget = services["budget_query"].get_budget(budget.id)
+    budget = services["finance_governance_commands"].budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            FinancialVersionedBudgetCommand(
+                budget.id, expected_version=budget.row_version
+            )
+        )
+    )
+    budget = services["budget_query"].get_budget(budget.budget_id)
+    result = services["finance_governance_commands"].budget_approval(
+        lambda handler: handler.approve_budget(
+            budget.id, approved_by="admin", expected_version=budget.row_version
+        )
+    )
+    budget = services["budget_query"].get_budget(result.budget_id)
 
-    services['forecast_version_query']
-    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
-        project.id,
-        name="Approved ETC",
-        as_of_date=date(2026, 8, 1),
-        generation_mode=ForecastGenerationMode.MANUAL,
-        created_by="admin",
-    ))
-    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
-        forecast.id,
-        cost_code_id=code.id,
-        description="Remaining delivery",
-        amount=Decimal(80),
-        source_kind=ForecastLineSourceKind.MANUAL,
-        source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
-        created_by="admin",
-        expected_forecast_version=forecast.row_version,
-        period_start=date(2026, 8, 1),
-        period_end=date(2026, 8, 31),
-    ))
-    forecast = services['forecast_version_query'].get_forecast(forecast.id)
-    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
-        forecast.id,
-        submitted_by="admin",
-        expected_version=forecast.row_version,
-    ))
-    forecast = services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
-        forecast.id,
-        approved_by="admin",
-        expected_version=forecast.row_version,
-    ))
+    services["forecast_version_query"]
+    forecast = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.create_forecast(
+            project.id,
+            name="Approved ETC",
+            as_of_date=date(2026, 8, 1),
+            generation_mode=ForecastGenerationMode.MANUAL,
+            created_by="admin",
+        )
+    )
+    services["finance_governance_commands"].forecast_lines(
+        lambda handler: handler.add_line(
+            forecast.id,
+            cost_code_id=code.id,
+            description="Remaining delivery",
+            amount=Decimal(80),
+            source_kind=ForecastLineSourceKind.MANUAL,
+            source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
+            created_by="admin",
+            expected_forecast_version=forecast.row_version,
+            period_start=date(2026, 8, 1),
+            period_end=date(2026, 8, 31),
+        )
+    )
+    forecast = services["forecast_version_query"].get_forecast(forecast.id)
+    forecast = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.submit_forecast(
+            FinancialVersionedForecastCommand(
+                forecast.id,
+                expected_version=forecast.row_version,
+            )
+        )
+    )
+    forecast = services["forecast_version_query"].get_forecast(forecast.forecast_id)
+    forecast = services["finance_governance_commands"].forecast_approval(
+        lambda handler: handler.approve_forecast(
+            forecast.id,
+            approved_by="admin",
+            expected_version=forecast.row_version,
+        )
+    )
 
     services["financial_period_commands"].create_period(
-        FinancialPeriodCreateCommand(code="D4-2026-08", name="August 2026", fiscal_year=2026, period_number=8, start_date=date(2026, 8, 1).isoformat(), end_date=date(2026, 8, 31).isoformat()))
-    services['cost_entry_query']
-    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
-        project_id=project.id,
-        command_id="d4-actual-1",
-        description="Posted actual",
-        amount=Decimal(25),
-        currency_code=organization.base_currency,
-        transaction_date=date(2026, 8, 5),
-        cost_code_id=code.id,
-    ))
-    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(entry.id, expected_version=entry.row_version))
+        FinancialPeriodCreateCommand(
+            code="D4-2026-08",
+            name="August 2026",
+            fiscal_year=2026,
+            period_number=8,
+            start_date=date(2026, 8, 1).isoformat(),
+            end_date=date(2026, 8, 31).isoformat(),
+        )
+    )
+    services["cost_entry_query"]
+    entry = services["finance_governance_commands"].cost_entry(
+        lambda handler: handler.create_manual_entry(
+            FinancialCreateManualActualCommand(
+                project_id=project.id,
+                command_id="d4-actual-1",
+                description="Posted actual",
+                amount=Decimal(25),
+                currency_code=organization.base_currency,
+                transaction_date=date(2026, 8, 5),
+                cost_code_id=code.id,
+            )
+        )
+    )
+    entry = services["finance_governance_commands"].cost_entry(
+        lambda handler: handler.submit(
+            FinancialVersionedActualCommand(
+                entry.id, expected_version=entry.row_version
+            )
+        )
+    )
     _become_independent_decider(services)
-    services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(entry.id, expected_version=entry.row_version))
+    services["finance_governance_commands"].cost_entry_review(
+        lambda handler: handler.approve(
+            FinancialDecideActualCommand(entry.id, expected_version=entry.row_version)
+        )
+    )
     _login(services, "admin", "ChangeMe123!")
-    entry = services['cost_entry_query'].get_entry(entry.id)
-    entry = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
-        entry.id,
-        expected_version=entry.row_version,
-        posting_date=date(2026, 8, 5),
-    ))
+    entry = services["cost_entry_query"].get_entry(entry.id)
+    entry = services["finance_governance_commands"].cost_entry_posting(
+        lambda handler: handler.post(
+            FinancialPostActualCommand(
+                entry.id,
+                expected_version=entry.row_version,
+                posting_date=date(2026, 8, 5),
+            )
+        )
+    )
     return project, budget, forecast, entry, code
 
 
-def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services) -> None:
+def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(
+    services,
+) -> None:
     project, budget, forecast, _entry, _code = _approved_controls(services)
 
     snapshot = services["finance_snapshot_query"].get_finance_snapshot(
@@ -167,10 +269,13 @@ def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services
     assert snapshot.reconciliation.posted_actual_delta == Decimal(0)
     assert snapshot.reconciliation.open_commitment_delta == Decimal(0)
     assert snapshot.reconciliation.forecast_etc_delta == Decimal(0)
-    assert sum(
-        (row.amount for row in snapshot.ledger if row.stage == "forecast"),
-        start=Decimal(0),
-    ) == snapshot.forecast_etc
+    assert (
+        sum(
+            (row.amount for row in snapshot.ledger if row.stage == "forecast"),
+            start=Decimal(0),
+        )
+        == snapshot.forecast_etc
+    )
     assert [row.period_key for row in snapshot.cost_phasing] == ["2026-08"]
     assert snapshot.cost_phasing[0].actual == Decimal(25)
     assert snapshot.cost_phasing[0].forecast == Decimal(80)
@@ -201,8 +306,14 @@ def test_finance_excel_export_has_bounded_lineage_and_control_parity(
     }
     assert metadata["Snapshot as of"] == "2026-08-31"
     assert metadata["Currency basis"].startswith("PROJECT_CURRENCY:")
-    assert metadata["Approved budget version"] == f"{budget.id} / revision {budget.revision}"
-    assert metadata["Approved forecast version"] == f"{forecast.id} / revision {forecast.revision}"
+    assert (
+        metadata["Approved budget version"]
+        == f"{budget.id} / revision {budget.revision}"
+    )
+    assert (
+        metadata["Approved forecast version"]
+        == f"{forecast.id} / revision {forecast.revision}"
+    )
     assert metadata["Reconciliation status"] == "Reconciled"
     assert metadata["Ledger page limit"] == 1
     canonical = services["finance_performance_query"].get_cost_phasing(
@@ -220,12 +331,24 @@ def test_finance_excel_export_has_bounded_lineage_and_control_parity(
     assert set(exported_periods) == {item.period_key for item in canonical.periods}
     for period in canonical.periods:
         row = exported_periods[period.period_key]
-        assert Decimal(str(finance.cell(row=row, column=2).value)) == period.planned_cost
-        assert Decimal(str(finance.cell(row=row, column=3).value)) == period.open_commitment
-        assert Decimal(str(finance.cell(row=row, column=4).value)) == period.posted_actual
-        assert Decimal(str(finance.cell(row=row, column=5).value)) == period.forecast_cost
+        assert (
+            Decimal(str(finance.cell(row=row, column=2).value)) == period.planned_cost
+        )
+        assert (
+            Decimal(str(finance.cell(row=row, column=3).value))
+            == period.open_commitment
+        )
+        assert (
+            Decimal(str(finance.cell(row=row, column=4).value)) == period.posted_actual
+        )
+        assert (
+            Decimal(str(finance.cell(row=row, column=5).value)) == period.forecast_cost
+        )
     for availability in canonical.series_availability:
-        assert availability.availability in metadata[f"Cost phasing {availability.series_code}"]
+        assert (
+            availability.availability
+            in metadata[f"Cost phasing {availability.series_code}"]
+        )
 
     ledger = workbook["Finance Ledger"]
     headers = [cell.value for cell in ledger[1]]
@@ -274,7 +397,9 @@ def test_finance_pdf_export_uses_the_same_canonical_read_basis(
     assert output.read_bytes().startswith(b"%PDF")
 
 
-def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services) -> None:
+def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(
+    services,
+) -> None:
     project, _budget, _forecast, _entry, _code = _approved_controls(services)
 
     snapshot = services["finance_snapshot_query"].get_finance_snapshot(
@@ -291,15 +416,27 @@ def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services)
 def test_posted_reversal_nets_actual_without_rewriting_forecast(services) -> None:
     project, _budget, forecast, entry, _code = _approved_controls(services)
     services["financial_period_commands"].create_period(
-        FinancialPeriodCreateCommand(code="D4-2026-09", name="September 2026", fiscal_year=2026, period_number=9, start_date=date(2026, 9, 1).isoformat(), end_date=date(2026, 9, 30).isoformat()))
-    services['cost_entry_query']
-    services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.reverse(
-        entry.id,
-        expected_version=entry.row_version,
-        command_id="d4-reversal-1",
-        posting_date=date(2026, 9, 20),
-        reason="Correct the test posting",
-    ))
+        FinancialPeriodCreateCommand(
+            code="D4-2026-09",
+            name="September 2026",
+            fiscal_year=2026,
+            period_number=9,
+            start_date=date(2026, 9, 1).isoformat(),
+            end_date=date(2026, 9, 30).isoformat(),
+        )
+    )
+    services["cost_entry_query"]
+    services["finance_governance_commands"].cost_entry_posting(
+        lambda handler: handler.reverse(
+            FinancialReverseActualCommand(
+                entry.id,
+                expected_version=entry.row_version,
+                command_id="d4-reversal-1",
+                posting_date=date(2026, 9, 20),
+                reason="Correct the test posting",
+            )
+        )
+    )
 
     snapshot = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 9, 30)
@@ -317,31 +454,42 @@ def test_posted_reversal_nets_actual_without_rewriting_forecast(services) -> Non
 
 def test_as_of_selects_superseded_approved_forecast_version(services) -> None:
     project, _budget, first, _entry, code = _approved_controls(services)
-    services['forecast_version_query']
-    second = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
-        project.id,
-        name="September ETC",
-        as_of_date=date(2026, 9, 1),
-        generation_mode=ForecastGenerationMode.MANUAL,
-        created_by="admin",
-    ))
-    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
-        second.id,
-        cost_code_id=code.id,
-        description="Revised remaining delivery",
-        amount=Decimal(60),
-        source_kind=ForecastLineSourceKind.MANUAL,
-        source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
-        created_by="admin",
-        expected_forecast_version=second.row_version,
-    ))
-    second = services['forecast_version_query'].get_forecast(second.id)
-    second = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
-        second.id, submitted_by="admin", expected_version=second.row_version
-    ))
-    second = services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
-        second.id, approved_by="admin", expected_version=second.row_version
-    ))
+    services["forecast_version_query"]
+    second = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.create_forecast(
+            project.id,
+            name="September ETC",
+            as_of_date=date(2026, 9, 1),
+            generation_mode=ForecastGenerationMode.MANUAL,
+            created_by="admin",
+        )
+    )
+    services["finance_governance_commands"].forecast_lines(
+        lambda handler: handler.add_line(
+            second.id,
+            cost_code_id=code.id,
+            description="Revised remaining delivery",
+            amount=Decimal(60),
+            source_kind=ForecastLineSourceKind.MANUAL,
+            source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
+            created_by="admin",
+            expected_forecast_version=second.row_version,
+        )
+    )
+    second = services["forecast_version_query"].get_forecast(second.id)
+    second = services["finance_governance_commands"].forecast_lifecycle(
+        lambda handler: handler.submit_forecast(
+            FinancialVersionedForecastCommand(
+                second.id, expected_version=second.row_version
+            )
+        )
+    )
+    second = services["forecast_version_query"].get_forecast(second.forecast_id)
+    second = services["finance_governance_commands"].forecast_approval(
+        lambda handler: handler.approve_forecast(
+            second.id, approved_by="admin", expected_version=second.row_version
+        )
+    )
 
     august = services["finance_snapshot_query"].get_finance_snapshot(
         project.id, as_of=date(2026, 8, 31)
@@ -355,12 +503,21 @@ def test_as_of_selects_superseded_approved_forecast_version(services) -> None:
     assert sum((row.forecast for row in august.cost_phasing), Decimal(0)) == Decimal(80)
     assert september.approved_forecast_id == second.id
     assert september.forecast_etc == Decimal(60)
-    assert next(item for item in september.cost_phasing_availability if item.series_code == "forecast").unphased_amount == Decimal(60)
+    assert next(
+        item
+        for item in september.cost_phasing_availability
+        if item.series_code == "forecast"
+    ).unphased_amount == Decimal(60)
 
 
-def _clone_posted_entry(session, original_id: str, *, amount: str, posted_on: date, status: str = "posted") -> None:
+def _clone_posted_entry(
+    session, original_id: str, *, amount: str, posted_on: date, status: str = "posted"
+) -> None:
     original = session.get(ProjectCostEntryORM, original_id)
-    values = {column.key: getattr(original, column.key) for column in ProjectCostEntryORM.__table__.columns}
+    values = {
+        column.key: getattr(original, column.key)
+        for column in ProjectCostEntryORM.__table__.columns
+    }
     identifier = str(uuid4())
     values.update(
         id=identifier,
@@ -376,15 +533,24 @@ def _clone_posted_entry(session, original_id: str, *, amount: str, posted_on: da
     )
     if status not in {"posted", "reversed"}:
         for key in (
-            "base_amount", "base_currency_code", "exchange_rate", "exchange_rate_date",
-            "exchange_rate_source", "exchange_rate_captured_at", "posting_date",
-            "financial_period_id", "posted_by", "posted_at",
+            "base_amount",
+            "base_currency_code",
+            "exchange_rate",
+            "exchange_rate_date",
+            "exchange_rate_source",
+            "exchange_rate_captured_at",
+            "posting_date",
+            "financial_period_id",
+            "posted_by",
+            "posted_at",
         ):
             values[key] = None
     session.add(ProjectCostEntryORM(**values))
 
 
-def test_r6e_cost_phasing_boundaries_reconcile_exactly_and_preserve_as_of(services) -> None:
+def test_r6e_cost_phasing_boundaries_reconcile_exactly_and_preserve_as_of(
+    services,
+) -> None:
     project, _budget, forecast, entry, _code = _approved_controls(services)
     session = services["session"]
     for amount, posted_on in (
@@ -397,24 +563,33 @@ def test_r6e_cost_phasing_boundaries_reconcile_exactly_and_preserve_as_of(servic
     ):
         _clone_posted_entry(session, entry.id, amount=amount, posted_on=posted_on)
     for status in ("draft", "submitted", "approved"):
-        _clone_posted_entry(session, entry.id, amount="99", posted_on=date(2026, 8, 31), status=status)
+        _clone_posted_entry(
+            session, entry.id, amount="99", posted_on=date(2026, 8, 31), status=status
+        )
 
     original_line = session.scalars(
         select(ForecastLineORM).where(ForecastLineORM.forecast_id == forecast.id)
     ).one()
-    line_values = {column.key: getattr(original_line, column.key) for column in ForecastLineORM.__table__.columns}
+    line_values = {
+        column.key: getattr(original_line, column.key)
+        for column in ForecastLineORM.__table__.columns
+    }
     for amount, starts, ends in (
         ("0.10", date(2026, 9, 1), date(2026, 9, 30)),
         ("0.20", None, None),
         ("0.30", date(2026, 12, 31), date(2027, 1, 1)),
     ):
-        session.add(ForecastLineORM(**{
-            **line_values,
-            "id": str(uuid4()),
-            "amount": Decimal(amount),
-            "period_start": starts,
-            "period_end": ends,
-        }))
+        session.add(
+            ForecastLineORM(
+                **{
+                    **line_values,
+                    "id": str(uuid4()),
+                    "amount": Decimal(amount),
+                    "period_start": starts,
+                    "period_end": ends,
+                }
+            )
+        )
     session.commit()
 
     query = services["finance_performance_query"]
@@ -429,14 +604,25 @@ def test_r6e_cost_phasing_boundaries_reconcile_exactly_and_preserve_as_of(servic
     assert periods["2026-09"].posted_actual == Decimal("1.10")
     assert periods["2026-12"].posted_actual == Decimal("0.30")
     assert "2027-01" not in periods
-    assert sum((row.posted_actual for row in facts.periods), Decimal(0)) == Decimal("26.70")
-    assert sum((row.forecast_cost for row in facts.periods), Decimal(0)) == Decimal("80.10")
-    forecast_availability = next(item for item in facts.series_availability if item.series_code == "forecast")
+    assert sum((row.posted_actual for row in facts.periods), Decimal(0)) == Decimal(
+        "26.70"
+    )
+    assert sum((row.forecast_cost for row in facts.periods), Decimal(0)) == Decimal(
+        "80.10"
+    )
+    forecast_availability = next(
+        item for item in facts.series_availability if item.series_code == "forecast"
+    )
     assert forecast_availability.phased_amount == Decimal("80.10")
     assert forecast_availability.unphased_amount == Decimal("0.50")
-    assert forecast_availability.phased_amount + forecast_availability.unphased_amount == Decimal("80.60")
+    assert (
+        forecast_availability.phased_amount + forecast_availability.unphased_amount
+        == Decimal("80.60")
+    )
 
-    snapshot = services["finance_snapshot_query"].get_finance_snapshot(project.id, as_of=date(2026, 12, 31))
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(
+        project.id, as_of=date(2026, 12, 31)
+    )
     snapshot_periods = {row.period_key: row for row in snapshot.cost_phasing}
     for key in ("2026-08", "2026-09", "2026-12"):
         assert snapshot_periods[key].actual == periods[key].posted_actual
@@ -454,19 +640,36 @@ def test_r6e_cost_phasing_boundaries_reconcile_exactly_and_preserve_as_of(servic
     ]
 
 
-def test_cost_phasing_historical_actual_does_not_query_current_rates(services, monkeypatch) -> None:
+def test_cost_phasing_historical_actual_does_not_query_current_rates(
+    services, monkeypatch
+) -> None:
     project, _budget, _forecast, entry, _code = _approved_controls(services)
-    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Historical cost resource"))
-    services['rate_card_query']
-    card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(name="Historical cost rates", project_id=project.id))
-    services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
-        card.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal("123.45"),
-        rate_currency=services["tenant_context_service"].get_active_organization().base_currency,
-        resource_id=resource.id,
-    ))
+    resource = services["resource_master_commands"].create_resource(
+        ResourceCreateCommand(name="Historical cost resource")
+    )
+    services["rate_card_query"]
+    card = services["finance_governance_commands"].rate_card(
+        lambda handler: handler.create_rate_card(
+            FinancialCreateRateCardCommand(
+                name="Historical cost rates", project_id=project.id
+            )
+        )
+    )
+    services["finance_governance_commands"].rate_line(
+        lambda handler: handler.create_line(
+            FinancialAddRateLineCommand(
+                card.rate_card_id,
+                rate_type=RateType.COST.value,
+                unit="HOUR",
+                rate_amount="123.45",
+                rate_currency=services["tenant_context_service"]
+                .get_active_organization()
+                .base_currency,
+                resource_id=resource.id,
+                expected_card_version=card.version,
+            )
+        )
+    )
     services["session"].get(ProjectCostEntryORM, entry.id).resource_id = resource.id
     services["session"].commit()
     query = services["finance_performance_query"]
@@ -475,12 +678,20 @@ def test_cost_phasing_historical_actual_does_not_query_current_rates(services, m
         date_from=date(2026, 8, 1),
         date_to=date(2026, 8, 31),
     )
-    services['finance_governance_commands'].rate_card(lambda handler: handler.deactivate_rate_card(card.id, expected_version=card.version))
+    services["finance_governance_commands"].rate_card(
+        lambda handler: handler.deactivate_rate_card(
+            FinancialVersionedRateCardCommand(
+                card.rate_card_id, expected_version=card.version
+            )
+        )
+    )
     resolver = services["finance_snapshot_query"]._labor._rate_resolver
     monkeypatch.setattr(
         resolver,
         "resolve_many",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("Current rate lookup")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Current rate lookup")
+        ),
     )
     after = query.get_cost_phasing(
         project.id,
@@ -492,23 +703,36 @@ def test_cost_phasing_historical_actual_does_not_query_current_rates(services, m
 
 def test_r6h_reporting_kpi_uses_the_requested_financial_as_of_date(services) -> None:
     project, *_ = _approved_controls(services)
-    before = services["project_kpi_report"].get_project_kpis(project.id, as_of=date(2026, 7, 31))
-    after = services["project_kpi_report"].get_project_kpis(project.id, as_of=date(2026, 8, 31))
+    before = services["project_kpi_report"].get_project_kpis(
+        project.id, as_of=date(2026, 7, 31)
+    )
+    after = services["project_kpi_report"].get_project_kpis(
+        project.id, as_of=date(2026, 8, 31)
+    )
     assert before.total_actual_cost == Decimal(0)
     assert after.total_actual_cost == Decimal(25)
     snapshot = services["finance_snapshot_query"].get_finance_snapshot(
-        project.id, as_of=date(2026, 8, 31),
+        project.id,
+        as_of=date(2026, 8, 31),
     )
     assert after.total_actual_cost == snapshot.actual
 
 
 def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> None:
     project, *_ = _approved_controls(services)
-    foreign = services['project_create'].create_project(ProjectCreateCommand(name="Foreign baseline owner"))
-    services['task_lifecycle_commands'].create_task(
-        foreign.id, "Foreign task", start_date=date(2026, 8, 3), duration_days=2,
+    foreign = services["project_create"].create_project(
+        ProjectCreateCommand(name="Foreign baseline owner")
     )
-    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(foreign.id, "Foreign baseline", rate_as_of=date(2026, 8, 1)))
+    services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(
+            foreign.id, "Foreign task", start_date=date(2026, 8, 3), duration_days=2
+        ),
+    )
+    baseline = services["baseline_commands"].create_baseline(
+        SchedulingBaselineCreateCommand(
+            foreign.id, "Foreign baseline", rate_as_of=date(2026, 8, 1)
+        )
+    )
     for query in (
         services["earned_value_report"].get_earned_value,
         services["earned_value_report"].get_evm_series,
@@ -519,34 +743,68 @@ def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> No
             query(project.id, baseline_id=baseline.id)
     with pytest.raises(NotFoundError):
         services["finance_performance_query"].get_variance(
-            project.id, selected_baseline_id=baseline.id,
+            project.id,
+            selected_baseline_id=baseline.id,
         )
     with pytest.raises(NotFoundError):
-        services['baseline_query'].list_variance_records(
-            baseline.id, expected_project_id=project.id,
+        services["baseline_query"].list_variance_records(
+            baseline.id,
+            expected_project_id=project.id,
         )
 
 
 def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) -> None:
     project, _budget, _forecast, _entry, _code = _approved_controls(services)
-    first = services['task_lifecycle_commands'].create_task(project.id, "Baseline task one", start_date=date(2026, 8, 3), duration_days=3)
-    second = services['task_lifecycle_commands'].create_task(project.id, "Baseline task two", start_date=date(2026, 8, 6), duration_days=2)
-    services['baseline_query']
-    baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "Cost-loaded control", rate_as_of=date(2026, 8, 1)))
+    first = services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(
+            project.id,
+            "Baseline task one",
+            start_date=date(2026, 8, 3),
+            duration_days=3,
+        ),
+    )
+    second = services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(
+            project.id,
+            "Baseline task two",
+            start_date=date(2026, 8, 6),
+            duration_days=2,
+        ),
+    )
+    services["baseline_query"]
+    baseline = services["baseline_commands"].create_baseline(
+        SchedulingBaselineCreateCommand(
+            project.id, "Cost-loaded control", rate_as_of=date(2026, 8, 1)
+        )
+    )
     session = services["session"]
-    rows = session.execute(
-        select(BaselineTaskORM).where(BaselineTaskORM.baseline_id == baseline.id)
-    ).scalars().all()
+    rows = (
+        session.execute(
+            select(BaselineTaskORM).where(BaselineTaskORM.baseline_id == baseline.id)
+        )
+        .scalars()
+        .all()
+    )
     assert {row.task_id for row in rows} == {first.id, second.id}
     for row in rows:
         row.baseline_planned_cost = Decimal(60 if row.task_id == first.id else 40)
     session.commit()
-    services['baseline_commands'].submit_baseline(SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin"))
-    services['baseline_commands'].approve_baseline(SchedulingBaselineApproveCommand(baseline.id, approved_by="admin"))
+    services["baseline_commands"].submit_baseline(
+        SchedulingBaselineSubmitCommand(baseline.id, submitted_by="admin")
+    )
+    services["baseline_commands"].approve_baseline(
+        SchedulingBaselineApproveCommand(baseline.id, approved_by="admin")
+    )
     with pytest.raises(NotFoundError):
-        services['baseline_query'].list_variance_records(baseline.id, expected_project_id="other-project")
-    services['task_progress_commands'].update_progress(first.id, percent_complete=50)
-    services['task_progress_commands'].update_progress(second.id, percent_complete=25)
+        services["baseline_query"].list_variance_records(
+            baseline.id, expected_project_id="other-project"
+        )
+    services["task_progress_commands"].update_progress(
+        TaskProgressCommand(first.id, percent_complete=50)
+    )
+    services["task_progress_commands"].update_progress(
+        TaskProgressCommand(second.id, percent_complete=25)
+    )
 
     as_of = date(2026, 8, 31)
     performance = services["finance_performance_query"]
@@ -555,13 +813,22 @@ def test_r6e_integrated_performance_uses_one_approved_financial_basis(services) 
     phasing = performance.get_cost_phasing(
         project.id, date_from=date(2026, 8, 1), date_to=as_of, as_of_date=as_of
     )
-    snapshot = services["finance_snapshot_query"].get_finance_snapshot(project.id, as_of=as_of)
-    report_evm = services["earned_value_report"].get_earned_value(project.id, as_of=as_of)
+    snapshot = services["finance_snapshot_query"].get_finance_snapshot(
+        project.id, as_of=as_of
+    )
+    report_evm = services["earned_value_report"].get_earned_value(
+        project.id, as_of=as_of
+    )
 
     assert evm.availability == "available"
     assert (evm.bac, evm.pv, evm.ev, evm.ac, evm.etc, evm.eac, evm.vac) == (
-        Decimal(100), Decimal(100), Decimal(40), Decimal(25), Decimal(80),
-        Decimal(105), Decimal(-5),
+        Decimal(100),
+        Decimal(100),
+        Decimal(40),
+        Decimal(25),
+        Decimal(80),
+        Decimal(105),
+        Decimal(-5),
     )
     assert evm.baseline_id == baseline.id
     assert (evm.cpi, evm.spi) == (Decimal("1.6"), Decimal("0.4"))

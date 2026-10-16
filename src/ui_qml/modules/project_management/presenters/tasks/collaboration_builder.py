@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.presenters.collaboration.formatting import (
+    format_document_option_label,
+)
 from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationCollectionViewModel,
 )
@@ -52,7 +55,13 @@ def build_collaboration_comments_collection(
             "for the selected task."
         ),
         items=tuple(
-            to_collaboration_comment_record_view_model(comment)
+            to_collaboration_comment_record_view_model(
+                comment,
+                linked_documents=snapshot.linked_documents.get(comment.id, ()),
+                principal_user_id=snapshot.action_context.principal_user_id,
+                can_manage=snapshot.action_context.can_manage,
+                can_read=snapshot.action_context.can_read,
+            )
             for comment in snapshot.comments
         ),
         empty_state="",
@@ -114,18 +123,30 @@ def build_task_collaboration_state(
     return TaskCatalogWorkspaceViewModel(
         overview=build_empty_overview(),
         selected_task_id=normalized_task_id if selected_task is not None else "",
-        collaboration_mention_options=tuple(
-            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+        collaboration_mention_options=(
+            (
+                TaskSelectorOptionViewModel(
+                    value="everyone",
+                    label="@everyone  Mention everyone with access to this task",
+                ),
+            )
+            if collaboration_snapshot is not None and collaboration_snapshot.available
+            else ()
+        )
+        + tuple(
+            TaskSelectorOptionViewModel(value=option.handle, label=option.label)
             for option in (
-                collaboration_snapshot.mention_options
+                collaboration_snapshot.mention_candidates
                 if collaboration_snapshot is not None
                 else ()
             )
         ),
         collaboration_document_options=tuple(
-            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            TaskSelectorOptionViewModel(
+                value=option.id, label=format_document_option_label(option)
+            )
             for option in (
-                collaboration_snapshot.document_options
+                collaboration_snapshot.documents
                 if collaboration_snapshot is not None
                 else ()
             )

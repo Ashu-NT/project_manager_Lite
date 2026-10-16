@@ -12,14 +12,15 @@ def build_task_activity_page(
     items = build_activity_records(
         page.items,
         field_labels={},
+        entry_id=lambda item: item.activity_id,
     )
     return {
         "items": serialize_activity_items(items),
         "total": page.filtered_total,
         "page": page.page,
         "pageSize": page.page_size,
-        "sortKey": page.sort_key,
-        "sortDirection": page.sort_direction,
+        "sortKey": page.sort.key,
+        "sortDirection": page.sort.direction.value,
     }
 
 

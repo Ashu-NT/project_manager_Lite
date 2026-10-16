@@ -1,8 +1,17 @@
 from __future__ import annotations
 
-from typing import Any
-
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_money,
+)
+from src.core.modules.project_management.api.desktop.resources.formatters.enum_formatter import (
+    format_enum_label,
+)
+from src.core.modules.project_management.contracts.reads.resources.models import (
+    ResourceInspectorFact,
+    ResourceSummaryFact,
+)
 from src.core.modules.project_management.domain.enums import WorkerType
+from src.core.platform.domain.finance.money import canonical_decimal_text
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceDetailFieldViewModel,
     ResourceDetailViewModel,
@@ -10,78 +19,97 @@ from src.ui_qml.modules.project_management.view_models.resources import (
 )
 
 
-def build_resource_state(resource: Any) -> dict[str, object]:
+def build_resource_state(resource: ResourceSummaryFact) -> dict[str, object]:
     return {
-        "resourceId": resource.id,
+        "resourceId": resource.resource_id,
         "name": resource.name,
         "resourceCode": resource.code,
         "role": resource.role,
         "kind": resource.kind,
-        "kindLabel": resource.kind_label,
+        "kindLabel": format_enum_label(resource.kind),
         "workerType": resource.worker_type,
-        "workerTypeLabel": resource.worker_type_label,
+        "workerTypeLabel": format_enum_label(resource.worker_type),
         "costType": resource.cost_type,
-        "costTypeLabel": resource.cost_type_label,
-        "hourlyRate": resource.hourly_rate,
-        "hourlyRateLabel": resource.hourly_rate_label,
+        "costTypeLabel": format_enum_label(resource.cost_type),
+        "hourlyRate": canonical_decimal_text(resource.hourly_rate),
+        "hourlyRateLabel": format_money(resource.hourly_rate, resource.currency_code),
         "currency": resource.currency_code or "",
         "capacityPercent": f"{resource.capacity_percent:.1f}",
-        "capacityLabel": resource.capacity_label,
+        "capacityLabel": f"{resource.capacity_percent:.1f}%",
         "address": resource.address,
         "contact": resource.contact,
         "organizationId": resource.organization_id,
         "organization": resource.organization_label,
         "departmentId": resource.department_id or "",
-        "department": resource.department,
+        "department": resource.department_label,
         "siteId": resource.site_id or "",
-        "site": resource.site,
+        "site": resource.site_label,
         "employeeId": resource.employee_id or "",
         "employeeName": resource.employee_name,
-        "employeeContext": resource.employee_context,
+        "employeeContext": " | ".join(
+            value for value in (resource.department_label, resource.site_label) if value
+        )
+        or "-",
         "isActive": resource.is_active,
-        "activeLabel": resource.active_label,
+        "activeLabel": "Active" if resource.is_active else "Inactive",
         "version": resource.version,
         "canRead": resource.can_read,
         "canManage": resource.can_manage,
     }
 
 
-def build_detail_view_model(resource: Any) -> ResourceDetailViewModel:
+def build_detail_view_model(resource: ResourceSummaryFact) -> ResourceDetailViewModel:
     state = build_resource_state(resource)
     subtitle = " | ".join(
         value
-        for value in (resource.role, resource.organization_label, resource.department)
+        for value in (
+            resource.role,
+            resource.organization_label,
+            resource.department_label,
+        )
         if value
-    ) or resource.worker_type_label
+    ) or format_enum_label(resource.worker_type)
     description = (
         "Employee-linked resource. Platform identity remains authoritative."
         if resource.worker_type == WorkerType.EMPLOYEE.value
         else "External PM resource available for scoped project planning."
     )
     return ResourceDetailViewModel(
-        id=resource.id,
+        id=resource.resource_id,
         title=resource.name,
-        status_label=resource.active_label,
+        status_label="Active" if resource.is_active else "Inactive",
         subtitle=subtitle,
         description=description,
         fields=(
             ResourceDetailFieldViewModel("Code", resource.code or "-"),
-            ResourceDetailFieldViewModel("Resource kind", resource.kind_label),
-            ResourceDetailFieldViewModel("Worker type", resource.worker_type_label),
+            ResourceDetailFieldViewModel(
+                "Resource kind", format_enum_label(resource.kind)
+            ),
+            ResourceDetailFieldViewModel(
+                "Worker type", format_enum_label(resource.worker_type)
+            ),
             ResourceDetailFieldViewModel("Role", resource.role or "-"),
-            ResourceDetailFieldViewModel("Organization", resource.organization_label or "-"),
-            ResourceDetailFieldViewModel("Department", resource.department or "-"),
-            ResourceDetailFieldViewModel("Site", resource.site or "-"),
-            ResourceDetailFieldViewModel("Capacity modifier", resource.capacity_label),
+            ResourceDetailFieldViewModel(
+                "Organization", resource.organization_label or "-"
+            ),
+            ResourceDetailFieldViewModel(
+                "Department", resource.department_label or "-"
+            ),
+            ResourceDetailFieldViewModel("Site", resource.site_label or "-"),
+            ResourceDetailFieldViewModel(
+                "Capacity modifier", f"{resource.capacity_percent:.1f}%"
+            ),
             ResourceDetailFieldViewModel("Version", str(resource.version)),
         ),
         state=state,
     )
 
 
-def build_inspector_view_model(resource: Any) -> ResourceInspectorViewModel:
+def build_inspector_view_model(
+    resource: ResourceInspectorFact,
+) -> ResourceInspectorViewModel:
     state = {
-        "resourceId": resource.id,
+        "resourceId": resource.resource_id,
         "version": resource.version,
         "canRead": resource.can_read,
         "canManage": resource.can_manage,
@@ -89,18 +117,28 @@ def build_inspector_view_model(resource: Any) -> ResourceInspectorViewModel:
         "canReactivate": resource.can_reactivate,
     }
     return ResourceInspectorViewModel(
-        id=resource.id,
+        id=resource.resource_id,
         title=resource.name,
-        status_label=resource.active_label,
+        status_label="Active" if resource.is_active else "Inactive",
         fields=(
             ResourceDetailFieldViewModel("Code", resource.code or "-"),
             ResourceDetailFieldViewModel("Role", resource.role or "-"),
-            ResourceDetailFieldViewModel("Engagement", resource.worker_type_label),
-            ResourceDetailFieldViewModel("Organization", resource.organization_label or "-"),
-            ResourceDetailFieldViewModel("Department", resource.department or "-"),
-            ResourceDetailFieldViewModel("Site", resource.site or "-"),
-            ResourceDetailFieldViewModel("Capacity modifier", resource.capacity_label),
-            ResourceDetailFieldViewModel("Active projects", str(resource.project_count)),
+            ResourceDetailFieldViewModel(
+                "Engagement", format_enum_label(resource.worker_type)
+            ),
+            ResourceDetailFieldViewModel(
+                "Organization", resource.organization_label or "-"
+            ),
+            ResourceDetailFieldViewModel(
+                "Department", resource.department_label or "-"
+            ),
+            ResourceDetailFieldViewModel("Site", resource.site_label or "-"),
+            ResourceDetailFieldViewModel(
+                "Capacity modifier", f"{resource.capacity_percent:.1f}%"
+            ),
+            ResourceDetailFieldViewModel(
+                "Active projects", str(resource.project_count)
+            ),
             ResourceDetailFieldViewModel("Assignments", str(resource.assignment_count)),
         ),
         state=state,

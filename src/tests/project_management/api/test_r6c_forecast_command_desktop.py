@@ -18,6 +18,9 @@ from src.core.modules.project_management.application.financials.forecasts.dto.co
 from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
     FinancialVersionedForecastCommand,
 )
+from src.core.modules.project_management.application.financials.forecasts.dto.responses.mutations import (
+    FinancialForecastMutationDto,
+)
 from src.core.platform.common.exceptions import ValidationError
 
 
@@ -33,36 +36,40 @@ class _ForecastActor:
 
 
 class _GenerationCommands(_ForecastActor):
-    def generate_draft(self, command: FinancialGenerateForecastCommand):
+    def generate_draft(
+        self, command: FinancialGenerateForecastCommand
+    ) -> FinancialForecastMutationDto:
         self.calls["generated"] = command
-        return SimpleNamespace(
-            forecast=SimpleNamespace(
-                id="forecast-1",
-                project_id=command.project_id,
-                status=SimpleNamespace(value="draft"),
-                row_version=1,
-            )
+        return FinancialForecastMutationDto(
+            forecast_id="forecast-1",
+            project_id=command.project_id,
+            status="draft",
+            row_version=1,
         )
 
 
 class _LifecycleCommands(_ForecastActor):
-    def submit_forecast(self, command: FinancialVersionedForecastCommand):
+    def submit_forecast(
+        self, command: FinancialVersionedForecastCommand
+    ) -> FinancialForecastMutationDto:
         self.calls["versioned"] = ("submit", command)
-        return SimpleNamespace(
-            id=command.forecast_id,
+        return FinancialForecastMutationDto(
+            forecast_id=command.forecast_id,
             project_id="project-1",
-            status=SimpleNamespace(value="submitted"),
+            status="submitted",
             row_version=4,
         )
 
 
 class _ApprovalCommands(_ForecastActor):
-    def request_forecast_approval(self, command: FinancialVersionedForecastCommand):
+    def request_forecast_approval(
+        self, command: FinancialVersionedForecastCommand
+    ) -> FinancialForecastMutationDto:
         self.calls["versioned"] = ("request", command)
-        return SimpleNamespace(
+        return FinancialForecastMutationDto(
             forecast_id=command.forecast_id,
             project_id="project-1",
-            forecast_status=SimpleNamespace(value="submitted"),
+            status="submitted",
             row_version=4,
             approval_request_id="approval-1",
         )
@@ -98,7 +105,9 @@ class _Boundary:
 
 def test_generate_forecast_passes_command_unchanged_to_boundary() -> None:
     boundary = _Boundary()
-    api = ProjectManagementFinancialsDesktopApi(finance_governance_commands=boundary)
+    api = ProjectManagementFinancialsDesktopApi(
+        finance_governance_commands=boundary  # type: ignore[arg-type]
+    )
 
     result = api.generate_forecast(
         FinancialGenerateForecastCommand(
@@ -129,11 +138,14 @@ def test_generate_forecast_passes_command_unchanged_to_boundary() -> None:
     assert command.risk_contingencies[0].amount == "400.00"
     assert command.as_of_date == "2026-09-01"
     assert result.forecast_id == "forecast-1"
+    assert result == FinancialForecastMutationDto("forecast-1", "project-1", "draft", 1)
 
 
 def test_submit_and_request_approval_preserve_expected_version() -> None:
     boundary = _Boundary()
-    api = ProjectManagementFinancialsDesktopApi(finance_governance_commands=boundary)
+    api = ProjectManagementFinancialsDesktopApi(
+        finance_governance_commands=boundary  # type: ignore[arg-type]
+    )
     command = FinancialVersionedForecastCommand(
         forecast_id="forecast-1", expected_version=3, notes="Ready"
     )
@@ -147,6 +159,7 @@ def test_submit_and_request_approval_preserve_expected_version() -> None:
     assert boundary.versioned == ("request", command)
     assert boundary.versioned[1] is command
     assert requested.approval_request_id == "approval-1"
+    assert requested.status == "submitted"
 
 
 @pytest.mark.parametrize("amount", ("NaN", "Infinity", "not-money"))
@@ -155,7 +168,7 @@ def test_generate_forecast_rejects_non_canonical_or_non_finite_money(
 ) -> None:
     boundary = _Boundary()
     handler = object.__new__(ForecastGenerationCommands)
-    handler._user_session = boundary._user_session
+    handler._user_session = boundary._user_session  # type: ignore[assignment]
     command = FinancialGenerateForecastCommand(
         project_id="project-1",
         name="Invalid forecast",
@@ -178,7 +191,7 @@ def test_generate_forecast_requires_authenticated_actor() -> None:
     boundary = _Boundary()
     boundary._user_session.principal = None
     handler = object.__new__(ForecastGenerationCommands)
-    handler._user_session = boundary._user_session
+    handler._user_session = boundary._user_session  # type: ignore[assignment]
 
     with pytest.raises(ValidationError) as exc:
         handler.generate_draft(

@@ -105,8 +105,16 @@ class _FakeCollaborationService:
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
 
+    def query_task_comments_page(self, task_id: str, *, page: int = 1, page_size: int = 25):
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import comment_page
+        return comment_page(self._comments, task_id, page=page, page_size=page_size)
+
     def list_comments(self, task_id: str) -> list[SimpleNamespace]:
         return [comment for comment in self._comments if comment.task_id == task_id]
+
+    def list_comment_documents_for_ids(self, task_id: str, comment_ids: tuple[str, ...]):
+        visible = {c.id for c in self._comments if c.task_id == task_id}
+        return {cid: tuple(docs) for cid, docs in self._comment_documents.items() if cid in visible and cid in comment_ids}
 
     def list_comment_documents(self, task_id: str) -> dict[str, list[SimpleNamespace]]:
         comment_ids = {comment.id for comment in self.list_comments(task_id)}
@@ -116,13 +124,16 @@ class _FakeCollaborationService:
             if comment_id in comment_ids
         }
 
-    def list_mention_candidates(self, task_id: str) -> list[SimpleNamespace]:
+    def list_mention_candidates(self, task_id: str, *, query: str = "", limit: int = 50) -> list[SimpleNamespace]:
         if task_id != "task-1":
             return []
         return [
             SimpleNamespace(handle="planner", label="@planner  Alex Taylor  Planner"),
             SimpleNamespace(handle="supervisor", label="@supervisor  Jordan Blake  Supervisor"),
         ]
+
+    def search_available_documents(self, task_id: str, *, query: str = "", limit: int = 50):
+        return tuple(item for item in self.list_available_documents() if query.casefold() in f"{item.document_code} {item.title}".casefold())[:limit]
 
     def list_available_documents(self, *, active_only: bool = True) -> list[SimpleNamespace]:
         assert active_only is True
@@ -148,7 +159,7 @@ class _FakeCollaborationService:
                 task_name="Cable Pull",
                 project_id="proj-1",
                 project_name="Plant Upgrade",
-                username="planner",
+                user_id="user-alex", username="planner",
                 display_name="Alex Taylor",
                 activity="reviewing",
                 last_seen_at=datetime(2026, 5, 1, 9, 35),
@@ -169,15 +180,10 @@ class _FakeCollaborationService:
             can_manage=bool(task_id),
         )
 
-    def post_comment(
-        self,
-        *,
-        task_id: str,
-        body: str,
-        attachments=(),
-        linked_document_ids=(),
-        parent_comment_id=None,
-    ) -> SimpleNamespace:
+    def post_comment(self, command):
+        task_id, body = command.task_id, command.body
+        attachments, linked_document_ids = command.attachments, command.linked_document_ids
+        parent_comment_id = command.parent_comment_id
         self.posted_comments.append(
             {
                 "task_id": task_id,
@@ -207,7 +213,8 @@ class _FakeCollaborationService:
                 file_name="",
             )
         ]
-        return comment
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import comment_response
+        return comment_response(comment)
 
 
 class _FakeResourceService:

@@ -63,7 +63,7 @@ def get_project_resource_usage(
     desktop_api: ProjectManagementProjectsDesktopApi,
     *,
     project_resource_id: str,
-):
+) -> dict[str, object] | None:
     normalized_id = (project_resource_id or "").strip()
     if not normalized_id:
         return None

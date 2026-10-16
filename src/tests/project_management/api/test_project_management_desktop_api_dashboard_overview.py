@@ -1,5 +1,7 @@
 from datetime import date, datetime
 from types import SimpleNamespace
+from src.ui_qml.modules.project_management.presenters.dashboard.workspace_snapshot_builder import DashboardWorkspaceBuilder
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.overview_builder import build_empty_overview, build_overview_from_dashboard_data
 
 import pytest
 
@@ -37,7 +39,7 @@ def test_dashboard_delayed_tasks_query_checks_module_before_handler() -> None:
 def test_project_management_dashboard_desktop_api_builds_empty_overview() -> None:
     api = build_project_management_dashboard_desktop_api()
 
-    overview = api.build_empty_overview()
+    overview = build_empty_overview()
 
     assert overview.title == "Overview"
     assert overview.subtitle == "Select a project to see schedule and cost health."
@@ -70,7 +72,7 @@ def test_project_management_dashboard_desktop_api_maps_dashboard_kpis() -> None:
         )
     )
 
-    overview = api.build_overview_from_dashboard_data(
+    overview = build_overview_from_dashboard_data(
         project_name="Plant Upgrade",
         dashboard_data=dashboard_data,
     )
@@ -86,7 +88,7 @@ def test_project_management_dashboard_desktop_api_maps_dashboard_kpis() -> None:
 def test_project_management_dashboard_desktop_api_builds_preview_snapshot() -> None:
     api = build_project_management_dashboard_desktop_api()
 
-    snapshot = api.build_snapshot()
+    snapshot = DashboardWorkspaceBuilder(desktop_api=api).build_snapshot()
 
     assert snapshot.selected_project_id == "__portfolio__"
     assert snapshot.project_options[0].label == "Portfolio Overview"
@@ -133,7 +135,7 @@ def test_project_management_dashboard_desktop_api_builds_portfolio_service_snaps
     ),
         portfolio_dashboard=_dashboard)
 
-    snapshot = api.build_snapshot(project_id="__portfolio__")
+    snapshot = DashboardWorkspaceBuilder(desktop_api=api).build_snapshot(project_id="__portfolio__")
 
     assert snapshot.selected_project_id == "__portfolio__"
     assert snapshot.charts[0].title == "Portfolio Status"
@@ -270,7 +272,7 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
         portfolio_dashboard=_dashboard,
     )
 
-    snapshot = api.build_snapshot(project_id="proj-1", baseline_id="base-1")
+    snapshot = DashboardWorkspaceBuilder(desktop_api=api).build_snapshot(project_id="proj-1", baseline_id="base-1")
 
     assert snapshot.selected_project_id == "proj-1"
     assert snapshot.selected_baseline_id == "base-1"
@@ -299,7 +301,7 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
     assert snapshot.health_cards[0].title == "Schedule Health"
     assert snapshot.operational_tabs[0].id == "delayed_tasks"
     assert snapshot.operational_tables[0].id == "delayed_tasks"
-    assert snapshot.activity_feed.title == "Recent Activity"
+    assert snapshot.activity_feed["title"] == "Recent Activity"
     assert [section.title for section in snapshot.sections] == [
         "Alerts",
         "Milestones",

@@ -261,6 +261,33 @@ class PortfolioExecutiveQueryHandler(ProjectManagementModuleGuardMixin):
                 break
         return rows
 
+    def get_executive_snapshot(self, dependencies):
+        from src.core.modules.project_management.application.portfolio.dto.responses.executive import (
+            PortfolioExecutiveSnapshot,
+        )
+
+        heatmap_rows = self.list_portfolio_heatmap()
+        dependency_rows = dependencies.list_project_dependencies(heatmap_rows=heatmap_rows)
+        return PortfolioExecutiveSnapshot(
+            heatmap=tuple(heatmap_rows), dependencies=tuple(dependency_rows),
+            top_at_risk_projects=tuple(heatmap_rows[:TOP_AT_RISK_PROJECTS_LIMIT]),
+            hot_project_count=sum(1 for row in heatmap_rows if row.pressure_label == "Hot"),
+            dependency_count=len(dependency_rows),
+        )
+
+    @staticmethod
+    def empty_snapshot():
+        from src.core.modules.project_management.application.portfolio.dto.responses.executive import (
+            PortfolioExecutiveSnapshot,
+        )
+
+        return PortfolioExecutiveSnapshot()
+
+    @staticmethod
+    def empty_page(*, page: int, page_size: int) -> PaginatedResult:
+        return PaginatedResult(items=[], page=page, page_size=page_size, total=0)
+
+
 
 __all__ = [
     "TOP_AT_RISK_PROJECTS_LIMIT",

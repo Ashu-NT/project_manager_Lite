@@ -5,12 +5,6 @@ from pathlib import Path
 
 import pytest
 
-from src.core.modules.project_management.api.desktop.resources.builders.employee_option_builder import (
-    build_employee_lookup,
-)
-from src.core.modules.project_management.api.desktop.resources.serializers.resource_serializer import (
-    serialize_resource,
-)
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
     ProjectUpdateCommand,
@@ -30,6 +24,9 @@ from src.core.platform.application.master_data.party.dto.commands.party import (
     PartyCreateCommand,
 )
 from src.core.platform.common.exceptions import ValidationError
+from src.ui_qml.modules.project_management.presenters.resources.detail_builder import (
+    build_detail_view_model,
+)
 
 
 def test_employee_reference_requires_pm_employee_resource_registration(services):
@@ -41,17 +38,13 @@ def test_employee_reference_requires_pm_employee_resource_registration(services)
 
 def test_resource_desktop_dto_uses_current_platform_employee_profile(services):
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEP-DISPLAY", name="Display Department"))
-    employee_query = services["employee_query"]
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-DISPLAY", full_name="Original Name", department_id=department.id, email="before@example.com"))
     resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
     services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, full_name="Current Name", email="after@example.com", expected_version=employee.version))
-    dto = serialize_resource(
-        services["resource_query"].get_resource(resource.id),
-        employee_lookup=build_employee_lookup(employee_query),
-    )
-    assert dto.name == "Current Name"
-    assert dto.contact == "after@example.com"
-    assert dto.employee_id == employee.id
+    view = build_detail_view_model(services["resource_query"].get_resource_summary(resource.id))
+    assert view.title == "Current Name"
+    assert view.state["contact"] == "after@example.com"
+    assert view.state["employeeId"] == employee.id
 
 
 def test_project_client_party_is_platform_owned_and_scope_checked(services):

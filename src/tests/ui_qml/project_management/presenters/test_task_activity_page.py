@@ -4,9 +4,10 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from src.core.modules.project_management.api.desktop.common.detail_pages import (
-    DetailActivityDesktopDto,
-    DetailActivityPageDesktopDto,
+from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.modules.project_management.contracts.reads.tasks import (
+    TaskActivityFact,
+    TaskActivityPage,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.modules.project_management.presenters.tasks import (
@@ -14,9 +15,9 @@ from src.ui_qml.modules.project_management.presenters.tasks import (
 )
 
 
-def _activity_entry(**kw) -> DetailActivityDesktopDto:
+def _activity_entry(**kw) -> TaskActivityFact:
     fields = dict(
-        id="act-1",
+        activity_id="act-1",
         occurred_at=datetime(2026, 3, 1, 9, 30, tzinfo=UTC),
         actor_id="user-1",
         action="task.update_progress",
@@ -26,14 +27,16 @@ def _activity_entry(**kw) -> DetailActivityDesktopDto:
         actor_kind="missing",
         actor_display="Deleted user",
     )
+    if "id" in kw:
+        kw["activity_id"] = kw.pop("id")
     fields.update(kw)
-    return DetailActivityDesktopDto(**fields)
+    return TaskActivityFact(**fields)
 
 
 def _presenter(*, activity_entries=None, users=(), employees=()):
     """Return (presenter, tasks_api_mock)."""
     tasks_api = MagicMock()
-    tasks_api.list_task_activity_page.return_value = DetailActivityPageDesktopDto(
+    tasks_api.list_task_activity_page.return_value = TaskActivityPage(
         items=tuple(activity_entries) if activity_entries is not None else (),
         filtered_total=len(activity_entries) if activity_entries is not None else 0,
     )
@@ -139,9 +142,9 @@ class TestBuildTaskActivityPage:
 
     def test_paging_metadata_is_carried_through_from_the_desktop_page(self):
         p, tasks_api = _presenter(activity_entries=[_activity_entry()])
-        tasks_api.list_task_activity_page.return_value = DetailActivityPageDesktopDto(
+        tasks_api.list_task_activity_page.return_value = TaskActivityPage(
             items=(_activity_entry(),), filtered_total=17, page=2, page_size=10,
-            sort_key="occurredAt", sort_direction="desc",
+            sort=ReadSort.normalize(key="occurredAt", direction="desc", allowed_keys={"occurredAt"}, default_key="occurredAt"),
         )
         result = p.build_task_activity_page(task_id="task-1")
         assert result["total"] == 17

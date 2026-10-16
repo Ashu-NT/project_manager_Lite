@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import logging
 
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    constraint_presentation,
+)
+
 from .formatting import shift_days_label
 
 logger = logging.getLogger(__name__)
@@ -87,8 +91,8 @@ def build_task_schedule_overview_state(
         "isAvailable": True,
         "unavailableReason": "",
         "taskId": dto.task_id,
-        "currentStartLabel": dto.current_start_label,
-        "currentFinishLabel": dto.current_finish_label,
+        "currentStartLabel": dto.current_start.isoformat() if dto.current_start else "--",
+        "currentFinishLabel": dto.current_finish.isoformat() if dto.current_finish else "--",
         "isCritical": dto.is_critical,
         "isInfeasible": dto.is_infeasible,
         "scheduleStatusLabel": _schedule_status_label(
@@ -96,7 +100,7 @@ def build_task_schedule_overview_state(
         ),
         "totalFloatDays": dto.total_float_days,
         "freeFloatDays": dto.free_float_days,
-        "baselineFinishLabel": dto.baseline_finish_label,
+        "baselineFinishLabel": dto.baseline_finish.isoformat() if dto.baseline_finish else "--",
         "scheduleVarianceDays": dto.schedule_variance_days,
         "scheduleVarianceLabel": (
             shift_days_label(dto.schedule_variance_days)
@@ -104,19 +108,19 @@ def build_task_schedule_overview_state(
             else ""
         ),
         "drivers": [
-            {"kind": d.kind, "label": d.label, "detail": d.detail} for d in dto.drivers
+            {"kind": d.kind, "label": constraint_presentation(d.value).label if d.kind == "constraint" else d.value, "detail": d.detail} for d in dto.drivers
         ],
         "conflicts": [
             {
                 "taskId": c.task_id,
                 "taskName": c.task_name,
-                "constraintTypeLabel": c.constraint_type_label,
+                "constraintTypeLabel": constraint_presentation(c.constraint_type).label,
                 "constraintDateLabel": c.constraint_date.isoformat(),
                 "dependencyRequiredDateLabel": c.dependency_required_date.isoformat(),
                 "direction": c.direction,
                 "differenceWorkingDays": c.difference_working_days,
             }
-            for c in dto.conflicts
+            for c in dto.dependency_conflicts
         ],
         "actualVariances": [
             {

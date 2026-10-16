@@ -1,0 +1,314 @@
+"""Operational table and tab builders."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from src.core.modules.project_management.domain.risk.register import (
+    as_register_entry_severity,
+    as_register_entry_status,
+)
+from src.core.platform.domain.approval import ApprovalStatus
+from src.ui_qml.modules.project_management.presenters.dashboard.formatters.date_formatter import (
+    coerce_utc_datetime,
+    fmt_date,
+    fmt_utc_datetime,
+)
+from src.ui_qml.modules.project_management.presenters.dashboard.formatters.number_formatter import (
+    fmt_float,
+    fmt_int,
+    fmt_percent,
+)
+from src.ui_qml.modules.project_management.presenters.dashboard.formatters.period_formatter import (
+    period_cutoff_date,
+)
+from src.ui_qml.modules.project_management.view_models.dashboard import (
+    ProjectDashboardOperationalTableViewModel,
+    ProjectDashboardOperationalTabViewModel,
+    ProjectDashboardTableColumnViewModel,
+    ProjectDashboardTableRowViewModel,
+)
+
+_COL = ProjectDashboardTableColumnViewModel
+
+
+def build_preview_operational_tables() -> tuple[ProjectDashboardOperationalTableViewModel, ...]:
+    preview_columns = (
+        _COL("title", "Item", 3, 220, True),
+        _COL("statusLabel", "Status", 0, 96, False, True, "status"),
+        _COL("summary", "Summary", 2, 180),
+    )
+    return (
+        ProjectDashboardOperationalTableViewModel(
+            id="delayed_tasks", title="Delayed Tasks",
+            subtitle="Operational rows appear here when the dashboard API is connected.",
+            empty_state="No delayed-task rows are available in preview mode.",
+            columns=preview_columns,
+        ),
+    )
+
+
+_CONCISE_TAB_LABELS = {
+    "delayed_tasks": "Delays",
+    "high_risks": "Risks",
+    "budget_variances": "Cost",
+    "resource_overloads": "Workload",
+    "pending_approvals": "Approvals",
+    "milestones": "Milestones",
+}
+
+
+def build_operational_tabs(
+    tables: tuple[ProjectDashboardOperationalTableViewModel, ...],
+) -> tuple[ProjectDashboardOperationalTabViewModel, ...]:
+    return tuple(
+        ProjectDashboardOperationalTabViewModel(
+            id=t.id,
+            label=_CONCISE_TAB_LABELS.get(t.id, t.title),
+            count=len(t.rows),
+            route_id=(t.rows[0].route_id if t.rows else ""),
+        )
+        for t in tables
+    )
+
+
+_PORTFOLIO_TABLE_TOP_N = 20
+
+
+def build_operational_tables(
+    *,
+    dashboard_data: Any,
+    pending_approvals: tuple[Any, ...],
+    selected_period_key: str,
+    portfolio_mode: bool,
+) -> tuple[ProjectDashboardOperationalTableViewModel, ...]:
+    if portfolio_mode:
+        return (
+            _build_portfolio_health_table(dashboard_data),
+            _build_portfolio_delayed_table(dashboard_data, selected_period_key=selected_period_key),
+            _build_portfolio_budget_table(dashboard_data),
+            _build_portfolio_resource_overloads_table(dashboard_data),
+            _build_pending_approvals_table(pending_approvals),
+            _build_milestones_table(dashboard_data),
+        )
+    return (
+        _build_delayed_tasks_table(dashboard_data),
+        _build_high_risks_table(dashboard_data),
+        _build_budget_variances_table(dashboard_data),
+        _build_resource_overloads_table(dashboard_data),
+        _build_pending_approvals_table(pending_approvals),
+        _build_milestones_table(dashboard_data),
+    )
+
+
+def _build_delayed_tasks_table(dashboard_data: Any) -> ProjectDashboardOperationalTableViewModel:
+    rows = tuple(getattr(dashboard_data, "critical_watchlist", []) or [])[:8]
+    project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
+    return ProjectDashboardOperationalTableViewModel(
+        id="delayed_tasks", title="Critical Task Watchlist (Top 8)",
+        subtitle="Bounded watchlist of up to 8 critical-path and low-float tasks needing intervention.",
+        empty_state="No delayed or critical-path tasks are active right now.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
+        columns=(_COL("taskName", "Activity", 3, 220, True), _COL("owner", "Owner", 2, 140), _COL("finish", "Finish", 1, 108, True), _COL("float", "Float", 1, 90), _COL("late", "Late", 1, 90), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
+        rows=tuple(
+            ProjectDashboardTableRowViewModel(id=r.task_id, route_id="project_management.tasks", state={"taskId": r.task_id, "projectId": project_id}, values={"taskName": r.task_name, "owner": r.owner_name or "Unassigned", "finish": fmt_date(r.finish_date), "float": f"{fmt_int(r.total_float_days or 0)} d", "late": f"{fmt_int(r.late_by_days or 0)} d", "statusLabel": r.status_label})
+            for r in rows
+        ),
+    )
+
+
+def _build_portfolio_delayed_table(dashboard_data: Any, *, selected_period_key: str) -> ProjectDashboardOperationalTableViewModel:
+    rows = list(getattr(dashboard_data, "upcoming_tasks", []) or [])
+    cutoff = period_cutoff_date(selected_period_key)
+    if cutoff is not None:
+        rows = [r for r in rows if r.start_date is None or r.start_date >= cutoff]
+    rows = rows[:20]
+    return ProjectDashboardOperationalTableViewModel(
+        id="delayed_tasks", title="Upcoming Tasks (Next 20)",
+        subtitle="Bounded preview of up to 20 cross-project tasks in the selected horizon.",
+        empty_state="No cross-project delayed tasks are visible right now.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
+        columns=(_COL("taskName", "Task", 3, 220, True), _COL("start", "Start", 1, 108, True), _COL("finish", "Finish", 1, 108, True), _COL("owner", "Owner", 2, 140), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
+        rows=tuple(
+            ProjectDashboardTableRowViewModel(id=r.task_id, route_id="project_management.tasks", state={"taskId": r.task_id, "projectId": getattr(r, "project_id", "")}, values={"taskName": r.name, "start": fmt_date(r.start_date), "finish": fmt_date(r.end_date), "owner": r.main_resource or "Unassigned", "statusLabel": "Late" if r.is_late else "Tracked"})
+            for r in rows
+        ),
+    )
+
+
+def _build_high_risks_table(dashboard_data: Any) -> ProjectDashboardOperationalTableViewModel:
+    risk_rows = tuple(getattr(dashboard_data, "high_risks", ()) or ())
+    return ProjectDashboardOperationalTableViewModel(
+        id="high_risks", title="High Risks",
+        subtitle="Register risks that need active mitigation and escalation follow-through.",
+        empty_state="No high-risk register entries are visible right now.",
+        columns=(_COL("title", "Risk", 3, 220, True), _COL("severityLabel", "Severity", 0, 96, False, True, "status"), _COL("owner", "Owner", 2, 140), _COL("dueDate", "Due", 1, 108, True), _COL("statusLabel", "Status", 0, 110, False, True, "status"), _COL("response", "Response", 3, 220)),
+        rows=tuple(
+            ProjectDashboardTableRowViewModel(id=i.id, route_id="project_management.register", state={"entryId": i.id, "projectId": i.project_id}, values={"title": i.title, "severityLabel": as_register_entry_severity(i.severity).value.title(), "owner": i.owner_name or "Unassigned", "dueDate": fmt_date(i.due_date), "statusLabel": as_register_entry_status(i.status).value.replace("_", " ").title(), "response": i.response_plan or i.impact_summary or i.description or ""})
+            for i in risk_rows
+        ),
+    )
+
+
+def _build_portfolio_health_table(dashboard_data: Any) -> ProjectDashboardOperationalTableViewModel:
+    # PERFORMANCE DEFECT fix: project_rankings is one row per accessible
+    # project across the whole organization (unbounded at scale). This
+    # table's purpose -- a risk ranking -- is inherently a top_n concept
+    # (like Portfolio's own list_top_at_risk_projects()), not a generic
+    # browse, so it is bounded/labeled honestly rather than paginated.
+    rankings = tuple(getattr(getattr(dashboard_data, "portfolio", None), "project_rankings", []) or [])[
+        :_PORTFOLIO_TABLE_TOP_N
+    ]
+    return ProjectDashboardOperationalTableViewModel(
+        id="project_health", title=f"Projects at Risk (Top {_PORTFOLIO_TABLE_TOP_N})",
+        subtitle="Bounded ranking by delivery pressure, late tasks, and cost variance across the accessible portfolio.",
+        empty_state="No project ranking data is available yet.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
+        columns=(_COL("projectName", "Project", 3, 220, True), _COL("projectStatus", "Status", 0, 96, False, True, "status"), _COL("progress", "Progress", 1, 100), _COL("late", "Late", 1, 90), _COL("critical", "Critical", 1, 90), _COL("riskScore", "Risk Score", 1, 100, True), _COL("costVariance", "Cost Var.", 1, 110, True)),
+        rows=tuple(
+            ProjectDashboardTableRowViewModel(id=r.project_id, route_id="project_management.projects", state={"projectId": r.project_id}, values={"projectName": r.project_name, "projectStatus": r.project_status, "progress": fmt_percent(r.progress_percent, 0), "late": fmt_int(r.late_tasks), "critical": fmt_int(r.critical_tasks), "riskScore": fmt_float(r.risk_score, 1), "costVariance": fmt_float(r.cost_variance, 0)})
+            for r in rankings
+        ),
+    )
+
+
+def _build_budget_variances_table(dashboard_data: Any) -> ProjectDashboardOperationalTableViewModel:
+    sources = getattr(dashboard_data, "cost_sources", None)
+    rows = tuple(getattr(sources, "rows", []) or []) if sources is not None else ()
+    return ProjectDashboardOperationalTableViewModel(
+        id="budget_variances", title="Budget Variances",
+        subtitle="Budget lines with actual, committed, and planned cost visibility.",
+        empty_state="No budget variance rows are available yet.",
+        columns=(_COL("source", "Budget Line", 3, 200, True), _COL("planned", "Planned", 1, 110, True), _COL("actual", "Actual", 1, 110, True), _COL("variance", "Variance", 1, 110, True), _COL("committed", "Committed", 1, 110, True), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
+        rows=tuple(
+            ProjectDashboardTableRowViewModel(id=f"cost-source-{idx}", route_id="project_management.financials", values={"source": r.source_label, "planned": fmt_float(r.planned, 0), "actual": fmt_float(r.actual, 0), "variance": fmt_float(float(r.actual or 0.0) - float(r.planned or 0.0), 0), "committed": fmt_float(r.committed, 0), "statusLabel": "Watch" if float(r.actual or 0.0) > float(r.planned or 0.0) else "Healthy"})
+            for idx, r in enumerate(rows, start=1)
+        ),
+    )
+
+
+def _build_portfolio_budget_table(dashboard_data: Any) -> ProjectDashboardOperationalTableViewModel:
+    # PERFORMANCE DEFECT fix: see _build_portfolio_health_table -- same
+    # unbounded org-wide project_rankings source, same top_n treatment.
+    # Re-sorted by cost variance descending since that is this table's own
+    # purpose (project_rankings itself is ordered by risk score).
+    rankings = sorted(
+        getattr(getattr(dashboard_data, "portfolio", None), "project_rankings", []) or [],
+        key=lambda r: r.cost_variance,
+        reverse=True,
+    )[:_PORTFOLIO_TABLE_TOP_N]
+    return ProjectDashboardOperationalTableViewModel(
+        id="budget_variances", title=f"Budget Variances (Top {_PORTFOLIO_TABLE_TOP_N})",
+        subtitle="Bounded view of the projects with the highest portfolio cost-variance exposure.",
+        empty_state="No portfolio budget-variance rows are available yet.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
+        columns=(_COL("projectName", "Project", 3, 220, True), _COL("projectStatus", "Status", 0, 96, False, True, "status"), _COL("costVariance", "Cost Var.", 1, 110, True), _COL("late", "Late", 1, 90, True), _COL("critical", "Critical", 1, 90, True)),
+        rows=tuple(
+            ProjectDashboardTableRowViewModel(id=r.project_id, route_id="project_management.financials", state={"projectId": r.project_id}, values={"projectName": r.project_name, "projectStatus": r.project_status, "costVariance": fmt_float(r.cost_variance, 0), "late": fmt_int(r.late_tasks), "critical": fmt_int(r.critical_tasks)})
+            for r in rankings
+        ),
+    )
+
+
+def _resource_utilization(r) -> float:
+    return float(getattr(r, "utilization_percent", getattr(r, "total_allocation_percent", 0.0)) or 0.0)
+
+
+def _resource_overload_row(r) -> ProjectDashboardTableRowViewModel:
+    utilization = _resource_utilization(r)
+    return ProjectDashboardTableRowViewModel(
+        id=r.resource_id, route_id="project_management.resources", state={"resourceId": r.resource_id},
+        values={"resourceName": r.resource_name, "utilization": {"value": min(max(utilization / 100.0, 0.0), 2.0), "label": fmt_percent(utilization, 0)}, "allocation": fmt_percent(r.total_allocation_percent, 0), "capacity": fmt_percent(r.capacity_percent, 0), "tasks": fmt_int(r.tasks_count), "statusLabel": "Overloaded" if bool(getattr(r, "is_overloaded", False)) else "Balanced"},
+    )
+
+
+_RESOURCE_OVERLOAD_COLUMNS = (
+    _COL("resourceName", "Resource", 3, 180, True), _COL("utilization", "Utilization", 2, 180, False, True, "progress"),
+    _COL("allocation", "Allocation", 1, 100), _COL("capacity", "Capacity", 1, 100), _COL("tasks", "Tasks", 1, 80, True),
+    _COL("statusLabel", "Status", 0, 96, False, True, "status"),
+)
+
+
+def _build_resource_overloads_table(dashboard_data: Any) -> ProjectDashboardOperationalTableViewModel:
+    # Project-scoped: bounded to one project's assigned resources -- a
+    # genuinely small, complete set (section 8.3's single-entity exception).
+    rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
+    return ProjectDashboardOperationalTableViewModel(
+        id="resource_overloads", title="Resource Overloads",
+        subtitle="Utilization and overload hotspots across assigned delivery resources.",
+        empty_state="No resource loading data is available yet.",
+        columns=_RESOURCE_OVERLOAD_COLUMNS,
+        rows=tuple(_resource_overload_row(r) for r in rows),
+    )
+
+
+def _build_portfolio_resource_overloads_table(dashboard_data: Any) -> ProjectDashboardOperationalTableViewModel:
+    # PERFORMANCE DEFECT fix: at portfolio scope this is one row per
+    # distinct resource across every accessible project's assignments --
+    # unbounded at scale, same shape as the two project_rankings tables
+    # above. Bounded to the most-utilized resources, honestly labeled.
+    rows = sorted(
+        getattr(dashboard_data, "resource_load", []) or [],
+        key=_resource_utilization,
+        reverse=True,
+    )[:_PORTFOLIO_TABLE_TOP_N]
+    return ProjectDashboardOperationalTableViewModel(
+        id="resource_overloads", title=f"Resource Overloads (Top {_PORTFOLIO_TABLE_TOP_N})",
+        subtitle="Bounded view of the most-utilized resources across the accessible portfolio.",
+        empty_state="No resource loading data is available yet.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
+        columns=_RESOURCE_OVERLOAD_COLUMNS,
+        rows=tuple(_resource_overload_row(r) for r in rows),
+    )
+
+
+def _build_pending_approvals_table(pending_approvals: tuple[Any, ...]) -> ProjectDashboardOperationalTableViewModel:
+    from src.core.platform.api.desktop.approval import (
+        approval_context_label,
+        approval_display_label,
+        approval_module_label,
+    )
+    return ProjectDashboardOperationalTableViewModel(
+        id="pending_approvals", title="Recent Pending Approvals (Up to 120)",
+        subtitle="Bounded queue returned by the approval service; this is not a global pending count.",
+        empty_state="No pending approvals are active right now.",
+        collection_semantics="bounded",
+        supports_search=False,
+        supports_pagination=False,
+        columns=(_COL("request", "Request", 3, 240, True), _COL("module", "Module", 1, 120), _COL("context", "Context", 2, 180), _COL("requestedBy", "Requested By", 1, 120), _COL("requestedAt", "Requested At", 1, 132, True), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
+        rows=tuple(
+            ProjectDashboardTableRowViewModel(id=req.id, route_id="platform.control", state={"requestId": req.id, "projectId": req.project_id or ""}, values={"request": approval_display_label(req), "module": approval_module_label(req), "context": approval_context_label(req), "requestedBy": req.requested_by_username or "Unknown", "requestedAt": fmt_utc_datetime(coerce_utc_datetime(getattr(req, "requested_at", None))), "statusLabel": str(getattr(getattr(req, "status", ApprovalStatus.PENDING), "value", getattr(req, "status", ApprovalStatus.PENDING))).replace("_", " ").title()})
+            for req in pending_approvals[:120]
+        ),
+    )
+
+
+def _build_milestones_table(dashboard_data: Any) -> ProjectDashboardOperationalTableViewModel:
+    rows = tuple(getattr(dashboard_data, "milestone_health", []) or [])[:8]
+    project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
+    return ProjectDashboardOperationalTableViewModel(
+        id="milestones", title="Milestone Watchlist (Next 8)",
+        subtitle="Bounded view of up to 8 delivery checkpoints and schedule slips needing attention.",
+        empty_state="No milestone health rows are available yet.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
+        columns=(_COL("milestone", "Milestone", 3, 220, True), _COL("owner", "Owner", 2, 140), _COL("target", "Target", 1, 108, True), _COL("slip", "Slip", 1, 90, True), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
+        rows=tuple(
+            ProjectDashboardTableRowViewModel(id=r.task_id, route_id="project_management.scheduling", state={"taskId": r.task_id, "projectId": project_id}, values={"milestone": r.task_name, "owner": r.owner_name or "Unassigned", "target": fmt_date(r.target_date), "slip": f"{fmt_int(r.slip_days or 0)} d", "statusLabel": r.status_label})
+            for r in rows
+        ),
+    )
+
+
+__all__ = ["build_operational_tables", "build_operational_tabs", "build_preview_operational_tables"]

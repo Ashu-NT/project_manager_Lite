@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
+from src.ui_qml.modules.project_management.presenters.dashboard.workspace_snapshot_builder import DashboardWorkspaceBuilder
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.overview_builder import build_empty_overview, build_overview_from_dashboard_data
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
@@ -98,7 +100,7 @@ def test_project_management_dashboard_desktop_api_uses_real_period_labels_for_tr
         ),
     )
 
-    snapshot = api.build_snapshot(project_id="proj-1", period_key="90d")
+    snapshot = DashboardWorkspaceBuilder(desktop_api=api).build_snapshot(project_id="proj-1", period_key="90d")
 
     assert [point.label for point in snapshot.charts[0].points] == [
         value.strftime("%d %b") for value in period_dates
@@ -160,7 +162,7 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
             ]
         ),
         approval_queries=SimpleNamespace(
-            list_pending=lambda project_id=None, limit=120: [
+            list_requests=lambda project_id=None, limit=120, status=None: [
                 SimpleNamespace(
                     id="req-1",
                     project_id="proj-1",
@@ -177,13 +179,11 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
         ),
     )
 
-    snapshot = api.build_snapshot(project_id="proj-1", period_key="30d")
+    snapshot = DashboardWorkspaceBuilder(desktop_api=api).build_snapshot(project_id="proj-1", period_key="30d")
 
-    assert snapshot.activity_feed.items[0].title == "Cable Pull update"
-    assert snapshot.activity_feed.items[0].occurred_at.tzinfo is not None
-    assert snapshot.activity_feed.items[0].occurred_at.strftime(
-        "%Y-%m-%d %H:%M"
-    ) == recent_at.strftime("%Y-%m-%d %H:%M")
+    assert snapshot.activity_feed["items"][0]["title"] == "Cable Pull update"
+    assert snapshot.activity_feed["items"][0]["occurredAtLabel"] != ""
+    assert snapshot.activity_feed["items"][0]["occurredAtLabel"] == recent_at.strftime("%Y-%m-%d %H:%M")
     approvals_table = next(
         table for table in snapshot.operational_tables if table.id == "pending_approvals"
     )

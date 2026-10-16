@@ -8,6 +8,12 @@ from typing import Any
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.portfolio.dto.responses.scenarios import (
+    PortfolioScenarioResponse,
+)
+from src.core.modules.project_management.application.portfolio.mappers.scenarios import (
+    map_scenario,
+)
 from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
     PortfolioPolicy,
 )
@@ -25,7 +31,6 @@ from src.core.modules.project_management.contracts.repositories.portfolio.portfo
     PortfolioScenarioRepository,
 )
 from src.core.modules.project_management.domain.portfolio import (
-    PortfolioScenario,
     PortfolioScenarioComparison,
     PortfolioScenarioEvaluation,
 )
@@ -130,10 +135,10 @@ class PortfolioScenarioQueryHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def list_scenarios(self) -> list[PortfolioScenario]:
+    def list_scenarios(self) -> list[PortfolioScenarioResponse]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio scenarios")
         self._policy.organization_id(operation_label="view portfolio scenarios")
-        return self._scenario_repo.list()
+        return [map_scenario(row) for row in self._scenario_repo.list()]
 
     def evaluate_scenario(self, scenario_id: str) -> PortfolioScenarioEvaluation:
         require_permission(self._user_session, "portfolio.read", operation_label="evaluate portfolio scenario")

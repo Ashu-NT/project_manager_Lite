@@ -10,8 +10,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from src.core.modules.project_management.api.desktop.register import (
-    RegisterEntryDesktopDto,
+from src.core.modules.project_management.application.risk.dto.responses.entries import (
+    RegisterEntryResponseDto,
 )
 from src.core.modules.project_management.api.desktop.tasks import TaskDesktopDto
 from src.core.modules.project_management.application.resources.dto.responses.catalog import (
@@ -70,23 +70,19 @@ def _resource(**kw):
     )
 
 
-def _risk(**kw) -> RegisterEntryDesktopDto:
-    return RegisterEntryDesktopDto(
+def _risk(**kw) -> RegisterEntryResponseDto:
+    return RegisterEntryResponseDto(
         id=kw.get("id", "rsk-1"),
         project_id=kw.get("project_id", "p-1"),
         project_name=kw.get("project_name", "Proj"),
         code=kw.get("code", "RSK-001"),
         entry_type=kw.get("entry_type", "RISK"),
-        entry_type_label=kw.get("entry_type_label", "Risk"),
         title=kw.get("title", "Budget overrun"),
         description=kw.get("description", "Cost may exceed budget"),
         severity=kw.get("severity", "HIGH"),
-        severity_label=kw.get("severity_label", "High"),
         status=kw.get("status", "OPEN"),
-        status_label=kw.get("status_label", "Open"),
         owner_name=kw.get("owner_name", "Bob"),
         due_date=kw.get("due_date", date(2025, 6, 1)),
-        due_date_label=kw.get("due_date_label", "01 Jun 2025"),
         impact_summary=kw.get("impact_summary", "Cost increase"),
         response_plan=kw.get("response_plan", "Monitor"),
         is_overdue=kw.get("is_overdue", False),
@@ -272,9 +268,9 @@ class TestBuildProjectResourcesState:
 class TestBuildProjectRisksState:
     def test_single_risk_fields_mapped_correctly(self):
         risk = _risk(
-            id="rsk-7", title="Schedule slip", severity_label="Critical",
-            status_label="Mitigating", impact_summary="Delay delivery",
-            due_date_label="15 Jul 2025",
+            id="rsk-7", title="Schedule slip", severity="CRITICAL",
+            status="IN_PROGRESS", impact_summary="Delay delivery",
+            due_date=date(2025, 7, 15),
         )
         p, _, __, register_api = _presenter(risks=[risk])
 
@@ -286,9 +282,9 @@ class TestBuildProjectRisksState:
         assert item.id == "rsk-7"
         assert item.title == "Schedule slip"
         assert item.status_label == "Critical"
-        assert item.subtitle == "Mitigating"
+        assert item.subtitle == "In Progress"
         assert item.supporting_text == "Delay delivery"
-        assert item.meta_text == "15 Jul 2025"
+        assert item.meta_text == "2025-07-15"
 
     def test_api_called_with_risk_entry_type(self):
         p, _, __, register_api = _presenter()

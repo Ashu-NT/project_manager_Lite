@@ -179,7 +179,7 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
             )
         return rows
 
-    def create_project_dependency(self, command: PortfolioDependencyCreateCommand) -> PortfolioProjectDependency:
+    def create_project_dependency(self, command: PortfolioDependencyCreateCommand, *, query=None) -> PortfolioProjectDependency:
         predecessor_project_id = command.predecessor_project_id
         successor_project_id = command.successor_project_id
         dependency_type = command.dependency_type
@@ -199,7 +199,7 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
             getattr(self._project_service.get_project(predecessor_project_id), "name", predecessor_project_id),
             summary or dependency.id,
         )
-        return dependency
+        return next(row for row in self.list_project_dependencies() if row.dependency_id == dependency.id)
 
     def remove_project_dependency(self, command: PortfolioDependencyRemoveCommand) -> None:
         dependency_id = command.dependency_id

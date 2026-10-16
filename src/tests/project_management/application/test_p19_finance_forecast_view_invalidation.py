@@ -15,6 +15,28 @@ from decimal import Decimal
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
+    FinancialCreateBudgetVersionCommand,
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
+    FinancialAddBudgetLineCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_draft import (
+    FinancialCreateChangeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_impacts import (
+    FinancialChangeImpactCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_submission import (
+    FinancialSubmitChangeCommand,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
+    FinancialVersionedForecastCommand,
+)
 from src.core.modules.project_management.application.financials.forecasts.event_handlers.view_invalidation import (
     FORECAST_APPROVED_BASIS_SCOPE_CODE,
     FORECAST_CATEGORY,
@@ -96,10 +118,14 @@ def _fake_channel():
 
 
 def _seed_project_and_cost_code(services):
-    project = services["project_create"].create_project(ProjectCreateCommand(name=_unique("P19 Forecast Project"), financial_currency_code="USD"))
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(
+            name=_unique("P19 Forecast Project"), financial_currency_code="USD"
+        )
+    )
     code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
-            code=_unique("P19-CC"), name="P19 cost code"
+            FinancialCreateCostCodeCommand(code=_unique("P19-CC"), name="P19 cost code")
         )
     )
     return project, code
@@ -416,9 +442,12 @@ def test_approve_forecast_produces_exactly_one_planning_and_one_approved_basis_h
     forecast = forecasts.get_forecast(forecast.id)
     forecast = services["finance_governance_commands"].forecast_lifecycle(
         lambda handler: handler.submit_forecast(
-            forecast.id, submitted_by="admin", expected_version=forecast.row_version
+            FinancialVersionedForecastCommand(
+                forecast.id, expected_version=forecast.row_version
+            )
         )
     )
+    forecast = services["forecast_version_query"].get_forecast(forecast.forecast_id)
     hints = _spy_hints(services)
 
     services["finance_governance_commands"].forecast_approval(
@@ -441,23 +470,25 @@ def test_generate_draft_produces_exactly_one_planning_hint(services):
     project, code = _seed_project_and_cost_code(services)
     hints = _spy_hints(services)
 
-    from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_estimates import (
-        ManualEtcEstimate,
+    from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_generation import (
+        FinancialGenerateForecastCommand,
+        FinancialManualEtcCommand,
     )
 
     services["finance_governance_commands"].forecast_generation(
         lambda handler: handler.generate_draft(
-            project.id,
-            name="Generated draft",
-            as_of_date=date(2026, 8, 11),
-            generated_by="admin",
-            manual_estimates=(
-                ManualEtcEstimate(
-                    cost_code_id=code.id,
-                    amount=Decimal("10.00"),
-                    description="Remaining manual ETC",
+            FinancialGenerateForecastCommand(
+                project_id=project.id,
+                name="Generated draft",
+                as_of_date="2026-08-11",
+                manual_estimates=(
+                    FinancialManualEtcCommand(
+                        cost_code_id=code.id,
+                        amount="10.00",
+                        description="Remaining manual ETC",
+                    ),
                 ),
-            ),
+            )
         )
     )
 
@@ -475,23 +506,32 @@ def _seed_approved_finance_for_change(services):
     project, code = _seed_project_and_cost_code(services)
     budgets = services["budget_query"]
     budget = services["finance_governance_commands"].budget_lifecycle(
-        lambda handler: handler.create_budget(project.id, "Approved control budget")
+        lambda handler: handler.create_budget(
+            FinancialCreateBudgetVersionCommand(project.id, "Approved control budget")
+        )
     )
+    budget = services["budget_query"].get_budget(budget.budget_id)
     services["finance_governance_commands"].budget_lines(
         lambda handler: handler.add_line(
-            budget.id,
-            cost_code_id=code.id,
-            description="Approved scope",
-            amount=Decimal(100),
-            expected_budget_version=budget.row_version,
+            FinancialAddBudgetLineCommand(
+                budget_id=budget.id,
+                cost_code_id=code.id,
+                description="Approved scope",
+                amount=str(Decimal(100)),
+                expected_parent_version=budget.row_version,
+                currency_code=budget.currency_code,
+            )
         )
     )
     budget = budgets.get_budget(budget.id)
     budget = services["finance_governance_commands"].budget_lifecycle(
         lambda handler: handler.submit_budget(
-            budget.id, "admin", expected_version=budget.row_version
+            FinancialVersionedBudgetCommand(
+                budget.id, expected_version=budget.row_version
+            )
         )
     )
+    budget = services["budget_query"].get_budget(budget.budget_id)
     services["finance_governance_commands"].budget_approval(
         lambda handler: handler.approve_budget(
             budget.id, approved_by="admin", expected_version=budget.row_version
@@ -523,9 +563,12 @@ def _seed_approved_finance_for_change(services):
     forecast = forecasts.get_forecast(forecast.id)
     forecast = services["finance_governance_commands"].forecast_lifecycle(
         lambda handler: handler.submit_forecast(
-            forecast.id, submitted_by="admin", expected_version=forecast.row_version
+            FinancialVersionedForecastCommand(
+                forecast.id, expected_version=forecast.row_version
+            )
         )
     )
+    forecast = services["forecast_version_query"].get_forecast(forecast.forecast_id)
     forecast = services["finance_governance_commands"].forecast_approval(
         lambda handler: handler.approve_forecast(
             forecast.id, approved_by="admin", expected_version=forecast.row_version
@@ -544,33 +587,36 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     _login(services, requester, "StrongPass123")
 
     changes = services["financial_change_query"]
-    principal = services["user_session"].principal
     change = services["finance_governance_commands"].financial_change(
         lambda handler: handler.create_change(
-            project.id,
-            title="Reduce ETC",
-            reason="Scope reduction",
-            effective_date=date(2026, 8, 11),
-            created_by=principal.user_id,
+            FinancialCreateChangeCommand(
+                project_id=project.id,
+                title="Reduce ETC",
+                reason="Scope reduction",
+                effective_date="2026-08-11",
+            )
         )
     )
     services["finance_governance_commands"].financial_change(
         lambda handler: handler.add_impact(
-            change.id,
-            impact_type=FinancialChangeImpactType.FORECAST,
-            description="Reduce remaining ETC",
-            amount=Decimal(-15),
-            cost_code_id=code.id,
-            target_line_id=forecast_line.id,
-            expected_change_version=change.row_version,
+            FinancialChangeImpactCommand(
+                change_id=change.change_id,
+                impact_type=FinancialChangeImpactType.FORECAST.value,
+                description="Reduce remaining ETC",
+                amount="-15",
+                cost_code_id=code.id,
+                target_line_id=forecast_line.id,
+                expected_change_version=change.row_version,
+            )
         )
     )
-    change = changes.get_change(change.id)
+    change = changes.get_change(change.change_id)
     change = services["finance_governance_commands"].financial_change_submission(
         lambda handler: handler.submit_change(
-            change.id,
-            submitted_by=principal.user_id,
-            expected_version=change.row_version,
+            FinancialSubmitChangeCommand(
+                change.id,
+                expected_version=change.row_version,
+            )
         )
     )
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
@@ -582,9 +628,11 @@ def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     )
     _login(services, reviewer, "StrongPass123")
     hints = _spy_hints(services)
-    services["approval_commands"].approve_and_apply(ApprovalDecisionCommand(request_id=request.id, note="Authorized"))
+    services["approval_commands"].approve_and_apply(
+        ApprovalDecisionCommand(request_id=request.id, note="Authorized")
+    )
 
-    applied = changes.get_change(change.id)
+    applied = changes.get_change(change.change_id)
     assert applied.status is FinancialChangeStatus.APPLIED
     assert applied.applied_forecast_id and applied.applied_forecast_id != forecast.id
 

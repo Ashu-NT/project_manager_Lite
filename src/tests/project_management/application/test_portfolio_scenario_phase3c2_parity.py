@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import FinancialCreateCostCodeCommand
+from src.core.modules.project_management.application.financials.budgets.dto.commands.lifecycle import FinancialCreateBudgetVersionCommand, FinancialVersionedBudgetCommand
+from src.core.modules.project_management.application.financials.budgets.dto.commands.lines import FinancialAddBudgetLineCommand
 
 import pytest
 
@@ -48,25 +51,18 @@ def _approve_budget(services, project_id: str, amount: str) -> None:
     services['financial_configuration_query']
     services['budget_query']
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
-        code=f"SCN-{project_id[:8]}",
-        name="Scenario budget",
+        FinancialCreateCostCodeCommand(code=f"SCN-{project_id[:8]}", name="Scenario budget"),
     ))
-    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project_id, "Approved scenario budget"))
+    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(FinancialCreateBudgetVersionCommand(project_id, "Approved scenario budget")))
     services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
-        budget.id,
-        cost_code_id=code.id,
-        description="Authorized amount",
-        amount=Decimal(amount),
-        expected_budget_version=budget.row_version,
+        FinancialAddBudgetLineCommand(budget.budget_id, budget.row_version, code.id, "Authorized amount", amount, "EUR"),
     ))
-    budget = services['budget_query'].get_budget(budget.id)
+    budget = services['budget_query'].get_budget(budget.budget_id)
     budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
-        budget.id,
-        "admin",
-        expected_version=budget.row_version,
+        FinancialVersionedBudgetCommand(budget.id, budget.row_version),
     ))
     services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
-        budget.id,
+        budget.budget_id,
         approved_by="admin",
         expected_version=budget.row_version,
     ))

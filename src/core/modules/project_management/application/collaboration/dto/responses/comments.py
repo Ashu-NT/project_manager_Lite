@@ -9,6 +9,13 @@ from src.core.modules.project_management.application.collaboration.dto.responses
 
 
 @dataclass(frozen=True)
+class TaskCommentActionContext:
+    principal_user_id: str
+    can_read: bool
+    can_manage: bool
+
+
+@dataclass(frozen=True)
 class TaskCommentResponseDto:
     id: str
     task_id: str
@@ -26,11 +33,3 @@ class TaskCommentResponseDto:
     version: int
     parent_author_username: str = ""
     reply_count: int = 0
-
-
-@dataclass(frozen=True)
-class TaskCommentPageResponseDto:
-    items: tuple[TaskCommentResponseDto, ...]
-    total: int
-    page: int
-    page_size: int

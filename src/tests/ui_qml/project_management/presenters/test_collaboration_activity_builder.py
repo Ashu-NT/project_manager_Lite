@@ -18,7 +18,7 @@ def _activity(**overrides) -> SimpleNamespace:
         author_username="ada",
         body_preview="Let's align on scope.",
         mentions=(),
-        mentions_label="",
+        is_deleted=False,
         created_at=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
     )
     fields.update(overrides)

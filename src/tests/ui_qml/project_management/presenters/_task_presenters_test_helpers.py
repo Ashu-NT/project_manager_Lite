@@ -9,6 +9,10 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
+    TaskProgressCommand,
+)
+from src.core.modules.project_management.application.tasks.mappers.task import map_task
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskAssignmentReadItem,
@@ -93,14 +97,11 @@ class _FakeCollaborationService:
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
 
-    def query_task_comments_page(self, task_id: str, *, page: int = 1, page_size: int = 25) -> SimpleNamespace:
-        rows = [c for c in self._comments if c.task_id == task_id]
-        for comment in rows:
-            comment.parent_author_username = ""
-            comment.parent_comment_id = None
-            comment.reply_count = 0
-        start = (page - 1) * page_size
-        return SimpleNamespace(items=tuple(rows[start:start + page_size]), total=len(rows), page=page, page_size=page_size)
+    def query_task_comments_page(self, task_id: str, *, page: int = 1, page_size: int = 25):
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import (
+            comment_page,
+        )
+        return comment_page(self._comments, task_id, page=page, page_size=page_size)
 
     def list_comment_documents_for_ids(self, task_id: str, comment_ids: tuple[str, ...]) -> dict[str, list[SimpleNamespace]]:
         visible = {c.id for c in self._comments if c.task_id == task_id}
@@ -128,7 +129,7 @@ class _FakeCollaborationService:
         return [
             SimpleNamespace(
                 task_id="task-1", task_name="Cable Pull", project_id="proj-1", project_name="Plant Upgrade",
-                username="planner", display_name="Alex Taylor", activity="reviewing",
+                user_id="user-alex", username="planner", display_name="Alex Taylor", activity="reviewing",
                 last_seen_at=datetime(2026, 5, 1, 9, 35), is_self=True,
             )
         ]
@@ -146,7 +147,13 @@ class _FakeCollaborationService:
             can_manage=bool(task_id),
         )
 
-    def post_comment(self, *, task_id, body, attachments=(), linked_document_ids=(), parent_comment_id=None, submission_id=None) -> SimpleNamespace:
+    def post_comment(self, command):
+        task_id, body = command.task_id, command.body
+        attachments, linked_document_ids = command.attachments, command.linked_document_ids
+        parent_comment_id = command.parent_comment_id
+        task_id, body = command.task_id, command.body
+        attachments, linked_document_ids = command.attachments, command.linked_document_ids
+        parent_comment_id = command.parent_comment_id
         self.posted_comments.append(
             {"task_id": task_id, "body": body, "attachments": tuple(attachments), "linked_document_ids": tuple(linked_document_ids)}
         )
@@ -163,10 +170,16 @@ class _FakeCollaborationService:
                 storage_uri="ticket-456", file_name="",
             )
         ]
-        return comment
+        from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import (
+            comment_response,
+        )
+        return comment_response(comment)
 
 
 class _FakeTaskService:
+    def query_task_responses(self, project_id):
+        return tuple(map_task(task, project_name="") for task in self.list_tasks_for_project(project_id))
+
     def get_task_time_summary(self, task_id):
         return None
 
@@ -193,7 +206,12 @@ class _FakeTaskService:
         task.status = status
         task.version += 1
 
-    def update_progress(self, task_id, *, percent_complete=None, actual_start=None, actual_end=None, status=None, expected_version=None) -> SimpleNamespace:
+    def update_progress(self, command: TaskProgressCommand):
+        task_id = command.task_id
+        percent_complete = command.percent_complete
+        actual_start = command.actual_start
+        actual_end = command.actual_end
+        status = TaskStatus(command.status) if command.status is not None else None
         task = self._tasks[task_id]
         if percent_complete is not None:
             task.percent_complete = float(percent_complete)
@@ -204,7 +222,7 @@ class _FakeTaskService:
         if status is not None:
             task.status = status
         task.version += 1
-        return task
+        return map_task(task, project_name="")
 
     def delete_task(self, task_id: str) -> None:
         del self._tasks[task_id]

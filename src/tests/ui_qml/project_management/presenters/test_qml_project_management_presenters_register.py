@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from src.core.modules.project_management.api.desktop import (
     build_project_management_register_desktop_api,
 )
+from src.core.modules.project_management.application.risk.mappers.entries import map_register_catalog
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.register import (
     RegisterCatalogReadItem,
@@ -97,7 +98,7 @@ class _FakeRegisterService:
             entry=entry,
             project_name=entry.project_id,
         )
-        return RegisterCatalogReadPage(
+        result = RegisterCatalogReadPage(
             items=tuple(to_item(entry) for entry in filtered[offset:offset + page_size]),
             urgent_items=tuple(to_item(entry) for entry in urgent[:5]),
             filtered_total=len(filtered),
@@ -128,6 +129,8 @@ class _FakeRegisterService:
             ),
             sort=sort,
         )
+
+        return map_register_catalog(result, as_of=date.today())
 
 
 def _build_register_record(

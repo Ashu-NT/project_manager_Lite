@@ -6,23 +6,12 @@ from src.core.modules.project_management.api.desktop.resources.api import (
 from src.core.modules.project_management.api.desktop.resources.factories.resources_api_factory import (
     build_project_management_resources_desktop_api,
 )
-from src.core.modules.project_management.api.desktop.resources.models.availability import (
-    ResourceAvailabilityDayDto,
-    ResourceAvailabilityDto,
-)
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
     ResourceEmployeeOptionDescriptor,
     ResourceKindDescriptor,
     ResourceScopeOptionDescriptor,
     ResourceWorkerTypeDescriptor,
-)
-from src.core.modules.project_management.api.desktop.resources.models.resources import (
-    ResourceCatalogItemDesktopDto,
-    ResourceCatalogPageDesktopDto,
-    ResourceDesktopDto,
-    ResourceInspectorDesktopDto,
-    ResourceSummaryDesktopDto,
 )
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
@@ -41,4 +30,22 @@ from src.core.modules.project_management.application.resources.dto.commands.skil
     ResourceUpdateSkillCommand,
 )
 
-__all__ = ['ProjectManagementResourcesDesktopApi', 'ResourceAddCertificationCommand', 'ResourceAddSkillCommand', 'ResourceAvailabilityDayDto', 'ResourceAvailabilityDto', 'ResourceCatalogItemDesktopDto', 'ResourceCatalogPageDesktopDto', 'ResourceCategoryDescriptor', 'ResourceCreateCommand', 'ResourceDesktopDto', 'ResourceEmployeeOptionDescriptor', 'ResourceInspectorDesktopDto', 'ResourceKindDescriptor', 'ResourceLifecycleCommand', 'ResourcePurgeCommand', 'ResourceRemoveCertificationCommand', 'ResourceRemoveSkillCommand', 'ResourceScopeOptionDescriptor', 'ResourceSummaryDesktopDto', 'ResourceUpdateCertificationCommand', 'ResourceUpdateCommand', 'ResourceUpdateSkillCommand', 'ResourceWorkerTypeDescriptor', 'build_project_management_resources_desktop_api']
+__all__ = [
+    "ProjectManagementResourcesDesktopApi",
+    "ResourceAddCertificationCommand",
+    "ResourceAddSkillCommand",
+    "ResourceCategoryDescriptor",
+    "ResourceCreateCommand",
+    "ResourceEmployeeOptionDescriptor",
+    "ResourceKindDescriptor",
+    "ResourceLifecycleCommand",
+    "ResourcePurgeCommand",
+    "ResourceRemoveCertificationCommand",
+    "ResourceRemoveSkillCommand",
+    "ResourceScopeOptionDescriptor",
+    "ResourceUpdateCertificationCommand",
+    "ResourceUpdateCommand",
+    "ResourceUpdateSkillCommand",
+    "ResourceWorkerTypeDescriptor",
+    "build_project_management_resources_desktop_api",
+]

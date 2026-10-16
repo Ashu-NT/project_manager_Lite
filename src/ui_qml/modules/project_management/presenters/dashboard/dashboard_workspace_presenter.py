@@ -9,7 +9,7 @@ from src.ui_qml.modules.project_management.view_models.dashboard import (
     ProjectDashboardWorkspaceViewModel,
 )
 
-from .operational_table_mapper import to_operational_tables
+from .delayed_tasks_builder import build_delayed_tasks_table
 from .utils import logger
 from .workspace_builder import build_workspace_state
 
@@ -62,7 +62,7 @@ class ProjectDashboardWorkspacePresenter:
         Queries): always server-paginated, never sliced from a locally
         materialized list -- see ProjectManagementDashboardDesktopApi.
         list_delayed_tasks_page()."""
-        descriptor = self._desktop_api.list_delayed_tasks_page(
+        result = self._desktop_api.list_delayed_tasks_page(
             project_id=project_id,
             search_text=search_text,
             page=page,
@@ -70,7 +70,7 @@ class ProjectDashboardWorkspacePresenter:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return to_operational_tables([descriptor])[0]
+        return build_delayed_tasks_table(result, page=page, page_size=page_size, sort_key=sort_key, sort_direction=sort_direction, search_text=search_text)
 
 
 __all__ = ["ProjectDashboardWorkspacePresenter"]

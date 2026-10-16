@@ -9,18 +9,11 @@ from src.core.modules.project_management.api.desktop.register.builders.option_bu
     build_severity_options,
     build_status_options,
 )
-from src.core.modules.project_management.api.desktop.register.models.entries import (
-    RegisterCatalogPageDesktopDto,
-    RegisterEntryDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.register.models.options import (
     RegisterEntrySeverityDescriptor,
     RegisterEntryStatusDescriptor,
     RegisterEntryTypeDescriptor,
     RegisterProjectOptionDescriptor,
-)
-from src.core.modules.project_management.api.desktop.register.serializers.entry_serializer import (
-    serialize_entry,
 )
 from src.core.modules.project_management.api.desktop.register.utils.register_enum_utils import (
     coerce_entry_severity,
@@ -39,6 +32,10 @@ from src.core.modules.project_management.application.risk.dto.commands.register_
     RegisterEntryCreateCommand,
     RegisterEntryDeleteCommand,
     RegisterEntryUpdateCommand,
+)
+from src.core.modules.project_management.application.risk.dto.responses.entries import (
+    RegisterEntryResponseDto,
+    RegisterCatalogResponseDto,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
@@ -87,7 +84,7 @@ class ProjectManagementRegisterDesktopApi:
         entry_type: str | RegisterEntryType | None = None,
         status: str | RegisterEntryStatus | None = None,
         severity: str | RegisterEntrySeverity | None = None,
-    ) -> tuple[RegisterEntryDesktopDto, ...]:
+    ) -> tuple[RegisterEntryResponseDto, ...]:
         entries = build_entry_list(
             register_query=self._register_query,
             project_id=project_id,
@@ -95,11 +92,7 @@ class ProjectManagementRegisterDesktopApi:
             status=status,
             severity=severity,
         )
-        project_name_by_id = self._project_name_by_id()
-        return tuple(
-            serialize_entry(entry, project_name_by_id=project_name_by_id)
-            for entry in entries
-        )
+        return entries
 
     def list_entry_page(
         self,
@@ -113,7 +106,7 @@ class ProjectManagementRegisterDesktopApi:
         page_size: int = 25,
         sort_key: str = "triage",
         sort_direction: str = "asc",
-    ) -> RegisterCatalogPageDesktopDto:
+    ) -> RegisterCatalogResponseDto:
         query = self._require_register_query()
         result = query.query_catalog_page(
             project_id=None if project_id in ("", "all", "ALL") else project_id,
@@ -131,63 +124,30 @@ class ProjectManagementRegisterDesktopApi:
             sort_direction=sort_direction,
         )
 
-        def serialize_item(item) -> RegisterEntryDesktopDto:
-            return serialize_entry(
-                item,
-                project_name_by_id={item.project_id: item.project_name},
-            )
-
-        return RegisterCatalogPageDesktopDto(
-            items=tuple(serialize_item(item) for item in result.items),
-            urgent_items=tuple(serialize_item(item) for item in result.urgent_items),
-            filtered_total=result.filtered_total,
-            scope_total=result.scope_total,
-            scope_risk_total=result.scope_risk_total,
-            open_risks=result.open_risks,
-            open_issues=result.open_issues,
-            pending_changes=result.pending_changes,
-            active=result.active,
-            critical=result.critical,
-            overdue=result.overdue,
-            due_soon=result.due_soon,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort_key,
-            sort_direction=result.sort_direction,
-        )
+        return result
 
     def create_entry(
         self,
         command: RegisterEntryCreateCommand,
-    ) -> RegisterEntryDesktopDto:
+    ) -> RegisterEntryResponseDto:
         commands = self._require_register_lifecycle_commands()
-        entry = commands.create_entry(command)
-        return serialize_entry(entry, project_name_by_id=self._project_name_by_id())
+        return commands.create_entry(command)
 
     def update_entry(
         self,
         command: RegisterEntryUpdateCommand,
-    ) -> RegisterEntryDesktopDto:
+    ) -> RegisterEntryResponseDto:
         commands = self._require_register_lifecycle_commands()
-        entry = commands.update_entry(command)
-        return serialize_entry(entry, project_name_by_id=self._project_name_by_id())
+        return commands.update_entry(command)
 
     def delete_entry(self, command: RegisterEntryDeleteCommand) -> None:
         self._require_register_lifecycle_commands().delete_entry(command)
 
     def bulk_set_entry_status(
         self, command: RegisterEntryBulkStatusCommand
-    ) -> tuple[RegisterEntryDesktopDto, ...]:
+    ) -> tuple[RegisterEntryResponseDto, ...]:
         commands = self._require_register_lifecycle_commands()
-        entries = commands.bulk_set_entry_status(command)
-        project_name_by_id = self._project_name_by_id()
-        return tuple(serialize_entry(entry, project_name_by_id=project_name_by_id) for entry in entries)
-
-    def _project_name_by_id(self) -> dict[str, str]:
-        return {
-            option.value: option.label
-            for option in self.list_projects()
-        }
+        return tuple(commands.bulk_set_entry_status(command))
 
     def _require_register_query(self) -> RegisterQueryHandler:
         if self._register_query is None:

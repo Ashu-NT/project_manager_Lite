@@ -14,6 +14,9 @@ from src.core.platform.api.desktop.master_data.employee.employee import (
     PlatformEmployeeDesktopApi,
 )
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.ui_qml.modules.project_management.presenters.collaboration.formatting import (
+    format_document_option_label,
+)
 from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
     task_assignments_page,
     task_dependencies_page,
@@ -229,7 +232,7 @@ class ProjectTasksWorkspacePresenter:
         return task_assignments_page(self._desktop_api.list_assignments_page(
             task_id, search_text=search_text, response_status=response_status,
             page=page, page_size=page_size, sort_key=sort_key,
-            sort_direction=sort_direction))
+            sort_direction=sort_direction), task_id=task_id)
 
     def build_task_dependencies_state(
         self,
@@ -311,8 +314,10 @@ class ProjectTasksWorkspacePresenter:
     def search_task_mention_options(
         self, task_id: str, query: str
     ) -> tuple[TaskSelectorOptionViewModel, ...]:
-        return tuple(
-            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+        if not (task_id or "").strip():
+            return ()
+        return (TaskSelectorOptionViewModel(value="everyone", label="@everyone  Mention everyone with access to this task"),) + tuple(
+            TaskSelectorOptionViewModel(value=option.handle, label=option.label)
             for option in self._collaboration_desktop_api.search_task_mention_options(
                 task_id, query
             )
@@ -322,7 +327,7 @@ class ProjectTasksWorkspacePresenter:
         self, task_id: str, query: str
     ) -> tuple[TaskSelectorOptionViewModel, ...]:
         return tuple(
-            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            TaskSelectorOptionViewModel(value=option.id, label=format_document_option_label(option))
             for option in self._collaboration_desktop_api.search_task_document_options(
                 task_id, query
             )

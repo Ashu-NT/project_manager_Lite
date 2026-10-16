@@ -5,7 +5,7 @@ from src.ui_qml.shared.models.activity_item import (
     serialize_activity_items,
 )
 
-from .formatting import format_timestamp
+from .formatting import body_preview, format_timestamp, mentions_label
 
 
 def build_activity_collection(recent_activity) -> dict[str, object]:
@@ -13,7 +13,9 @@ def build_activity_collection(recent_activity) -> dict[str, object]:
         "title": "Activity",
         "subtitle": "The 100 most recent task comments in the selected collaboration scope.",
         "emptyState": "No recent collaboration activity matches the current scope.",
-        "items": serialize_activity_items(_to_activity_item(item) for item in recent_activity),
+        "items": serialize_activity_items(
+            _to_activity_item(item) for item in recent_activity
+        ),
     }
 
 
@@ -22,7 +24,7 @@ def _to_activity_item(item) -> ActivityItemViewModel:
     return ActivityItemViewModel(
         id=f"activity-comment:{item.comment_id}",
         title=item.task_name,
-        description=item.body_preview or item.mentions_label,
+        description=body_preview(item) or mentions_label(item.mentions),
         actor_display=item.author_username or "System",
         occurred_at=item.created_at,
         occurred_at_label=format_timestamp(item.created_at),

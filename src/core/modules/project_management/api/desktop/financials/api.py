@@ -33,9 +33,6 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
-    FinancialForecastWorkspaceDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialLookupOptionDto,
     FinancialLookupPageDto,
@@ -44,9 +41,6 @@ from src.core.modules.project_management.api.desktop.financials.models.performan
     FinancialCostPhasingDto,
     FinancialEvmDto,
     FinancialVarianceWorkspaceDto,
-)
-from src.core.modules.project_management.api.desktop.financials.models.rates import (
-    FinancialRateWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
@@ -71,16 +65,10 @@ from src.core.modules.project_management.api.desktop.financials.serializers.conf
 from src.core.modules.project_management.api.desktop.financials.serializers.cost_entry_serializer import (
     serialize_cost_entry,
 )
-from src.core.modules.project_management.api.desktop.financials.serializers.forecast_workspace_serializer import (
-    serialize_finance_forecast_workspace,
-)
 from src.core.modules.project_management.api.desktop.financials.serializers.performance_serializer import (
     serialize_cost_phasing,
     serialize_performance_evm,
     serialize_performance_variance,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.rate_workspace_serializer import (
-    serialize_finance_rate_workspace,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.snapshot_serializer import (
     empty_overview,
@@ -211,6 +199,7 @@ from src.core.modules.project_management.application.reporting import (
     ProfitabilityReportBuilder,
 )
 from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
+    FinancePageFacts,
     FinancePageRequest,
 )
 from src.core.modules.project_management.contracts.reads.financials.configuration.models.setup_facts import (
@@ -222,6 +211,7 @@ from src.core.modules.project_management.contracts.reads.financials.financial_ch
     FinancialChangeRequestQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.forecasts.models.forecast_facts import (
+    FinanceForecastWorkspaceFacts,
     ForecastLineRequest,
     ForecastVersionRequest,
 )
@@ -241,6 +231,7 @@ from src.core.modules.project_management.contracts.reads.financials.lookups.mode
     ManualActualCostCodeQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.rate_cards.models.rate_facts import (
+    FinanceRateWorkspaceFacts,
     RateCardRequest,
     RateLineRequest,
 )
@@ -829,9 +820,14 @@ class ProjectManagementFinancialsDesktopApi:
         generation_mode: str = "",
         line_search: str = "",
         line_source_type: str = "",
-    ) -> FinancialForecastWorkspaceDto:
+    ) -> FinanceForecastWorkspaceFacts:
         if not project_id or self._finance_workspace_query is None:
-            return FinancialForecastWorkspaceDto()
+            return FinanceForecastWorkspaceFacts(
+                selected_forecast_id="",
+                selected_forecast=None,
+                versions=FinancePageFacts((), 0, 1, 50, "revision", "desc"),
+                lines=FinancePageFacts((), 0, 1, 50, "title", "asc"),
+            )
         facts = self._finance_workspace_query.get_forecast_workspace(
             project_id,
             selected_forecast_id=selected_forecast_id,
@@ -853,14 +849,7 @@ class ProjectManagementFinancialsDesktopApi:
                 source_type=line_source_type,
             ),
         )
-        return serialize_finance_forecast_workspace(
-            facts,
-            version_search=version_search,
-            version_status=version_status,
-            generation_mode=generation_mode,
-            line_search=line_search,
-            line_source_type=line_source_type,
-        )
+        return facts
 
     def generate_forecast(
         self, command: FinancialGenerateForecastCommand
@@ -906,9 +895,14 @@ class ProjectManagementFinancialsDesktopApi:
         line_status: str = "",
         line_effective_status: str = "",
         as_of: date | None = None,
-    ) -> FinancialRateWorkspaceDto:
+    ) -> FinanceRateWorkspaceFacts:
         if not project_id or self._finance_workspace_query is None:
-            return FinancialRateWorkspaceDto()
+            return FinanceRateWorkspaceFacts(
+                selected_rate_card_id="",
+                selected_rate_card=None,
+                cards=FinancePageFacts((), 0, 1, 50, "title", "asc"),
+                lines=FinancePageFacts((), 0, 1, 50, "title", "asc"),
+            )
         facts = self._finance_workspace_query.get_rate_workspace(
             project_id,
             selected_rate_card_id=selected_rate_card_id,
@@ -933,17 +927,7 @@ class ProjectManagementFinancialsDesktopApi:
                 as_of=as_of,
             ),
         )
-        return serialize_finance_rate_workspace(
-            facts,
-            card_search=card_search,
-            card_scope=card_scope,
-            card_status=card_status,
-            line_search=line_search,
-            line_rate_type=line_rate_type,
-            line_status=line_status,
-            line_effective_status=line_effective_status,
-            as_of=as_of,
-        )
+        return facts
 
     def create_rate_card(
         self, command: FinancialCreateRateCardCommand

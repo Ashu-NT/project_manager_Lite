@@ -47,11 +47,6 @@ from src.core.modules.project_management.api.desktop.financials.models.performan
     FinancialPerformanceMetricDto,
     FinancialVarianceWorkspaceDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.rates import (
-    FinancialRateCardDetailDto,
-    FinancialRateTableRecordDto,
-    FinancialRateWorkspaceDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
     FinancialPeriodRowDto,
@@ -88,8 +83,5 @@ __all__ = [
     "FinancialPerformanceMetricDto",
     "FinancialPeriodRowDto",
     "FinancialProfileDto",
-    "FinancialRateCardDetailDto",
-    "FinancialRateTableRecordDto",
-    "FinancialRateWorkspaceDto",
     "FinancialVarianceWorkspaceDto",
 ]

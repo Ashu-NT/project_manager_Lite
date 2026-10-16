@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_hours,
+)
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogWorkspaceViewModel,
 )
@@ -16,33 +19,33 @@ from .selection import resolve_time_entry_id
 def build_task_time_summary_dict(summary_dto) -> dict[str, object] | None:
     """Task-scoped (never resource-wide) planned/actual/remaining/overrun
     totals plus the per-resource breakdown, straight from
-    TaskTimeSummaryDesktopDto (docs §44 Time redesign) -- rendered as-is,
+    TaskTimeSummaryFact (docs §44 Time redesign) -- rendered as-is,
     never recalculated in QML."""
     if summary_dto is None:
         return None
     return {
         "hasSummary": True,
         "taskId": summary_dto.task_id,
-        "plannedHoursLabel": summary_dto.planned_hours_label,
-        "actualHoursLabel": summary_dto.actual_hours_label,
-        "remainingHoursLabel": summary_dto.remaining_hours_label,
-        "overrunHoursLabel": summary_dto.overrun_hours_label,
-        "hasOverrun": summary_dto.has_overrun,
+        "plannedHoursLabel": format_hours(summary_dto.planned_hours),
+        "actualHoursLabel": format_hours(summary_dto.actual_hours),
+        "remainingHoursLabel": format_hours(summary_dto.remaining_hours),
+        "overrunHoursLabel": format_hours(summary_dto.overrun_hours),
+        "hasOverrun": summary_dto.overrun_hours > 0,
         "burnStatus": summary_dto.burn_status,
-        "burnStatusLabel": summary_dto.burn_status_label,
+        "burnStatusLabel": summary_dto.burn_status.replace("_", " ").title(),
         "assignmentCount": summary_dto.assignment_count,
         "resourceBreakdown": [
             {
                 "assignmentId": row.assignment_id,
                 "resourceId": row.resource_id,
                 "resourceName": row.resource_name,
-                "plannedHoursLabel": row.planned_hours_label,
-                "actualHoursLabel": row.actual_hours_label,
-                "remainingHoursLabel": row.remaining_hours_label,
-                "overrunHoursLabel": row.overrun_hours_label,
-                "hasOverrun": row.has_overrun,
+                "plannedHoursLabel": format_hours(row.planned_hours),
+                "actualHoursLabel": format_hours(row.actual_hours),
+                "remainingHoursLabel": format_hours(row.remaining_hours),
+                "overrunHoursLabel": format_hours(row.overrun_hours),
+                "hasOverrun": row.overrun_hours > 0,
                 "burnStatus": row.burn_status,
-                "burnStatusLabel": row.burn_status_label,
+                "burnStatusLabel": row.burn_status.replace("_", " ").title(),
             }
             for row in summary_dto.resource_breakdown
         ],

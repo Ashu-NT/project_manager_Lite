@@ -7,6 +7,8 @@ import time
 from collections import Counter
 from contextlib import contextmanager
 from datetime import date, timedelta
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import TaskCreateCommand
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import TaskAssignmentCreateCommand
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
@@ -70,17 +72,12 @@ def _seed_single_project_workspace(services):
     today = date.today()
     project = services['project_create'].create_project(ProjectCreateCommand(name="Workspace Performance Project", start_date=today, end_date=today + timedelta(days=30), financial_currency_code="EUR"))
     task = services['task_lifecycle_commands'].create_task(
-        project.id,
-        "Workspace Performance Task",
-        start_date=today,
-        duration_days=10,
+        TaskCreateCommand(project.id, "Workspace Performance Task", start_date=today, duration_days=10),
     )
     resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Workspace Performance Resource", role="Planner", hourly_rate=80.0, capacity_percent=100.0, currency_code="EUR"))
     project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, planned_hours=40.0, hourly_rate=80.0, currency_code="EUR"))
     services['task_assignment_commands'].assign_project_resource(
-        task_id=task.id,
-        project_resource_id=project_resource.id,
-        allocation_percent=50.0,
+        TaskAssignmentCreateCommand(task.id, project_resource.id, allocation_percent=50.0),
     )
 
     portfolio_api = build_project_management_portfolio_desktop_api(
@@ -94,7 +91,6 @@ def _seed_single_project_workspace(services):
         portfolio_dependency_query=services["portfolio_dependency_query"],
         portfolio_dependency_commands=services["portfolio_dependency_commands"],
         portfolio_executive_query=services["portfolio_executive_query"],
-        pool_service=services["portfolio_resource_pool_query"],
     )
     template = portfolio_api.create_scoring_template(
         PortfolioTemplateCreateCommand(
@@ -190,7 +186,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
         (baselines, "list_baselines", "baseline.list_baselines"),
         (baselines, "get_approved_baseline", "baseline.get_approved"),
         (collaboration, "list_recent_activity", "collaboration.recent_activity"),
-        (approvals, "list_pending", "approval.list_pending"),
+        (approvals, "list_requests", "approval.list_pending"),
         (calendar_resolver, "resolve_range", "calendar.resolve_range"),
         (
             calendar_resolver,
@@ -272,10 +268,7 @@ def test_dashboard_portfolio_scope_batches_shared_lookups_once_per_project(
     for index in range(project_count):
         project = services['project_create'].create_project(ProjectCreateCommand(name=f"Portfolio Scale Project {index}", start_date=today, end_date=today + timedelta(days=30), financial_currency_code="EUR"))
         services['task_lifecycle_commands'].create_task(
-            project.id,
-            f"Portfolio Scale Task {index}",
-            start_date=today,
-            duration_days=5,
+            TaskCreateCommand(project.id, f"Portfolio Scale Task {index}", start_date=today, duration_days=5),
         )
         projects.append(project)
 

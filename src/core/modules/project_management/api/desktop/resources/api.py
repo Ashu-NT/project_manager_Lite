@@ -14,27 +14,12 @@ from src.core.modules.project_management.api.desktop.resources.builders.option_b
     build_site_options,
     build_worker_type_options,
 )
-from src.core.modules.project_management.api.desktop.resources.models.availability import (
-    ResourceAvailabilityDto,
-)
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
     ResourceEmployeeOptionDescriptor,
     ResourceKindDescriptor,
     ResourceScopeOptionDescriptor,
     ResourceWorkerTypeDescriptor,
-)
-from src.core.modules.project_management.api.desktop.resources.models.resources import (
-    ResourceCatalogPageDesktopDto,
-    ResourceDesktopDto,
-    ResourceInspectorDesktopDto,
-    ResourceSummaryDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.resources.serializers.resource_serializer import (
-    serialize_resource,
-    serialize_resource_catalog_item,
-    serialize_resource_inspector,
-    serialize_resource_summary,
 )
 from src.core.modules.project_management.api.desktop.resources.utils.date_utils import (
     parse_date,
@@ -66,9 +51,15 @@ from src.core.modules.project_management.application.resources.dto.commands.skil
     ResourceRemoveSkillCommand,
     ResourceUpdateSkillCommand,
 )
+from src.core.modules.project_management.application.resources.dto.responses.availability import (
+    ResourceWorkloadResponse,
+)
 from src.core.modules.project_management.application.resources.dto.responses.capabilities import (
     ResourceCertificationResponse,
     ResourceSkillResponse,
+)
+from src.core.modules.project_management.application.resources.dto.responses.catalog import (
+    ResourceResponse,
 )
 from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
     ResourceContextQueryHandler,
@@ -79,9 +70,12 @@ from src.core.modules.project_management.application.resources.queries.skill_que
 from src.core.modules.project_management.contracts.reads.resources.models import (
     ResourceActivityReadPage,
     ResourceAssignmentReadPage,
+    ResourceCatalogReadPage,
     ResourceCertificationReadPage,
+    ResourceInspectorFact,
     ResourceProjectReadPage,
     ResourceSkillReadPage,
+    ResourceSummaryFact,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.platform.application.master_data.department import DepartmentQueryHandler
@@ -160,7 +154,7 @@ class ProjectManagementResourcesDesktopApi:
     def list_employees(self) -> tuple[ResourceEmployeeOptionDescriptor, ...]:
         return build_employee_options(self._employee_query)
 
-    def list_resources(self) -> tuple[ResourceDesktopDto, ...]:
+    def list_resources(self) -> tuple[ResourceResponse, ...]:
         if self._resource_query is None:
             return ()
         employee_lookup = build_employee_lookup(self._employee_query)
@@ -169,15 +163,19 @@ class ProjectManagementResourcesDesktopApi:
             key=lambda resource: (
                 not bool(getattr(resource, "is_active", True)),
                 str(
-                    getattr(employee_lookup.get(str(getattr(resource, "employee_id", "") or "")), "name", "")
-                    or getattr(resource, "name", "") or ""
+                    getattr(
+                        employee_lookup.get(
+                            str(getattr(resource, "employee_id", "") or "")
+                        ),
+                        "name",
+                        "",
+                    )
+                    or getattr(resource, "name", "")
+                    or ""
                 ).casefold(),
             ),
         )
-        return tuple(
-            serialize_resource(resource, employee_lookup=employee_lookup)
-            for resource in resources
-        )
+        return tuple(resources)
 
     def list_resource_page(
         self,
@@ -189,17 +187,21 @@ class ProjectManagementResourcesDesktopApi:
         page_size: int = 25,
         sort_key: str = "catalog",
         sort_direction: str = "asc",
-    ) -> ResourceCatalogPageDesktopDto:
+    ) -> ResourceCatalogReadPage:
         service = self._require_resource_query()
         normalized_active = str(active or "all").strip().lower()
         active_value = (
-            True if normalized_active == "active"
-            else False if normalized_active == "inactive"
+            True
+            if normalized_active == "active"
+            else False
+            if normalized_active == "inactive"
             else None
         )
         normalized_category = str(category or "all").strip().upper()
         category_value = (
-            None if normalized_category == "ALL" else coerce_cost_type(normalized_category)
+            None
+            if normalized_category == "ALL"
+            else coerce_cost_type(normalized_category)
         )
         result = service.query_catalog_page(
             search_text=search_text,
@@ -210,59 +212,33 @@ class ProjectManagementResourcesDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return ResourceCatalogPageDesktopDto(
-            items=tuple(serialize_resource_catalog_item(item) for item in result.items),
-            filtered_total=result.filtered_total,
-            total=result.summary.total,
-            active=result.summary.active,
-            employees=result.summary.employees,
-            external=result.summary.external,
-            average_capacity=result.summary.average_capacity,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
-        )
+        return result
 
-    def get_resource_inspector(self, resource_id: str) -> ResourceInspectorDesktopDto:
-        fact = self._require_resource_query().get_resource_inspector(resource_id)
-        return serialize_resource_inspector(fact)
+    def get_resource_inspector(self, resource_id: str) -> ResourceInspectorFact:
+        return self._require_resource_query().get_resource_inspector(resource_id)
 
-    def get_resource_summary(self, resource_id: str) -> ResourceSummaryDesktopDto:
-        fact = self._require_resource_query().get_resource_summary(resource_id)
-        return serialize_resource_summary(fact)
+    def get_resource_summary(self, resource_id: str) -> ResourceSummaryFact:
+        return self._require_resource_query().get_resource_summary(resource_id)
 
-    def create_resource(self, command: ResourceCreateCommand) -> ResourceDesktopDto:
+    def create_resource(self, command: ResourceCreateCommand) -> ResourceResponse:
         service = self._require_resource_master_commands("create resource")
-        resource = service.create_resource(command)
-        return serialize_resource(
-            resource,
-            employee_lookup=build_employee_lookup(self._employee_query),
-        )
+        return service.create_resource(command)
 
-    def update_resource(self, command: ResourceUpdateCommand) -> ResourceDesktopDto:
+    def update_resource(self, command: ResourceUpdateCommand) -> ResourceResponse:
         service = self._require_resource_master_commands("update resource")
-        resource = service.update_resource(command)
-        return serialize_resource(
-            resource,
-            employee_lookup=build_employee_lookup(self._employee_query),
-        )
+        return service.update_resource(command)
 
-    def deactivate_resource(self, command: ResourceLifecycleCommand) -> ResourceDesktopDto:
+    def deactivate_resource(
+        self, command: ResourceLifecycleCommand
+    ) -> ResourceResponse:
         service = self._require_resource_master_commands("deactivate resource")
-        updated = service.deactivate_resource(command)
-        return serialize_resource(
-            updated,
-            employee_lookup=build_employee_lookup(self._employee_query),
-        )
+        return service.deactivate_resource(command)
 
-    def reactivate_resource(self, command: ResourceLifecycleCommand) -> ResourceDesktopDto:
+    def reactivate_resource(
+        self, command: ResourceLifecycleCommand
+    ) -> ResourceResponse:
         service = self._require_resource_master_commands("reactivate resource")
-        updated = service.reactivate_resource(command)
-        return serialize_resource(
-            updated,
-            employee_lookup=build_employee_lookup(self._employee_query),
-        )
+        return service.reactivate_resource(command)
 
     def purge_resource(self, command: ResourcePurgeCommand) -> None:
         service = self._require_resource_master_commands("purge resource")
@@ -333,21 +309,27 @@ class ProjectManagementResourcesDesktopApi:
         self,
         command: ResourceAddCertificationCommand,
     ) -> ResourceCertificationResponse:
-        service = self._require_resource_capability_commands("add resource certification")
+        service = self._require_resource_capability_commands(
+            "add resource certification"
+        )
         certification = service.add_resource_certification(command)
         return certification
 
     def update_resource_certification(
         self, command: ResourceUpdateCertificationCommand
     ) -> ResourceCertificationResponse:
-        service = self._require_resource_capability_commands("update resource certification")
+        service = self._require_resource_capability_commands(
+            "update resource certification"
+        )
         certification = service.update_resource_certification(command)
         return certification
 
     def remove_resource_certification(
         self, command: ResourceRemoveCertificationCommand
     ) -> None:
-        service = self._require_resource_capability_commands("remove resource certification")
+        service = self._require_resource_capability_commands(
+            "remove resource certification"
+        )
         service.remove_resource_certification(command)
 
     def list_resource_projects_page(
@@ -363,8 +345,10 @@ class ProjectManagementResourcesDesktopApi:
         sort_direction: str = "asc",
     ) -> ResourceProjectReadPage:
         active_value = (
-            True if str(active).lower() == "active"
-            else False if str(active).lower() == "inactive"
+            True
+            if str(active).lower() == "active"
+            else False
+            if str(active).lower() == "inactive"
             else None
         )
         result = self._require_resource_context_query().query_resource_projects_page(
@@ -401,7 +385,8 @@ class ProjectManagementResourcesDesktopApi:
             project_id=project_id or None,
             task_status=_coerce_task_status(task_status),
             assignment_status=(
-                None if str(assignment_status or "all").lower() == "all"
+                None
+                if str(assignment_status or "all").lower() == "all"
                 else str(assignment_status).lower()
             ),
             lifecycle=lifecycle,
@@ -439,7 +424,7 @@ class ProjectManagementResourcesDesktopApi:
         *,
         start_date: str,
         end_date: str,
-    ) -> ResourceAvailabilityDto:
+    ) -> ResourceWorkloadResponse:
         return build_resource_availability(
             resource_id,
             workload_service=self._workload_service,
@@ -484,7 +469,9 @@ class ProjectManagementResourcesDesktopApi:
 
     def _require_resource_capability_query(self) -> ResourceCapabilityQueryHandler:
         if self._resource_capability_query is None:
-            raise ConfigurationError("Project management resource capability query is not connected.")
+            raise ConfigurationError(
+                "Project management resource capability query is not connected."
+            )
         require_module_enabled(
             self._module_catalog_service,
             "project_management",
@@ -494,7 +481,9 @@ class ProjectManagementResourcesDesktopApi:
 
     def _require_resource_context_query(self) -> ResourceContextQueryHandler:
         if self._resource_context_query is None:
-            raise ConfigurationError("Project management resource context query is not connected.")
+            raise ConfigurationError(
+                "Project management resource context query is not connected."
+            )
         require_module_enabled(
             self._module_catalog_service,
             "project_management",
@@ -503,4 +492,4 @@ class ProjectManagementResourcesDesktopApi:
         return self._resource_context_query
 
 
-__all__ = ['ProjectManagementResourcesDesktopApi']
+__all__ = ["ProjectManagementResourcesDesktopApi"]

@@ -38,7 +38,7 @@ def build_task_state(task: Any) -> dict[str, object]:
         "childCount": int(getattr(task, "child_count", 0) or 0),
         "description": task.description or "",
         "status": task.status,
-        "statusLabel": task.status_label,
+        "statusLabel": task.status.replace("_", " ").title(),
         "startDate": format_date(task.start_date),
         "startDateLabel": format_date_label(task.start_date),
         "endDate": format_date(task.end_date),
@@ -71,7 +71,7 @@ def to_task_record_view_model(task: Any) -> TaskRecordViewModel:
     return TaskRecordViewModel(
         id=task.id,
         title=f"{'    ' * state['hierarchyDepth']}{milestone_marker}{task.name}",
-        status_label=task.status_label,
+        status_label=task.status.replace("_", " ").title(),
         subtitle=(
             f"WBS {state['wbsCode']} | {state['projectName']} | Start {state['startDateLabel']} | "
             f"Finish {state['endDateLabel']}"

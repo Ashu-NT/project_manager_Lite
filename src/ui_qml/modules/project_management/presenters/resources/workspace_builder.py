@@ -67,7 +67,9 @@ def build_workspace_state(
     employee_options = build_employee_options(desktop_api)
     normalized_search = (search_text or "").strip()
     normalized_active_filter = normalize_active_filter(active_filter)
-    normalized_category_filter = normalize_category_filter(category_filter, category_options)
+    normalized_category_filter = normalize_category_filter(
+        category_filter, category_options
+    )
     resource_page = desktop_api.list_resource_page(
         search_text=normalized_search,
         active=normalized_active_filter,
@@ -104,12 +106,12 @@ def build_workspace_state(
     )
     return ResourceCatalogWorkspaceViewModel(
         overview=build_overview(
-            total=resource_page.total,
+            total=resource_page.summary.total,
             filtered_total=resource_page.filtered_total,
-            active=resource_page.active,
-            employees=resource_page.employees,
-            external=resource_page.external,
-            average_capacity=resource_page.average_capacity,
+            active=resource_page.summary.active,
+            employees=resource_page.summary.employees,
+            external=resource_page.summary.external,
+            average_capacity=resource_page.summary.average_capacity,
         ),
         worker_type_options=worker_type_options,
         kind_options=kind_options,
@@ -125,7 +127,7 @@ def build_workspace_state(
         ),
         selected_resource_id=resolved_selected_resource_id,
         empty_state=build_empty_state(
-            total=resource_page.total,
+            total=resource_page.summary.total,
             filtered_total=resource_page.filtered_total,
             search_text=normalized_search,
             active_filter=normalized_active_filter,
@@ -134,6 +136,6 @@ def build_workspace_state(
         total_count=resource_page.filtered_total,
         page=resource_page.page,
         page_size=resource_page.page_size,
-        sort_key=resource_page.sort_key,
-        sort_direction=resource_page.sort_direction,
+        sort_key=resource_page.sort.key,
+        sort_direction=resource_page.sort.direction.value,
     )

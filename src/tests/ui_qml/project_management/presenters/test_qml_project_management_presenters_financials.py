@@ -129,15 +129,12 @@ def test_create_cost_code_desktop_api_preserves_project_availability_scope():
     )
 
     cost_code_commands.create_cost_code.assert_called_once_with(
-        code="LABOR.INTERNAL",
-        name="Internal labor",
-        description="Employee delivery time",
-        available_to_project_id="project-1",
-        parent_id=None,
-        external_system=None,
-        external_reference=None,
-        effective_from=None,
-        effective_to=None,
+        FinancialCreateCostCodeCommand(
+            project_id="project-1",
+            code="LABOR.INTERNAL",
+            name="Internal labor",
+            description="Employee delivery time",
+        )
     )
     governance_commands.cost_code.assert_called_once()
     assert governance_commands.cost_code.call_args.kwargs == {}

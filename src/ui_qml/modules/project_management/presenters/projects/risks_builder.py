@@ -30,10 +30,10 @@ def build_project_risks_state(
         ProjectRecordViewModel(
             id=risk.id,
             title=risk.title,
-            status_label=risk.severity_label,
-            subtitle=risk.status_label,
+            status_label=risk.severity.replace("_", " ").title(),
+            subtitle=risk.status.replace("_", " ").title(),
             supporting_text=risk.impact_summary or "No impact summary recorded.",
-            meta_text=risk.due_date_label,
+            meta_text=risk.due_date.isoformat() if risk.due_date else "No due date",
         )
         for risk in risks
     )

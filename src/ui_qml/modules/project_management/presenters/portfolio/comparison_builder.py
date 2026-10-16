@@ -3,6 +3,13 @@ from __future__ import annotations
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementPortfolioDesktopApi,
 )
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_signed_money,
+)
+from src.ui_qml.modules.project_management.presenters.portfolio.formatting import (
+    format_signed_int,
+    format_signed_percent,
+)
 from src.ui_qml.modules.project_management.view_models.portfolio import (
     PortfolioSummaryFieldViewModel,
     PortfolioSummaryViewModel,
@@ -34,25 +41,25 @@ def build_comparison_summary(
         fields=(
             PortfolioSummaryFieldViewModel(
                 label="Budget delta",
-                value=comparison.budget_delta_label,
+                value=format_signed_money(comparison.budget_delta),
             ),
             PortfolioSummaryFieldViewModel(
                 label="Capacity delta",
-                value=comparison.capacity_delta_label,
+                value=format_signed_percent(comparison.capacity_delta_percent),
             ),
             PortfolioSummaryFieldViewModel(
                 label="Projects delta",
-                value=comparison.selected_projects_delta_label,
+                value=format_signed_int(comparison.selected_projects_delta),
                 supporting_text=f"Added: {added_projects} | Removed: {removed_projects}",
             ),
             PortfolioSummaryFieldViewModel(
                 label="Intake delta",
-                value=comparison.selected_intake_items_delta_label,
+                value=format_signed_int(comparison.selected_intake_items_delta),
                 supporting_text=f"Added: {added_intake} | Removed: {removed_intake}",
             ),
             PortfolioSummaryFieldViewModel(
                 label="Score delta",
-                value=comparison.intake_score_delta_label,
+                value=format_signed_int(comparison.intake_score_delta),
             ),
         ),
     )

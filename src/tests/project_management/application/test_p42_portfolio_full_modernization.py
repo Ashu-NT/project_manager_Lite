@@ -186,9 +186,9 @@ def test_create_and_remove_dependency_produce_hints(services):
     dependency = services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=project_a.id, successor_project_id=project_b.id))
     assert len(_portfolio_hints(hints)) == 1
 
-    services["portfolio_dependency_commands"].remove_project_dependency(PortfolioDependencyRemoveCommand(dependency.id))
+    services["portfolio_dependency_commands"].remove_project_dependency(PortfolioDependencyRemoveCommand(dependency.dependency_id))
     assert len(_portfolio_hints(hints)) == 2
-    assert services["portfolio_dependency_commands"]._dependency_repo.get(dependency.id) is None
+    assert services["portfolio_dependency_commands"]._dependency_repo.get(dependency.dependency_id) is None
 
 
 def test_create_scoring_template_and_activate_produce_hints_including_deactivation(services):
