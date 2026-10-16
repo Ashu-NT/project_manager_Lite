@@ -8,6 +8,18 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scor
     PortfolioTemplateActivateCommand,
     PortfolioTemplateCreateCommand,
 )
+from src.core.modules.project_management.application.portfolio.dto.responses.intake import (
+    PortfolioIntakeResponse,
+)
+from src.core.modules.project_management.application.portfolio.dto.responses.templates import (
+    PortfolioTemplateResponseDto,
+)
+from src.core.modules.project_management.application.portfolio.mappers.intake import (
+    map_intake_response,
+)
+from src.core.modules.project_management.application.portfolio.mappers.templates import (
+    map_template,
+)
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
     ProjectUpdateCommand,
@@ -96,10 +108,10 @@ class _FakePortfolioServiceBase:
         self._dependencies: dict[str, PortfolioProjectDependency] = {}
         self._actions: list[PortfolioRecentAction] = []
 
-    def list_scoring_templates(self) -> list[PortfolioScoringTemplate]:
-        return list(self._templates.values())
+    def list_scoring_templates(self) -> list[PortfolioTemplateResponseDto]:
+        return [map_template(item) for item in self._templates.values()]
 
-    def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioScoringTemplate:
+    def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioTemplateResponseDto:
         name = command.name
         summary = command.summary
         strategic_weight = command.strategic_weight
@@ -125,23 +137,23 @@ class _FakePortfolioServiceBase:
         )
         self._templates[template.id] = template
         self._append_action("Template created", "Portfolio", summary or name)
-        return template
+        return map_template(template)
 
-    def activate_scoring_template(self, command: PortfolioTemplateActivateCommand) -> PortfolioScoringTemplate:
+    def activate_scoring_template(self, command: PortfolioTemplateActivateCommand) -> PortfolioTemplateResponseDto:
         template_id = command.template_id
         for existing in self._templates.values():
             existing.is_active = existing.id == template_id
         template = self._templates[template_id]
         self._append_action("Template activated", "Portfolio", template.name)
-        return template
+        return map_template(template)
 
-    def list_intake_items(self, *, status: PortfolioIntakeStatus | None = None) -> list[PortfolioIntakeItem]:
+    def list_intake_items(self, *, status: PortfolioIntakeStatus | None = None) -> list[PortfolioIntakeResponse]:
         rows = list(self._intake_items.values())
         if status is not None:
             rows = [row for row in rows if row.status == status]
-        return rows
+        return [map_intake_response(row) for row in rows]
 
-    def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeItem:
+    def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeResponse:
         title = command.title
         sponsor_name = command.sponsor_name
         summary = command.summary
@@ -185,7 +197,7 @@ class _FakePortfolioServiceBase:
         )
         self._intake_items[item.id] = item
         self._append_action("Intake created", "Portfolio", item.title)
-        return item
+        return map_intake_response(item)
 
     def _append_action(self, action_label: str, project_name: str, summary: str) -> None:
         self._actions.append(

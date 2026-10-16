@@ -25,7 +25,7 @@ from .overview_builder import build_overview
 from .performance_logging import log_build_complete
 from .scenario_mapper import to_scenario_record
 from .selection import resolve_compare_id, resolve_selected_id
-from .template_mapper import to_template_record
+from .template_mapper import template_weight_summary, to_template_record
 
 _ACTIVE_TABS = (
     "executive",
@@ -248,7 +248,7 @@ def build_workspace_state(
         hot_project_count=executive_snapshot.hot_project_count,
         dependency_count=executive_snapshot.dependency_count,
         active_template_summary=(
-            f"Active template: {active_template.name}. {active_template.weight_summary}"
+            f"Active template: {active_template.name}. {template_weight_summary(active_template)}"
             if active_template
             else "No active scoring template."
         ),

@@ -3,8 +3,12 @@ from __future__ import annotations
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.common.pagination import (
-    PaginatedResult,
+from src.core.modules.project_management.application.portfolio.dto.responses.intake import (
+    PortfolioIntakePageResponse,
+    PortfolioIntakeResponse,
+)
+from src.core.modules.project_management.application.portfolio.mappers.intake import (
+    map_intake_response,
 )
 from src.core.modules.project_management.contracts.reads.sorting import (
     ReadSort,
@@ -14,7 +18,6 @@ from src.core.modules.project_management.contracts.repositories.portfolio.portfo
     PortfolioIntakeRepository,
 )
 from src.core.modules.project_management.domain.portfolio import (
-    PortfolioIntakeItem,
     PortfolioIntakeStatus,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -51,13 +54,11 @@ class PortfolioIntakeQueryHandler(ProjectManagementModuleGuardMixin):
         self,
         *,
         status: PortfolioIntakeStatus | None = None,
-    ) -> list[PortfolioIntakeItem]:
+    ) -> list[PortfolioIntakeResponse]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio intake")
         self._require_organization()
         rows = self._intake_repo.list()
-        if status is None:
-            return rows
-        return [row for row in rows if row.status == status]
+        return [map_intake_response(row) for row in rows if status is None or row.status == status]
 
     def list_intake_items_page(
         self,
@@ -68,7 +69,7 @@ class PortfolioIntakeQueryHandler(ProjectManagementModuleGuardMixin):
         page_size: int = 25,
         sort_key: str = "updatedAt",
         sort_direction: str = "desc",
-    ) -> PaginatedResult[PortfolioIntakeItem]:
+    ) -> PortfolioIntakePageResponse:
         """Authoritative server-paginated Intake browse. Intake is classified
         SCALABLE (candidate/proposed projects accumulate without a natural
         ceiling) — scope/filter/sort/pagination all happen in SQL."""
@@ -81,12 +82,22 @@ class PortfolioIntakeQueryHandler(ProjectManagementModuleGuardMixin):
             default_key="updatedAt",
             default_direction=ReadSortDirection.DESCENDING,
         )
-        return self._intake_repo.list_page(
+        result = self._intake_repo.list_page(
             status=status,
             search_text=search_text,
             page=page,
             page_size=page_size,
             sort=sort,
+        )
+        return PortfolioIntakePageResponse(
+            items=tuple(map_intake_response(item) for item in result.items),
+            page=result.page,
+            page_size=result.page_size,
+            total=result.total if result.total is not None else 0,
+            next_cursor=result.next_cursor,
+            sort_key=sort.key,
+            sort_direction=sort.direction.value,
+            search_text=search_text,
         )
 
 

@@ -53,6 +53,14 @@ normalized/derived local values when useful;
 read unchanged command fields directly instead of mechanically unpacking
 whole DTOs into local aliases. New boundaries require explicit typing.
 
+**Thin API clarification (2026-10-16):** application handlers own domain-to-DTO
+mapping, and adapters consume/return those DTOs directly. Do not clone an
+application response into another desktop record just to attach display
+labels. QML presenters build labels and view models from the same application
+result. A serializer is justified for actual transport encoding, not as a
+mandatory second business-data mapping stage. Earlier output cuts retaining
+API presentation copies are not evidence that this final boundary is complete.
+
 **Redundant-model audit (2026-10-16):** removed the parallel Project catalog
 and detail response copies and the Resource catalog/item/summary/inspector,
 capability-item/page, activity, usage and sort copies. Readers retain their
@@ -131,6 +139,34 @@ required version tokens; no production business rules were loosened.
 Mypy passed for 1,302 PM/Platform application/API source files; repository
 Ruff F/I, compilation and diff checks passed. Full suites were not run and
 the wider boundary migration is not certified. No commit was made.
+
+**Portfolio Intake/Templates direct-result correction (2026-10-16):** added
+feature-owned `dto/responses/intake.py` and `mappers/intake.py` for domain
+Intake results; no full Intake Reader result already exists. The existing
+five-field `PortfolioScenarioIntakeFact` is a distinct bounded analytics
+projection and is not expanded or copied into a competing read authority.
+Command results snapshot the domain-calculated composite score; no scoring
+formula was duplicated. Paginated queries map only the selected page and
+return the frozen application page with canonical sort metadata.
+
+Removed `PortfolioIntakeDesktopDto`, `PortfolioTemplateDesktopDto`, their
+two API model files and their two serializers, including obsolete exports.
+Intake, Intake page and Template operations now pass application results
+through the API without serializing/reconstructing their business fields.
+Template results reuse the existing application DTO. Intake status/budget/
+capacity labels and template weight summaries are built in QML presenters;
+no labels were moved into the application. The existing command/UoW,
+authorization, organization scope, SQL pagination and scoring authorities
+remain intact. Tests assert adapter result identity, immutable snapshots,
+exact zero budget/score, normalized page sorting, rollback and UI consumption.
+
+Verification: 309 targeted Portfolio/boundary/SQL-pagination/rollback/UI/
+architecture/composition tests passed. Mypy passed for 1,318 PM/Platform
+application/API and Portfolio presenter source files; Ruff F/I, compilation,
+retired-symbol search and diff checks passed. Other Portfolio destinations
+and other API serializers remain to be reconciled with the clarified thin-API
+target; the whole migration is not certified. No full suite or PostgreSQL
+rerun was claimed for this cut. No commit was made; `.tmp` remains absent.
 
 Pre-release permits coordinated interface cutovers and deletion of obsolete
 internal paths, but does not justify changing RBAC, tenant isolation,

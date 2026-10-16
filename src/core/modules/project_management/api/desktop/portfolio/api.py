@@ -21,10 +21,6 @@ from src.core.modules.project_management.api.desktop.portfolio.models.heatmap im
     PortfolioHeatmapDesktopDto,
     PortfolioHeatmapPageDto,
 )
-from src.core.modules.project_management.api.desktop.portfolio.models.intake import (
-    PortfolioIntakeDesktopDto,
-    PortfolioIntakePageDto,
-)
 from src.core.modules.project_management.api.desktop.portfolio.models.options import (
     PortfolioOptionDescriptor,
     PortfolioProjectOptionDescriptor,
@@ -37,17 +33,11 @@ from src.core.modules.project_management.api.desktop.portfolio.models.scenarios 
     PortfolioScenarioDesktopDto,
     PortfolioScenarioEvaluationDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.portfolio.models.templates import (
-    PortfolioTemplateDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.portfolio.serializers.dependency_serializer import (
     serialize_dependency,
 )
 from src.core.modules.project_management.api.desktop.portfolio.serializers.heatmap_serializer import (
     serialize_heatmap_row,
-)
-from src.core.modules.project_management.api.desktop.portfolio.serializers.intake_serializer import (
-    serialize_intake_item,
 )
 from src.core.modules.project_management.api.desktop.portfolio.serializers.recent_action_serializer import (
     serialize_recent_action,
@@ -56,9 +46,6 @@ from src.core.modules.project_management.api.desktop.portfolio.serializers.scena
     serialize_comparison,
     serialize_evaluation,
     serialize_scenario,
-)
-from src.core.modules.project_management.api.desktop.portfolio.serializers.template_serializer import (
-    serialize_template,
 )
 from src.core.modules.project_management.api.desktop.portfolio.utils.intake_status_utils import (
     coerce_intake_status,
@@ -86,6 +73,13 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scor
 )
 from src.core.modules.project_management.application.portfolio.dto.responses.capacity import (
     PortfolioCapacityResourceDto,
+)
+from src.core.modules.project_management.application.portfolio.dto.responses.intake import (
+    PortfolioIntakePageResponse,
+    PortfolioIntakeResponse,
+)
+from src.core.modules.project_management.application.portfolio.dto.responses.templates import (
+    PortfolioTemplateResponseDto,
 )
 from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioDependencyQueryHandler,
@@ -139,7 +133,7 @@ class ProjectManagementPortfolioDesktopApi:
     def list_dependency_types(self) -> tuple[PortfolioOptionDescriptor, ...]:
         return build_dependency_type_options()
 
-    def list_templates(self) -> tuple[PortfolioTemplateDesktopDto, ...]:
+    def list_templates(self) -> tuple[PortfolioTemplateResponseDto, ...]:
         service = self._portfolio_template_query
         if service is None:
             return ()
@@ -147,9 +141,9 @@ class ProjectManagementPortfolioDesktopApi:
             service.list_scoring_templates(),
             key=lambda t: ((not t.is_active), (t.name or "").casefold()),
         )
-        return tuple(serialize_template(t) for t in templates)
+        return tuple(templates)
 
-    def list_intake_items(self, *, status: str | None = None) -> tuple[PortfolioIntakeDesktopDto, ...]:
+    def list_intake_items(self, *, status: str | None = None) -> tuple[PortfolioIntakeResponse, ...]:
         query = self._portfolio_intake_query
         if query is None:
             return ()
@@ -158,7 +152,7 @@ class ProjectManagementPortfolioDesktopApi:
             query.list_intake_items(status=normalized_status),
             key=lambda i: (-int(i.composite_score or 0), (i.title or "").casefold()),
         )
-        return tuple(serialize_intake_item(i) for i in rows)
+        return tuple(rows)
 
     def list_intake_items_page(
         self,
@@ -169,30 +163,21 @@ class ProjectManagementPortfolioDesktopApi:
         page_size: int = 25,
         sort_key: str = "updatedAt",
         sort_direction: str = "desc",
-    ) -> PortfolioIntakePageDto:
+    ) -> PortfolioIntakePageResponse:
         query = self._portfolio_intake_query
         if query is None:
-            return PortfolioIntakePageDto(
+            return PortfolioIntakePageResponse(
                 page=page, page_size=page_size, sort_key=sort_key,
                 sort_direction=sort_direction, search_text=search_text,
             )
         normalized_status = coerce_intake_status(status) if status else None
-        result = query.list_intake_items_page(
+        return query.list_intake_items_page(
             status=normalized_status,
             search_text=search_text,
             page=page,
             page_size=page_size,
             sort_key=sort_key,
             sort_direction=sort_direction,
-        )
-        return PortfolioIntakePageDto(
-            items=tuple(serialize_intake_item(row) for row in result.items),
-            total=result.total or 0,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-            search_text=search_text,
         )
 
     def list_dependencies_page(
@@ -336,20 +321,14 @@ class ProjectManagementPortfolioDesktopApi:
             return ()
         return tuple(serialize_recent_action(row) for row in service.list_recent_pm_actions(limit=limit))
 
-    def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioTemplateDesktopDto:
-        return serialize_template(
-            _require(self._portfolio_template_commands).create_scoring_template(command)
-        )
+    def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioTemplateResponseDto:
+        return _require(self._portfolio_template_commands).create_scoring_template(command)
 
-    def activate_scoring_template(self, command: PortfolioTemplateActivateCommand) -> PortfolioTemplateDesktopDto:
-        return serialize_template(
-            _require(self._portfolio_template_commands).activate_scoring_template(command)
-        )
+    def activate_scoring_template(self, command: PortfolioTemplateActivateCommand) -> PortfolioTemplateResponseDto:
+        return _require(self._portfolio_template_commands).activate_scoring_template(command)
 
-    def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeDesktopDto:
-        return serialize_intake_item(
-            _require(self._portfolio_intake_commands).create_intake_item(command)
-        )
+    def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeResponse:
+        return _require(self._portfolio_intake_commands).create_intake_item(command)
 
     def create_scenario(self, command: PortfolioScenarioCreateCommand) -> PortfolioScenarioDesktopDto:
         return serialize_scenario(
@@ -376,10 +355,8 @@ class ProjectManagementPortfolioDesktopApi:
     def remove_project_dependency(self, command: PortfolioDependencyRemoveCommand) -> None:
         _require(self._portfolio_dependency_commands).remove_project_dependency(command)
 
-    def update_intake_item_status(self, command: PortfolioIntakeUpdateCommand) -> PortfolioIntakeDesktopDto:
-        return serialize_intake_item(
-            _require(self._portfolio_intake_commands).update_intake_item(command)
-        )
+    def update_intake_item_status(self, command: PortfolioIntakeUpdateCommand) -> PortfolioIntakeResponse:
+        return _require(self._portfolio_intake_commands).update_intake_item(command)
 
     def build_capacity_pool(self) -> tuple[PortfolioCapacityResourceDto, ...]:
         if self._portfolio_executive_query is None:
@@ -407,4 +384,4 @@ def _coerce_project_status(value: str | None) -> ProjectStatus | None:
         return None
 
 
-__all__ = ["ProjectManagementPortfolioDesktopApi"]
+__all__ = ['ProjectManagementPortfolioDesktopApi']

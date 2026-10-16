@@ -14,6 +14,9 @@ from src.core.modules.project_management.application.portfolio.dto.commands.proj
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
 from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
     PortfolioIntakeItemORM,
@@ -213,12 +216,7 @@ def _seed_projects_with_financial_profile(services, count: int, *, late_task_cou
         project = services['project_create'].create_project(ProjectCreateCommand(name=f"Heatmap Scale Project {index:03d}", start_date=today - timedelta(days=30), end_date=today + timedelta(days=30), financial_currency_code="EUR"))
         projects.append(project)
         if index < late_task_count:
-            services['task_lifecycle_commands'].create_task(
-                project.id,
-                "Overdue task",
-                start_date=today - timedelta(days=20),
-                duration_days=5,
-            )
+            services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Overdue task", start_date=today - timedelta(days=20), duration_days=5))
     return projects
 
 
@@ -263,12 +261,7 @@ def test_top_at_risk_projects_ranks_full_scope_before_truncating(services) -> No
     today = date.today()
     hot_projects = projects[-3:]
     for project in hot_projects:
-        services['task_lifecycle_commands'].create_task(
-            project.id,
-            "Overdue task",
-            start_date=today - timedelta(days=20),
-            duration_days=5,
-        )
+        services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Overdue task", start_date=today - timedelta(days=20), duration_days=5))
 
     top = services["portfolio_executive_query"].list_top_at_risk_projects()
 

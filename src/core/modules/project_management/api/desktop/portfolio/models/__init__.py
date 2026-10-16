@@ -9,9 +9,6 @@ from src.core.modules.project_management.api.desktop.portfolio.models.executive 
 from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import (
     PortfolioHeatmapDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.portfolio.models.intake import (
-    PortfolioIntakeDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.portfolio.models.options import (
     PortfolioOptionDescriptor,
     PortfolioProjectOptionDescriptor,
@@ -24,8 +21,5 @@ from src.core.modules.project_management.api.desktop.portfolio.models.scenarios 
     PortfolioScenarioDesktopDto,
     PortfolioScenarioEvaluationDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.portfolio.models.templates import (
-    PortfolioTemplateDesktopDto,
-)
 
-__all__ = ['PortfolioDependencyDesktopDto', 'PortfolioExecutiveDesktopSnapshot', 'PortfolioHeatmapDesktopDto', 'PortfolioIntakeDesktopDto', 'PortfolioOptionDescriptor', 'PortfolioProjectOptionDescriptor', 'PortfolioRecentActionDesktopDto', 'PortfolioScenarioComparisonDesktopDto', 'PortfolioScenarioDesktopDto', 'PortfolioScenarioEvaluationDesktopDto', 'PortfolioTemplateDesktopDto']
+__all__ = ['PortfolioDependencyDesktopDto', 'PortfolioExecutiveDesktopSnapshot', 'PortfolioHeatmapDesktopDto', 'PortfolioOptionDescriptor', 'PortfolioProjectOptionDescriptor', 'PortfolioRecentActionDesktopDto', 'PortfolioScenarioComparisonDesktopDto', 'PortfolioScenarioDesktopDto', 'PortfolioScenarioEvaluationDesktopDto']

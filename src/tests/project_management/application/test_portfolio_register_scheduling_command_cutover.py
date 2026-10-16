@@ -38,6 +38,9 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scor
     PortfolioTemplateActivateCommand,
     PortfolioTemplateCreateCommand,
 )
+from src.core.modules.project_management.application.portfolio.mappers.intake import (
+    map_intake_response,
+)
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleHandler,
 )
@@ -124,7 +127,10 @@ def test_portfolio_create_commands_preserve_decimal_zero_and_scope(harness):
     item = intake.create_intake_item(PortfolioIntakeCreateCommand("Intake", "Sponsor", requested_budget=Decimal("0.00"), status="approved"))
     assert item.requested_budget == Decimal("0.00")
     assert item.status == PortfolioIntakeStatus.APPROVED
-    h.uow.intake.add.assert_called_once_with(item)
+    h.uow.intake.add.assert_called_once()
+    persisted = h.uow.intake.add.call_args.args[0]
+    assert map_intake_response(persisted) == item
+    assert type(persisted) is not type(item)
     scenarios = PortfolioScenarioCommandHandler(scenario_repo=h.repo, policy=h.policy, uow_factory=h.factory)
     scenario = scenarios.create_scenario(PortfolioScenarioCreateCommand("Zero", Decimal(0), 0, ("p2", "p1")))
     assert scenario.budget_limit == Decimal(0)
@@ -227,21 +233,26 @@ def test_baseline_commands_preserve_valuation_date_lifecycle_and_uow(harness, mo
 
 
 @pytest.mark.parametrize(("method", "command", "handler_slot", "serializer"), [
-    ("create_intake_item", PortfolioIntakeCreateCommand("Intake", "Sponsor"), "portfolio_intake_commands", "serialize_intake_item"),
-    ("update_intake_item_status", PortfolioIntakeUpdateCommand("i1", status="APPROVED"), "portfolio_intake_commands", "serialize_intake_item"),
+    ("create_intake_item", PortfolioIntakeCreateCommand("Intake", "Sponsor"), "portfolio_intake_commands", None),
+    ("update_intake_item_status", PortfolioIntakeUpdateCommand("i1", status="APPROVED"), "portfolio_intake_commands", None),
     ("create_scenario", PortfolioScenarioCreateCommand("Scenario"), "portfolio_scenario_commands", "serialize_scenario"),
-    ("create_scoring_template", PortfolioTemplateCreateCommand("Template"), "portfolio_template_commands", "serialize_template"),
-    ("activate_scoring_template", PortfolioTemplateActivateCommand("t1"), "portfolio_template_commands", "serialize_template"),
+    ("create_scoring_template", PortfolioTemplateCreateCommand("Template"), "portfolio_template_commands", None),
+    ("activate_scoring_template", PortfolioTemplateActivateCommand("t1"), "portfolio_template_commands", None),
 ])
 def test_portfolio_desktop_passes_same_command_to_injected_handler(monkeypatch, method, command, handler_slot, serializer):
     handler = MagicMock()
     serialize = MagicMock(return_value="serialized")
-    monkeypatch.setattr(f"src.core.modules.project_management.api.desktop.portfolio.api.{serializer}", serialize)
+    if serializer:
+        monkeypatch.setattr(f"src.core.modules.project_management.api.desktop.portfolio.api.{serializer}", serialize)
     api = ProjectManagementPortfolioDesktopApi(**{handler_slot: handler})
-    assert getattr(api, method)(command) == "serialized"
     handler_method = "update_intake_item" if method == "update_intake_item_status" else method
+    result = getattr(api, method)(command)
+    if serializer:
+        assert result == "serialized"
+        serialize.assert_called_once_with(getattr(handler, handler_method).return_value)
+    else:
+        assert result is getattr(handler, handler_method).return_value
     getattr(handler, handler_method).assert_called_once_with(command)
-    serialize.assert_called_once_with(getattr(handler, handler_method).return_value)
 
 
 @pytest.mark.parametrize(("method", "command"), [

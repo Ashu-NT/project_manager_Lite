@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.application.portfolio.dto.responses.templates import (
+    PortfolioTemplateResponseDto,
+)
+from src.ui_qml.modules.project_management.presenters.portfolio.template_mapper import (
+    template_weight_summary,
+)
 from src.ui_qml.modules.project_management.view_models.portfolio import (
     PortfolioMetricViewModel,
     PortfolioOverviewViewModel,
@@ -12,7 +18,7 @@ def build_overview(
     scenario_count: int,
     hot_projects: int,
     dependency_count: int,
-    active_template,
+    active_template: PortfolioTemplateResponseDto | None,
 ) -> PortfolioOverviewViewModel:
     return PortfolioOverviewViewModel(
         title="Portfolio",
@@ -42,7 +48,7 @@ def build_overview(
                 label="Active template",
                 value=active_template.name if active_template else "None",
                 supporting_text=(
-                    active_template.weight_summary
+                    template_weight_summary(active_template)
                     if active_template
                     else "Create or activate a scoring template."
                 ),

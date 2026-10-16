@@ -16,6 +16,12 @@ from src.core.modules.project_management.application.portfolio.dto.commands.inta
     PortfolioIntakeCreateCommand,
     PortfolioIntakeUpdateCommand,
 )
+from src.core.modules.project_management.application.portfolio.dto.responses.intake import (
+    PortfolioIntakeResponse,
+)
+from src.core.modules.project_management.application.portfolio.mappers.intake import (
+    map_intake_response,
+)
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioIntakeItemChanged,
     PortfolioIntakeItemChangeType,
@@ -61,7 +67,7 @@ class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeItem:
+    def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeResponse:
         status = command.status if isinstance(command.status, PortfolioIntakeStatus) else PortfolioIntakeStatus(str(command.status or PortfolioIntakeStatus.PROPOSED.value).strip().upper())
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio intake")
         organization_id = self._policy.organization_id(operation_label="create portfolio intake")
@@ -134,9 +140,9 @@ class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
                 "The active scoring template changed concurrently. Please retry.",
                 code="PORTFOLIO_TEMPLATE_ACTIVATION_CONFLICT",
             ) from exc
-        return item
+        return map_intake_response(item)
 
-    def update_intake_item(self, command: PortfolioIntakeUpdateCommand) -> PortfolioIntakeItem:
+    def update_intake_item(self, command: PortfolioIntakeUpdateCommand) -> PortfolioIntakeResponse:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio intake")
         self._policy.organization_id(operation_label="update portfolio intake")
         scope = self._policy.scope(operation_label="update portfolio intake")
@@ -219,7 +225,7 @@ class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
             for event in events:
                 uow.record_event(event)
             uow.commit()
-        return candidate
+        return map_intake_response(candidate)
 
 
 __all__ = ["PortfolioIntakeCommandHandler"]

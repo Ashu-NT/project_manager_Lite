@@ -1,5 +1,7 @@
+from decimal import Decimal
 from types import SimpleNamespace
 
+from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
@@ -39,7 +41,7 @@ class _FakePortfolioDesktopApi:
                 id="tpl-1",
                 name="Balanced PMO",
                 summary="Standard weighted intake rubric.",
-                weight_summary="Strategic x3, Value x2, Urgency x2, Risk x1",
+                strategic_weight=3, value_weight=2, urgency_weight=2, risk_weight=1,
                 is_active=True,
             ),
         )
@@ -51,12 +53,11 @@ class _FakePortfolioDesktopApi:
                 title="Packaging Line Expansion",
                 sponsor_name="Operations Director",
                 summary="Capacity uplift on the secondary line.",
-                requested_budget_label="EUR 180,000.00",
-                requested_capacity_label="40.0%",
+                requested_budget=Decimal("180000.00"),
+                requested_capacity_percent=40.0,
                 scoring_template_name="Balanced PMO",
                 scoring_template_id="tpl-1",
-                status="PROPOSED",
-                status_label="Proposed",
+                status=PortfolioIntakeStatus.PROPOSED,
                 composite_score=27,
                 version=2,
             ),
@@ -65,12 +66,11 @@ class _FakePortfolioDesktopApi:
                 title="Warehouse HVAC Refresh",
                 sponsor_name="Facilities Lead",
                 summary="Replace failing rooftop units.",
-                requested_budget_label="EUR 95,000.00",
-                requested_capacity_label="15.0%",
+                requested_budget=Decimal("95000.00"),
+                requested_capacity_percent=15.0,
                 scoring_template_name="Balanced PMO",
                 scoring_template_id="tpl-1",
-                status="APPROVED",
-                status_label="Approved",
+                status=PortfolioIntakeStatus.APPROVED,
                 composite_score=22,
                 version=1,
             ),
