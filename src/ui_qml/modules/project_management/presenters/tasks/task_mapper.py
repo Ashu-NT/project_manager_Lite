@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    constraint_presentation,
+)
 from src.ui_qml.modules.project_management.view_models.tasks import TaskRecordViewModel
 
 from .formatting import format_date, format_date_label
@@ -11,7 +14,7 @@ from .formatting import format_date, format_date_label
 # (`build_task_priority_options`) and the SQL reader's predicate
 # (`sqlalchemy_workspace_reader.py`: >=70 high, 30-69 medium, <30 low) --
 # the displayed label must agree with what the filter actually selects.
-def _priority_bucket_label(priority_value: object) -> str:
+def _priority_bucket_label(priority_value: int | str | None) -> str:
     if priority_value == "" or priority_value is None:
         return "Not set"
     value = int(priority_value)
@@ -21,13 +24,13 @@ def _priority_bucket_label(priority_value: object) -> str:
         return "Medium"
     return "Low"
 
-def build_task_state(task: Any) -> dict[str, object]:
+def build_task_state(task: Any, *, project_name: str | None = None) -> dict[str, object]:
     duration_value = task.duration_days if task.duration_days is not None else ""
     priority_value = task.priority if task.priority is not None else ""
     return {
         "taskId": task.id,
         "projectId": task.project_id,
-        "projectName": task.project_name or "",
+        "projectName": project_name if project_name is not None else task.project_name or "",
         "name": task.name,
         "taskCode": getattr(task, "code", "") or "",
         "parentTaskId": getattr(task, "parent_task_id", None) or "",
@@ -59,7 +62,7 @@ def build_task_state(task: Any) -> dict[str, object]:
         "actualEndLabel": format_date_label(task.actual_end),
         "isMilestone": bool(getattr(task, "is_milestone", False)),
         "constraintType": getattr(task, "constraint_type", "") or "",
-        "constraintTypeLabel": getattr(task, "constraint_type_label", "") or "",
+        "constraintTypeLabel": constraint_presentation(getattr(task, "constraint_type", "") or None).label,
         "constraintDate": format_date(getattr(task, "constraint_date", None)),
         "constraintDateLabel": format_date_label(getattr(task, "constraint_date", None)),
         "version": task.version,
@@ -70,7 +73,7 @@ def to_task_record_view_model(task: Any) -> TaskRecordViewModel:
     milestone_marker = "◆ " if state["isMilestone"] else ""
     return TaskRecordViewModel(
         id=task.id,
-        title=f"{'    ' * state['hierarchyDepth']}{milestone_marker}{task.name}",
+        title=f"{'    ' * int(str(state['hierarchyDepth']))}{milestone_marker}{task.name}",
         status_label=task.status.replace("_", " ").title(),
         subtitle=(
             f"WBS {state['wbsCode']} | {state['projectName']} | Start {state['startDateLabel']} | "

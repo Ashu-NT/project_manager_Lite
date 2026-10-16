@@ -166,7 +166,7 @@ def test_list_task_time_entries_paginates_authoritatively(services):
     assert len(page2.items) == 3
     assert len(page3.items) == 1
     # Newest-first: page 1's first row is the latest date (day 6).
-    assert page1.items[0].entry_date_label == (base_date + timedelta(days=6)).isoformat()
+    assert page1.items[0].entry_date == base_date + timedelta(days=6)
     all_ids = {item.entry_id for item in page1.items + page2.items + page3.items}
     assert len(all_ids) == 7
 
@@ -194,7 +194,7 @@ def test_list_task_time_entries_filters_by_resource(services):
 
     alice_only = api.list_task_time_entries(task.id, resource_id=alice.id, page=1, page_size=25)
     assert alice_only.total == 1
-    assert alice_only.items[0].resource_name == "Alice Brown"
+    assert alice_only.items[0].resource_id == alice.id
 
     unfiltered = api.list_task_time_entries(task.id, page=1, page_size=25)
     assert unfiltered.total == 2

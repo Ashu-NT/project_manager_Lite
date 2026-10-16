@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypedDict
+
 from datetime import date, datetime
 
 from src.core.modules.project_management.api.desktop.common.financial_formatting import (
@@ -31,6 +33,25 @@ def _datetime_label(value: datetime) -> str:
     return value.astimezone().strftime("%Y-%m-%d %H:%M")
 
 
+class FinanceRateViews(TypedDict):
+    selected_rate_card_id: str
+    selected_rate_card: FinancialsDetailViewModel
+    rate_cards: FinancialsCollectionViewModel
+    rate_lines: FinancialsCollectionViewModel
+    rate_card_sort_key: str
+    rate_card_sort_direction: str
+    rate_line_sort_key: str
+    rate_line_sort_direction: str
+    rate_card_search: str
+    rate_card_scope: str
+    rate_card_status: str
+    rate_line_search: str
+    rate_line_rate_type: str
+    rate_line_status: str
+    rate_line_effective_status: str
+    can_create_rate_card: bool
+
+
 def build_rate_workspace_views(
     source: FinanceRateWorkspaceFacts,
     *,
@@ -41,7 +62,7 @@ def build_rate_workspace_views(
     line_rate_type: str = "",
     line_status: str = "",
     line_effective_status: str = "",
-) -> dict[str, object]:
+) -> FinanceRateViews:
     selected = source.selected_rate_card
     detail = (
         FinancialsDetailViewModel(

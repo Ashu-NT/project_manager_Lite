@@ -17,15 +17,9 @@ from src.core.modules.project_management.api.desktop.financials.models.billing_w
     FinancialAccountingStatusPageDto,
     FinancialBillingReadWorkspaceDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.changes import (
-    FinancialChangeWorkspaceDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.commitments import (
     FinancialCommitmentLinePageDto,
     FinancialCommitmentSummaryDto,
-)
-from src.core.modules.project_management.api.desktop.financials.models.configuration import (
-    FinancialConfigurationWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostCodeOptionDescriptor,
@@ -53,14 +47,6 @@ from src.core.modules.project_management.api.desktop.financials.serializers.bill
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_workspace_serializer import (
     serialize_finance_billing_workspace,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.change_workspace_serializer import (
-    serialize_finance_change_workspace,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.configuration_serializer import (
-    serialize_finance_budget_workspace,
-    serialize_finance_planned_cost_workspace,
-    serialize_finance_setup_workspace,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.cost_entry_serializer import (
     serialize_cost_entry,
@@ -199,14 +185,18 @@ from src.core.modules.project_management.application.reporting import (
     ProfitabilityReportBuilder,
 )
 from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
+    BudgetVersionPageFacts,
+    FinanceBudgetWorkspaceFacts,
     FinancePageFacts,
     FinancePageRequest,
 )
 from src.core.modules.project_management.contracts.reads.financials.configuration.models.setup_facts import (
     FinanceSetupCostCodeQuery,
     FinanceSetupRestrictionQuery,
+    FinanceSetupWorkspaceFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.financial_changes.models.change_facts import (
+    FinanceChangeWorkspaceFacts,
     FinancialChangeImpactQuery,
     FinancialChangeRequestQuery,
 )
@@ -229,6 +219,9 @@ from src.core.modules.project_management.contracts.reads.financials.lookups.mode
     FinanceLookupPageFacts,
     FinanceLookupQuery,
     ManualActualCostCodeQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.planned_costs.models.planned_cost_facts import (
+    FinancePlannedCostWorkspaceFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.rate_cards.models.rate_facts import (
     FinanceRateWorkspaceFacts,
@@ -1135,10 +1128,15 @@ class ProjectManagementFinancialsDesktopApi:
         impact_search: str = "",
         impact_type: str = "",
         impact_applied_state: str = "",
-    ) -> FinancialChangeWorkspaceDto:
+    ) -> FinanceChangeWorkspaceFacts:
         if not project_id or self._finance_workspace_query is None:
-            return FinancialChangeWorkspaceDto()
-        facts = self._finance_workspace_query.get_change_workspace(
+            return FinanceChangeWorkspaceFacts(
+                selected_change_id="",
+                selected_change=None,
+                changes=FinancePageFacts((), 0, 1, 50, "metaText", "desc"),
+                impacts=FinancePageFacts((), 0, 1, 50, "metaText", "asc"),
+            )
+        return self._finance_workspace_query.get_change_workspace(
             project_id,
             selected_change_id=selected_change_id,
             change_request=FinancialChangeRequestQuery(
@@ -1160,16 +1158,6 @@ class ProjectManagementFinancialsDesktopApi:
                 impact_type=impact_type,
                 applied_state=impact_applied_state,
             ),
-        )
-        return serialize_finance_change_workspace(
-            facts,
-            change_search=change_search,
-            change_status=change_status,
-            change_approval_status=change_approval_status,
-            change_applied_state=change_applied_state,
-            impact_search=impact_search,
-            impact_type=impact_type,
-            impact_applied_state=impact_applied_state,
         )
 
     def create_financial_change(
@@ -1341,29 +1329,27 @@ class ProjectManagementFinancialsDesktopApi:
         cost_code_sort_direction: str = "asc",
         restriction_sort_key: str = "code",
         restriction_sort_direction: str = "asc",
-    ) -> FinancialConfigurationWorkspaceDto:
+    ) -> FinanceSetupWorkspaceFacts | None:
         if not project_id or self._finance_workspace_query is None:
-            return FinancialConfigurationWorkspaceDto()
-        return serialize_finance_setup_workspace(
-            self._finance_workspace_query.get_setup_workspace(
-                project_id,
-                cost_code_request=FinanceSetupCostCodeQuery(
-                    page=cost_code_page,
-                    page_size=page_size,
-                    search=cost_code_search,
-                    status=cost_code_status,
-                    assignment_state=cost_code_assignment,
-                    sort_key=cost_code_sort_key,
-                    sort_direction=cost_code_sort_direction,
-                ),
-                restriction_request=FinanceSetupRestrictionQuery(
-                    page=restriction_page,
-                    page_size=page_size,
-                    search=restriction_search,
-                    sort_key=restriction_sort_key,
-                    sort_direction=restriction_sort_direction,
-                ),
-            )
+            return None
+        return self._finance_workspace_query.get_setup_workspace(
+            project_id,
+            cost_code_request=FinanceSetupCostCodeQuery(
+                page=cost_code_page,
+                page_size=page_size,
+                search=cost_code_search,
+                status=cost_code_status,
+                assignment_state=cost_code_assignment,
+                sort_key=cost_code_sort_key,
+                sort_direction=cost_code_sort_direction,
+            ),
+            restriction_request=FinanceSetupRestrictionQuery(
+                page=restriction_page,
+                page_size=page_size,
+                search=restriction_search,
+                sort_key=restriction_sort_key,
+                sort_direction=restriction_sort_direction,
+            ),
         )
 
     def get_budget_workspace(
@@ -1380,29 +1366,31 @@ class ProjectManagementFinancialsDesktopApi:
         line_sort_direction: str = "desc",
         search: str = "",
         status: str = "",
-    ) -> FinancialConfigurationWorkspaceDto:
+    ) -> FinanceBudgetWorkspaceFacts:
         if not project_id or self._finance_workspace_query is None:
-            return FinancialConfigurationWorkspaceDto()
-        return serialize_finance_budget_workspace(
-            self._finance_workspace_query.get_budget_workspace(
-                project_id,
-                selected_budget_id=selected_budget_id,
-                version_request=FinancePageRequest(
-                    page=version_page,
-                    page_size=page_size,
-                    sort_key=version_sort_key,
-                    sort_direction=version_sort_direction,
-                    search=search,
-                    status=status,
-                ),
-                line_request=FinancePageRequest(
-                    page=line_page,
-                    page_size=page_size,
-                    sort_key=line_sort_key,
-                    sort_direction=line_sort_direction,
-                    search=search,
-                ),
+            return FinanceBudgetWorkspaceFacts(
+                selected_budget_id="",
+                versions=BudgetVersionPageFacts((), 0, 1, 50, "revision", "desc"),
+                lines=FinancePageFacts((), 0, 1, 50, "metaText", "desc"),
             )
+        return self._finance_workspace_query.get_budget_workspace(
+            project_id,
+            selected_budget_id=selected_budget_id,
+            version_request=FinancePageRequest(
+                page=version_page,
+                page_size=page_size,
+                sort_key=version_sort_key,
+                sort_direction=version_sort_direction,
+                search=search,
+                status=status,
+            ),
+            line_request=FinancePageRequest(
+                page=line_page,
+                page_size=page_size,
+                sort_key=line_sort_key,
+                sort_direction=line_sort_direction,
+                search=search,
+            ),
         )
 
     def create_budget_version(
@@ -1497,29 +1485,31 @@ class ProjectManagementFinancialsDesktopApi:
         line_sort_direction: str = "asc",
         search: str = "",
         status: str = "",
-    ) -> FinancialConfigurationWorkspaceDto:
+    ) -> FinancePlannedCostWorkspaceFacts:
         if not project_id or self._finance_workspace_query is None:
-            return FinancialConfigurationWorkspaceDto()
-        return serialize_finance_planned_cost_workspace(
-            self._finance_workspace_query.get_planned_cost_workspace(
-                project_id,
-                selected_version_id=selected_version_id,
-                version_request=FinancePageRequest(
-                    page=version_page,
-                    page_size=page_size,
-                    sort_key=version_sort_key,
-                    sort_direction=version_sort_direction,
-                    search=search,
-                    status=status,
-                ),
-                line_request=FinancePageRequest(
-                    page=line_page,
-                    page_size=page_size,
-                    sort_key=line_sort_key,
-                    sort_direction=line_sort_direction,
-                    search=search,
-                ),
+            return FinancePlannedCostWorkspaceFacts(
+                selected_version_id="",
+                versions=FinancePageFacts((), 0, 1, 50, "revision", "desc"),
+                lines=FinancePageFacts((), 0, 1, 50, "title", "asc"),
             )
+        return self._finance_workspace_query.get_planned_cost_workspace(
+            project_id,
+            selected_version_id=selected_version_id,
+            version_request=FinancePageRequest(
+                page=version_page,
+                page_size=page_size,
+                sort_key=version_sort_key,
+                sort_direction=version_sort_direction,
+                search=search,
+                status=status,
+            ),
+            line_request=FinancePageRequest(
+                page=line_page,
+                page_size=page_size,
+                sort_key=line_sort_key,
+                sort_direction=line_sort_direction,
+                search=search,
+            ),
         )
 
     def create_billing_profile(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypedDict
+
 from datetime import date, datetime
 
 from src.core.modules.project_management.api.desktop.common.financial_formatting import (
@@ -30,6 +32,25 @@ def _datetime_label(value: datetime | None) -> str:
     return value.astimezone().strftime("%Y-%m-%d %H:%M") if value else "Not set"
 
 
+class FinanceForecastViews(TypedDict):
+    selected_forecast_id: str
+    selected_forecast: FinancialsDetailViewModel
+    forecast_versions: FinancialsCollectionViewModel
+    forecast_lines: FinancialsCollectionViewModel
+    forecast_version_sort_key: str
+    forecast_version_sort_direction: str
+    forecast_line_sort_key: str
+    forecast_line_sort_direction: str
+    forecast_version_search: str
+    forecast_version_status: str
+    forecast_generation_mode: str
+    forecast_line_search: str
+    forecast_line_source_type: str
+    show_generate_forecast: bool
+    can_generate_forecast: bool
+    generate_forecast_disabled_reason: str
+
+
 def build_forecast_workspace_views(
     source: FinanceForecastWorkspaceFacts,
     *,
@@ -38,7 +59,7 @@ def build_forecast_workspace_views(
     generation_mode: str = "",
     line_search: str = "",
     line_source_type: str = "",
-) -> dict[str, object]:
+) -> FinanceForecastViews:
     selected = source.selected_forecast
     detail = (
         FinancialsDetailViewModel(

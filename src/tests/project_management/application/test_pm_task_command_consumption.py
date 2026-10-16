@@ -296,13 +296,13 @@ def test_timesheet_commands_keep_time_owned_versions_and_decimal_hours(services)
         TimesheetEntryCreateCommand(assignment.id, date(2026, 3, 2), 2, "Work")
     )
     updated = commands.update_timesheet_entry(
-        TimesheetEntryUpdateCommand(entry.id, entry.version, hours=3, note="")
+        TimesheetEntryUpdateCommand(entry.entry_id, entry.version, hours=3, note="")
     )
     assert updated.hours == 3
     assert updated.note == ""
     with pytest.raises(ConcurrencyError):
         commands.update_timesheet_entry(
-            TimesheetEntryUpdateCommand(entry.id, 0, hours=4)
+            TimesheetEntryUpdateCommand(entry.entry_id, 0, hours=4)
         )
 
 
@@ -369,7 +369,7 @@ def test_scoped_timesheet_command_still_checks_resource_and_period(services):
     with pytest.raises(ValidationError, match="reporting period"):
         commands.update_timesheet_entry(
             TimesheetEntryUpdateCommand(
-                entry.id, entry.version, entry_date=date(2026, 4, 1)
+                entry.entry_id, entry.version, entry_date=date(2026, 4, 1)
             ),
             scope="all",
             resource_id=resource.id,

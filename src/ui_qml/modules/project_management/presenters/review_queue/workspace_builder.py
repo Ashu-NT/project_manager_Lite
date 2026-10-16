@@ -39,6 +39,7 @@ def build_workspace_state(
             for option in desktop_api.list_projects()
         ),
     )
+    project_labels = {option.value: option.label for option in project_options}
     status_options = tuple(
         TimesheetSelectorOptionViewModel(value=option.value, label=option.label)
         for option in desktop_api.list_queue_statuses()
@@ -54,7 +55,9 @@ def build_workspace_state(
         *(
             TimesheetSelectorOptionViewModel(value=option.value, label=option.label)
             for option in desktop_api.list_review_resources(
-                project_id=None if normalized_project_id == "all" else normalized_project_id
+                project_id=None
+                if normalized_project_id == "all"
+                else normalized_project_id
             )
         ),
     )
@@ -84,17 +87,22 @@ def build_workspace_state(
             if normalized_status == "SUBMITTED"
             else "No periods match the current queue filter."
         ),
-        items=tuple(to_review_queue_record(row) for row in page.items),
+        items=tuple(
+            to_review_queue_record(row, project_labels=project_labels)
+            for row in page.items
+        ),
     )
     return TimesheetsWorkspaceViewModel(
         overview=TimesheetOverviewViewModel(
             title="Review Queue",
             subtitle="Review submitted timesheet periods with version-safe decisions.",
-            metrics=(TimesheetMetricViewModel(
-                label="Filtered periods",
-                value=str(page.total),
-                supporting_text=f"{len(page.items)} on this page",
-            ),),
+            metrics=(
+                TimesheetMetricViewModel(
+                    label="Filtered periods",
+                    value=str(page.total),
+                    supporting_text=f"{len(page.items)} on this page",
+                ),
+            ),
         ),
         project_options=project_options,
         queue_status_options=status_options,
@@ -105,11 +113,13 @@ def build_workspace_state(
         selected_queue_resource_id=normalized_resource_id,
         queue_period_start_from=queue_period_start_from,
         queue_period_start_to=queue_period_start_to,
-        queue_sort_key=page.sort_key,
-        queue_sort_direction=page.sort_direction,
+        queue_sort_key=page.sort.key,
+        queue_sort_direction=page.sort.direction.value,
         selected_queue_period_id=selected_id,
         review_queue=review_queue,
-        review_detail=build_review_detail(desktop_api, selected_id),
+        review_detail=build_review_detail(
+            desktop_api, selected_id, project_labels=project_labels
+        ),
         empty_state=review_queue.empty_state if not page.items else "",
         queue_total_count=page.total,
         queue_page=page.page,

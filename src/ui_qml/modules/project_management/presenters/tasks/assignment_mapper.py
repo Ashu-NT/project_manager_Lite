@@ -4,7 +4,12 @@ from decimal import Decimal
 
 from src.core.modules.project_management.api.desktop.common.financial_formatting import (
     format_decimal_amount,
+    format_hours,
 )
+from src.core.modules.project_management.api.desktop.tasks.services.capacity_status_labels import (
+    capacity_status_label,
+)
+from src.core.platform.domain.finance.money import canonical_decimal_text
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskRecordViewModel,
     TaskSelectorOptionViewModel,
@@ -13,12 +18,16 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
 
 def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
     allocation_percent = float(assignment.allocation_percent or 0.0)
-    hours_logged = assignment.hours_logged or "0"
+    hours_logged = canonical_decimal_text(assignment.hours_logged)
     hours_label = format_decimal_amount(hours_logged, grouping=False)
-    planned_hours = getattr(assignment, "allocated_planned_hours", None) or "0"
+    planned_hours = canonical_decimal_text(assignment.allocated_planned_hours)
     planned_label = format_decimal_amount(planned_hours, grouping=False)
     remaining = _decimal(planned_hours) - _decimal(hours_logged)
     remaining_label = format_decimal_amount(str(remaining), grouping=False)
+    capacity = assignment.capacity
+    capacity_known = capacity is not None and capacity.effective_available_capacity_hours is not None
+    capacity_status = capacity.capacity_status if capacity is not None else "UNKNOWN"
+    response_label = assignment.response_status.title()
     state = {
         "assignmentId": assignment.id,
         "taskId": assignment.task_id,
@@ -30,7 +39,7 @@ def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
         "remainingHours": str(remaining),
         "projectResourceId": assignment.project_resource_id or "",
         "responseStatus": assignment.response_status,
-        "responseStatusLabel": assignment.response_status_label,
+        "responseStatusLabel": response_label,
         "canManage": bool(assignment.can_manage),
         "canAccept": bool(assignment.can_accept),
         "canDecline": bool(assignment.can_decline),
@@ -41,31 +50,19 @@ def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
         # Authoritative calendar-based capacity facts for this assignment's
         # own current commitment (docs §44) -- rendered as-is, never
         # recalculated in QML.
-        "capacityKnown": bool(getattr(assignment, "capacity_known", False)),
-        "capacityStatus": getattr(assignment, "capacity_status", "UNKNOWN"),
-        "capacityStatusLabel": getattr(
-            assignment, "capacity_status_label", "Capacity unknown"
-        ),
-        "availableCapacityLabel": getattr(
-            assignment, "available_capacity_hours_label", ""
-        ),
-        "committedCapacityLabel": getattr(
-            assignment, "committed_capacity_hours_label", ""
-        ),
-        "capacityHeadroomLabel": getattr(
-            assignment, "capacity_headroom_hours_label", ""
-        ),
-        "peakUtilizationPercent": float(
-            getattr(assignment, "peak_utilization_percent", 0.0) or 0.0
-        ),
-        "remainingPlannedLabel": getattr(
-            assignment, "remaining_planned_hours_label", f"{remaining_label} h"
-        ),
+        "capacityKnown": capacity_known,
+        "capacityStatus": capacity_status,
+        "capacityStatusLabel": capacity_status_label(capacity_status),
+        "availableCapacityLabel": format_hours(capacity.effective_available_capacity_hours) if capacity_known else "",
+        "committedCapacityLabel": format_hours(capacity.resulting_committed_capacity_hours) if capacity is not None else "",
+        "capacityHeadroomLabel": format_hours(capacity.effective_available_capacity_hours - capacity.resulting_committed_capacity_hours) if capacity is not None and capacity.effective_available_capacity_hours is not None else "",
+        "peakUtilizationPercent": round(capacity.peak_utilization_percent or 0.0, 1) if capacity is not None else 0.0,
+        "remainingPlannedLabel": format_hours(assignment.allocated_planned_hours - assignment.hours_logged),
     }
     return TaskRecordViewModel(
         id=assignment.id,
         title=assignment.resource_name,
-        status_label=assignment.response_status_label,
+        status_label=response_label,
         subtitle="Resource assignment",
         supporting_text=f"{hours_label} h logged of {planned_label} h planned "
         f"({remaining_label} h remaining)",

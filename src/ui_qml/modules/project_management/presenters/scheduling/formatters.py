@@ -3,6 +3,10 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    constraint_presentation,
+)
+
 
 def format_date(value: date | None) -> str:
     return value.isoformat() if value else "-"
@@ -30,7 +34,7 @@ def constraint_label_for_activity(item: Any) -> str:
     # Deadline is a distinct concept and must never be labeled as FNLT
     # (see constraint_presentation.py's module docstring).
     if getattr(item, "constraint_type", ""):
-        return item.constraint_type_label
+        return constraint_presentation(item.constraint_type).label
     if item.deadline:
         return "Deadline"
     if item.start_date:

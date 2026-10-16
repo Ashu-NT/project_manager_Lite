@@ -33,7 +33,10 @@ def post_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> Non
 
 def edit_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> None:
     try:
-        expected_revision = int(payload.get("expectedRevision"))
+        raw_revision = payload.get("expectedRevision")
+        if raw_revision is None:
+            raise ValueError("Comment revision is required.")
+        expected_revision = int(raw_revision)
     except (TypeError, ValueError) as exc:
         raise ValueError("Comment revision is required. Refresh the discussion and try again.") from exc
     if expected_revision < 1:
@@ -54,7 +57,10 @@ def delete_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> N
         "Select a comment before deleting it.",
     )
     try:
-        expected_revision = int(payload.get("expectedRevision"))
+        raw_revision = payload.get("expectedRevision")
+        if raw_revision is None:
+            raise ValueError("Comment revision is required.")
+        expected_revision = int(raw_revision)
     except (TypeError, ValueError) as exc:
         raise ValueError("Comment revision is required. Refresh the discussion and try again.") from exc
     if expected_revision < 1:

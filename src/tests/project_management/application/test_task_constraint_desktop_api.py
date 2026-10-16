@@ -19,6 +19,9 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_con
 from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
     TaskCreateCommand,
 )
+from src.ui_qml.modules.project_management.presenters.tasks.task_mapper import (
+    build_task_state,
+)
 
 
 def test_list_constraint_options_includes_asap_and_six_editable_types(services):
@@ -48,7 +51,7 @@ def test_create_task_with_an_initial_constraint(services):
     )
 
     assert dto.constraint_type == "must_start_on"
-    assert dto.constraint_type_label == "Must Start On (MSO)"
+    assert build_task_state(dto)["constraintTypeLabel"] == "Must Start On (MSO)"
     assert dto.constraint_date == date(2026, 9, 18)
 
 
@@ -70,7 +73,7 @@ def test_update_task_scheduling_constraint_end_to_end(services):
     )
 
     assert updated.constraint_type == "start_no_earlier_than"
-    assert updated.constraint_type_label == "Start No Earlier Than (SNET)"
+    assert build_task_state(updated)["constraintTypeLabel"] == "Start No Earlier Than (SNET)"
     assert updated.constraint_date == date(2026, 9, 18)
 
     cleared = api.update_task_scheduling_constraint(

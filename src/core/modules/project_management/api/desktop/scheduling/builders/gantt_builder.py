@@ -8,6 +8,12 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Protocol, cast
 
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    constraint_presentation,
+)
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
+    dependency_type_label,
+)
 from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
     GanttBaselineOverlayDto,
     GanttBaselineTaskSnapshotDto,
@@ -67,13 +73,7 @@ class _GanttDependencyLike(Protocol):
     @property
     def successor_task_id(self) -> object: ...
     @property
-    def predecessor_task_name(self) -> object: ...
-    @property
-    def successor_task_name(self) -> object: ...
-    @property
     def dependency_type(self) -> object: ...
-    @property
-    def dependency_type_label(self) -> object: ...
     @property
     def lag_days(self) -> int | None: ...
 
@@ -332,11 +332,11 @@ def build_gantt_projection(
                 project_id=project_id,
                 dependency_id=str(dependency.id),
                 predecessor_task_id=predecessor_id,
-                predecessor_task_name=str(dependency.predecessor_task_name),
+                predecessor_task_name=str(node_by_id[predecessor_id].task.name),
                 successor_task_id=successor_id,
-                successor_task_name=str(dependency.successor_task_name),
-                dependency_type=str(dependency.dependency_type),
-                dependency_type_label=str(dependency.dependency_type_label),
+                successor_task_name=str(node_by_id[successor_id].task.name),
+                dependency_type=_enum_value(dependency.dependency_type),
+                dependency_type_label=dependency_type_label(_enum_value(dependency.dependency_type)),
                 lag_days=int(dependency.lag_days or 0),
             )
         )
@@ -515,9 +515,7 @@ def _build_row(
         canonical = schedule is not None
 
     constraint_type = "" if is_summary else str(getattr(schedule, "constraint_type", "") or "")
-    constraint_label = "" if is_summary else str(
-        getattr(schedule, "constraint_type_label", "") or ""
-    )
+    constraint_label = "" if is_summary else constraint_presentation(constraint_type).label
     constraint_date = None if is_summary else getattr(task, "constraint_date", None)
     return GanttTaskRowDto(
         tenant_id=tenant_id,

@@ -31,6 +31,10 @@ APPLICATION_POLICY_CALLS = frozenset(
         "src.core.platform.application.tenant.modules.authorization.require_module_enabled",
     }
 )
+# The shared result envelope is a DTO, not an application dependency graph.
+APPLICATION_RESULT_TYPES = frozenset({
+    "src.core.modules.project_management.application.common.pagination.PaginatedResult",
+})
 
 
 def _python_files(root: Path) -> tuple[Path, ...]:
@@ -129,6 +133,7 @@ def _application_construction_for_tree(path_label: str, tree: ast.AST) -> set[st
         if (
             qualified_name
             and qualified_name not in APPLICATION_POLICY_CALLS
+            and qualified_name not in APPLICATION_RESULT_TYPES
             and not is_dto
         ):
             violations.add(f"{path_label}:{qualified_name}")

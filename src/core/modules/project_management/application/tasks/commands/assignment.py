@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import nullcontext
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -34,6 +35,12 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_ass
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
     TaskAssignmentPlannedHoursCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.responses.assignment import (
+    TaskAssignmentResponseDto,
+)
+from src.core.modules.project_management.application.tasks.mappers.assignment import (
+    map_assignment,
 )
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskAssignmentChanged,
@@ -81,6 +88,8 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
     TimeEntryRepository,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -234,6 +243,77 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
         )
         return self._assignment_repo.list_by_task(task_id)
 
+    def _assignment_response(self, assignment: TaskAssignment) -> TaskAssignmentResponseDto:
+        resource = self._resource_repo.get(assignment.resource_id)
+        project_resource_version = 1
+        if assignment.project_resource_id and self._project_resource_repo is not None:
+            try:
+                project_resource = self._project_resource_repo.get(assignment.project_resource_id)
+                project_resource_version = int(getattr(project_resource, "version", 1) or 1)
+            except Exception:
+                logger.warning("Assignment project resource version could not be resolved", exc_info=True)
+        return map_assignment(
+            assignment, resource_name=resource.name if resource is not None else assignment.resource_id,
+            project_resource_version=project_resource_version,
+        )
+
+    def query_assignment_responses(self, task_id: str) -> tuple[TaskAssignmentResponseDto, ...]:
+        assignments = self.list_assignments_for_task(task_id)
+        if not assignments:
+            return ()
+        task = self._task_repo.get(task_id)
+        if task is None:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        resources = self._resource_repo.list_by_ids(list({row.resource_id for row in assignments}))
+        resources_by_id = {resource.id: resource for resource in resources}
+        project_resources = {}
+        if self._project_resource_repo is not None:
+            try:
+                project_resources = {row.id: row for row in self._project_resource_repo.list_by_project(task.project_id)}
+            except Exception:
+                logger.warning("Assignment project resource versions could not be resolved", exc_info=True)
+        engine = get_authorization_engine()
+        can_manage = False
+        responding_employee_id = None
+        can_read = False
+        try:
+            can_read = engine.has_permission(self._user_session, "task.read") and engine.has_scope_permission(
+                self._user_session, "project", task.project_id, "task.read")
+            can_manage = engine.has_permission(self._user_session, "task.manage") and engine.has_scope_permission(
+                self._user_session, "project", task.project_id, "task.manage")
+            principal = self._user_session.principal if self._user_session is not None else None
+            user_id = str(getattr(principal, "user_id", "") or "").strip()
+            if can_read and user_id and self._employee_repo is not None:
+                employee = self._employee_repo.find_by_user_id(user_id)
+                responding_employee_id = employee.id if employee is not None else None
+        except Exception:
+            can_manage = False
+            responding_employee_id = None
+            logger.warning("Assignment capabilities could not be resolved", exc_info=True)
+        rows = []
+        for assignment in assignments:
+            resource = resources_by_id.get(assignment.resource_id)
+            can_respond = bool(can_read and responding_employee_id
+                and resource is not None and resource.employee_id == responding_employee_id
+                and assignment.response_status == "pending")
+            capacity = None
+            # Dated capacity remains on the legacy preview authority. Undated tasks
+            # have no capacity fact, so the bounded enrichment path has no row queries.
+            if task.start_date and task.end_date and self._enterprise_resource_availability_service is not None:
+                try:
+                    capacity = self.preview_assignment_capacity(
+                        task_id, assignment.resource_id,
+                        proposed_allocation_percent=assignment.allocation_percent,
+                        exclude_assignment_id=assignment.id)
+                except Exception:
+                    logger.warning("Assignment capacity could not be resolved assignment_id=%s", assignment.id, exc_info=True)
+            rows.append(map_assignment(
+                assignment, resource_name=resource.name if resource is not None else assignment.resource_id,
+                project_resource_version=int(getattr(project_resources.get(assignment.project_resource_id or ""), "version", 1) or 1),
+                can_manage=bool(can_manage), can_accept=can_respond, can_decline=can_respond,
+                capacity=capacity))
+        return tuple(sorted(rows, key=lambda row: (row.resource_name.casefold(), -row.allocation_percent)))
+
     def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryFact:
         """Task-scoped (never resource-wide) planned/actual/remaining/overrun totals,
         plus the per-resource breakdown that explains them."""
@@ -282,7 +362,7 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
             resource_breakdown=tuple(rows),
         )
 
-    def set_assignment_hours(self, command: TaskAssignmentHoursCommand) -> TaskAssignment:
+    def set_assignment_hours(self, command: TaskAssignmentHoursCommand) -> TaskAssignmentResponseDto:
         assignment = self._assignment_repo.get(command.assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
@@ -329,9 +409,9 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
                 )
             )
             uow.commit()
-        return updated
+        return self._assignment_response(updated)
 
-    def set_assignment_allocation(self, command: TaskAssignmentAllocationCommand) -> TaskAssignment:
+    def set_assignment_allocation(self, command: TaskAssignmentAllocationCommand) -> TaskAssignmentResponseDto:
         assignment = self._assignment_repo.get(command.assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
@@ -384,9 +464,9 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
             )
             uow.commit()
 
-        return updated
+        return self._assignment_response(updated)
 
-    def update_assignment_planned_hours(self, command: TaskAssignmentPlannedHoursCommand) -> TaskAssignment:
+    def update_assignment_planned_hours(self, command: TaskAssignmentPlannedHoursCommand) -> TaskAssignmentResponseDto:
         """Distributes a ProjectResource.planned_hours envelope across task assignments."""
         if not self._project_resource_repo:
             raise BusinessRuleError(
@@ -469,7 +549,7 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
                 )
             )
             uow.commit()
-        return updated
+        return self._assignment_response(updated)
 
     def _check_planned_hours_envelope(
         self,
@@ -560,14 +640,14 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
                 project_resource=project_resource,
             )
 
-    def assign_project_resource(self, command: TaskAssignmentCreateCommand) -> TaskAssignment:
+    def assign_project_resource(self, command: TaskAssignmentCreateCommand) -> TaskAssignmentResponseDto:
         with self._uow_scope.create() as uow:
             project_resource = uow.project_resources.get(command.project_resource_id)
             if not project_resource:
                 raise NotFoundError(
                     "Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND"
                 )
-            return self._assign_project_resource_in_uow(
+            assignment = self._assign_project_resource_in_uow(
                 task_id=command.task_id,
                 project_resource_id=command.project_resource_id,
                 allocation_percent=command.allocation_percent,
@@ -575,6 +655,8 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
                 project_resource=project_resource,
                 uow=uow,
             )
+
+        return self._assignment_response(assignment)
 
     def _assign_project_resource_in_uow(
         self,
@@ -835,10 +917,10 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
             can_decline=can_respond,
         )
 
-    def accept_assignment(self, assignment_id: str) -> TaskAssignment:
+    def accept_assignment(self, assignment_id: str) -> TaskAssignmentResponseDto:
         assignment, task, resource = self._resolve_assignment_for_response(assignment_id)
         if assignment.response_status == "accepted":
-            return assignment
+            return self._assignment_response(assignment)
         if assignment.response_status != "pending":
             raise BusinessRuleError(
                 "This assignment has already been declined and must be reassigned before it can be accepted.",
@@ -880,16 +962,16 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
                 )
             )
             uow.commit()
-        return updated
+        return self._assignment_response(updated)
 
     def decline_assignment(
         self,
         assignment_id: str,
         reason: str | None = None,
-    ) -> TaskAssignment:
+    ) -> TaskAssignmentResponseDto:
         assignment, task, resource = self._resolve_assignment_for_response(assignment_id)
         if assignment.response_status == "declined":
-            return assignment
+            return self._assignment_response(assignment)
         if assignment.response_status != "pending":
             raise BusinessRuleError(
                 "This assignment has already been accepted and must be reassigned before it can be declined.",
@@ -932,7 +1014,7 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
                 )
             )
             uow.commit()
-        return updated
+        return self._assignment_response(updated)
 
 
 __all__ = ["TaskAssignmentActionContext", "TaskAssignmentCommandHandler"]

@@ -37,6 +37,8 @@ def update_assignment_allocation(desktop_api, payload: dict[str, Any]) -> None:
         if raw_version is not None and str(raw_version).strip() != ""
         else None
     )
+    if expected_version is None:
+        raise ValueError("Assignment version is required. Refresh and try again.")
     command = TaskAssignmentAllocationCommand(
         assignment_id=require_text(
             payload,

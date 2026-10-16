@@ -26,7 +26,7 @@ def matches_schedule_filters(
         item.task_id,
         item.name,
         item.description or "",
-        item.status_label or "",
+        item.status.replace("_", " ").title(),
         format_date(item.start_date),
         format_date(item.finish_date),
     )

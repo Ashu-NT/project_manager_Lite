@@ -25,6 +25,7 @@ def approve_period(
         note=optional_text(payload, "note") or "",
     )
 
+
 def reject_period(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
     payload: dict[str, Any],
@@ -37,6 +38,7 @@ def reject_period(
         note=require_text(payload, "note", "A return reason is required."),
     )
 
+
 def lock_period(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
     payload: dict[str, Any],
@@ -48,6 +50,7 @@ def lock_period(
         ),
         note=optional_text(payload, "note") or "",
     )
+
 
 def unlock_period(
     desktop_api: ProjectManagementTimesheetsDesktopApi,

@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+from datetime import date
+
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementSchedulingDesktopApi,
 )
+from src.core.modules.project_management.application.scheduling.models.leveling import (
+    ProposedTaskMove,
+    UnresolvedConflict,
+)
 
 
-def _status_label(move) -> str:
+def _date_label(value: date | None) -> str:
+    return value.strftime("%b %d, %Y") if value else "--"
+
+
+def _status_label(move: ProposedTaskMove) -> str:
     if move.infeasible_after:
         return "Infeasible"
     if move.deadline_warning:
@@ -15,18 +25,20 @@ def _status_label(move) -> str:
     return "Resolved"
 
 
-def _move_row(move) -> dict[str, object]:
+def _move_row(move: ProposedTaskMove) -> dict[str, object]:
+    old_start_label = _date_label(move.old_start)
+    new_start_label = _date_label(move.new_start)
     return {
         "id": move.task_id,
         "taskId": move.task_id,
         "taskName": move.task_name,
         "wbsCode": move.wbs_code,
-        "oldStartLabel": move.old_start_label,
-        "newStartLabel": move.new_start_label,
-        "newFinishLabel": move.new_finish_label,
-        "shiftLabel": f"{move.old_start_label} -> {move.new_start_label} (+{move.shift_working_days}d)",
+        "oldStartLabel": old_start_label,
+        "newStartLabel": new_start_label,
+        "newFinishLabel": _date_label(move.new_finish),
+        "shiftLabel": f"{old_start_label} -> {new_start_label} (+{move.shift_working_days}d)",
         "shiftWorkingDays": move.shift_working_days,
-        "resourcesLabel": move.resource_names_label,
+        "resourcesLabel": ", ".join(move.resource_names) if move.resource_names else "--",
         "reason": move.reason,
         "floatBefore": move.float_before,
         "floatAfter": move.float_after,
@@ -38,13 +50,13 @@ def _move_row(move) -> dict[str, object]:
     }
 
 
-def _unresolved_row(conflict) -> dict[str, object]:
+def _unresolved_row(conflict: UnresolvedConflict) -> dict[str, object]:
     return {
         "id": conflict.resource_id,
         "resourceId": conflict.resource_id,
         "resourceName": conflict.resource_name,
-        "conflictDateLabel": conflict.conflict_date_label,
-        "totalAllocationLabel": conflict.total_allocation_label,
+        "conflictDateLabel": _date_label(conflict.conflict_date),
+        "totalAllocationLabel": f"{conflict.total_allocation_percent:.0f}%",
         "reason": conflict.reason,
     }
 
@@ -84,8 +96,8 @@ def build_resource_leveling_state(
         "isFeasible": dto.is_feasible,
         "resourceConflictsBefore": dto.resource_conflicts_before,
         "resourceConflictsAfter": dto.resource_conflicts_after,
-        "projectFinishBeforeLabel": dto.project_finish_before_label,
-        "projectFinishAfterLabel": dto.project_finish_after_label,
+        "projectFinishBeforeLabel": _date_label(dto.project_finish_before),
+        "projectFinishAfterLabel": _date_label(dto.project_finish_after),
         "criticalPathChanged": dto.critical_path_changed,
         "warnings": list(dto.warnings),
         "unresolvedConflicts": unresolved,

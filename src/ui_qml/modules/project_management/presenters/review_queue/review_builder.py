@@ -1,7 +1,18 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementTimesheetsDesktopApi,
+)
+from src.core.modules.project_management.api.desktop.timesheets.formatters.datetime_formatter import (
+    format_datetime,
+)
+from src.core.modules.project_management.api.desktop.timesheets.formatters.period_formatter import (
+    format_period_label,
+)
+from src.core.modules.project_management.api.desktop.timesheets.formatters.time_formatter import (
+    format_hours,
 )
 from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetDetailFieldViewModel,
@@ -12,6 +23,8 @@ from src.ui_qml.modules.project_management.view_models.timesheets import (
 def build_review_detail(
     desktop_api: ProjectManagementTimesheetsDesktopApi,
     period_id: str,
+    *,
+    project_labels: Mapping[str, str],
 ) -> TimesheetDetailViewModel:
     if not period_id:
         return TimesheetDetailViewModel(
@@ -20,21 +33,26 @@ def build_review_detail(
         )
     detail = desktop_api.get_review_detail(period_id)
     summary = detail.summary
+    project_names = tuple(
+        project_labels.get(project_id, project_id) for project_id in summary.project_ids
+    )
     return TimesheetDetailViewModel(
         id=summary.period_id,
-        title=f"{summary.resource_name} | {summary.period_start_label}",
-        status_label=summary.status_label,
-        subtitle=" | ".join(summary.project_names) if summary.project_names else "Shared / cross-project scope",
+        title=f"{summary.resource_name} | {format_period_label(summary.period_start)}",
+        status_label=summary.status.value.replace("_", " ").title(),
+        subtitle=" | ".join(project_names)
+        if project_names
+        else "Shared / cross-project scope",
         description="Decision context for this authoritative timesheet period.",
         fields=(
             TimesheetDetailFieldViewModel(
                 label="Hours",
-                value=summary.total_hours_label,
+                value=format_hours(summary.total_hours),
                 supporting_text=f"{summary.entry_count} entry or entries.",
             ),
             TimesheetDetailFieldViewModel(
                 label="Allocation context",
-                value=f"{getattr(summary, 'project_count', len(summary.project_names))} project(s) | {getattr(summary, 'task_count', 0)} task(s)",
+                value=f"{getattr(summary, 'project_count', len(project_names))} project(s) | {getattr(summary, 'task_count', 0)} task(s)",
                 supporting_text=(
                     f"{getattr(summary, 'generic_entry_count', 0)} generic or non-task entry/entries."
                     if getattr(summary, "generic_entry_count", 0)
@@ -43,13 +61,13 @@ def build_review_detail(
             ),
             TimesheetDetailFieldViewModel(
                 label="Submitted by",
-                value=summary.submitted_by_username,
-                supporting_text=summary.submitted_at_label,
+                value=summary.submitted_by_username or "-",
+                supporting_text=format_datetime(summary.submitted_at),
             ),
             TimesheetDetailFieldViewModel(
                 label="Decided by",
-                value=summary.decided_by_username,
-                supporting_text=summary.decided_at_label,
+                value=summary.decided_by_username or "-",
+                supporting_text=format_datetime(summary.decided_at),
             ),
             TimesheetDetailFieldViewModel(
                 label="Decision note",
@@ -60,17 +78,17 @@ def build_review_detail(
             "periodId": summary.period_id,
             "resourceId": summary.resource_id,
             "periodStart": summary.period_start.isoformat(),
-            "status": summary.status,
+            "status": summary.status.value,
             "version": getattr(summary, "version", 1),
             "canApprove": bool(getattr(summary, "can_approve", False)),
             "canReject": bool(getattr(summary, "can_reject", False)),
             "canLock": bool(getattr(summary, "can_lock", False)),
             "canUnlock": bool(getattr(summary, "can_unlock", False)),
-            "totalHoursLabel": summary.total_hours_label,
+            "totalHoursLabel": format_hours(summary.total_hours),
             "submittedBy": summary.submitted_by_username,
-            "submittedAt": summary.submitted_at_label,
+            "submittedAt": format_datetime(summary.submitted_at),
             "decidedBy": summary.decided_by_username,
-            "decidedAt": summary.decided_at_label,
+            "decidedAt": format_datetime(summary.decided_at),
             "decisionNote": summary.decision_note,
         },
     )

@@ -12,15 +12,37 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
+    FinancialCreateBudgetVersionCommand,
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
+    FinancialAddBudgetLineCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_draft import (
+    FinancialCreateChangeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_impacts import (
+    FinancialChangeImpactCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_submission import (
+    FinancialSubmitChangeCommand,
+)
+from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
+    FinancialVersionedForecastCommand,
+)
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
 )
 from src.core.modules.project_management.contracts.reads.financials.financial_changes.models.change_facts import (
     FinancialChangeImpactQuery,
     FinancialChangeRequestQuery,
-)
-from src.core.modules.project_management.domain.financials.financial_change import (
-    FinancialChangeImpactType,
 )
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
@@ -48,114 +70,161 @@ def _statement_count(session):
 
 
 def _seed_changes(services):
-    project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Change Reader", financial_currency_code="USD"))
-    code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
-        code="R6B-CHANGE", name="Governed change"
-    ))
-    _approve_finance_bases(services, project.id, code.id)
-    task = services['task_lifecycle_commands'].create_task(
-        project.id,
-        "Commission changed scope",
-        start_date=date(2026, 9, 1),
-        duration_days=5,
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(name="R6B Change Reader", financial_currency_code="USD")
     )
-    services['financial_change_query']
-    principal = services["user_session"].principal
-    alpha = services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
-        project.id,
-        title="Alpha approved scope",
-        reason="Customer-approved scope increase",
-        description="Governed commercial and schedule evidence.",
-        effective_date=date(2026, 9, 1),
-        created_by=principal.user_id,
-    ))
-    budget_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
-        alpha.id,
-        impact_type=FinancialChangeImpactType.BUDGET,
-        description="Increase approved budget",
-        amount=Decimal("125.2500"),
-        cost_code_id=code.id,
-        expected_change_version=alpha.row_version,
-    )).impact
-    alpha = services['financial_change_query'].get_change(alpha.id)
-    forecast_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
-        alpha.id,
-        impact_type=FinancialChangeImpactType.FORECAST,
-        description="Increase forecast exposure",
-        amount=Decimal("80.5000"),
-        cost_code_id=code.id,
-        expected_change_version=alpha.row_version,
-    )).impact
-    alpha = services['financial_change_query'].get_change(alpha.id)
-    schedule_impact = services['finance_governance_commands'].financial_change(lambda handler: handler.add_impact(
-        alpha.id,
-        impact_type=FinancialChangeImpactType.SCHEDULE,
-        description="Move commissioning window",
-        task_id=task.id,
-        schedule_start=date(2026, 9, 8),
-        schedule_finish=date(2026, 9, 11),
-        expected_change_version=alpha.row_version,
-    )).impact
-    alpha = services['financial_change_query'].get_change(alpha.id)
-    alpha = services['finance_governance_commands'].financial_change_submission(lambda handler: handler.submit_change(
-        alpha.id,
-        submitted_by=principal.user_id,
-        expected_version=alpha.row_version,
-    ))
-    zulu = services['finance_governance_commands'].financial_change(lambda handler: handler.create_change(
-        project.id,
-        title="Zulu contingency",
-        reason="Contingency evidence",
-        effective_date=date(2026, 10, 1),
-        created_by=principal.user_id,
-    ))
+    boundary = services["finance_governance_commands"]
+    query = services["financial_change_query"]
+    code = boundary.cost_code(
+        lambda handler: handler.create_cost_code(
+            FinancialCreateCostCodeCommand(code="R6B-CHANGE", name="Governed change")
+        )
+    )
+    _approve_finance_bases(services, project.id, code.id)
+    task = services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(
+            project_id=project.id,
+            name="Commission changed scope",
+            start_date=date(2026, 9, 1),
+            duration_days=5,
+        )
+    )
+    result = boundary.financial_change(
+        lambda handler: handler.create_change(
+            FinancialCreateChangeCommand(
+                project_id=project.id,
+                title="Alpha approved scope",
+                reason="Customer-approved scope increase",
+                description="Governed commercial and schedule evidence.",
+                effective_date="2026-09-01",
+            )
+        )
+    )
+    alpha = query.get_change(result.change_id)
+    for impact_type, description, amount in (
+        ("budget", "Increase approved budget", "125.2500"),
+        ("forecast", "Increase forecast exposure", "80.5000"),
+    ):
+        boundary.financial_change(
+            lambda handler: handler.add_impact(
+                FinancialChangeImpactCommand(
+                    change_id=alpha.id,
+                    expected_change_version=alpha.row_version,
+                    impact_type=impact_type,
+                    description=description,
+                    amount=amount,
+                    cost_code_id=code.id,
+                )
+            )
+        )
+        alpha = query.get_change(alpha.id)
+    boundary.financial_change(
+        lambda handler: handler.add_impact(
+            FinancialChangeImpactCommand(
+                change_id=alpha.id,
+                expected_change_version=alpha.row_version,
+                impact_type="schedule",
+                description="Move commissioning window",
+                task_id=task.id,
+                schedule_start="2026-09-08",
+                schedule_finish="2026-09-11",
+            )
+        )
+    )
+    alpha = query.get_change(alpha.id)
+    impacts = {item.impact_type.value: item for item in query.list_impacts(alpha.id)}
+    boundary.financial_change_submission(
+        lambda handler: handler.submit_change(
+            FinancialSubmitChangeCommand(alpha.id, alpha.row_version)
+        )
+    )
+    alpha = query.get_change(alpha.id)
+    result = boundary.financial_change(
+        lambda handler: handler.create_change(
+            FinancialCreateChangeCommand(
+                project_id=project.id,
+                title="Zulu contingency",
+                reason="Contingency evidence",
+                effective_date="2026-10-01",
+            )
+        )
+    )
+    zulu = query.get_change(result.change_id)
     services["session"].expire_all()
-    return project, code, task, alpha, zulu, budget_impact, forecast_impact, schedule_impact
+    return (
+        project,
+        code,
+        task,
+        alpha,
+        zulu,
+        impacts["budget"],
+        impacts["forecast"],
+        impacts["schedule"],
+    )
 
 
 def _approve_finance_bases(services, project_id: str, cost_code_id: str) -> None:
-    services['budget_query']
-    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project_id, "R6B approved budget"))
-    services['finance_governance_commands'].budget_lines(lambda handler: handler.add_line(
-        budget.id,
-        cost_code_id=cost_code_id,
-        description="Approved scope base",
-        amount=Decimal(1000),
-        expected_budget_version=budget.row_version,
-    ))
-    budget = services['budget_query'].get_budget(budget.id)
-    budget = services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.submit_budget(
-        budget.id, "admin", expected_version=budget.row_version
-    ))
-    services['finance_governance_commands'].budget_approval(lambda handler: handler.approve_budget(
-        budget.id, approved_by="admin", expected_version=budget.row_version
-    ))
-
-    services['forecast_version_query']
-    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.create_forecast(
-        project_id,
-        name="R6B approved forecast",
-        as_of_date=date(2026, 8, 28),
-        generation_mode=ForecastGenerationMode.MANUAL,
-        created_by="admin",
-    ))
-    services['finance_governance_commands'].forecast_lines(lambda handler: handler.add_line(
-        forecast.id,
-        cost_code_id=cost_code_id,
-        description="Approved forecast base",
-        amount=Decimal(900),
-        source_kind=ForecastLineSourceKind.MANUAL,
-        source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
-        created_by="admin",
-        expected_forecast_version=forecast.row_version,
-    ))
-    forecast = services['forecast_version_query'].get_forecast(forecast.id)
-    forecast = services['finance_governance_commands'].forecast_lifecycle(lambda handler: handler.submit_forecast(
-        forecast.id, submitted_by="admin", expected_version=forecast.row_version
-    ))
-    services['finance_governance_commands'].forecast_approval(lambda handler: handler.approve_forecast(
-        forecast.id, approved_by="admin", expected_version=forecast.row_version
-    ))
+    boundary = services["finance_governance_commands"]
+    budget = boundary.budget_lifecycle(
+        lambda handler: handler.create_budget(
+            FinancialCreateBudgetVersionCommand(project_id, "R6B approved budget")
+        )
+    )
+    boundary.budget_lines(
+        lambda handler: handler.add_line(
+            FinancialAddBudgetLineCommand(
+                budget_id=budget.budget_id,
+                expected_parent_version=budget.row_version,
+                cost_code_id=cost_code_id,
+                description="Approved scope base",
+                amount="1000",
+                currency_code="USD",
+            )
+        )
+    )
+    budget = services["budget_query"].get_budget(budget.budget_id)
+    result = boundary.budget_lifecycle(
+        lambda handler: handler.submit_budget(
+            FinancialVersionedBudgetCommand(budget.id, budget.row_version)
+        )
+    )
+    boundary.budget_approval(
+        lambda handler: handler.approve_budget(
+            result.budget_id, approved_by="admin", expected_version=result.row_version
+        )
+    )
+    forecast = boundary.forecast_lifecycle(
+        lambda handler: handler.create_forecast(
+            project_id,
+            name="R6B approved forecast",
+            as_of_date=date(2026, 8, 28),
+            generation_mode=ForecastGenerationMode.MANUAL,
+            created_by="admin",
+        )
+    )
+    boundary.forecast_lines(
+        lambda handler: handler.add_line(
+            forecast.id,
+            cost_code_id=cost_code_id,
+            description="Approved forecast base",
+            amount=Decimal(900),
+            source_kind=ForecastLineSourceKind.MANUAL,
+            source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
+            created_by="admin",
+            expected_forecast_version=forecast.row_version,
+        )
+    )
+    forecast = services["forecast_version_query"].get_forecast(forecast.id)
+    result = boundary.forecast_lifecycle(
+        lambda handler: handler.submit_forecast(
+            FinancialVersionedForecastCommand(forecast.id, forecast.row_version)
+        )
+    )
+    boundary.forecast_approval(
+        lambda handler: handler.approve_forecast(
+            result.forecast_id, approved_by="admin", expected_version=result.row_version
+        )
+    )
 
 
 def test_change_reader_is_bounded_sorted_filtered_and_selection_is_explicit(services):
@@ -193,7 +262,9 @@ def test_change_reader_is_bounded_sorted_filtered_and_selection_is_explicit(serv
         organization_id=scope.organization_id,
         project_id=project.id,
         request=FinancialChangeRequestQuery(
-            search="approved scope", status="pending_approval", approval_status="pending"
+            search="approved scope",
+            status="pending_approval",
+            approval_status="pending",
         ),
     )
     assert pending.total == 1
@@ -206,7 +277,9 @@ def test_change_reader_is_bounded_sorted_filtered_and_selection_is_explicit(serv
 
 
 def test_selected_change_detail_and_typed_impacts_are_bounded(services):
-    project, code, task, alpha, _zulu, budget, forecast, schedule = _seed_changes(services)
+    project, code, task, alpha, _zulu, budget, forecast, schedule = _seed_changes(
+        services
+    )
     reader = services["finance_workspace_query"]._change_reader
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="test selected change"
@@ -269,19 +342,24 @@ def test_selected_change_detail_and_typed_impacts_are_bounded(services):
     assert schedule_only.items[0].id == schedule.id
 
 
-def test_change_reader_denies_wrong_parent_scope_and_serializes_decimal_as_text(services):
+def test_change_reader_denies_wrong_parent_scope_and_api_preserves_decimal(services):
     project, _code, _task, alpha, _zulu, budget, *_ = _seed_changes(services)
-    other_project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Other Project", financial_currency_code="USD"))
+    other_project = services["project_create"].create_project(
+        ProjectCreateCommand(name="R6B Other Project", financial_currency_code="USD")
+    )
     query = services["finance_workspace_query"]
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="test change scope"
     )
-    assert query._change_reader.get_change(
-        tenant_id=scope.tenant_id,
-        organization_id=scope.organization_id,
-        project_id=other_project.id,
-        change_id=alpha.id,
-    ) is None
+    assert (
+        query._change_reader.get_change(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=other_project.id,
+            change_id=alpha.id,
+        )
+        is None
+    )
     foreign_children = query._change_reader.list_impacts(
         tenant_id=scope.tenant_id,
         organization_id=scope.organization_id,
@@ -295,10 +373,11 @@ def test_change_reader_denies_wrong_parent_scope_and_serializes_decimal_as_text(
         finance_workspace_query=query
     ).get_change_workspace(project.id, selected_change_id=alpha.id)
     assert dto.selected_change_id == alpha.id
-    state = next(item.state for item in dto.impacts if item.id == budget.id)
-    assert isinstance(state["amount"], str)
-    assert Decimal(state["amount"]) == Decimal("125.2500")
-    assert dto.selected_change.state["approvalRequestId"]
+    impact = next(item for item in dto.impacts.items if item.id == budget.id)
+    assert isinstance(impact.amount, Decimal)
+    assert impact.amount == Decimal("125.2500")
+    assert dto.selected_change is not None
+    assert dto.selected_change.approval_request_id
 
 
 def test_change_workspace_requires_finance_read_permission(services):

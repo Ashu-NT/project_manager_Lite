@@ -1,9 +1,25 @@
-from datetime import date
+from datetime import date, datetime
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
+from src.core.modules.project_management.contracts.reads.timesheets.review_reader import TimesheetReviewQueueFact, TimesheetReviewReadPage, TimesheetReviewInspectorFact
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from types import SimpleNamespace
 
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
+
+
+def _review_fact() -> TimesheetReviewQueueFact:
+    return TimesheetReviewQueueFact(
+        item_id="period-1", timesheet_period_id="period-1", version=1,
+        resource_id="res-1", resource_name="Electrical Crew", resource_code="RES-1",
+        period_start=date(2026, 5, 1), period_end=date(2026, 5, 31),
+        status=TimesheetPeriodStatus.SUBMITTED,
+        submitted_at=datetime(2026, 5, 4, 17), submitted_by_username="alex",
+        decided_at=None, decided_by_username=None, decision_note=None,
+        total_hours=16.0, project_count=1, task_count=1, entry_count=2,
+        generic_entry_count=0, project_ids=("proj-1",),
+    )
 
 
 class _FakeTimesheetsDesktopApi:
@@ -45,53 +61,6 @@ class _FakeTimesheetsDesktopApi:
             return rows[1:]
         return rows
 
-    def build_assignment_snapshot(self, assignment_id, *, period_start=None):
-        assert assignment_id == "assign-1"
-        return SimpleNamespace(
-            assignment=SimpleNamespace(
-                value="assign-1",
-                label="Plant Upgrade | Cable Pull | Electrical Crew",
-                project_id="proj-1",
-            ),
-            period_options=(SimpleNamespace(value="2026-05-01", label="May 2026"),),
-            selected_period_start="2026-05-01",
-            period_summary=SimpleNamespace(
-                period_id="period-1",
-                period_start_label="May 2026",
-                period_end_label="2026-05-31",
-                status="SUBMITTED",
-                status_label="Submitted",
-                resource_id="res-1",
-                resource_name="Electrical Crew",
-                total_hours_label="16.00h",
-                entry_count=2,
-                submitted_by_username="alex",
-                submitted_at_label="2026-05-04 17:00",
-                decided_by_username="-",
-                decided_at_label="-",
-                decision_note="",
-            ),
-            entries=(
-                SimpleNamespace(
-                    entry_id="entry-1",
-                    entry_date_label="2026-05-03",
-                    hours=8.0,
-                    hours_label="8.00h",
-                    note="Cable tray installation",
-                    author_username="alex",
-                ),
-                SimpleNamespace(
-                    entry_id="entry-2",
-                    entry_date_label="2026-05-04",
-                    hours=8.0,
-                    hours_label="8.00h",
-                    note="Termination prep",
-                    author_username="alex",
-                ),
-            ),
-            resource_period_total_hours_label="16.00h",
-            scope_summary="Task period entries: 2 | Resource month total: 16.00h",
-        )
 
     def list_review_queue_page(
         self,
@@ -121,81 +90,14 @@ class _FakeTimesheetsDesktopApi:
                 "sort_direction": sort_direction,
             }
         )
-        if status == "all":
-            rows = (
-                SimpleNamespace(
-                    period_id="period-1",
-                    resource_name="Electrical Crew",
-                    period_start_label="May 2026",
-                    status="SUBMITTED",
-                    status_label="Submitted",
-                    project_names=("Plant Upgrade",),
-                    total_hours_label="16.00h",
-                    entry_count=2,
-                    submitted_by_username="alex",
-                    submitted_at_label="2026-05-04 17:00",
-                    resource_id="res-1",
-                    period_start=date(2026, 5, 1),
-                ),
-            )
-            return SimpleNamespace(
-                items=rows,
-                total=len(rows),
-                page=page,
-                page_size=page_size,
-                sort_key=sort_key,
-                sort_direction=sort_direction,
-            )
-        rows = (
-            SimpleNamespace(
-                period_id="period-1",
-                resource_name="Electrical Crew",
-                period_start_label="May 2026",
-                status="SUBMITTED",
-                status_label="Submitted",
-                project_names=("Plant Upgrade",),
-                total_hours_label="16.00h",
-                entry_count=2,
-                submitted_by_username="alex",
-                submitted_at_label="2026-05-04 17:00",
-                resource_id="res-1",
-                period_start=date(2026, 5, 1),
-            ),
-        )
-        return SimpleNamespace(
-            items=rows,
-            total=len(rows),
-            page=page,
-            page_size=page_size,
-            sort_key=sort_key,
-            sort_direction=sort_direction,
-        )
+        return TimesheetReviewReadPage(items=(_review_fact(),), total=1,
+            page=page, page_size=page_size, sort=ReadSort.normalize(
+                key=sort_key, direction=sort_direction,
+                allowed_keys={"title", "submittedAt"}, default_key="submittedAt"))
 
     def get_review_detail(self, period_id):
         assert period_id == "period-1"
-        return SimpleNamespace(
-            summary=SimpleNamespace(
-                period_id="period-1",
-                resource_id="res-1",
-                resource_name="Electrical Crew",
-                period_start=date(2026, 5, 1),
-                period_start_label="May 2026",
-                status="SUBMITTED",
-                status_label="Submitted",
-                project_names=("Plant Upgrade",),
-                total_hours_label="16.00h",
-                entry_count=2,
-                submitted_by_username="alex",
-                submitted_at_label="2026-05-04 17:00",
-                decided_by_username="-",
-                decided_at_label="-",
-                decision_note="No decision note recorded.",
-            ),
-            entries=(
-                SimpleNamespace(task_name="Cable Pull"),
-                SimpleNamespace(task_name="Cable Pull"),
-            ),
-        )
+        return TimesheetReviewInspectorFact(summary=_review_fact())
 
 
 def test_project_management_workspace_catalog_exposes_typed_review_queue_controller() -> None:

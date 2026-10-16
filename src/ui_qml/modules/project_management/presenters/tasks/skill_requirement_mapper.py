@@ -7,10 +7,10 @@ def to_skill_requirement_record_view_model(req) -> TaskRecordViewModel:
     skill_code = str(getattr(req, "skill_code", "") or "")
     cert_code = str(getattr(req, "certification_code", "") or "")
     code = skill_code or cert_code
-    req_type = str(getattr(req, "requirement_type", "") or "")
+    req_type = "certification" if cert_code else "skill"
     req_type_label = "Certification" if req_type == "certification" else "Skill"
-    proficiency_label = str(getattr(req, "required_proficiency_label", "") or "")
-    mode_label = str(getattr(req, "validation_mode_label", "") or "")
+    proficiency_label = req.required_proficiency.title()
+    mode_label = req.validation_mode.title()
     notes = str(getattr(req, "notes", "") or "")
     state = {
         "requirementId": str(getattr(req, "id", "") or ""),

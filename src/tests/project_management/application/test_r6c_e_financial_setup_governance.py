@@ -62,24 +62,32 @@ SECTION_PATH = Path(
 
 
 def test_setup_reader_pages_filters_sorts_and_projects_capabilities(services) -> None:
-    project = services["project_create"].create_project(ProjectCreateCommand(name="R6C-E Setup"))
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(name="R6C-E Setup")
+    )
     setup = services["financial_configuration_query"]
     boundary = services["finance_governance_commands"]
     profile = setup.get_profile(project.id)
     boundary.financial_profile(
         lambda handler: handler.configure_profile(
-            project.id,
-            expected_version=profile.version,
-            cost_code_policy=CostCodePolicy.RESTRICTED,
+            FinancialUpdateProfileCommand(
+                project_id=project.id,
+                expected_version=profile.version,
+                cost_code_policy=CostCodePolicy.RESTRICTED,
+            )
         )
     )
     alpha = boundary.cost_code(
         lambda handler: handler.create_cost_code(
-            code="R6CE.A", name="Alpha", available_to_project_id=project.id
+            FinancialCreateCostCodeCommand(
+                code="R6CE.A", name="Alpha", project_id=project.id
+            )
         )
     )
     boundary.cost_code(
-        lambda handler: handler.create_cost_code(code="R6CE.Z", name="Zulu")
+        lambda handler: handler.create_cost_code(
+            FinancialCreateCostCodeCommand(code="R6CE.Z", name="Zulu")
+        )
     )
     desktop = ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"]
@@ -97,28 +105,34 @@ def test_setup_reader_pages_filters_sorts_and_projects_capabilities(services) ->
         restriction_search="alpha",
     )
 
-    assert workspace.cost_code_total == 2
-    assert workspace.cost_codes[0].title == "R6CE.Z"
-    assert assigned.cost_code_total == 1
-    assert assigned.cost_codes[0].id == alpha.id
-    assert assigned.restriction_total == 1
+    assert workspace is not None
+    assert assigned is not None
+    assert workspace.cost_codes.total == 2
+    assert workspace.cost_codes.items[0].code == "R6CE.Z"
+    assert assigned.cost_codes.total == 1
+    assert assigned.cost_codes.items[0].id == alpha.id
+    assert assigned.restrictions.total == 1
     assert assigned.can_create_cost_code is True
     assert assigned.can_manage_restrictions is True
-    assert assigned.profile.state["canEdit"] is True
+    assert assigned.can_edit_profile is True
 
 
 def test_setup_service_rejects_stale_edits_inactive_default_and_duplicate_restriction(
     services,
 ) -> None:
-    project = services["project_create"].create_project(ProjectCreateCommand(name="R6C-E Rules"))
+    project = services["project_create"].create_project(
+        ProjectCreateCommand(name="R6C-E Rules")
+    )
     setup = services["financial_configuration_query"]
     boundary = services["finance_governance_commands"]
     code = boundary.cost_code(
-        lambda handler: handler.create_cost_code(code="R6CE.RULE", name="Rules")
+        lambda handler: handler.create_cost_code(
+            FinancialCreateCostCodeCommand(code="R6CE.RULE", name="Rules")
+        )
     )
     inactive = boundary.cost_code(
         lambda handler: handler.deactivate_cost_code(
-            code.id, expected_version=code.version
+            FinancialChangeCostCodeStatusCommand(code.id, code.version, activate=False)
         )
     )
     profile = setup.get_profile(project.id)
@@ -126,34 +140,51 @@ def test_setup_service_rejects_stale_edits_inactive_default_and_duplicate_restri
     with pytest.raises(BusinessRuleError, match="active and effective"):
         boundary.financial_profile(
             lambda handler: handler.configure_profile(
-                project.id,
-                expected_version=profile.version,
-                default_cost_code_id=inactive.id,
+                FinancialUpdateProfileCommand(
+                    project_id=project.id,
+                    expected_version=profile.version,
+                    default_cost_code_id=inactive.id,
+                )
             )
         )
     with pytest.raises(ConcurrencyError, match="changed since"):
         boundary.cost_code(
             lambda handler: handler.update_cost_code(
-                inactive.id,
-                expected_version=code.version,
-                name="Stale edit",
+                FinancialUpdateCostCodeCommand(
+                    cost_code_id=inactive.id,
+                    expected_version=code.version,
+                    name="Stale edit",
+                    code=inactive.code,
+                    description=inactive.description,
+                    parent_id=inactive.parent_id,
+                    external_system=inactive.external_system,
+                    external_reference=inactive.external_reference,
+                    effective_from=inactive.effective_from,
+                    effective_to=inactive.effective_to,
+                )
             )
         )
 
     active = boundary.cost_code(
         lambda handler: handler.activate_cost_code(
-            inactive.id, expected_version=inactive.version
+            FinancialChangeCostCodeStatusCommand(
+                inactive.id, inactive.version, activate=True
+            )
         )
     )
     boundary.cost_code(
         lambda handler: handler.add_project_cost_code(
-            project_id=project.id, cost_code_id=active.id
+            FinancialCostCodeRestrictionCommand(
+                project_id=project.id, cost_code_id=active.id
+            )
         )
     )
     with pytest.raises(BusinessRuleError, match="already assigned"):
         boundary.cost_code(
             lambda handler: handler.add_project_cost_code(
-                project_id=project.id, cost_code_id=active.id
+                FinancialCostCodeRestrictionCommand(
+                    project_id=project.id, cost_code_id=active.id
+                )
             )
         )
 
@@ -161,8 +192,12 @@ def test_setup_service_rejects_stale_edits_inactive_default_and_duplicate_restri
 def test_setup_authorization_denies_hidden_project_and_missing_manage_permission(
     services,
 ) -> None:
-    visible = services["project_create"].create_project(ProjectCreateCommand(name="Visible Setup project"))
-    hidden = services["project_create"].create_project(ProjectCreateCommand(name="Hidden Setup project"))
+    visible = services["project_create"].create_project(
+        ProjectCreateCommand(name="Visible Setup project")
+    )
+    hidden = services["project_create"].create_project(
+        ProjectCreateCommand(name="Hidden Setup project")
+    )
     current = services["user_session"].principal
     assert current is not None
     tenant_id = services["user_session"].stored_active_tenant_id()
@@ -212,6 +247,7 @@ def test_setup_authorization_denies_hidden_project_and_missing_manage_permission
         )
     )
     workspace = api.get_financial_setup_workspace(visible.id)
+    assert workspace is not None
     assert workspace.can_create_cost_code is False
     with pytest.raises(BusinessRuleError, match="finance.manage"):
         api.create_cost_code(

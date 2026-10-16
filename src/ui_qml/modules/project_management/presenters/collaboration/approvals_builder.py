@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
+from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
 
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
 from src.ui_qml.modules.project_management.view_models.collaboration import (
@@ -13,8 +15,8 @@ from .formatting import format_timestamp, iso_datetime
 logger = logging.getLogger(__name__)
 
 
-def valid_approval_rows(rows) -> tuple[object, ...]:
-    valid: list[object] = []
+def valid_approval_rows(rows: Iterable[ApprovalRequestDto | None] | None) -> tuple[ApprovalRequestDto, ...]:
+    valid: list[ApprovalRequestDto] = []
     for row in rows or ():
         if row is None:
             logger.warning("Skipping null approval row while building collaboration approvals.")

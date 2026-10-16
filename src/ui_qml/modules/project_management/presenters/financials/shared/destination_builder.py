@@ -316,40 +316,40 @@ def build_destination_state(
                     line_sort_direction=planned_cost_line_sort_direction,
                 )
             )
-            views = build_finance_configuration_views(configuration)
+            finance_configuration_views = build_finance_configuration_views(configuration)
             if subsection == "budgets":
                 return FinancialsWorkspaceViewModel(
                     overview=state.overview,
                     selected_project_id=project_id,
-                    selected_budget_id=views["selected_budget_id"],
-                    show_create_budget_version=views["show_create_budget_version"],
-                    can_create_budget_version=views["can_create_budget_version"],
-                    create_budget_version_disabled_reason=views[
+                    selected_budget_id=finance_configuration_views["selected_budget_id"],
+                    show_create_budget_version=finance_configuration_views["show_create_budget_version"],
+                    can_create_budget_version=finance_configuration_views["can_create_budget_version"],
+                    create_budget_version_disabled_reason=finance_configuration_views[
                         "create_budget_version_disabled_reason"
                     ],
-                    budget_versions=views["budget_versions"],
-                    budget_lines=views["budget_lines"],
-                    budget_version_sort_key=views["budget_version_sort_key"],
-                    budget_version_sort_direction=views["budget_version_sort_direction"],
-                    budget_line_sort_key=views["budget_line_sort_key"],
-                    budget_line_sort_direction=views["budget_line_sort_direction"],
+                    budget_versions=finance_configuration_views["budget_versions"],
+                    budget_lines=finance_configuration_views["budget_lines"],
+                    budget_version_sort_key=finance_configuration_views["budget_version_sort_key"],
+                    budget_version_sort_direction=finance_configuration_views["budget_version_sort_direction"],
+                    budget_line_sort_key=finance_configuration_views["budget_line_sort_key"],
+                    budget_line_sort_direction=finance_configuration_views["budget_line_sort_direction"],
                 )
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,
                 selected_project_id=project_id,
-                selected_planned_cost_version_id=views[
+                selected_planned_cost_version_id=finance_configuration_views[
                     "selected_planned_cost_version_id"
                 ],
-                planned_cost_versions=views["planned_cost_versions"],
-                planned_cost_lines=views["planned_cost_lines"],
-                planned_cost_version_sort_key=views[
+                planned_cost_versions=finance_configuration_views["planned_cost_versions"],
+                planned_cost_lines=finance_configuration_views["planned_cost_lines"],
+                planned_cost_version_sort_key=finance_configuration_views[
                     "planned_cost_version_sort_key"
                 ],
-                planned_cost_version_sort_direction=views[
+                planned_cost_version_sort_direction=finance_configuration_views[
                     "planned_cost_version_sort_direction"
                 ],
-                planned_cost_line_sort_key=views["planned_cost_line_sort_key"],
-                planned_cost_line_sort_direction=views[
+                planned_cost_line_sort_key=finance_configuration_views["planned_cost_line_sort_key"],
+                planned_cost_line_sort_direction=finance_configuration_views[
                     "planned_cost_line_sort_direction"
                 ],
             )
@@ -369,7 +369,7 @@ def build_destination_state(
             line_search=forecast_line_search,
             line_source_type=forecast_line_source_type,
         )
-        views = build_forecast_workspace_views(
+        forecast_workspace_views = build_forecast_workspace_views(
             forecast,
             version_search=forecast_version_search,
             version_status=forecast_version_status,
@@ -380,22 +380,22 @@ def build_destination_state(
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
-            selected_forecast_id=views["selected_forecast_id"],
-            selected_forecast=views["selected_forecast"],
-            forecast_versions=views["forecast_versions"],
-            forecast_lines=views["forecast_lines"],
-            forecast_version_sort_key=views["forecast_version_sort_key"],
-            forecast_version_sort_direction=views["forecast_version_sort_direction"],
-            forecast_line_sort_key=views["forecast_line_sort_key"],
-            forecast_line_sort_direction=views["forecast_line_sort_direction"],
-            forecast_version_search=views["forecast_version_search"],
-            forecast_version_status=views["forecast_version_status"],
-            forecast_generation_mode=views["forecast_generation_mode"],
-            forecast_line_search=views["forecast_line_search"],
-            forecast_line_source_type=views["forecast_line_source_type"],
-            show_generate_forecast=views["show_generate_forecast"],
-            can_generate_forecast=views["can_generate_forecast"],
-            generate_forecast_disabled_reason=views[
+            selected_forecast_id=forecast_workspace_views["selected_forecast_id"],
+            selected_forecast=forecast_workspace_views["selected_forecast"],
+            forecast_versions=forecast_workspace_views["forecast_versions"],
+            forecast_lines=forecast_workspace_views["forecast_lines"],
+            forecast_version_sort_key=forecast_workspace_views["forecast_version_sort_key"],
+            forecast_version_sort_direction=forecast_workspace_views["forecast_version_sort_direction"],
+            forecast_line_sort_key=forecast_workspace_views["forecast_line_sort_key"],
+            forecast_line_sort_direction=forecast_workspace_views["forecast_line_sort_direction"],
+            forecast_version_search=forecast_workspace_views["forecast_version_search"],
+            forecast_version_status=forecast_workspace_views["forecast_version_status"],
+            forecast_generation_mode=forecast_workspace_views["forecast_generation_mode"],
+            forecast_line_search=forecast_workspace_views["forecast_line_search"],
+            forecast_line_source_type=forecast_workspace_views["forecast_line_source_type"],
+            show_generate_forecast=forecast_workspace_views["show_generate_forecast"],
+            can_generate_forecast=forecast_workspace_views["can_generate_forecast"],
+            generate_forecast_disabled_reason=forecast_workspace_views[
                 "generate_forecast_disabled_reason"
             ],
         )
@@ -435,7 +435,7 @@ def build_destination_state(
                 actual_source=actual_source,
             )
         if subsection == "posting_failures":
-            result = desktop_api.list_approved_time_posting_failures(
+            posting_failures_result = desktop_api.list_approved_time_posting_failures(
                 project_id,
                 page=posting_failure_page,
                 page_size=transaction_page_size,
@@ -449,18 +449,18 @@ def build_destination_state(
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,
                 selected_project_id=project_id,
-                posting_failures=build_posting_failure_collection(result),
+                posting_failures=build_posting_failure_collection(posting_failures_result),
                 posting_failure_sort_key=_POSTING_FAILURE_SORT_TO_VIEW.get(
-                    result.sort_key,
+                    posting_failures_result.sort_key,
                     "metaText",
                 ),
-                posting_failure_sort_direction=result.sort_direction,
+                posting_failure_sort_direction=posting_failures_result.sort_direction,
                 posting_failure_status=posting_failure_status,
             )
         if subsection == "commitments":
             page_size = max(1, min(int(transaction_page_size), 200))
             page = max(1, int(commitment_page))
-            result = desktop_api.list_commitments(
+            commitments_result = desktop_api.list_commitments(
                 project_id,
                 offset=(page - 1) * page_size,
                 limit=page_size,
@@ -474,9 +474,9 @@ def build_destination_state(
                 commitment_summary=build_commitment_summary(
                     desktop_api.get_commitment_summary(project_id)
                 ),
-                commitments=build_commitment_collection(result),
-                commitment_sort_key=result.sort_key,
-                commitment_sort_direction=result.sort_direction,
+                commitments=build_commitment_collection(commitments_result),
+                commitment_sort_key=commitments_result.sort_key,
+                commitment_sort_direction=commitments_result.sort_direction,
             )
         rates = desktop_api.get_rate_workspace(
             project_id,
@@ -496,7 +496,7 @@ def build_destination_state(
             line_status=rate_line_status,
             line_effective_status=rate_line_effective_status,
         )
-        views = build_rate_workspace_views(
+        rate_workspace_views = build_rate_workspace_views(
             rates,
             card_search=rate_card_search,
             card_scope=rate_card_scope,
@@ -509,28 +509,28 @@ def build_destination_state(
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
-            rate_cards=views["rate_cards"],
-            rate_lines=views["rate_lines"],
-            selected_rate_card_id=views["selected_rate_card_id"],
-            selected_rate_card=views["selected_rate_card"],
-            rate_card_sort_key=views["rate_card_sort_key"],
-            rate_card_sort_direction=views["rate_card_sort_direction"],
-            rate_line_sort_key=views["rate_line_sort_key"],
-            rate_line_sort_direction=views["rate_line_sort_direction"],
-            rate_card_search=views["rate_card_search"],
-            rate_card_scope=views["rate_card_scope"],
-            rate_card_status=views["rate_card_status"],
-            rate_line_search=views["rate_line_search"],
-            rate_line_rate_type=views["rate_line_rate_type"],
-            rate_line_status=views["rate_line_status"],
-            rate_line_effective_status=views["rate_line_effective_status"],
-            can_create_rate_card=views["can_create_rate_card"],
+            rate_cards=rate_workspace_views["rate_cards"],
+            rate_lines=rate_workspace_views["rate_lines"],
+            selected_rate_card_id=rate_workspace_views["selected_rate_card_id"],
+            selected_rate_card=rate_workspace_views["selected_rate_card"],
+            rate_card_sort_key=rate_workspace_views["rate_card_sort_key"],
+            rate_card_sort_direction=rate_workspace_views["rate_card_sort_direction"],
+            rate_line_sort_key=rate_workspace_views["rate_line_sort_key"],
+            rate_line_sort_direction=rate_workspace_views["rate_line_sort_direction"],
+            rate_card_search=rate_workspace_views["rate_card_search"],
+            rate_card_scope=rate_workspace_views["rate_card_scope"],
+            rate_card_status=rate_workspace_views["rate_card_status"],
+            rate_line_search=rate_workspace_views["rate_line_search"],
+            rate_line_rate_type=rate_workspace_views["rate_line_rate_type"],
+            rate_line_status=rate_workspace_views["rate_line_status"],
+            rate_line_effective_status=rate_workspace_views["rate_line_effective_status"],
+            can_create_rate_card=rate_workspace_views["can_create_rate_card"],
         )
 
     if destination == "performance":
         as_of_date = performance_as_of_date or datetime.now(UTC).astimezone().date()
         if subsection == "evm":
-            views = build_evm_views(
+            evm_views = build_evm_views(
                 desktop_api.get_performance_evm(
                     project_id,
                     as_of_date=as_of_date,
@@ -540,8 +540,8 @@ def build_destination_state(
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,
                 selected_project_id=project_id,
-                evm_basis=views["evm_basis"],
-                evm_metrics=views["evm_metrics"],
+                evm_basis=evm_views["evm_basis"],
+                evm_metrics=evm_views["evm_metrics"],
             )
         if subsection == "variance":
             variance = build_variance_views(
@@ -563,7 +563,7 @@ def build_destination_state(
         if subsection == "cost_phasing":
             range_to = cost_phasing_date_to or as_of_date
             range_from = cost_phasing_date_from or _months_before(range_to, 11)
-            views = build_cost_phasing_views(
+            cost_phasing_views = build_cost_phasing_views(
                 desktop_api.get_cost_phasing(
                     project_id,
                     date_from=range_from,
@@ -575,17 +575,17 @@ def build_destination_state(
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,
                 selected_project_id=project_id,
-                cost_phasing=views["cost_phasing"],
-                cost_phasing_basis=views["cost_phasing_basis"],
+                cost_phasing=cost_phasing_views["cost_phasing"],
+                cost_phasing_basis=cost_phasing_views["cost_phasing_basis"],
             )
-        views = build_reports_views(
+        reports_views = build_reports_views(
             desktop_api.get_performance_reports(project_id, as_of_date=as_of_date)
         )
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
-            report_basis=views["report_basis"],
-            report_definitions=views["report_definitions"],
+            report_basis=reports_views["report_basis"],
+            report_definitions=reports_views["report_definitions"],
         )
 
     if destination == "commercial":
@@ -715,7 +715,7 @@ def build_destination_state(
         )
 
     if subsection == "setup":
-        configuration = desktop_api.get_financial_setup_workspace(
+        setup_configuration = desktop_api.get_financial_setup_workspace(
             project_id,
             cost_code_page=setup_cost_code_page,
             restriction_page=setup_restriction_page,
@@ -729,19 +729,19 @@ def build_destination_state(
             restriction_sort_key=setup_restriction_sort_key,
             restriction_sort_direction=setup_restriction_sort_direction,
         )
-        views = build_finance_configuration_views(configuration)
+        finance_configuration_views = build_finance_configuration_views(setup_configuration)
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
-            financial_profile=views["profile"],
-            can_create_cost_code=views["can_create_cost_code"],
-            can_manage_restrictions=views["can_manage_restrictions"],
-            setup_cost_codes=views["cost_codes"],
-            setup_restrictions=views["restrictions"],
-            setup_cost_code_sort_key=views["cost_code_sort_key"],
-            setup_cost_code_sort_direction=views["cost_code_sort_direction"],
-            setup_restriction_sort_key=views["restriction_sort_key"],
-            setup_restriction_sort_direction=views["restriction_sort_direction"],
+            financial_profile=finance_configuration_views["profile"],
+            can_create_cost_code=finance_configuration_views["can_create_cost_code"],
+            can_manage_restrictions=finance_configuration_views["can_manage_restrictions"],
+            setup_cost_codes=finance_configuration_views["cost_codes"],
+            setup_restrictions=finance_configuration_views["restrictions"],
+            setup_cost_code_sort_key=finance_configuration_views["cost_code_sort_key"],
+            setup_cost_code_sort_direction=finance_configuration_views["cost_code_sort_direction"],
+            setup_restriction_sort_key=finance_configuration_views["restriction_sort_key"],
+            setup_restriction_sort_direction=finance_configuration_views["restriction_sort_direction"],
             setup_cost_code_search=setup_cost_code_search,
             setup_cost_code_status=setup_cost_code_status,
             setup_cost_code_assignment=setup_cost_code_assignment,

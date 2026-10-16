@@ -28,7 +28,7 @@ def generate_forecast(desktop_api, payload: dict[str, Any]):
             cost_code_id=require_text(item, "costCodeId", "Select a manual ETC cost code."),
             task_id=optional_text(item, "taskId"),
             description=require_text(item, "description", "Manual ETC description is required."),
-            amount=require_decimal(item, "amount", "Manual ETC amount must be a valid number."),
+            amount=str(require_decimal(item, "amount", "Manual ETC amount must be a valid number.")),
             period_start=optional_text(item, "periodStart") or "",
             period_end=optional_text(item, "periodEnd") or "",
         )
@@ -40,7 +40,7 @@ def generate_forecast(desktop_api, payload: dict[str, Any]):
             cost_code_id=require_text(item, "costCodeId", "Select a contingency cost code."),
             task_id=optional_text(item, "taskId"),
             description=optional_text(item, "description") or "",
-            amount=require_decimal(item, "amount", "Contingency amount must be a valid number."),
+            amount=str(require_decimal(item, "amount", "Contingency amount must be a valid number.")),
             period_start=optional_text(item, "periodStart") or "",
             period_end=optional_text(item, "periodEnd") or "",
         )

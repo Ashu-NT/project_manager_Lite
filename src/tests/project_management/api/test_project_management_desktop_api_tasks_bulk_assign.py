@@ -82,7 +82,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
         hourly_rate=90.0,
         currency_code="EUR",
     )
-    task_service.register_project_resource(project_resource.id, resource.id)
+    task_service.register_project_resource(project_resource.id, resource.id, resource.name)
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
         task_lookup_query=task_service, task_hierarchy_query=task_service, task_deletion_commands=task_service, task_progress_commands=task_service, task_hierarchy_commands=task_service, task_constraint_commands=task_service, task_lifecycle_commands=task_service, task_dependency_commands=task_service, task_dependency_query=task_service, task_detail_query=task_service,
@@ -123,7 +123,7 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
         )
     )
 
-    assert hours_assignment.hours_logged == "16"
+    assert hours_assignment.hours_logged == Decimal("16")
 
     dependency = api.create_dependency(
         TaskDependencyCreateCommand(
@@ -135,9 +135,9 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
         )
     )
 
-    assert dependency.direction == "SUCCESSOR"
-    assert dependency.linked_task_name == "Punchlist Closeout"
-    assert dependency.relationship_label == "Cable Pull -> Punchlist Closeout"
+    assert dependency.predecessor_task_id == task_a.id
+    assert dependency.successor_task_id == task_b.id
+    assert api.list_dependencies(task_a.id)[0].linked_task_name == "Punchlist Closeout"
     assert api.list_dependencies(task_a.id)[0].lag_days == 2
 
     api.delete_dependency(dependency.id)
@@ -171,7 +171,7 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
         hourly_rate=90.0,
         currency_code="EUR",
     )
-    task_service.register_project_resource(project_resource.id, resource.id)
+    task_service.register_project_resource(project_resource.id, resource.id, resource.name)
     task_service.assign_project_resource(TaskAssignmentCreateCommand(task_id=task.id, project_resource_id=project_resource.id, allocation_percent=55.0))
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,

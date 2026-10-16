@@ -49,7 +49,7 @@ def create_task(desktop_api, payload: dict[str, Any]) -> None:
             payload, "projectId", "Select a project before creating a task."
         ),
         name=require_text(payload, "name", "Task name is required."),
-        code=optional_text(payload, "taskCode"),
+        code=optional_text(payload, "taskCode") or "",
         description=optional_text(payload, "description") or "",
         start_date=optional_date(payload, "startDate"),
         duration_days=optional_int(payload, "durationDays"),
@@ -57,7 +57,7 @@ def create_task(desktop_api, payload: dict[str, Any]) -> None:
         priority=optional_int(payload, "priority"),
         deadline=optional_date(payload, "deadline"),
         parent_task_id=optional_text(payload, "parentTaskId") or None,
-        wbs_code=optional_text(payload, "wbsCode"),
+        wbs_code=optional_text(payload, "wbsCode") or "",
         sort_order=optional_int(payload, "sortOrder"),
         is_milestone=bool(payload.get("isMilestone", False)),
         constraint_type=optional_text(payload, "constraintType"),
@@ -69,7 +69,7 @@ def update_task(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskUpdateCommand(
         task_id=require_text(payload, "taskId", "Task ID is required for updates."),
         name=require_text(payload, "name", "Task name is required."),
-        code=optional_text(payload, "taskCode"),
+        code=optional_text(payload, "taskCode") or "",
         description=optional_text(payload, "description") or "",
         start_date=optional_date(payload, "startDate"),
         duration_days=optional_int(payload, "durationDays"),

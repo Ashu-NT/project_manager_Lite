@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypedDict
+
 from src.ui_qml.modules.project_management.view_models.financials import (
     BaselineVarianceRowViewModel,
     FinancialsCollectionViewModel,
@@ -42,7 +44,12 @@ def _metric_collection(title: str, subtitle: str, metrics) -> FinancialsCollecti
     )
 
 
-def build_evm_views(dto) -> dict[str, object]:
+class FinanceEvmViews(TypedDict):
+    evm_basis: FinancialsDetailViewModel
+    evm_metrics: FinancialsCollectionViewModel
+
+
+def build_evm_views(dto) -> FinanceEvmViews:
     basis = FinancialsDetailViewModel(
         id=dto.baseline_id,
         title="Earned Value Management",
@@ -84,7 +91,15 @@ def build_evm_views(dto) -> dict[str, object]:
     }
 
 
-def build_variance_views(dto) -> dict[str, object]:
+class FinanceVarianceViews(TypedDict):
+    variance_metrics: FinancialsCollectionViewModel
+    selected_baseline_id: str
+    baseline_versions: FinancialsCollectionViewModel
+    baseline_variance: tuple[BaselineVarianceRowViewModel, ...]
+    variance_basis: FinancialsDetailViewModel
+
+
+def build_variance_views(dto) -> FinanceVarianceViews:
     baseline_id = dto.selected_baseline_id
     return {
         "variance_metrics": _metric_collection(
@@ -146,7 +161,12 @@ def build_variance_views(dto) -> dict[str, object]:
     }
 
 
-def build_cost_phasing_views(dto) -> dict[str, object]:
+class FinanceCostPhasingViews(TypedDict):
+    cost_phasing: FinancialsCollectionViewModel
+    cost_phasing_basis: FinancialsDetailViewModel
+
+
+def build_cost_phasing_views(dto) -> FinanceCostPhasingViews:
     return {
         "cost_phasing": FinancialsCollectionViewModel(
             title="Cost Phasing",
@@ -196,7 +216,12 @@ def build_cost_phasing_views(dto) -> dict[str, object]:
     }
 
 
-def build_reports_views(dto) -> dict[str, object]:
+class FinanceReportViews(TypedDict):
+    report_basis: FinancialsDetailViewModel
+    report_definitions: FinancialsCollectionViewModel
+
+
+def build_reports_views(dto) -> FinanceReportViews:
     return {
         "report_basis": FinancialsDetailViewModel(
             id=dto.project_id,

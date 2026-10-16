@@ -11,6 +11,8 @@ def availability_label(
     reason: CommercialMetricUnavailableReason | None = None,
 ) -> str:
     if value is CommercialMetricAvailability.UNAVAILABLE:
+        if reason is None:
+            return "Unavailable"
         return {
             CommercialMetricUnavailableReason.EAC_UNAVAILABLE: "Canonical EAC unavailable",
             CommercialMetricUnavailableReason.CURRENCY_MISMATCH: "Unavailable: currency mismatch",

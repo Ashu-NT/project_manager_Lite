@@ -6,11 +6,20 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
+    TaskAssignmentCreateCommand,
+)
 from src.core.modules.project_management.application.tasks.dto.commands.task_progress import (
     TaskBulkStatusCommand,
     TaskProgressCommand,
 )
+from src.core.modules.project_management.application.tasks.mappers.assignment import (
+    map_assignment,
+)
 from src.core.modules.project_management.application.tasks.mappers.task import map_task
+from src.core.modules.project_management.application.tasks.dto.commands.task_dependencies import TaskDependencyCreateCommand
+from src.core.modules.project_management.application.tasks.dto.responses.dependency import TaskDependencyResponseDto
+from src.core.modules.project_management.application.tasks.mappers.dependency import map_dependency, map_dependency_read_item
 from src.core.modules.project_management.domain.enums import (
     DependencyType,
     TaskStatus,
@@ -109,8 +118,7 @@ class _FakeCollaborationService:
 
     def post_comment(self, command):
         task_id, body = command.task_id, command.body
-        attachments, linked_document_ids = command.attachments, command.linked_document_ids
-        parent_comment_id = command.parent_comment_id
+        attachments = command.attachments
         comment = SimpleNamespace(id="comment-1", task_id=task_id, author_username="alex", body=body, mentions=[], attachments=list(attachments), created_at=datetime(2026, 5, 1, 10, 15))
         self._comments.append(comment)
         from src.tests.ui_qml.project_management.presenters._collaboration_fixtures import (
@@ -128,6 +136,23 @@ class _FakeTaskService:
         self._assignments: dict[str, SimpleNamespace] = {}
         self._dependencies: dict[str, SimpleNamespace] = {}
         self._project_resource_lookup: dict[str, str] = {}
+
+    def _assignment_response(self, assignment, *, with_context=False):
+        context_method = getattr(self, "get_assignment_action_context", None)
+        context = context_method(assignment.id) if with_context and context_method is not None else None
+        return map_assignment(
+            assignment, resource_name=getattr(self, "_resource_names", {}).get(assignment.resource_id, assignment.resource_id),
+            can_manage=bool(getattr(context, "can_manage", False)),
+            can_accept=bool(getattr(context, "can_accept", False)),
+            can_decline=bool(getattr(context, "can_decline", False)),
+        )
+
+    def query_assignment_responses(self, task_id):
+        return tuple(self._assignment_response(row, with_context=True) for row in self.list_assignments_for_task(task_id))
+
+    def query_dependency_responses(self, task_id):
+        return tuple(map_dependency_read_item(edge, task_id=task_id, tasks_by_id=self._tasks)
+                     for edge in self.list_dependencies_for_task(task_id))
 
     def list_tasks_for_project(self, project_id: str) -> list[SimpleNamespace]:
         return [t for t in self._tasks.values() if t.project_id == project_id]
@@ -187,13 +212,19 @@ class _FakeTaskService:
                 deleted.append(task_id)
         return tuple(deleted)
 
-    def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
+    def register_project_resource(self, project_resource_id: str, resource_id: str, resource_name: str = "") -> None:
         self._project_resource_lookup[project_resource_id] = resource_id
+        if not hasattr(self, "_resource_names"):
+            self._resource_names = {}
+        self._resource_names[resource_id] = resource_name or resource_id
 
     def list_assignments_for_task(self, task_id: str) -> list[SimpleNamespace]:
         return [a for a in self._assignments.values() if a.task_id == task_id]
 
-    def assign_project_resource(self, *, task_id, project_resource_id, allocation_percent) -> SimpleNamespace:
+    def assign_project_resource(self, command: TaskAssignmentCreateCommand):
+        task_id = command.task_id
+        project_resource_id = command.project_resource_id
+        allocation_percent = command.allocation_percent
         assignment = SimpleNamespace(
             id=f"assign-{len(self._assignments) + 1}",
             task_id=task_id,
@@ -203,9 +234,13 @@ class _FakeTaskService:
             project_resource_id=project_resource_id,
         )
         self._assignments[assignment.id] = assignment
-        return assignment
+        return self._assignment_response(assignment)
 
-    def add_dependency(self, *, predecessor_id, successor_id, dependency_type, lag_days=0) -> SimpleNamespace:
+    def add_dependency(self, command: TaskDependencyCreateCommand):
+        predecessor_id = command.linked_task_id if command.relationship_direction.upper() == "PREDECESSOR" else command.task_id
+        successor_id = command.task_id if command.relationship_direction.upper() == "PREDECESSOR" else command.linked_task_id
+        dependency_type = command.dependency_type
+        lag_days = command.lag_days
         dependency = SimpleNamespace(
             id=f"dep-{len(self._dependencies) + 1}",
             predecessor_task_id=predecessor_id,
@@ -214,23 +249,14 @@ class _FakeTaskService:
             lag_days=lag_days,
         )
         self._dependencies[dependency.id] = dependency
-        return dependency
+        return map_dependency(dependency)
 
     def list_dependencies_for_task(self, task_id: str) -> list[SimpleNamespace]:
         return [d for d in self._dependencies.values() if d.predecessor_task_id == task_id or d.successor_task_id == task_id]
 
 
 class _FakeTaskTimesheetsDesktopApi:
-    def build_assignment_snapshot(self, assignment_id, *, period_start=None):
-        return SimpleNamespace(
-            assignment=SimpleNamespace(value=assignment_id, label="", project_id="proj-1"),
-            period_options=(),
-            selected_period_start="",
-            period_summary=SimpleNamespace(period_id="", period_start_label="", period_end_label="", status="OPEN", status_label="Open", resource_id="", resource_name="", total_hours_label="0.00h", entry_count=0, submitted_by_username="-", submitted_at_label="-", decided_by_username="-", decided_at_label="-", decision_note=""),
-            entries=(),
-            resource_period_total_hours_label="0.00h",
-            scope_summary="",
-        )
+    pass
 
 
 def _build_task_record(*, task_id, project_id, name, description, status, start_date, end_date, duration_days, priority, percent_complete, deadline) -> SimpleNamespace:

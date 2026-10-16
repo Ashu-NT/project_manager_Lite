@@ -8,6 +8,12 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.tasks.mappers.dependency import (
+    map_dependency_read_item,
+)
+from src.core.modules.project_management.contracts.reads.tasks import (
+    TaskDependencyReadItem,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     DependencyRepository,
     TaskRepository,
@@ -63,6 +69,17 @@ class TaskDependencyQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="list task dependencies",
         )
         return self._dependency_repo.list_by_task(task_id)
+
+    def query_dependency_responses(self, task_id: str) -> tuple[TaskDependencyReadItem, ...]:
+        dependencies = self.list_dependencies_for_task(task_id)
+        task = self._task_repo.get(task_id)
+        if task is None:
+            return ()
+        tasks = {row.id: row for row in self._task_repo.list_by_project(task.project_id)}
+        rows = [map_dependency_read_item(edge, task_id=task_id, tasks_by_id=tasks)
+                for edge in dependencies
+                if task_id in (edge.predecessor_task_id, edge.successor_task_id)]
+        return tuple(sorted(rows, key=lambda row: (row.direction != "PREDECESSOR", row.linked_task_name.casefold())))
 
     def list_dependencies_for_project(self, project_id: str) -> list[TaskDependency]:
         """Use the project-wide repository query rather than an N+1 task loop."""

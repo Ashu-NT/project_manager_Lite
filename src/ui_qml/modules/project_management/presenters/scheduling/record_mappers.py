@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.api.desktop import (
-    SchedulingConstraintViolationDto,
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    constraint_presentation,
+)
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    ResourceLoadRow,
+)
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintViolation,
 )
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingRecordViewModel,
@@ -76,44 +82,54 @@ def to_baseline_register_record(item: Any) -> SchedulingRecordViewModel:
         },
     )
 
-def to_resource_load_record(item: Any) -> SchedulingRecordViewModel:
+def to_resource_load_record(item: ResourceLoadRow) -> SchedulingRecordViewModel:
+    allocation_label = f"{item.total_allocation_percent:.1f}%"
+    capacity_label = f"{item.capacity_percent:.1f}%"
+    utilization_label = f"{item.utilization_percent:.1f}%"
+    status_label = item.utilization_status_label
     return SchedulingRecordViewModel(
         id=item.resource_id,
         title=item.resource_name,
-        status_label=item.status_label,
-        subtitle=f"Utilization {item.utilization_label} | Capacity {item.capacity_label}",
-        supporting_text=f"Peak allocation {item.total_allocation_label} across {item.tasks_count} task(s)",
-        meta_text=item.status_label,
+        status_label=status_label,
+        subtitle=f"Utilization {utilization_label} | Capacity {capacity_label}",
+        supporting_text=f"Peak allocation {allocation_label} across {item.tasks_count} task(s)",
+        meta_text=status_label,
         state={
             "resourceId": item.resource_id,
             "resourceName": item.resource_name,
-            "allocationLabel": item.total_allocation_label,
-            "capacityLabel": item.capacity_label,
-            "utilizationLabel": item.utilization_label,
+            "allocationLabel": allocation_label,
+            "capacityLabel": capacity_label,
+            "utilizationLabel": utilization_label,
             "tasksCount": item.tasks_count,
-            "statusLabel": item.status_label,
+            "statusLabel": status_label,
         },
     )
 
 def to_constraint_violation_record(
-    item: SchedulingConstraintViolationDto,
+    item: ConstraintViolation,
 ) -> SchedulingRecordViewModel:
+    constraint_type = item.constraint_type.value
+    constraint_label = constraint_presentation(item.constraint_type).label
+    constraint_date_label = item.constraint_date.isoformat() if item.constraint_date else "-"
+    computed_date_label = item.computed_date.isoformat() if item.computed_date else "-"
+    severity = "hard" if item.is_hard else "soft"
+    severity_label = "Hard Constraint" if item.is_hard else "Soft Constraint"
     return SchedulingRecordViewModel(
-        id=f"{item.task_id}:{item.constraint_type}",
+        id=f"{item.task_id}:{constraint_type}",
         title=item.task_name,
-        status_label=item.severity_label,
-        subtitle=f"{item.constraint_type_label} | Required {item.constraint_date_label}",
-        supporting_text=f"Computed {item.computed_date_label} | Overrun {item.overrun_working_days}d",
+        status_label=severity_label,
+        subtitle=f"{constraint_label} | Required {constraint_date_label}",
+        supporting_text=f"Computed {computed_date_label} | Overrun {item.overrun_working_days}d",
         meta_text=item.message,
         state={
             "taskId": item.task_id,
-            "constraintType": item.constraint_type,
-            "constraintTypeLabel": item.constraint_type_label,
-            "constraintDateLabel": item.constraint_date_label,
-            "computedDateLabel": item.computed_date_label,
+            "constraintType": constraint_type,
+            "constraintTypeLabel": constraint_label,
+            "constraintDateLabel": constraint_date_label,
+            "computedDateLabel": computed_date_label,
             "overrunDays": item.overrun_working_days,
-            "severity": item.severity,
-            "severityLabel": item.severity_label,
+            "severity": severity,
+            "severityLabel": severity_label,
             "message": item.message,
         },
     )

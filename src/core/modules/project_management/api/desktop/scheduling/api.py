@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
-    dependency_direction,
     dependency_type_label,
 )
 from src.core.modules.project_management.api.desktop.scheduling.builders.activity_options_builder import (
@@ -54,15 +53,8 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_b
 from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
     build_hierarchy_nodes,
 )
-from src.core.modules.project_management.api.desktop.scheduling.builders.leveling_builder import (
-    build_resource_leveling_preview,
-    empty_leveling_proposal_dto,
-)
 from src.core.modules.project_management.api.desktop.scheduling.builders.project_options_builder import (
     build_project_options,
-)
-from src.core.modules.project_management.api.desktop.scheduling.builders.resource_load_builder import (
-    build_resource_load,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models import (
     GanttProjectionDto,
@@ -70,29 +62,18 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingBaselineRowDto,
     SchedulingCalendarOptionDescriptor,
     SchedulingCalendarSnapshotDto,
-    SchedulingConstraintViolationDto,
-    SchedulingDependencyDto,
     SchedulingDependencyTypeDescriptor,
-    SchedulingLevelingProposalDto,
-    SchedulingProjectDependencyDto,
     SchedulingProjectOptionDescriptor,
-    SchedulingResourceLoadDto,
-    SchedulingTaskDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
     GanttBaselineOverlayDto,
 )
-from src.core.modules.project_management.api.desktop.scheduling.serializers.dependency_serializer import (
-    serialize_dependency,
-)
 from src.core.modules.project_management.api.desktop.scheduling.services.dependency_resolution_service import (
-    build_tasks_by_id,
     get_task_method,
     require_task_method,
 )
-from src.core.modules.project_management.api.desktop.scheduling.services.scheduling_facade_service import (
-    build_schedule_from_engine,
-    build_schedule_from_tasks,
+from src.core.modules.project_management.application.dashboard.models.report_models import (
+    ResourceLoadRow,
 )
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
@@ -107,6 +88,7 @@ from src.core.modules.project_management.application.scheduling.baselines.querie
 )
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
+    ConstraintViolation,
 )
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineApproveCommand,
@@ -130,8 +112,20 @@ from src.core.modules.project_management.application.scheduling.dto.responses.ch
     ScheduleImpactReportDto,
     SchedulingChangeImpactDto,
 )
+from src.core.modules.project_management.application.scheduling.dto.responses.schedule import (
+    SchedulingTaskResponse,
+)
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
+)
+from src.core.modules.project_management.application.scheduling.models.leveling import (
+    LevelingProposal,
+)
+from src.core.modules.project_management.application.scheduling.queries.dependencies import (
+    query_project_dependencies,
+)
+from src.core.modules.project_management.application.scheduling.queries.schedule import (
+    query_schedule_responses,
 )
 from src.core.modules.project_management.application.tasks import (
     ResourceLevelingCommandHandler,
@@ -140,8 +134,14 @@ from src.core.modules.project_management.application.tasks import (
     TaskHierarchyQueryHandler,
     TaskLookupQueryHandler,
 )
+from src.core.modules.project_management.application.tasks.dto.responses.dependency import (
+    TaskDependencyResponseDto,
+)
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
     TaskDetailPageQueryHandler,
+)
+from src.core.modules.project_management.contracts.reads.tasks import (
+    TaskDependencyReadItem,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.application.tenant.tenancy.tenant_context import (
@@ -214,7 +214,7 @@ class ProjectManagementSchedulingDesktopApi:
         # hand the EXACT snapshot Preview reasoned about back to
         # apply_resource_leveling_plan without a lossy QML round-trip --
         # Apply still revalidates it against a fresh DB read (R4.4L).
-        self._pending_leveling_proposals: dict[str, object] = {}
+        self._pending_leveling_proposals: dict[str, LevelingProposal] = {}
 
     # ── Project / Activity options ────────────────────────────────────────────
 
@@ -249,90 +249,54 @@ class ProjectManagementSchedulingDesktopApi:
             for dt in DependencyType
         )
 
-    def list_project_dependencies(self, project_id: str) -> tuple[SchedulingProjectDependencyDto, ...]:
+    def list_project_dependencies(self, project_id: str) -> tuple[TaskDependencyResponseDto, ...]:
         normalized_id = (project_id or "").strip()
         if not normalized_id:
             return ()
-        list_tasks = get_task_method(self._task_lookup_query, "list_tasks_for_project")
-        # One query for the whole project's edge set (Phase L), not a
-        # per-task loop -- list_dependencies_for_project is backed directly
-        # by DependencyRepository.list_by_project, the same single-query
-        # method the cycle checker and CPM engine already use.
-        list_project_deps = get_task_method(self._task_dependency_query, "list_dependencies_for_project")
-        if list_tasks is None or list_project_deps is None:
+        if self._task_lookup_query is None or self._task_dependency_query is None:
             return ()
-        tasks_by_id = {t.id: t for t in list_tasks(normalized_id)}
-        rows = [
-            SchedulingProjectDependencyDto(
-                id=dep.id,
-                predecessor_task_id=dep.predecessor_task_id,
-                predecessor_task_name=str(getattr(tasks_by_id.get(dep.predecessor_task_id), "name", "") or dep.predecessor_task_id),
-                successor_task_id=dep.successor_task_id,
-                successor_task_name=str(getattr(tasks_by_id.get(dep.successor_task_id), "name", "") or dep.successor_task_id),
-                dependency_type=dep.dependency_type.value,
-                dependency_type_label=dependency_type_label(dep.dependency_type),
-                lag_days=int(getattr(dep, "lag_days", 0) or 0),
-            )
-            for dep in list_project_deps(normalized_id)
-        ]
-        rows.sort(key=lambda r: (r.predecessor_task_name.casefold(), r.successor_task_name.casefold(), r.dependency_type_label))
-        return tuple(rows)
+        return query_project_dependencies(
+            normalized_id, self._task_dependency_query, self._task_lookup_query,
+        )
 
-    def list_dependencies(self, task_id: str) -> tuple[SchedulingDependencyDto, ...]:
+    def list_dependencies(self, task_id: str) -> tuple[TaskDependencyReadItem, ...]:
         normalized_id = (task_id or "").strip()
         if not normalized_id:
             return ()
         get_task = get_task_method(self._task_detail_query, "get_task")
-        list_tasks = get_task_method(self._task_lookup_query, "list_tasks_for_project")
-        list_deps = get_task_method(self._task_dependency_query, "list_dependencies_for_task")
-        if not all([get_task, list_tasks, list_deps]):
+        if get_task is None or self._task_dependency_query is None:
             return ()
         current = get_task(normalized_id)
         if current is None:
             return ()
-        tasks_by_id = {t.id: t for t in list_tasks(current.project_id)}
-        rows = [
-            serialize_dependency(dep, current_task_id=current.id, tasks_by_id=tasks_by_id)
-            for dep in list_deps(normalized_id)
-            if dependency_direction(current.id, dep)[0]
-        ]
-        rows.sort(key=lambda r: (r.direction != "PREDECESSOR", r.related_activity_name.casefold()))
-        return tuple(rows)
+        return self._task_dependency_query.query_dependency_responses(normalized_id)
 
-    def create_dependency(self, command: SchedulingDependencyCreateCommand) -> SchedulingDependencyDto:
-        dependency = require_task_method(self._task_dependency_commands, "add_dependency")(
+    def create_dependency(self, command: SchedulingDependencyCreateCommand) -> TaskDependencyResponseDto:
+        return require_task_method(self._task_dependency_commands, "add_dependency")(
             command
         )
-        current = require_task_method(self._task_detail_query, "get_task")(command.task_id)
-        tasks_by_id = build_tasks_by_id(self._task_lookup_query, current.project_id if current else "")
-        return serialize_dependency(dependency, current_task_id=command.task_id, tasks_by_id=tasks_by_id)
 
-    def update_dependency(self, command: SchedulingDependencyUpdateCommand, *, current_task_id: str) -> SchedulingDependencyDto:
-        dependency = require_task_method(self._task_dependency_commands, "update_dependency")(
+    def update_dependency(self, command: SchedulingDependencyUpdateCommand) -> TaskDependencyResponseDto:
+        return require_task_method(self._task_dependency_commands, "update_dependency")(
             command
         )
-        current = require_task_method(self._task_detail_query, "get_task")(current_task_id)
-        tasks_by_id = build_tasks_by_id(self._task_lookup_query, current.project_id if current else "")
-        return serialize_dependency(dependency, current_task_id=current_task_id, tasks_by_id=tasks_by_id)
 
     def delete_dependency(self, dependency_id: str) -> None:
         require_task_method(self._task_dependency_commands, "remove_dependency")(str(dependency_id or "").strip())
 
     # ── Schedule ──────────────────────────────────────────────────────────────
 
-    def list_schedule(self, project_id: str) -> tuple[SchedulingTaskDto, ...]:
+    def list_schedule(self, project_id: str) -> tuple[SchedulingTaskResponse, ...]:
         normalized_id = (project_id or "").strip()
         if not normalized_id:
             return ()
-        if self._scheduling_engine is None:
-            return build_schedule_from_tasks(normalized_id, self._task_lookup_query)
-        return build_schedule_from_engine(normalized_id, self._scheduling_engine, persist=False)
+        return query_schedule_responses(normalized_id, self._require_scheduling_engine(), persist=False)
 
-    def recalculate_schedule(self, project_id: str) -> tuple[SchedulingTaskDto, ...]:
+    def recalculate_schedule(self, project_id: str) -> tuple[SchedulingTaskResponse, ...]:
         normalized_id = (project_id or "").strip()
         if not normalized_id:
             raise ValidationError("Select a project before recalculating the schedule.", code="PROJECT_ID_REQUIRED")
-        return build_schedule_from_engine(normalized_id, self._require_scheduling_engine(), persist=True)
+        return query_schedule_responses(normalized_id, self._require_scheduling_engine(), persist=True)
 
     def build_gantt_projection(
         self,
@@ -346,7 +310,7 @@ class ProjectManagementSchedulingDesktopApi:
             raise ValidationError("Select a project before loading the Gantt projection.", code="PROJECT_ID_REQUIRED")
         scope, project = self._require_gantt_project_scope(normalized_id)
 
-        schedule = build_schedule_from_engine(
+        schedule = query_schedule_responses(
             normalized_id,
             self._require_scheduling_engine(),
             persist=False,
@@ -483,26 +447,31 @@ class ProjectManagementSchedulingDesktopApi:
 
     # ── Resources ─────────────────────────────────────────────────────────────
 
-    def list_resource_load(self, project_id: str) -> tuple[SchedulingResourceLoadDto, ...]:
-        return build_resource_load((project_id or "").strip(), self._project_kpi_report)
+    def list_resource_load(self, project_id: str) -> list[ResourceLoadRow]:
+        normalized_id = (project_id or "").strip()
+        if not normalized_id or self._project_kpi_report is None:
+            return []
+        return self._project_kpi_report.get_resource_load_summary(normalized_id)
 
     # ── Resource leveling ─────────────────────────────────────────────────────
 
-    def preview_resource_leveling(self, project_id: str) -> SchedulingLevelingProposalDto:
+    def preview_resource_leveling(self, project_id: str) -> LevelingProposal:
         normalized_id = (project_id or "").strip()
-        if not normalized_id:
-            return empty_leveling_proposal_dto()
-        result = build_resource_leveling_preview(normalized_id, self._task_leveling_commands)
-        if result is None:
-            return empty_leveling_proposal_dto(normalized_id)
-        proposal, dto = result
+        empty = LevelingProposal(normalized_id, "", True, 0, 0, (), (), None, None, False, (), ())
+        if not normalized_id or self._task_leveling_commands is None:
+            return empty
+        proposal = require_task_method(
+            self._task_leveling_commands, "build_resource_leveling_preview"
+        )(normalized_id)
+        if proposal is None:
+            return empty
         # Cached on this instance rather than round-tripped through QML --
         # Apply revalidates it against a fresh DB snapshot anyway (R4.4L),
         # so QML only ever needs the display DTO, not the raw domain moves.
         self._pending_leveling_proposals[normalized_id] = proposal
-        return dto
+        return proposal
 
-    def apply_resource_leveling(self, project_id: str) -> tuple[SchedulingTaskDto, ...]:
+    def apply_resource_leveling(self, project_id: str) -> tuple[SchedulingTaskResponse, ...]:
         normalized_id = (project_id or "").strip()
         if not normalized_id:
             raise ValidationError("Select a project before applying resource leveling.", code="PROJECT_ID_REQUIRED")
@@ -514,7 +483,7 @@ class ProjectManagementSchedulingDesktopApi:
 
     # ── Constraints ───────────────────────────────────────────────────────────
 
-    def list_constraint_violations(self, project_id: str) -> tuple[SchedulingConstraintViolationDto, ...]:
+    def list_constraint_violations(self, project_id: str) -> tuple[ConstraintViolation, ...]:
         return build_constraint_violations(
             (project_id or "").strip(),
             scheduling_engine=self._scheduling_engine,

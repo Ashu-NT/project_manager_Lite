@@ -13,7 +13,7 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConstraintViolation:
     task_id: str
     task_name: str
@@ -22,6 +22,16 @@ class ConstraintViolation:
     computed_date: date
     message: str
     overrun_working_days: int
+
+    @property
+    def is_hard(self) -> bool:
+        return self.constraint_type in {
+            ConstraintType.MUST_START_ON,
+            ConstraintType.MUST_FINISH_ON,
+            ConstraintType.START_NO_LATER_THAN,
+            ConstraintType.FINISH_NO_LATER_THAN,
+            ConstraintType.DEADLINE,
+        }
 
 
 @dataclass
@@ -72,14 +82,7 @@ class ConstraintValidationResult:
     @property
     def hard_violations(self) -> list[ConstraintViolation]:
         """Violations that represent firm date mismatches (MSO / MFO / hard limits)."""
-        hard = {
-            ConstraintType.MUST_START_ON,
-            ConstraintType.MUST_FINISH_ON,
-            ConstraintType.START_NO_LATER_THAN,
-            ConstraintType.FINISH_NO_LATER_THAN,
-            ConstraintType.DEADLINE,
-        }
-        return [v for v in self.violations if v.constraint_type in hard]
+        return [v for v in self.violations if v.is_hard]
 
     @property
     def soft_violations(self) -> list[ConstraintViolation]:

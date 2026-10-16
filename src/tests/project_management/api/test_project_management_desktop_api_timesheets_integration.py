@@ -1,5 +1,6 @@
 
 from datetime import date
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -32,7 +33,7 @@ from src.tests.project_management.api._timesheets_fakes_timesheet import (
 )
 
 
-@pytest.mark.parametrize("operation", ("list_assignments", "list_resource_assignments", "build_assignment_snapshot"))
+@pytest.mark.parametrize("operation", ("list_assignments", "list_resource_assignments"))
 def test_timesheets_task_reads_check_module_before_handler(operation: str) -> None:
     catalog = SimpleNamespace(
         get_entitlement=lambda _code: SimpleNamespace(
@@ -57,8 +58,6 @@ def test_timesheets_task_reads_check_module_before_handler(operation: str) -> No
             api.list_assignments(project_id="project-1")
         elif operation == "list_resource_assignments":
             api.list_resource_assignments(resource_id="resource-1")
-        else:
-            api.build_assignment_snapshot("assignment-1")
 
 
 def test_project_management_timesheets_desktop_api_supports_assignment_periods_and_review() -> None:
@@ -130,7 +129,6 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
             note="Cable tray installation revised",
         )
     )
-    snapshot = api.build_assignment_snapshot(assignment.id)
     timesheet_service.resource_period_read_count = 0
     submitted_period = api.submit_period(
         resource_id=resource.id,
@@ -160,18 +158,13 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         expected_version=updated_entry.version,
     )
 
-    assert updated_entry.hours_label == "7.50h"
-    assert snapshot.assignment.resource_name == "Electrical Crew"
-    assert snapshot.entries[0].entry_id == created_entry.entry_id
-    assert snapshot.resource_period_total_hours_label == "14.00h"
-    assert submitted_period.status == "SUBMITTED"
+    assert updated_entry.hours == Decimal("7.5")
+    assert submitted_period.status.value == "SUBMITTED"
     assert review_queue[0].entry_count == 2
     assert review_detail.summary.resource_name == "Electrical Crew"
     assert review_detail.summary.project_count == 1
-    assert approved_period.status == "APPROVED"
-    assert locked_period.status == "LOCKED"
-    assert unlocked_period.status == "APPROVED"
+    assert approved_period.status.value == "APPROVED"
+    assert locked_period.status.value == "LOCKED"
+    assert unlocked_period.status.value == "APPROVED"
     assert unlocked_period.version == submitted_period.version + 3
-    assert [entry.entry_id for entry in api.build_assignment_snapshot(assignment.id).entries] != [
-        created_entry.entry_id
-    ]
+    assert created_entry.entry_id not in {entry.id for entry in timesheet_service.list_time_entries_for_assignment(assignment.id)}

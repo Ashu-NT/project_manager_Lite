@@ -25,12 +25,6 @@ from src.core.modules.project_management.api.desktop.financials.models.commitmen
     FinancialCommitmentLinePageDto,
     FinancialCommitmentSummaryDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.configuration import (
-    FinancialConfigurationFieldDto,
-    FinancialConfigurationRecordDto,
-    FinancialConfigurationWorkspaceDto,
-    FinancialProfileDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostCodeOptionDescriptor,
     FinancialCostEntryDto,
@@ -68,9 +62,6 @@ __all__ = [
     "FinancialCommitmentLineDto",
     "FinancialCommitmentLinePageDto",
     "FinancialCommitmentSummaryDto",
-    "FinancialConfigurationFieldDto",
-    "FinancialConfigurationRecordDto",
-    "FinancialConfigurationWorkspaceDto",
     "FinancialCostCodeOptionDescriptor",
     "FinancialCostEntryDto",
     "FinancialCostEntryPageDto",
@@ -82,6 +73,5 @@ __all__ = [
     "FinancialOverviewDto",
     "FinancialPerformanceMetricDto",
     "FinancialPeriodRowDto",
-    "FinancialProfileDto",
     "FinancialVarianceWorkspaceDto",
 ]

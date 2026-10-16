@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import date
 
@@ -26,7 +27,7 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
-@dataclass
+@dataclass(frozen=True)
 class DependencyImpactRow:
     task_id: str
     task_name: str
@@ -39,7 +40,7 @@ class DependencyImpactRow:
     trace_path: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class DependencyDiagnostic:
     is_valid: bool
     code: str
@@ -49,9 +50,13 @@ class DependencyDiagnostic:
     successor_task_id: str
     dependency_type: DependencyType
     lag_days: int
-    impact_rows: list[DependencyImpactRow]
-    suggestions: list[str]
+    impact_rows: Sequence[DependencyImpactRow]
+    suggestions: Sequence[str]
     risk_level: str = "unknown"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "impact_rows", tuple(self.impact_rows))
+        object.__setattr__(self, "suggestions", tuple(self.suggestions))
 
 
 class TaskDependencyDiagnosticsQueryHandler:

@@ -9,14 +9,7 @@ from src.core.modules.project_management.api.desktop.common.constraint_presentat
 from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
     coerce_dependency_direction,
     coerce_dependency_type,
-    dependency_direction,
     dependency_type_label,
-)
-from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
-    build_assignment_preview,
-)
-from src.core.modules.project_management.api.desktop.tasks.builders.assignment_validation_builder import (
-    build_assignment_validation,
 )
 from src.core.modules.project_management.api.desktop.tasks.builders.project_options_builder import (
     build_project_options,
@@ -27,13 +20,6 @@ from src.core.modules.project_management.api.desktop.tasks.builders.resource_opt
 from src.core.modules.project_management.api.desktop.tasks.builders.status_options_builder import (
     build_status_options,
 )
-from src.core.modules.project_management.api.desktop.tasks.models.assignment import (
-    TaskAssignmentDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
-    TaskDependencyDesktopDto,
-    TaskDependencyImpactPreviewDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.tasks.models.options import (
     TaskConstraintOptionDescriptor,
     TaskDependencyTypeDescriptor,
@@ -41,43 +27,8 @@ from src.core.modules.project_management.api.desktop.tasks.models.options import
     TaskProjectResourceOptionDescriptor,
     TaskStatusDescriptor,
 )
-from src.core.modules.project_management.api.desktop.tasks.models.skill import (
-    TaskSkillRequirementDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.tasks.models.task import (
-    TaskDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
-    TaskTimeEntriesPageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.tasks.models.validation import (
-    AssignmentPreviewDesktopDto,
-    AssignmentValidationDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.tasks.serializers.assignment_serializer import (
-    serialize_assignment,
-)
-from src.core.modules.project_management.api.desktop.tasks.serializers.dependency_impact_preview_serializer import (
-    serialize_dependency_impact_preview,
-)
-from src.core.modules.project_management.api.desktop.tasks.serializers.dependency_serializer import (
-    serialize_dependency,
-)
-from src.core.modules.project_management.api.desktop.tasks.serializers.skill_serializer import (
-    serialize_skill_requirement,
-)
-from src.core.modules.project_management.api.desktop.tasks.serializers.task_serializer import (
-    serialize_task,
-)
-from src.core.modules.project_management.api.desktop.tasks.serializers.time_summary_serializer import (
-    serialize_task_time_entries_page,
-)
 from src.core.modules.project_management.api.desktop.tasks.services.access_resolution_service import (
     project_rows_for_task_scope,
-)
-from src.core.modules.project_management.api.desktop.tasks.services.resource_lookup_service import (
-    resource_by_id,
-    resource_name_for_assignment,
 )
 from src.core.modules.project_management.api.desktop.tasks.utils.task_id_utils import (
     normalize_task_ids,
@@ -143,7 +94,24 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_pro
     TaskBulkStatusCommand,
     TaskProgressCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.responses.assignment_validation import (
+    AssignmentPreviewResponseDto, AssignmentValidationResponseDto,
+)
+from src.core.modules.project_management.application.tasks.queries.assignment_preview import query_assignment_preview
+from src.core.modules.project_management.application.tasks.queries.assignment_validation import query_assignment_validation
+from src.core.modules.project_management.application.tasks.dto.responses.assignment import (
+    TaskAssignmentResponseDto,
+)
+from src.core.modules.project_management.application.tasks.dto.responses.dependency import (
+    TaskDependencyResponseDto,
+)
+from src.core.modules.project_management.application.tasks.dto.responses.skill_requirement import TaskSkillRequirementResponseDto
+from src.core.modules.project_management.application.tasks.queries.skill_requirements import query_skill_requirements
+from src.core.modules.project_management.application.tasks.dto.responses.task import (
+    TaskResponseDto,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+    DependencyDiagnostic,
     TaskDependencyDiagnosticsQueryHandler,
 )
 from src.core.modules.project_management.application.tasks.queries.task_detail_page import (
@@ -155,10 +123,12 @@ from src.core.modules.project_management.application.tasks.queries.task_workspac
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskActivityPage,
     TaskAssignmentReadPage,
+    TaskDependencyReadItem,
     TaskDependencyReadPage,
     TaskWorkspaceReadPage,
 )
 from src.core.modules.project_management.contracts.reads.tasks.models import (
+    TaskTimeEntriesPage,
     TaskTimeSummaryFact,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
@@ -244,21 +214,17 @@ class ProjectManagementTasksDesktopApi:
             resource_query=self._resource_service,
         )
 
-    def get_task(self, task_id: str) -> TaskDesktopDto | None:
+    def get_task(self, task_id: str) -> TaskResponseDto | None:
         if not task_id:
             return None
         task = self._require_task_capability(self._task_detail_query).get_task(task_id)
         if task is None:
             return None
-        rows = self._serialize_project_tasks(
-            task.project_id,
-            self._project_name_by_id().get(task.project_id, ""),
-        )
+        rows = self._project_tasks(task.project_id)
         return next((row for row in rows if row.id == task.id), None)
 
-    def _serialize_project_tasks(self, project_id: str, project_name: str) -> tuple[TaskDesktopDto, ...]:
-        responses = self._require_task_capability(self._task_hierarchy_query).query_task_responses(project_id)
-        return tuple(serialize_task(response, project_name=project_name) for response in responses)
+    def _project_tasks(self, project_id: str) -> tuple[TaskResponseDto, ...]:
+        return self._require_task_capability(self._task_hierarchy_query).query_task_responses(project_id)
 
     def list_dependency_types(self) -> tuple[TaskDependencyTypeDescriptor, ...]:
         return tuple(
@@ -269,9 +235,8 @@ class ProjectManagementTasksDesktopApi:
             for dependency_type in DependencyType
         )
 
-    def list_tasks(self, project_id: str) -> tuple[TaskDesktopDto, ...]:
-        project_name = self._project_name_by_id().get(project_id, "")
-        return self._serialize_project_tasks(project_id, project_name)
+    def list_tasks(self, project_id: str) -> tuple[TaskResponseDto, ...]:
+        return self._project_tasks(project_id)
 
     def list_task_page(
         self,
@@ -308,12 +273,8 @@ class ProjectManagementTasksDesktopApi:
         )
         return result
 
-    def create_task(self, command: TaskCreateCommand) -> TaskDesktopDto:
-        task = self._require_task_capability(self._task_lifecycle_commands).create_task(command)
-        return serialize_task(
-            task,
-            project_name=self._project_name_by_id().get(task.project_id, ""),
-        )
+    def create_task(self, command: TaskCreateCommand) -> TaskResponseDto:
+        return self._require_task_capability(self._task_lifecycle_commands).create_task(command)
 
     def list_constraint_options(self) -> tuple[TaskConstraintOptionDescriptor, ...]:
         return tuple(
@@ -330,124 +291,26 @@ class ProjectManagementTasksDesktopApi:
 
     def update_task_scheduling_constraint(
         self, command: TaskConstraintUpdateCommand
-    ) -> TaskDesktopDto:
-        task = self._require_task_capability(self._task_constraint_commands).update_task_scheduling_constraint(command)
-        return serialize_task(
-            task,
-            project_name=self._project_name_by_id().get(task.project_id, ""),
-        )
+    ) -> TaskResponseDto:
+        return self._require_task_capability(self._task_constraint_commands).update_task_scheduling_constraint(command)
 
-    def move_task(self, command: TaskWbsMoveCommand) -> TaskDesktopDto:
+    def move_task(self, command: TaskWbsMoveCommand) -> TaskResponseDto:
         task = self._require_task_capability(self._task_hierarchy_commands).move_task(command)
         refreshed = self.get_task(task.id)
         if refreshed is None:
             raise RuntimeError("Task could not be loaded after the WBS move.")
         return refreshed
 
-    def update_task(self, command: TaskUpdateCommand) -> TaskDesktopDto:
-        task = self._require_task_capability(self._task_lifecycle_commands).update_task(command)
-        return serialize_task(
-            task,
-            project_name=self._project_name_by_id().get(task.project_id, ""),
-        )
+    def update_task(self, command: TaskUpdateCommand) -> TaskResponseDto:
+        return self._require_task_capability(self._task_lifecycle_commands).update_task(command)
 
-    def update_progress(self, command: TaskProgressCommand) -> TaskDesktopDto:
-        task = self._require_task_capability(self._task_progress_commands).update_progress(command)
-        return serialize_task(
-            task,
-            project_name=self._project_name_by_id().get(task.project_id, ""),
-        )
+    def update_progress(self, command: TaskProgressCommand) -> TaskResponseDto:
+        return self._require_task_capability(self._task_progress_commands).update_progress(command)
 
-    def _project_resource_version_for(self, assignment) -> int:
-        project_resource_id = str(getattr(assignment, "project_resource_id", "") or "")
-        if not project_resource_id or self._project_resource_query is None:
-            return 1
-        try:
-            project_resource = self._project_resource_query.get(project_resource_id)
-        except Exception:
-            logger.exception(
-                "Failed to retrieve project resource version for assignment_id=%s, project_resource_id=%s",
-                getattr(assignment, "id", ""),
-                project_resource_id,
-            )
-            return 1
-        return int(getattr(project_resource, "version", 1) or 1)
-
-    def list_assignments(self, task_id: str) -> tuple[TaskAssignmentDesktopDto, ...]:
-        if not task_id:
+    def list_assignments(self, task_id: str) -> tuple[TaskAssignmentResponseDto, ...]:
+        if not task_id or self._task_assignment_commands is None:
             return ()
-        list_assignments_for_task = getattr(self._task_assignment_commands, "list_assignments_for_task", None)
-        if not callable(list_assignments_for_task):
-            return ()
-        assignments = list(list_assignments_for_task(task_id))
-        resources_by_id = resource_by_id(
-            resource_query=self._resource_service,
-            resource_ids=tuple(
-                str(getattr(assignment, "resource_id", "") or "")
-                for assignment in assignments
-            ),
-        )
-        assignments = sorted(
-            assignments,
-            key=lambda assignment: (
-                resource_name_for_assignment(
-                    assignment,
-                    resources_by_id=resources_by_id,
-                ).casefold(),
-                -float(getattr(assignment, "allocation_percent", 0.0) or 0.0),
-            ),
-        )
-        action_context_method = getattr(self._task_assignment_commands, "get_assignment_action_context", None)
-        preview_capacity_method = getattr(self._task_assignment_commands, "preview_assignment_capacity", None)
-        rows: list[TaskAssignmentDesktopDto] = []
-        for assignment in assignments:
-            action_context = None
-            if callable(action_context_method):
-                try:
-                    action_context = action_context_method(assignment.id)
-                except Exception:
-                    logger.warning(
-                        "Assignment capabilities could not be resolved assignment_id=%s",
-                        assignment.id,
-                        exc_info=True,
-                    )
-                    action_context = None
-            capacity_fact = None
-            if callable(preview_capacity_method):
-                try:
-                    # This assignment's own allocation_percent stands in as
-                    # "proposed" against every OTHER assignment already
-                    # committed (exclude_assignment_id) -- i.e. the real
-                    # capacity fact for this assignment's current commitment,
-                    # from the same authority the create/edit preview uses
-                    # (docs §44), not a second calculation.
-                    capacity_fact = preview_capacity_method(
-                        task_id,
-                        assignment.resource_id,
-                        proposed_allocation_percent=float(
-                            getattr(assignment, "allocation_percent", 0.0) or 0.0
-                        ),
-                        exclude_assignment_id=assignment.id,
-                    )
-                except Exception:
-                    logger.warning(
-                        "Assignment capacity could not be resolved assignment_id=%s",
-                        assignment.id,
-                        exc_info=True,
-                    )
-                    capacity_fact = None
-            rows.append(
-                serialize_assignment(
-                    assignment,
-                    resources_by_id=resources_by_id,
-                    can_manage=bool(getattr(action_context, "can_manage", False)),
-                    can_accept=bool(getattr(action_context, "can_accept", False)),
-                    can_decline=bool(getattr(action_context, "can_decline", False)),
-                    project_resource_version=self._project_resource_version_for(assignment),
-                    capacity_fact=capacity_fact,
-                )
-            )
-        return tuple(rows)
+        return self._task_assignment_commands.query_assignment_responses(task_id)
 
     def list_assignments_page(
         self, task_id: str, *, search_text: str = "", response_status: str = "all",
@@ -478,145 +341,61 @@ class ProjectManagementTasksDesktopApi:
         page: int = 1,
         page_size: int = 25,
         sort_direction: str = "desc",
-    ) -> TaskTimeEntriesPageDesktopDto | None:
+    ) -> TaskTimeEntriesPage | None:
         """Task-scoped (every assignment on this task), all-time Time
         Entries listing for Task Detail -> Time -> Time Entries.
         None when the task can't be resolved."""
         if not task_id:
             return None
-        page_result = self._require_task_time_entries().list_time_entries_for_task_page(
+        return self._require_task_time_entries().list_time_entries_for_task_page(
             task_id,
             resource_id=resource_id or None,
             page=page,
             page_size=page_size,
             sort_direction=sort_direction,
         )
-        resources_by_id = resource_by_id(
-            resource_query=self._resource_service,
-            resource_ids=tuple({row.resource_id for row in page_result.items}),
-        )
-        return serialize_task_time_entries_page(page_result, resources_by_id=resources_by_id)
 
     def create_assignment(
         self,
         command: TaskAssignmentCreateCommand,
-    ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_capability(self._task_assignment_commands).assign_project_resource(command)
-        return serialize_assignment(
-            assignment,
-            resources_by_id=resource_by_id(
-                resource_query=self._resource_service,
-                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
-            ),
-            project_resource_version=self._project_resource_version_for(assignment),
-        )
+    ) -> TaskAssignmentResponseDto:
+        return self._require_task_capability(self._task_assignment_commands).assign_project_resource(command)
 
     def update_assignment_allocation(
         self,
         command: TaskAssignmentAllocationCommand,
-    ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_capability(self._task_assignment_commands).set_assignment_allocation(command)
-        return serialize_assignment(
-            assignment,
-            resources_by_id=resource_by_id(
-                resource_query=self._resource_service,
-                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
-            ),
-            project_resource_version=self._project_resource_version_for(assignment),
-        )
+    ) -> TaskAssignmentResponseDto:
+        return self._require_task_capability(self._task_assignment_commands).set_assignment_allocation(command)
 
     def update_assignment_planned_hours(
         self,
         command: TaskAssignmentPlannedHoursCommand,
-    ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_capability(self._task_assignment_commands).update_assignment_planned_hours(command)
-        return serialize_assignment(
-            assignment,
-            resources_by_id=resource_by_id(
-                resource_query=self._resource_service,
-                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
-            ),
-            project_resource_version=self._project_resource_version_for(assignment),
-        )
+    ) -> TaskAssignmentResponseDto:
+        return self._require_task_capability(self._task_assignment_commands).update_assignment_planned_hours(command)
 
     def set_assignment_hours(
         self,
         command: TaskAssignmentHoursCommand,
-    ) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_assignment_commands(
+    ) -> TaskAssignmentResponseDto:
+        return self._require_task_assignment_commands(
             operation_label="log assignment hours"
         ).set_assignment_hours(command)
-        return serialize_assignment(
-            assignment,
-            resources_by_id=resource_by_id(
-                resource_query=self._resource_service,
-                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
-            ),
-            project_resource_version=self._project_resource_version_for(assignment),
-        )
 
     def delete_assignment(self, assignment_id: str) -> None:
         self._require_task_capability(self._task_assignment_commands).unassign_resource(assignment_id)
 
-    def accept_assignment(self, assignment_id: str) -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_capability(self._task_assignment_commands).accept_assignment(assignment_id)
-        return serialize_assignment(
-            assignment,
-            resources_by_id=resource_by_id(
-                resource_query=self._resource_service,
-                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
-            ),
-            project_resource_version=self._project_resource_version_for(assignment),
-        )
+    def accept_assignment(self, assignment_id: str) -> TaskAssignmentResponseDto:
+        return self._require_task_capability(self._task_assignment_commands).accept_assignment(assignment_id)
 
-    def decline_assignment(self, assignment_id: str, reason: str = "") -> TaskAssignmentDesktopDto:
-        assignment = self._require_task_capability(self._task_assignment_commands).decline_assignment(assignment_id, reason or None)
-        return serialize_assignment(
-            assignment,
-            resources_by_id=resource_by_id(
-                resource_query=self._resource_service,
-                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
-            ),
-            project_resource_version=self._project_resource_version_for(assignment),
-        )
+    def decline_assignment(self, assignment_id: str, reason: str = "") -> TaskAssignmentResponseDto:
+        return self._require_task_capability(self._task_assignment_commands).decline_assignment(assignment_id, reason or None)
 
-    def list_dependencies(self, task_id: str) -> tuple[TaskDependencyDesktopDto, ...]:
-        if not task_id:
+    def list_dependencies(self, task_id: str) -> tuple[TaskDependencyReadItem, ...]:
+        if not task_id or self._task_dependency_query is None or self._task_detail_query is None or self._task_lookup_query is None:
             return ()
-        list_dependencies_for_task = getattr(self._task_dependency_query, "list_dependencies_for_task", None)
-        get_task = getattr(self._task_detail_query, "get_task", None)
-        list_tasks_for_project = getattr(self._task_lookup_query, "list_tasks_for_project", None)
-        if (
-            not callable(list_dependencies_for_task)
-            or not callable(get_task)
-            or not callable(list_tasks_for_project)
-        ):
+        if self._task_detail_query.get_task(task_id) is None:
             return ()
-        current_task = get_task(task_id)
-        if current_task is None:
-            return ()
-        tasks_by_id = {
-            task.id: task
-            for task in list_tasks_for_project(current_task.project_id)
-        }
-        rows = [
-            serialize_dependency(
-                dependency,
-                current_task_id=current_task.id,
-                tasks_by_id=tasks_by_id,
-            )
-            for dependency in list_dependencies_for_task(task_id)
-            if dependency_direction(current_task.id, dependency)[0]
-        ]
-        return tuple(
-            sorted(
-                rows,
-                key=lambda row: (
-                    row.direction != "PREDECESSOR",
-                    row.linked_task_name.casefold(),
-                ),
-            )
-        )
+        return self._task_dependency_query.query_dependency_responses(task_id)
 
     def list_dependencies_page(
         self, task_id: str, *, search_text: str = "", direction: str = "all",
@@ -637,24 +416,8 @@ class ProjectManagementTasksDesktopApi:
             task_id, search_text=search_text, category=category, page=page, page_size=page_size)
         return result
 
-    def create_dependency(
-        self,
-        command: TaskDependencyCreateCommand,
-    ) -> TaskDependencyDesktopDto:
-        dependency = self._require_task_capability(self._task_dependency_commands).add_dependency(command)
-        current_task = self._require_task_capability(self._task_detail_query).get_task(command.task_id)
-        tasks_by_id: dict[str, object] = {}
-        list_tasks_for_project = getattr(self._task_lookup_query, "list_tasks_for_project", None)
-        if current_task is not None and callable(list_tasks_for_project):
-            tasks_by_id = {
-                task.id: task
-                for task in list_tasks_for_project(current_task.project_id)
-            }
-        return serialize_dependency(
-            dependency,
-            current_task_id=command.task_id,
-            tasks_by_id=tasks_by_id,
-        )
+    def create_dependency(self, command: TaskDependencyCreateCommand) -> TaskDependencyResponseDto:
+        return self._require_task_capability(self._task_dependency_commands).add_dependency(command)
 
     def update_dependency(
         self,
@@ -671,7 +434,7 @@ class ProjectManagementTasksDesktopApi:
     def preview_create_dependency(
         self,
         command: TaskDependencyCreateCommand,
-    ) -> TaskDependencyImpactPreviewDesktopDto | None:
+    ) -> DependencyDiagnostic | None:
         """Non-persisting impact preview for a proposed CREATE. Uses the
         same canonical, non-persisting engine the committed schedule uses
         -- never a second formula, never QML-side math."""
@@ -690,12 +453,12 @@ class ProjectManagementTasksDesktopApi:
             lag_days=command.lag_days,
             include_impact=True,
         )
-        return serialize_dependency_impact_preview(diagnostic)
+        return diagnostic
 
     def preview_update_dependency(
         self,
         command: TaskDependencyUpdateCommand,
-    ) -> TaskDependencyImpactPreviewDesktopDto | None:
+    ) -> DependencyDiagnostic | None:
         """Non-persisting impact preview for a proposed UPDATE."""
         diagnostics = self._require_dependency_diagnostics()
         get_dependency = getattr(self._task_dependency_query, "get_dependency", None)
@@ -715,16 +478,16 @@ class ProjectManagementTasksDesktopApi:
             include_impact=True,
             exclude_dependency_id=normalized_id,
         )
-        return serialize_dependency_impact_preview(diagnostic)
+        return diagnostic
 
     def preview_delete_dependency(
         self, dependency_id: str
-    ) -> TaskDependencyImpactPreviewDesktopDto | None:
+    ) -> DependencyDiagnostic | None:
         """Non-persisting impact preview for a proposed DELETE."""
         diagnostic = self._require_dependency_diagnostics().preview_dependency_removal(
             dependency_id
         )
-        return serialize_dependency_impact_preview(diagnostic)
+        return diagnostic
 
     def delete_task(self, task_id: str) -> None:
         self._require_task_capability(self._task_deletion_commands).delete_task(task_id)
@@ -732,16 +495,9 @@ class ProjectManagementTasksDesktopApi:
     def apply_bulk_status(
         self,
         command: TaskBulkStatusCommand,
-    ) -> tuple[TaskDesktopDto, ...]:
+    ) -> tuple[TaskResponseDto, ...]:
         changed = self._require_task_capability(self._task_progress_commands).set_tasks_status(command)
-        project_names = self._project_name_by_id()
-        return tuple(
-            serialize_task(
-                task,
-                project_name=project_names.get(task.project_id, ""),
-            )
-            for task in changed
-        )
+        return tuple(changed)
 
     def delete_tasks(self, task_ids: tuple[str, ...]) -> tuple[str, ...]:
         normalized_ids = normalize_task_ids(task_ids)
@@ -750,25 +506,24 @@ class ProjectManagementTasksDesktopApi:
     def list_task_skill_requirements(
         self,
         task_id: str,
-    ) -> tuple[TaskSkillRequirementDesktopDto, ...]:
+    ) -> tuple[TaskSkillRequirementResponseDto, ...]:
         if not task_id or self._assignment_skill_validator is None:
             return ()
         try:
-            requirements = self._assignment_skill_validator.list_requirements(task_id)
+            return query_skill_requirements(self._assignment_skill_validator, task_id)
         except Exception:
             logger.exception(
                 "list_task_skill_requirements failed (task_id=%s)",
                 task_id,
             )
             return ()
-        return tuple(serialize_skill_requirement(req) for req in requirements)
 
     def validate_assignment(
         self,
         task_id: str,
         project_resource_id: str,
-    ) -> AssignmentValidationDesktopDto:
-        return build_assignment_validation(
+    ) -> AssignmentValidationResponseDto:
+        return query_assignment_validation(
             task_id,
             project_resource_id,
             task_query=self._task_detail_query,
@@ -783,8 +538,8 @@ class ProjectManagementTasksDesktopApi:
         *,
         proposed_allocation_percent: float = 100.0,
         exclude_assignment_id: str | None = None,
-    ) -> AssignmentPreviewDesktopDto:
-        return build_assignment_preview(
+    ) -> AssignmentPreviewResponseDto:
+        return query_assignment_preview(
             task_id,
             project_resource_id,
             task_query=self._task_detail_query,
@@ -793,7 +548,6 @@ class ProjectManagementTasksDesktopApi:
             assignment_skill_validator=self._assignment_skill_validator,
             proposed_allocation_percent=proposed_allocation_percent,
             exclude_assignment_id=exclude_assignment_id,
-            project_names=self._project_name_by_id(),
         )
 
     def get_task_schedule_overview(

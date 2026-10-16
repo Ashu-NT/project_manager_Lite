@@ -18,12 +18,6 @@ from src.core.modules.project_management.api.desktop.financials import (
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
     FinancialAccountingStatusPageDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.changes import (
-    FinancialChangeWorkspaceDto,
-)
-from src.core.modules.project_management.api.desktop.financials.models.configuration import (
-    FinancialConfigurationWorkspaceDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
@@ -74,11 +68,20 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_lif
     TaskCreateCommand,
 )
 from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import (
+    BudgetVersionPageFacts,
+    FinanceBudgetWorkspaceFacts,
+    FinancePageFacts,
     FinancePageRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.financial_changes.models.change_facts import (
+    FinanceChangeWorkspaceFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.forecasts.models.forecast_facts import (
     ForecastLineRequest,
     ForecastVersionRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.planned_costs.models.planned_cost_facts import (
+    FinancePlannedCostWorkspaceFacts,
 )
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
@@ -170,10 +173,13 @@ def test_overview_uses_bounded_overview_contract_only() -> None:
 
 def test_planning_budget_tab_does_not_query_cost_or_performance_reads() -> None:
     api = MagicMock()
-    api.get_budget_workspace.return_value = FinancialConfigurationWorkspaceDto(
-        show_create_budget_version=True,
-        can_create_budget_version=False,
-        create_budget_version_disabled_reason="An open version exists.",
+    api.get_budget_workspace.return_value = FinanceBudgetWorkspaceFacts(
+        selected_budget_id="",
+        versions=BudgetVersionPageFacts((), 0, 1, 50, "revision", "desc"),
+        lines=FinancePageFacts((), 0, 1, 50, "metaText", "desc"),
+        show_create_version=True,
+        can_create_version=False,
+        create_version_disabled_reason="An open version exists.",
     )
 
     state = build_destination_state(
@@ -196,7 +202,11 @@ def test_planning_budget_tab_does_not_query_cost_or_performance_reads() -> None:
 
 def test_planning_planned_cost_tab_uses_bounded_reader_facade_only() -> None:
     api = MagicMock()
-    api.get_planned_cost_workspace.return_value = FinancialConfigurationWorkspaceDto()
+    api.get_planned_cost_workspace.return_value = FinancePlannedCostWorkspaceFacts(
+        selected_version_id="",
+        versions=FinancePageFacts((), 0, 1, 50, "revision", "desc"),
+        lines=FinancePageFacts((), 0, 1, 50, "title", "asc"),
+    )
 
     build_destination_state(
         api,
@@ -1331,7 +1341,12 @@ def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:
 
 def test_controls_changes_uses_bounded_master_detail_facade_only() -> None:
     api = MagicMock()
-    api.get_change_workspace.return_value = FinancialChangeWorkspaceDto()
+    api.get_change_workspace.return_value = FinanceChangeWorkspaceFacts(
+        selected_change_id="",
+        selected_change=None,
+        changes=FinancePageFacts((), 0, 1, 50, "metaText", "desc"),
+        impacts=FinancePageFacts((), 0, 1, 50, "metaText", "asc"),
+    )
 
     build_destination_state(
         api,

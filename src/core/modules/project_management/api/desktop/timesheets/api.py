@@ -5,39 +5,13 @@ from datetime import date
 from src.core.modules.project_management.api.desktop.timesheets.builders.assignment_options_builder import (
     build_assignment_options,
 )
-from src.core.modules.project_management.api.desktop.timesheets.builders.assignment_snapshot_builder import (
-    build_assignment_snapshot,
-)
 from src.core.modules.project_management.api.desktop.timesheets.builders.project_options_builder import (
     build_project_options,
-)
-from src.core.modules.project_management.api.desktop.timesheets.models.entries import (
-    TimesheetEntryDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.timesheets.models.options import (
     TimesheetAssignmentOptionDescriptor,
     TimesheetOptionDescriptor,
     TimesheetProjectOptionDescriptor,
-)
-from src.core.modules.project_management.api.desktop.timesheets.models.periods import (
-    TimesheetPeriodSummaryDesktopDto,
-    TimesheetReviewPageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.timesheets.models.review import (
-    TimesheetReviewDetailDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.timesheets.models.snapshots import (
-    TimesheetAssignmentSnapshotDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.timesheets.serializers.entry_serializer import (
-    serialize_entry,
-)
-from src.core.modules.project_management.api.desktop.timesheets.serializers.period_serializer import (
-    serialize_period_aggregate,
-)
-from src.core.modules.project_management.api.desktop.timesheets.serializers.review_serializer import (
-    serialize_review_detail,
-    serialize_review_summary,
 )
 from src.core.modules.project_management.api.desktop.timesheets.utils.status_utils import (
     coerce_queue_status,
@@ -63,6 +37,9 @@ from src.core.modules.project_management.application.timesheets.dto.commands.tim
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
 )
+from src.core.modules.project_management.application.timesheets.dto.responses.time_entries import (
+    TimesheetEntryResult,
+)
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetEntryReadPage,
     TimesheetHistoryReadPage,
@@ -71,12 +48,17 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetScope,
     TimesheetWorkspaceAccessFact,
 )
+from src.core.modules.project_management.contracts.reads.timesheets.review_reader import (
+    TimesheetReviewInspectorFact,
+    TimesheetReviewReadPage,
+)
 from src.core.platform.application.tenant.modules.authorization import (
     require_module_enabled,
 )
 from src.core.platform.application.time_management.time import (
     TimeEntryCommandHandler,
     TimeEntryQueryHandler,
+    TimesheetPeriodAggregate,
     TimesheetPeriodQueryHandler,
     TimesheetPeriodTransitionHandler,
 )
@@ -244,9 +226,11 @@ class ProjectManagementTimesheetsDesktopApi:
         scope: TimesheetScope | str,
         resource_id: str | None,
         period_start: date,
-    ) -> TimesheetEntryDesktopDto:
-        entry = _connected(self._workspace_commands).add_timesheet_entry(command, scope=scope, resource_id=resource_id, period_start=period_start)
-        return serialize_entry(entry, str(command.assignment_id or "").strip())
+    ) -> TimesheetEntryResult:
+        entry = _connected(self._workspace_commands).add_timesheet_entry(
+            command, scope=scope, resource_id=resource_id, period_start=period_start
+        )
+        return entry
 
     def update_resource_time_entry(
         self,
@@ -255,11 +239,11 @@ class ProjectManagementTimesheetsDesktopApi:
         scope: TimesheetScope | str,
         resource_id: str | None,
         period_start: date,
-    ) -> TimesheetEntryDesktopDto:
-        entry = _connected(self._workspace_commands).update_timesheet_entry(command, scope=scope, resource_id=resource_id, period_start=period_start)
-        return serialize_entry(
-            entry, str(getattr(entry, "assignment_id", "") or entry.work_allocation_id)
+    ) -> TimesheetEntryResult:
+        entry = _connected(self._workspace_commands).update_timesheet_entry(
+            command, scope=scope, resource_id=resource_id, period_start=period_start
         )
+        return entry
 
     def delete_resource_time_entry(
         self,
@@ -297,6 +281,7 @@ class ProjectManagementTimesheetsDesktopApi:
         return self.get_resource_timesheet_period(
             scope=scope, resource_id=resource_id, period_start=period_start
         )
+
     def list_review_resources(
         self,
         *,
@@ -313,22 +298,6 @@ class ProjectManagementTimesheetsDesktopApi:
             )
         )
 
-    def build_assignment_snapshot(
-        self,
-        assignment_id: str,
-        *,
-        period_start: date | None = None,
-    ) -> TimesheetAssignmentSnapshotDesktopDto:
-        self._require_pm_module("view timesheet assignment")
-        return build_assignment_snapshot(
-            assignment_id,
-            period_start=period_start,
-            task_lookup_query=self._require_task_lookup_query(),
-            task_assignment_commands=self._require_task_assignment_commands(),
-            time_entry_queries=_connected(self._time_entry_queries),
-            period_queries=_connected(self._period_query),
-        )
-
     def list_review_queue_page(
         self,
         *,
@@ -342,7 +311,7 @@ class ProjectManagementTimesheetsDesktopApi:
         page_size: int = 25,
         sort_key: str = "submittedAt",
         sort_direction: str = "desc",
-    ) -> TimesheetReviewPageDesktopDto:
+    ) -> TimesheetReviewReadPage:
         normalized_status = coerce_queue_status(status)
         result = _connected(self._review_query).query_review_queue_page(
             status=normalized_status,
@@ -356,45 +325,29 @@ class ProjectManagementTimesheetsDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return TimesheetReviewPageDesktopDto(
-            items=tuple(
-                serialize_review_summary(row, project_service=self._project_service)
-                for row in result.items
-            ),
-            total=result.total,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
-        )
+        return result
 
-    def get_review_detail(self, period_id: str) -> TimesheetReviewDetailDesktopDto:
+    def get_review_detail(self, period_id: str) -> TimesheetReviewInspectorFact:
         detail = _connected(self._review_query).get_review_queue_inspector(
             str(period_id or "").strip()
         )
-        return serialize_review_detail(detail, project_service=self._project_service)
+        return detail
 
     def add_time_entry(
         self,
         command: TimesheetEntryCreateCommand,
-    ) -> TimesheetEntryDesktopDto:
+    ) -> TimesheetEntryResult:
         self._require_pm_module("add time entry")
         entry = _connected(self._workspace_commands).add_timesheet_entry(command)
-        return serialize_entry(entry, str(command.assignment_id or "").strip())
+        return entry
 
     def update_time_entry(
         self,
         command: TimesheetEntryUpdateCommand,
-    ) -> TimesheetEntryDesktopDto:
+    ) -> TimesheetEntryResult:
         self._require_pm_module("update time entry")
         entry = _connected(self._workspace_commands).update_timesheet_entry(command)
-        return serialize_entry(
-            entry,
-            str(
-                getattr(entry, "assignment_id", "")
-                or getattr(entry, "work_allocation_id", "")
-            ),
-        )
+        return entry
 
     def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
         self._require_pm_module("delete time entry")
@@ -409,18 +362,14 @@ class ProjectManagementTimesheetsDesktopApi:
         resource_id: str,
         period_start: date,
         note: str = "",
-    ) -> TimesheetPeriodSummaryDesktopDto:
+    ) -> TimesheetPeriodAggregate:
         self._require_pm_module("submit timesheet period")
         aggregate = _connected(self._period_transitions).submit_timesheet_period(
             str(resource_id or "").strip(),
             period_start=period_start,
             note=note,
         )
-        return serialize_period_aggregate(
-            aggregate,
-            resource_query=self._resource_service,
-            project_service=self._project_service,
-        )
+        return aggregate
 
     def approve_period(
         self,
@@ -428,18 +377,14 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         expected_version: int,
         note: str = "",
-    ) -> TimesheetPeriodSummaryDesktopDto:
+    ) -> TimesheetPeriodAggregate:
         self._require_pm_module("approve timesheet period")
         aggregate = _connected(self._period_transitions).approve_timesheet_period(
             str(period_id or "").strip(),
             expected_version=int(expected_version),
             note=note,
         )
-        return serialize_period_aggregate(
-            aggregate,
-            resource_query=self._resource_service,
-            project_service=self._project_service,
-        )
+        return aggregate
 
     def reject_period(
         self,
@@ -447,18 +392,14 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         expected_version: int,
         note: str,
-    ) -> TimesheetPeriodSummaryDesktopDto:
+    ) -> TimesheetPeriodAggregate:
         self._require_pm_module("reject timesheet period")
         aggregate = _connected(self._period_transitions).reject_timesheet_period(
             str(period_id or "").strip(),
             expected_version=int(expected_version),
             note=note,
         )
-        return serialize_period_aggregate(
-            aggregate,
-            resource_query=self._resource_service,
-            project_service=self._project_service,
-        )
+        return aggregate
 
     def lock_period(
         self,
@@ -466,18 +407,14 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         expected_version: int,
         note: str = "",
-    ) -> TimesheetPeriodSummaryDesktopDto:
+    ) -> TimesheetPeriodAggregate:
         self._require_pm_module("lock timesheet period")
         aggregate = _connected(self._period_transitions).lock_timesheet_period(
             str(period_id or "").strip(),
             expected_version=int(expected_version),
             note=note,
         )
-        return serialize_period_aggregate(
-            aggregate,
-            resource_query=self._resource_service,
-            project_service=self._project_service,
-        )
+        return aggregate
 
     def unlock_period(
         self,
@@ -485,18 +422,14 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         expected_version: int,
         note: str = "",
-    ) -> TimesheetPeriodSummaryDesktopDto:
+    ) -> TimesheetPeriodAggregate:
         self._require_pm_module("unlock timesheet period")
         aggregate = _connected(self._period_transitions).unlock_timesheet_period(
             str(period_id or "").strip(),
             expected_version=int(expected_version),
             note=note,
         )
-        return serialize_period_aggregate(
-            aggregate,
-            resource_query=self._resource_service,
-            project_service=self._project_service,
-        )
+        return aggregate
 
     def reopen_period_for_correction(
         self,
@@ -504,18 +437,16 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         expected_version: int,
         reason: str,
-    ) -> TimesheetPeriodSummaryDesktopDto:
+    ) -> TimesheetPeriodAggregate:
         self._require_pm_module("reopen timesheet period")
-        aggregate = _connected(self._period_transitions).reopen_approved_timesheet_period_for_correction(
+        aggregate = _connected(
+            self._period_transitions
+        ).reopen_approved_timesheet_period_for_correction(
             str(period_id or "").strip(),
             expected_version=int(expected_version),
             note=str(reason or "").strip(),
         )
-        return serialize_period_aggregate(
-            aggregate,
-            resource_query=self._resource_service,
-            project_service=self._project_service,
-        )
+        return aggregate
 
     def _require_pm_module(self, operation_label: str) -> None:
         require_module_enabled(
@@ -539,10 +470,11 @@ class ProjectManagementTimesheetsDesktopApi:
         return self._task_assignment_commands
 
 
-
 def _connected[T](capability: T | None) -> T:
     if capability is None:
-        raise ConfigurationError("Project management timesheets desktop API is not connected.")
+        raise ConfigurationError(
+            "Project management timesheets desktop API is not connected."
+        )
     return capability
 
 

@@ -8,7 +8,7 @@ from src.core.modules.project_management.api.desktop.common.financial_formatting
 
 
 def format_amount(value: float) -> str:
-    return format_decimal_amount(value, grouping=False)
+    return format_decimal_amount(str(value), grouping=False)
 
 
 def format_date_iso(d: date | None) -> str:

@@ -28,35 +28,38 @@ def build_detail_view_model(
                 "update progress."
             ),
         )
-    state = build_task_state(task)
+    project_name = task.project_name or next(
+        (option.label for option in desktop_api.list_projects() if option.value == task.project_id), ""
+    )
+    state = build_task_state(task, project_name=project_name)
     return TaskDetailViewModel(
         id=task.id,
         title=task.name,
         status_label=task.status.replace("_", " ").title(),
-        subtitle=task.project_name or "Project task",
+        subtitle=project_name or "Project task",
         description=task.description or "No task description has been added yet.",
         fields=(
             TaskDetailFieldViewModel(
                 label="WBS",
-                value=state["wbsCode"],
+                value=str(state["wbsCode"]),
                 supporting_text=(
                     f"Summary task with {state['childCount']} direct child task(s)."
                     if state["isSummary"]
                     else "Schedulable execution leaf."
                 ),
             ),
-            TaskDetailFieldViewModel(label="Start", value=state["startDateLabel"]),
-            TaskDetailFieldViewModel(label="Finish", value=state["endDateLabel"]),
-            TaskDetailFieldViewModel(label="Duration", value=state["durationLabel"]),
-            TaskDetailFieldViewModel(label="Deadline", value=state["deadlineLabel"]),
+            TaskDetailFieldViewModel(label="Start", value=str(state["startDateLabel"])),
+            TaskDetailFieldViewModel(label="Finish", value=str(state["endDateLabel"])),
+            TaskDetailFieldViewModel(label="Duration", value=str(state["durationLabel"])),
+            TaskDetailFieldViewModel(label="Deadline", value=str(state["deadlineLabel"])),
             TaskDetailFieldViewModel(
                 label="Progress",
-                value=state["percentCompleteLabel"],
+                value=str(state["percentCompleteLabel"]),
                 supporting_text=f"Priority: {state['priorityLabel']}",
             ),
             TaskDetailFieldViewModel(
                 label="Actuals",
-                value=state["actualStartLabel"],
+                value=str(state["actualStartLabel"]),
                 supporting_text=f"Actual end: {state['actualEndLabel']}",
             ),
             TaskDetailFieldViewModel(

@@ -26,6 +26,12 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_dep
     TaskDependencyCreateCommand,
     TaskDependencyUpdateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.responses.dependency import (
+    TaskDependencyResponseDto,
+)
+from src.core.modules.project_management.application.tasks.mappers.dependency import (
+    map_dependency,
+)
 from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
     DependencyDiagnostic,
     TaskDependencyDiagnosticsQueryHandler,
@@ -110,7 +116,7 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
         self._schedule_synchronizer = schedule_synchronizer
         self._uow_scope = uow_scope
 
-    def add_dependency(self, command: TaskDependencyCreateCommand) -> TaskDependency:
+    def add_dependency(self, command: TaskDependencyCreateCommand) -> TaskDependencyResponseDto:
         predecessor_id = command.linked_task_id if dependency_direction(command.relationship_direction) == "PREDECESSOR" else command.task_id
         successor_id = command.task_id if dependency_direction(command.relationship_direction) == "PREDECESSOR" else command.linked_task_id
         dependency_type = normalize_dependency_type(command.dependency_type)
@@ -183,12 +189,14 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
                 f"Approval required for dependency change. Request {request.id} created.",
                 code="APPROVAL_REQUIRED",
             )
-        return self._apply_dependency_add_decision(
+        dependency = self._apply_dependency_add_decision(
             predecessor_id=predecessor_id,
             successor_id=successor_id,
             dependency_type=dependency_type,
             lag_days=command.lag_days,
         )
+
+        return map_dependency(dependency)
 
     def _apply_dependency_add_decision(
         self,
@@ -394,7 +402,7 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
                 )
             uow.commit()
 
-    def update_dependency(self, command: TaskDependencyUpdateCommand) -> TaskDependency:
+    def update_dependency(self, command: TaskDependencyUpdateCommand) -> TaskDependencyResponseDto:
         dep_id = command.dependency_id.strip()
         dependency_type = normalize_dependency_type(command.dependency_type)
         dependency = self._dependency_repo.get(dep_id)
@@ -468,11 +476,13 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
                 code="APPROVAL_REQUIRED",
             )
 
-        return self._apply_dependency_update_decision(
+        dependency = self._apply_dependency_update_decision(
             dependency_id=dep_id,
             dependency_type=resolved_type,
             lag_days=resolved_lag,
         )
+
+        return map_dependency(dependency)
 
     def _apply_dependency_update_decision(
         self,

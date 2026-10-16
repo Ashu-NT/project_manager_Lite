@@ -9,6 +9,12 @@ from src.core.modules.project_management.application.timesheets.dto.commands.tim
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
 )
+from src.core.modules.project_management.application.timesheets.dto.responses.time_entries import (
+    TimesheetEntryResult,
+)
+from src.core.modules.project_management.application.timesheets.mappers.time_entries import (
+    map_timesheet_entry,
+)
 from src.core.modules.project_management.application.timesheets.timesheet_workspace_scope import (
     SelectedTimesheetResource,
     TimesheetWorkspaceScope,
@@ -66,14 +72,25 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def add_timesheet_entry(self, command: TimesheetEntryCreateCommand, *, scope: TimesheetScope | str | None = None, resource_id: str | None = None, period_start: date | None = None) -> TimeEntry:
+    def add_timesheet_entry(
+        self,
+        command: TimesheetEntryCreateCommand,
+        *,
+        scope: TimesheetScope | str | None = None,
+        resource_id: str | None = None,
+        period_start: date | None = None,
+    ) -> TimesheetEntryResult:
         assignment_id = command.assignment_id.strip()
         hours = float(command.hours)
         if scope is not None:
             if period_start is None:
-                raise ValidationError("Reporting period is required.", code="TIMESHEET_PERIOD_REQUIRED")
+                raise ValidationError(
+                    "Reporting period is required.", code="TIMESHEET_PERIOD_REQUIRED"
+                )
             selected = self._scope.require_edit_target(
-                scope=scope, resource_id=resource_id, operation_label="add Timesheet entry"
+                scope=scope,
+                resource_id=resource_id,
+                operation_label="add Timesheet entry",
             )
             allocation, _, _ = self._support.load_work_allocation_context(assignment_id)
             if str(allocation.resource_id) != selected.resource.resource_id:
@@ -89,17 +106,33 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
                     "The time entry date must be inside the selected reporting period.",
                     code="TIME_ENTRY_OUTSIDE_SELECTED_PERIOD",
                 )
-        return self._time_entries.add_time_entry(
-            assignment_id, entry_date=command.entry_date, hours=hours, note=command.note
+        return map_timesheet_entry(
+            self._time_entries.add_time_entry(
+                assignment_id,
+                entry_date=command.entry_date,
+                hours=hours,
+                note=command.note,
+            )
         )
 
-    def update_timesheet_entry(self, command: TimesheetEntryUpdateCommand, *, scope: TimesheetScope | str | None = None, resource_id: str | None = None, period_start: date | None = None) -> TimeEntry:
+    def update_timesheet_entry(
+        self,
+        command: TimesheetEntryUpdateCommand,
+        *,
+        scope: TimesheetScope | str | None = None,
+        resource_id: str | None = None,
+        period_start: date | None = None,
+    ) -> TimesheetEntryResult:
         entry_id = command.entry_id.strip()
         if scope is not None:
             if period_start is None:
-                raise ValidationError("Reporting period is required.", code="TIMESHEET_PERIOD_REQUIRED")
+                raise ValidationError(
+                    "Reporting period is required.", code="TIMESHEET_PERIOD_REQUIRED"
+                )
             selected = self._scope.require_edit_target(
-                scope=scope, resource_id=resource_id, operation_label="update Timesheet entry"
+                scope=scope,
+                resource_id=resource_id,
+                operation_label="update Timesheet entry",
             )
             entry = self._require_resource_entry(entry_id, selected)
             if not self._period(selected, period_start).can_edit_entry:
@@ -108,12 +141,14 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
             target_date = command.entry_date or entry.entry_date
             if not (start <= entry.entry_date <= end and start <= target_date <= end):
                 raise _entry_outside_period()
-        return self._time_entries.update_time_entry(
-            entry_id,
-            expected_version=command.expected_version,
-            entry_date=command.entry_date,
-            hours=command.hours,
-            note=command.note,
+        return map_timesheet_entry(
+            self._time_entries.update_time_entry(
+                entry_id,
+                expected_version=command.expected_version,
+                entry_date=command.entry_date,
+                hours=command.hours,
+                note=command.note,
+            )
         )
 
     def delete_timesheet_entry(
@@ -126,7 +161,9 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
         expected_version: int,
     ) -> None:
         selected = self._scope.require_edit_target(
-            scope=scope, resource_id=resource_id, operation_label="delete Timesheet entry"
+            scope=scope,
+            resource_id=resource_id,
+            operation_label="delete Timesheet entry",
         )
         entry = self._require_resource_entry(entry_id, selected)
         if not self._period(selected, period_start).can_delete_entry:
@@ -134,7 +171,9 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
         start, end = self._support.timesheet_period_bounds(period_start)
         if not start <= entry.entry_date <= end:
             raise _entry_outside_period()
-        self._time_entries.delete_time_entry(entry_id, expected_version=expected_version)
+        self._time_entries.delete_time_entry(
+            entry_id, expected_version=expected_version
+        )
 
     def submit_resource_timesheet_period(
         self,
@@ -151,7 +190,9 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
         )
         is_owner = selected.resource.identity_user_id == selected.context.actor_user_id
         permission = "timesheet.submit" if is_owner else "timesheet.submit_on_behalf"
-        require_any_permission(self._user_session, (permission,), operation_label=operation_label)
+        require_any_permission(
+            self._user_session, (permission,), operation_label=operation_label
+        )
         period = self._period(selected, period_start)
         if int(expected_version) != period.version:
             raise ConcurrencyError(
@@ -167,7 +208,9 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
         for entry in self._entry_queries.list_time_entries_for_resource_period(
             resource_id_value, period_start=period_start
         ):
-            allocation, owner, _ = self._support.load_work_allocation_context(entry.work_allocation_id)
+            allocation, owner, _ = self._support.load_work_allocation_context(
+                entry.work_allocation_id
+            )
             self._access.require_project_scope(
                 work_allocation=allocation,
                 work_owner=owner,
@@ -181,14 +224,18 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
             required_permission=permission,
         )
 
-    def _period(self, selected: SelectedTimesheetResource, period_start: date) -> TimesheetPeriodFact:
+    def _period(
+        self, selected: SelectedTimesheetResource, period_start: date
+    ) -> TimesheetPeriodFact:
         return self._scope.read_period(selected, period_start=period_start)
 
     def _require_resource_entry(
         self, entry_id: str, selected: SelectedTimesheetResource
     ) -> TimeEntry:
         entry = self._support.require_time_entry(entry_id)
-        allocation, _, _ = self._support.load_work_allocation_context(entry.work_allocation_id)
+        allocation, _, _ = self._support.load_work_allocation_context(
+            entry.work_allocation_id
+        )
         if str(allocation.resource_id) != selected.resource.resource_id:
             raise BusinessRuleError(
                 "The time entry does not belong to the selected Resource.",

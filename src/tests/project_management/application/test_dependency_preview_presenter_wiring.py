@@ -7,6 +7,7 @@ back into a camelCase dict -- the same contract already established by
 """
 from __future__ import annotations
 
+from datetime import date
 from types import SimpleNamespace
 
 from src.ui_qml.modules.project_management.presenters.tasks.dependency_command_handler import (
@@ -23,16 +24,14 @@ def _fake_impact_dto(**overrides):
         summary="Applying this dependency shifts 2 downstream tasks.",
         detail="",
         risk_level="medium",
-        affected_task_count=2,
-        largest_shift_days=3,
-        rows=(
+        impact_rows=(
             SimpleNamespace(
                 task_id="task-2",
                 task_name="Task Two",
-                before_start_label="2026-09-09",
-                before_finish_label="2026-09-11",
-                after_start_label="2026-09-11",
-                after_finish_label="2026-09-13",
+                before_start=date(2026, 9, 9),
+                before_finish=date(2026, 9, 11),
+                after_start=date(2026, 9, 11),
+                after_finish=date(2026, 9, 13),
                 start_shift_days=2,
                 finish_shift_days=2,
             ),
@@ -75,8 +74,8 @@ def test_preview_create_dependency_maps_payload_and_serializes_rows():
     assert result["isValid"] is True
     assert result["code"] == "DEPENDENCY_VALID"
     assert result["riskLevel"] == "medium"
-    assert result["affectedTaskCount"] == 2
-    assert result["largestShiftDays"] == 3
+    assert result["affectedTaskCount"] == 1
+    assert result["largestShiftDays"] == 2
     assert result["rows"] == [
         {
             "taskId": "task-2",
@@ -127,7 +126,7 @@ def test_preview_update_dependency_maps_payload():
 
     def _fake_preview_update_dependency(command):
         captured.append(command)
-        return _fake_impact_dto(code="DEPENDENCY_VALID", risk_level="none", rows=(), affected_task_count=0, largest_shift_days=0, suggestions=())
+        return _fake_impact_dto(code="DEPENDENCY_VALID", risk_level="none", impact_rows=(), suggestions=())
 
     desktop_api = SimpleNamespace(preview_update_dependency=_fake_preview_update_dependency)
 
@@ -162,8 +161,7 @@ def test_preview_delete_dependency_maps_id_and_reports_downstream_shift():
         return _fake_impact_dto(
             code="DEPENDENCY_VALID",
             risk_level="high",
-            affected_task_count=7,
-            largest_shift_days=3,
+            impact_rows=tuple(_fake_impact_dto().impact_rows[0] for _ in range(7)),
         )
 
     desktop_api = SimpleNamespace(preview_delete_dependency=_fake_preview_delete_dependency)
@@ -173,7 +171,7 @@ def test_preview_delete_dependency_maps_id_and_reports_downstream_shift():
     assert captured == ["dep-1"]
     assert result["available"] is True
     assert result["affectedTaskCount"] == 7
-    assert result["largestShiftDays"] == 3
+    assert result["largestShiftDays"] == 2
     assert result["riskLevel"] == "high"
 
 

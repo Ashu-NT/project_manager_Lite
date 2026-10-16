@@ -28,8 +28,21 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_pro
     TaskBulkStatusCommand,
     TaskProgressCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.responses.assignment import (
+    TaskAssignmentResponseDto,
+)
+from src.core.modules.project_management.application.tasks.dto.responses.dependency import (
+    TaskDependencyResponseDto,
+)
 from src.core.modules.project_management.application.tasks.dto.responses.task import (
     TaskResponseDto,
+)
+from src.core.modules.project_management.application.tasks.mappers.assignment import (
+    map_assignment,
+)
+from src.core.modules.project_management.application.tasks.mappers.dependency import (
+    map_dependency,
+    map_dependency_read_item,
 )
 from src.core.modules.project_management.application.tasks.mappers.task import map_task
 from src.core.modules.project_management.domain.enums import (
@@ -54,11 +67,31 @@ class _FakeTaskService:
         self._project_resource_lookup: dict[str, str] = {}
         self._next_id = 1
 
+    def _assignment_response(self, assignment, *, with_context=False):
+        context_method = getattr(self, "get_assignment_action_context", None)
+        context = context_method(assignment.id) if with_context and context_method is not None else None
+        return map_assignment(
+            assignment, resource_name=getattr(self, "_resource_names", {}).get(assignment.resource_id, assignment.resource_id),
+            can_manage=bool(getattr(context, "can_manage", False)),
+            can_accept=bool(getattr(context, "can_accept", False)),
+            can_decline=bool(getattr(context, "can_decline", False)),
+        )
+
+    def query_assignment_responses(self, task_id):
+        return tuple(self._assignment_response(row, with_context=True) for row in self.list_assignments_for_task(task_id))
+
+    def query_dependency_responses(self, task_id):
+        return tuple(map_dependency_read_item(edge, task_id=task_id, tasks_by_id=self._tasks)
+                     for edge in self.list_dependencies_for_task(task_id))
+
     def list_tasks_for_project(self, project_id: str) -> list[Task]:
         return [task for task in self._tasks.values() if task.project_id == project_id]
 
-    def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
+    def register_project_resource(self, project_resource_id: str, resource_id: str, resource_name: str = "") -> None:
         self._project_resource_lookup[project_resource_id] = resource_id
+        if not hasattr(self, "_resource_names"):
+            self._resource_names = {}
+        self._resource_names[resource_id] = resource_name or resource_id
 
     def create_task(self, command: TaskCreateCommand) -> TaskResponseDto:
         project_id = command.project_id
@@ -155,7 +188,7 @@ class _FakeTaskService:
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
         return self._assignments.get(assignment_id)
 
-    def assign_project_resource(self, command: TaskAssignmentCreateCommand) -> TaskAssignment:
+    def assign_project_resource(self, command: TaskAssignmentCreateCommand) -> TaskAssignmentResponseDto:
         task_id = command.task_id
         project_resource_id = command.project_resource_id
         allocation_percent = command.allocation_percent
@@ -169,9 +202,9 @@ class _FakeTaskService:
         assignment.project_resource_id = project_resource_id
         if allocated_planned_hours is not None:
             assignment.allocated_planned_hours = allocated_planned_hours
-        return assignment
+        return self._assignment_response(assignment)
 
-    def set_assignment_allocation(self, command: TaskAssignmentAllocationCommand) -> TaskAssignment:
+    def set_assignment_allocation(self, command: TaskAssignmentAllocationCommand) -> TaskAssignmentResponseDto:
         assignment_id = command.assignment_id
         allocation_percent = command.allocation_percent
         expected_version = command.expected_version
@@ -179,19 +212,19 @@ class _FakeTaskService:
         assignment.allocation_percent = allocation_percent
         if expected_version is not None:
             assignment.version = expected_version + 1
-        return assignment
+        return self._assignment_response(assignment)
 
-    def set_assignment_hours(self, command: TaskAssignmentHoursCommand) -> TaskAssignment:
+    def set_assignment_hours(self, command: TaskAssignmentHoursCommand) -> TaskAssignmentResponseDto:
         assignment_id = command.assignment_id
         hours_logged = command.hours_logged
         assignment = self._assignments[assignment_id]
         assignment.hours_logged = hours_logged
-        return assignment
+        return self._assignment_response(assignment)
 
     def unassign_resource(self, assignment_id: str) -> None:
         del self._assignments[assignment_id]
 
-    def add_dependency(self, command: TaskDependencyCreateCommand) -> TaskDependency:
+    def add_dependency(self, command: TaskDependencyCreateCommand) -> TaskDependencyResponseDto:
         predecessor_id = command.linked_task_id if command.relationship_direction.strip().upper() == "PREDECESSOR" else command.task_id
         successor_id = command.task_id if command.relationship_direction.strip().upper() == "PREDECESSOR" else command.linked_task_id
         dependency_type = DependencyType(command.dependency_type)
@@ -204,7 +237,7 @@ class _FakeTaskService:
             lag_days=lag_days,
         )
         self._dependencies[dependency.id] = dependency
-        return dependency
+        return map_dependency(dependency)
 
     def list_dependencies_for_task(self, task_id: str) -> list[TaskDependency]:
         return [

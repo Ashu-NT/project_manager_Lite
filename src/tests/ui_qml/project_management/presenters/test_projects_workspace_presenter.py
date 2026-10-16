@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 from src.core.modules.project_management.application.risk.dto.responses.entries import (
     RegisterEntryResponseDto,
 )
-from src.core.modules.project_management.api.desktop.tasks import TaskDesktopDto
+from src.core.modules.project_management.application.tasks.dto.responses.task import TaskResponseDto
 from src.core.modules.project_management.application.resources.dto.responses.catalog import (
     ResourceResponse,
 )
@@ -36,8 +36,8 @@ from src.ui_qml.modules.project_management.presenters.projects import (
 
 # ── DTO factories ──────────────────────────────────────────────────────────────
 
-def _task(**kw) -> TaskDesktopDto:
-    return TaskDesktopDto(
+def _task(**kw) -> TaskResponseDto:
+    return TaskResponseDto(
         id=kw.get("id", "t-1"),
         project_id=kw.get("project_id", "p-1"),
         project_name=kw.get("project_name", "Proj"),
@@ -45,7 +45,6 @@ def _task(**kw) -> TaskDesktopDto:
         code=kw.get("code", "T-001"),
         description=kw.get("description", "Desc"),
         status=kw.get("status", "IN_PROGRESS"),
-        status_label=kw.get("status_label", "In Progress"),
         start_date=kw.get("start_date", date(2025, 1, 1)),
         end_date=kw.get("end_date", date(2025, 3, 31)),
         duration_days=kw.get("duration_days", 89),
@@ -154,7 +153,7 @@ def _presenter(
 class TestBuildProjectTasksState:
     def test_single_task_fields_mapped_correctly(self):
         task = _task(
-            id="t-42", name="Implement feature", status_label="Active",
+            id="t-42", name="Implement feature", status="IN_PROGRESS",
             percent_complete=75.0, start_date=date(2025, 2, 1),
             end_date=date(2025, 4, 30), description="Core work",
         )
@@ -167,7 +166,7 @@ class TestBuildProjectTasksState:
         item = items[0]
         assert item.id == "t-42"
         assert item.title == "Implement feature"
-        assert item.status_label == "Active"
+        assert item.status_label == "In Progress"
         assert item.subtitle == "75% complete"
         assert item.supporting_text == "01 Feb 2025 → 30 Apr 2025"
         assert item.meta_text == "Core work"

@@ -6,6 +6,12 @@ from src.core.modules.project_management.application.timesheets.dto.commands.tim
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
 )
+from src.core.modules.project_management.application.timesheets.dto.responses.time_entries import (
+    TimesheetEntryResult,
+)
+from src.core.modules.project_management.application.timesheets.mappers.time_entries import (
+    map_timesheet_entry,
+)
 from src.core.platform.application.time_management.time import TimesheetPeriodAggregate
 from src.core.platform.domain.time_management.time import (
     TimeEntry,
@@ -78,22 +84,22 @@ class _FakeTimesheetService:
     ) -> TimesheetPeriod:
         return self.get_timesheet_period(resource_id, period_start=period_start)
 
-    def add_timesheet_entry(self, command: TimesheetEntryCreateCommand) -> TimeEntry:
-        return self.add_time_entry(
+    def add_timesheet_entry(self, command: TimesheetEntryCreateCommand) -> TimesheetEntryResult:
+        return map_timesheet_entry(self.add_time_entry(
             command.assignment_id,
             entry_date=command.entry_date,
             hours=command.hours,
             note=command.note,
-        )
+        ))
 
-    def update_timesheet_entry(self, command: TimesheetEntryUpdateCommand) -> TimeEntry:
-        return self.update_time_entry(
+    def update_timesheet_entry(self, command: TimesheetEntryUpdateCommand) -> TimesheetEntryResult:
+        return map_timesheet_entry(self.update_time_entry(
             command.entry_id,
             expected_version=command.expected_version,
             entry_date=command.entry_date,
             hours=command.hours,
             note=command.note,
-        )
+        ))
 
     def add_time_entry(
         self,

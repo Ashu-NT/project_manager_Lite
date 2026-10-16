@@ -35,6 +35,7 @@ def build_dependencies_collection(
                 to_dependency_record_view_model(
                     dependency,
                     linked_task=tasks_by_id.get(dependency.linked_task_id),
+                    current_task=selected_task,
                 )
                 for dependency in dependencies
             ),

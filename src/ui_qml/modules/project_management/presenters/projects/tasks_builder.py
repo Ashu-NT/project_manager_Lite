@@ -28,7 +28,7 @@ def build_project_tasks_state(
         ProjectRecordViewModel(
             id=task.id,
             title=task.name,
-            status_label=task.status_label,
+            status_label=task.status.replace("_", " ").title(),
             subtitle=f"{task.percent_complete:.0f}% complete",
             supporting_text=(
                 f"{format_date_label(task.start_date)} → "

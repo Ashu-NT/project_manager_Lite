@@ -21,6 +21,9 @@ from src.core.modules.project_management.application.projects.dto.commands.proje
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -34,8 +37,8 @@ def _desktop_api(services):
 
 def _make_overload(services, name: str):
     project = services['project_create'].create_project(ProjectCreateCommand(name=name, description=""))
-    task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
-    task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
+    task_b = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3))
+    task_c = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3))
     resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Desktop API Dev", role="Developer", hourly_rate=100.0))
     services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
     services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
@@ -60,7 +63,7 @@ class TestPreview:
     def test_preview_of_a_conflict_free_project_returns_no_moves(self, services):
         api = _desktop_api(services)
         project = services['project_create'].create_project(ProjectCreateCommand(name="Desktop API Leveling No Conflicts", description=""))
-        services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
+        services['task_lifecycle_commands'].create_task(TaskCreateCommand(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2))
 
         dto = api.preview_resource_leveling(project.id)
 
@@ -85,7 +88,7 @@ class TestApply:
 
         schedule = api.apply_resource_leveling(project.id)
 
-        assert services['task_detail_query'].get_task(moved_task_id).resource_leveling_not_before.isoformat() == expected_new_start
+        assert services['task_detail_query'].get_task(moved_task_id).resource_leveling_not_before == expected_new_start
         assert any(item.id == moved_task_id for item in schedule)
 
     def test_apply_without_a_prior_preview_raises(self, services):

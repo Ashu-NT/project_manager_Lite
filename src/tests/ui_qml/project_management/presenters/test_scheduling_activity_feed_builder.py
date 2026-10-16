@@ -18,7 +18,6 @@ def _resource_load(**overrides) -> SimpleNamespace:
         resource_id="res-1",
         resource_name="Ada",
         utilization_percent=120.0,
-        utilization_label="120%",
         tasks_count=5,
     )
     fields.update(overrides)
@@ -76,6 +75,7 @@ def test_overloaded_resource_gets_a_danger_tone_row() -> None:
     assert item["title"] == "Ada exceeds capacity"
     assert item["tone"] == "danger"
     assert item["badgeLabel"] == "Danger"
+    assert item["subjectDisplay"] == "Utilization 120.0%"
 
 
 def test_does_not_fabricate_actor_or_raw_timestamp_data() -> None:

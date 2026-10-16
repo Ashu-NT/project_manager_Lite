@@ -69,7 +69,7 @@ def build_activity_feed_collection(
                 id=f"resource:{overloaded.resource_id}",
                 title=f"{overloaded.resource_name} exceeds capacity",
                 badge_label="Danger",
-                subtitle=f"Utilization {overloaded.utilization_label}",
+                subtitle=f"Utilization {overloaded.utilization_percent:.1f}%",
                 description="Resource leveling or reassignment may be required.",
                 occurred_at_label=f"{overloaded.tasks_count} task(s)",
             )

@@ -76,14 +76,13 @@ def build_workspace_state(
         page=mentions_result.page,
         page_size=mentions_result.page_size,
     )
-    activity_feed = build_activity_collection(
-        desktop_api.list_recent_activity(
+    recent_activity = desktop_api.list_recent_activity(
             project_id=project_id,
             author_username=author_username,
             created_since=created_since,
             limit=min(max(1, int(limit)), 100),
-        )
     )
+    activity_feed = build_activity_collection(recent_activity)
     active_presence = desktop_api.list_active_presence()
     context_options = desktop_api.list_context_options()
     context = build_context_view_model(
@@ -103,7 +102,7 @@ def build_workspace_state(
         CollaborationPanelTabViewModel("inbox", "Inbox", inbox.total_count),
         CollaborationPanelTabViewModel("mentions", "Mentions", mentions.total_count),
         CollaborationPanelTabViewModel("approvals", "Approvals", len(approvals.items)),
-        CollaborationPanelTabViewModel("activity", "Activity", len(activity_feed["items"])),
+        CollaborationPanelTabViewModel("activity", "Activity", len(recent_activity)),
     )
     return CollaborationWorkspaceViewModel(
         overview=build_overview(

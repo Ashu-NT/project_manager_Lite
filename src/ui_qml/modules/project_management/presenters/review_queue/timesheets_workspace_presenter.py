@@ -22,7 +22,9 @@ class ProjectTimesheetsWorkspacePresenter:
         *,
         desktop_api: ProjectManagementTimesheetsDesktopApi | None = None,
     ) -> None:
-        self._desktop_api = desktop_api or build_project_management_timesheets_desktop_api()
+        self._desktop_api = (
+            desktop_api or build_project_management_timesheets_desktop_api()
+        )
 
     def build_workspace_state(
         self,
@@ -55,7 +57,14 @@ class ProjectTimesheetsWorkspacePresenter:
         )
 
     def build_review_period_detail(self, period_id: str) -> TimesheetDetailViewModel:
-        return build_review_detail(self._desktop_api, period_id)
+        return build_review_detail(
+            self._desktop_api,
+            period_id,
+            project_labels={
+                option.value: option.label
+                for option in self._desktop_api.list_projects()
+            },
+        )
 
     def approve_period(self, payload: dict[str, Any]) -> None:
         approve_period(self._desktop_api, payload)
@@ -68,5 +77,6 @@ class ProjectTimesheetsWorkspacePresenter:
 
     def unlock_period(self, payload: dict[str, Any]) -> None:
         unlock_period(self._desktop_api, payload)
+
 
 __all__ = ["ProjectTimesheetsWorkspacePresenter"]

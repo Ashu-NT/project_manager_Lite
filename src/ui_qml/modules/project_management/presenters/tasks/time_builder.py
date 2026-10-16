@@ -52,26 +52,27 @@ def build_task_time_summary_dict(summary_dto) -> dict[str, object] | None:
     }
 
 
-def build_task_time_entries_page_dict(page_dto) -> dict[str, object] | None:
+def build_task_time_entries_page_dict(page_dto, *, resource_names=None) -> dict[str, object] | None:
     """Task-scoped (every assignment on this task), all-time Time Entries
-    page straight from TaskTimeEntriesPageDesktopDto (docs §44 Time
+    page straight from TaskTimeEntriesPage (docs §44 Time
     redesign) -- authoritative paging, not a locally-filtered slice of a
     truncated dataset."""
     if page_dto is None:
         return None
+    resource_names = resource_names or {}
     return {
         "items": [
             {
                 "id": item.entry_id,
                 "entryId": item.entry_id,
-                "assignmentId": item.assignment_id,
+                "assignmentId": item.work_allocation_id,
                 "resourceId": item.resource_id,
-                "resourceName": item.resource_name,
-                "entryDateLabel": item.entry_date_label,
+                "resourceName": resource_names.get(item.resource_id, item.resource_id),
+                "entryDateLabel": item.entry_date.isoformat(),
                 "hours": item.hours,
-                "hoursLabel": item.hours_label,
-                "note": item.note,
-                "authorUsername": item.author_username,
+                "hoursLabel": f"{float(item.hours):.2f}h",
+                "note": item.note or "",
+                "authorUsername": item.author_username or "unknown",
                 "version": item.version,
             }
             for item in page_dto.items
@@ -82,7 +83,7 @@ def build_task_time_entries_page_dict(page_dto) -> dict[str, object] | None:
     }
 
 
-def build_selected_time_entry_detail(entry_dto) -> TimesheetDetailViewModel:
+def build_selected_time_entry_detail(entry_dto, *, resource_names=None) -> TimesheetDetailViewModel:
     if entry_dto is None:
         return TimesheetDetailViewModel(
             title="No entry selected",
@@ -91,27 +92,28 @@ def build_selected_time_entry_detail(entry_dto) -> TimesheetDetailViewModel:
                 "captured note."
             ),
         )
+    resource_names = resource_names or {}
     return TimesheetDetailViewModel(
         id=entry_dto.entry_id,
-        title=entry_dto.entry_date_label,
-        status_label=entry_dto.hours_label,
-        subtitle=entry_dto.resource_name,
+        title=entry_dto.entry_date.isoformat(),
+        status_label=f"{float(entry_dto.hours):.2f}h",
+        subtitle=resource_names.get(entry_dto.resource_id, entry_dto.resource_id),
         description=entry_dto.note or "No description recorded.",
         fields=(
-            TimesheetDetailFieldViewModel(label="Date", value=entry_dto.entry_date_label),
-            TimesheetDetailFieldViewModel(label="Resource", value=entry_dto.resource_name),
-            TimesheetDetailFieldViewModel(label="Hours", value=entry_dto.hours_label),
+            TimesheetDetailFieldViewModel(label="Date", value=entry_dto.entry_date.isoformat()),
+            TimesheetDetailFieldViewModel(label="Resource", value=resource_names.get(entry_dto.resource_id, entry_dto.resource_id)),
+            TimesheetDetailFieldViewModel(label="Hours", value=f"{float(entry_dto.hours):.2f}h"),
             TimesheetDetailFieldViewModel(
                 label="Recorded by", value=entry_dto.author_username or "unknown"
             ),
         ),
         state={
             "entryId": entry_dto.entry_id,
-            "assignmentId": entry_dto.assignment_id,
-            "entryDate": entry_dto.entry_date_label,
+            "assignmentId": entry_dto.work_allocation_id,
+            "entryDate": entry_dto.entry_date.isoformat(),
             "hours": str(entry_dto.hours),
             "note": entry_dto.note,
-            "authorUsername": entry_dto.author_username or "",
+            "authorUsername": entry_dto.author_username or "unknown",
             "version": entry_dto.version,
         },
     )
@@ -148,6 +150,7 @@ def build_task_time_state(
         if normalized_task_id
         else None
     )
+    resource_names = {row.resource_id: row.resource_name for row in summary_dto.resource_breakdown} if summary_dto is not None else {}
     entry_items = entries_page_dto.items if entries_page_dto is not None else ()
     resolved_time_entry_id = resolve_time_entry_id(selected_time_entry_id, entry_items)
     selected_entry_dto = next(
@@ -160,11 +163,11 @@ def build_task_time_state(
         selected_task_id=normalized_task_id,
         assignment_options=assignment_options,
         task_time_summary=build_task_time_summary_dict(summary_dto),
-        task_time_entries_page=build_task_time_entries_page_dict(entries_page_dto),
+        task_time_entries_page=build_task_time_entries_page_dict(entries_page_dto, resource_names=resource_names),
         task_time_entries_resource_filter=resource_filter,
         task_time_entries_page_number=page,
         selected_time_entry_id=resolved_time_entry_id,
-        selected_time_entry_detail=build_selected_time_entry_detail(selected_entry_dto),
+        selected_time_entry_detail=build_selected_time_entry_detail(selected_entry_dto, resource_names=resource_names),
     )
 
 
@@ -201,6 +204,9 @@ def build_task_time_entries_refresh(
         )
     except Exception:
         return None
+    resource_names = {
+        row.resource_id: row.resource_name for row in summary_dto.resource_breakdown
+    } if summary_dto is not None else {}
     entry_items = entries_page_dto.items if entries_page_dto is not None else ()
     resolved_time_entry_id = resolve_time_entry_id(selected_time_entry_id, entry_items)
     selected_entry_dto = next(
@@ -211,11 +217,11 @@ def build_task_time_entries_refresh(
         overview=build_empty_overview(),
         selected_task_id=task_id,
         task_time_summary=build_task_time_summary_dict(summary_dto),
-        task_time_entries_page=build_task_time_entries_page_dict(entries_page_dto),
+        task_time_entries_page=build_task_time_entries_page_dict(entries_page_dto, resource_names=resource_names),
         task_time_entries_resource_filter=resource_filter,
         task_time_entries_page_number=page,
         selected_time_entry_id=resolved_time_entry_id or "",
-        selected_time_entry_detail=build_selected_time_entry_detail(selected_entry_dto),
+        selected_time_entry_detail=build_selected_time_entry_detail(selected_entry_dto, resource_names=resource_names),
     )
 
 

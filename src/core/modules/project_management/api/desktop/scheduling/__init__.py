@@ -14,17 +14,9 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingBaselineRowDto,
     SchedulingCalendarOptionDescriptor,
     SchedulingCalendarSnapshotDto,
-    SchedulingConstraintViolationDto,
     SchedulingDayDescriptor,
-    SchedulingDependencyDto,
     SchedulingDependencyTypeDescriptor,
-    SchedulingLevelingProposalDto,
-    SchedulingProjectDependencyDto,
     SchedulingProjectOptionDescriptor,
-    SchedulingProposedTaskMoveDto,
-    SchedulingResourceLoadDto,
-    SchedulingTaskDto,
-    SchedulingUnresolvedConflictDto,
 )
 
-__all__ = ['GanttDependencyEdgeDto', 'GanttProjectionDto', 'GanttTaskRowDto', 'ProjectManagementSchedulingDesktopApi', 'SchedulingBaselineOptionDescriptor', 'SchedulingBaselineRowDto', 'SchedulingCalendarOptionDescriptor', 'SchedulingCalendarSnapshotDto', 'SchedulingConstraintViolationDto', 'SchedulingDayDescriptor', 'SchedulingDependencyDto', 'SchedulingDependencyTypeDescriptor', 'SchedulingLevelingProposalDto', 'SchedulingProjectDependencyDto', 'SchedulingProjectOptionDescriptor', 'SchedulingProposedTaskMoveDto', 'SchedulingResourceLoadDto', 'SchedulingTaskDto', 'SchedulingUnresolvedConflictDto', 'build_project_management_scheduling_desktop_api']
+__all__ = ['GanttDependencyEdgeDto', 'GanttProjectionDto', 'GanttTaskRowDto', 'ProjectManagementSchedulingDesktopApi', 'SchedulingBaselineOptionDescriptor', 'SchedulingBaselineRowDto', 'SchedulingCalendarOptionDescriptor', 'SchedulingCalendarSnapshotDto', 'SchedulingDayDescriptor', 'SchedulingDependencyTypeDescriptor', 'SchedulingProjectOptionDescriptor', 'build_project_management_scheduling_desktop_api']

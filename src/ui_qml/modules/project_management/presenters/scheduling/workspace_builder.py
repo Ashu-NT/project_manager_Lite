@@ -6,6 +6,9 @@ from time import perf_counter
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementSchedulingDesktopApi,
 )
+from src.core.modules.project_management.application.scheduling.dto.responses.baselines import (
+    SchedulingBaselineComparisonRowDto,
+)
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingBaselineCompareViewModel,
     SchedulingCollectionViewModel,
@@ -145,7 +148,7 @@ def build_workspace_state(
         selected_activity_id,
         filtered_schedule=filtered_schedule,
     )
-    comparison_rows = ()
+    comparison_rows: tuple[SchedulingBaselineComparisonRowDto, ...] = ()
     comparison_summary = ""
     comparison_empty_state = ""
     if (

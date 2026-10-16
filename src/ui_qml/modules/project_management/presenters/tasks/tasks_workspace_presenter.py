@@ -23,6 +23,7 @@ from src.ui_qml.modules.project_management.presenters.common.detail_table_pages 
 )
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogWorkspaceViewModel,
+    TaskRecordViewModel,
     TaskSelectorOptionViewModel,
 )
 
@@ -168,7 +169,7 @@ class ProjectTasksWorkspacePresenter:
         sort_direction: str = "asc",
         batch_size: int = 500,
     ) -> tuple:
-        records = []
+        records: list[TaskRecordViewModel] = []
         page = 1
         while True:
             result = self._desktop_api.list_task_page(

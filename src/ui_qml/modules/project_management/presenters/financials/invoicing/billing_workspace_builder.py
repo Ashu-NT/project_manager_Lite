@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypedDict
+
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
     FinancialAccountingStatusPageDto,
     FinancialBillingDetailDto,
@@ -44,7 +46,34 @@ def _detail(item: FinancialBillingDetailDto, *, empty_state: str) -> FinancialsD
     )
 
 
-def build_billing_workspace_views(source: FinancialBillingReadWorkspaceDto) -> dict[str, object]:
+class FinanceBillingViews(TypedDict):
+    billing_profile: FinancialsDetailViewModel
+    selected_billing_preparation_id: str
+    selected_billing_preparation: FinancialsDetailViewModel
+    billing_schedule: FinancialsCollectionViewModel
+    billing_preparations: FinancialsCollectionViewModel
+    billing_preparation_lines: FinancialsCollectionViewModel
+    billing_schedule_sort_key: str
+    billing_schedule_sort_direction: str
+    billing_preparation_sort_key: str
+    billing_preparation_sort_direction: str
+    billing_line_sort_key: str
+    billing_line_sort_direction: str
+    billing_schedule_search: str
+    billing_schedule_status: str
+    billing_schedule_source_state: str
+    billing_preparation_search: str
+    billing_preparation_status: str
+    billing_preparation_method: str
+    billing_preparation_approval_status: str
+    billing_preparation_delivery_state: str
+    billing_preparation_correction_state: str
+    billing_line_search: str
+    billing_line_source_type: str
+    billing_line_source_state: str
+
+
+def build_billing_workspace_views(source: FinancialBillingReadWorkspaceDto) -> FinanceBillingViews:
     return {
         "billing_profile": _detail(source.profile, empty_state="No Billing Profile exists for this Project."),
         "selected_billing_preparation_id": source.selected_preparation_id,

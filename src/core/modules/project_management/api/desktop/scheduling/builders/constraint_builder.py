@@ -2,11 +2,8 @@
 
 import logging
 
-from src.core.modules.project_management.api.desktop.scheduling.models.constraints import (
-    SchedulingConstraintViolationDto,
-)
-from src.core.modules.project_management.api.desktop.scheduling.serializers.constraint_serializer import (
-    serialize_constraint_violation,
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintViolation,
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
@@ -18,7 +15,7 @@ def build_constraint_violations(
     scheduling_engine=None,
     task_service=None,
     constraint_validator=None,
-) -> tuple[SchedulingConstraintViolationDto, ...]:
+) -> tuple[ConstraintViolation, ...]:
     if not project_id or scheduling_engine is None or task_service is None or constraint_validator is None:
         return ()
     try:
@@ -26,8 +23,7 @@ def build_constraint_violations(
         tasks = select_leaf_tasks(task_service.list_tasks_for_project(project_id))
         tasks_by_id = {t.id: t for t in tasks}
         result = constraint_validator.validate(tasks_by_id, schedule)
-        hard_pairs = {(v.task_id, v.constraint_type) for v in result.hard_violations}
-        return tuple(serialize_constraint_violation(v, hard_pairs=hard_pairs) for v in result.violations)
+        return tuple(result.violations)
     except Exception:
         logger.exception("Failed to build constraint violations for project_id=%s", project_id)
         return ()

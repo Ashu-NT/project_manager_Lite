@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -23,24 +24,20 @@ def _fake_assignment(**overrides):
         resource_id="resource-1",
         resource_name="Alice Brown",
         allocation_percent=50.0,
-        hours_logged="18",
+        hours_logged=Decimal("18"),
         project_resource_id="pr-1",
         response_status="accepted",
         response_status_label="Accepted",
         can_manage=True,
         can_accept=False,
         can_decline=False,
-        allocated_planned_hours="32",
+        allocated_planned_hours=Decimal("32"),
         version=2,
         project_resource_version=3,
-        capacity_known=True,
-        capacity_status="OVER_CAPACITY",
-        capacity_status_label="Over capacity",
-        available_capacity_hours_label="40.0 h",
-        committed_capacity_hours_label="48.0 h",
-        capacity_headroom_hours_label="-8.0 h",
-        peak_utilization_percent=120.0,
-        remaining_planned_hours_label="14.0 h",
+        capacity=SimpleNamespace(
+            capacity_status="OVER_CAPACITY", effective_available_capacity_hours=Decimal("40"),
+            resulting_committed_capacity_hours=Decimal("48"), peak_utilization_percent=120.0,
+        ),
     )
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -85,14 +82,15 @@ def test_assignment_mapper_defaults_capacity_fields_when_absent() -> None:
         resource_id="resource-2",
         resource_name="Bob",
         allocation_percent=20.0,
-        hours_logged="2",
+        hours_logged=Decimal("2"),
+        capacity=None,
         project_resource_id="pr-2",
         response_status="pending",
         response_status_label="Pending",
         can_manage=True,
         can_accept=True,
         can_decline=True,
-        allocated_planned_hours="8",
+        allocated_planned_hours=Decimal("8"),
     )
 
     view_model = to_assignment_record_view_model(bare)

@@ -1601,9 +1601,9 @@ not equate moving a serializer with completing a vertical cutover.
 | --- | --- |
 | Rate cards and rate lines | Canonical Reader facts now pass through the API unchanged; presenters create QML models. Six combined Rate/Forecast desktop response clones and four obsolete model/serializer files are removed. |
 | Forecast versions and lines | Canonical Reader page/detail facts pass through; existing command DTOs and governed writes remain unchanged. |
-| Financial profile, cost codes and restrictions | Canonical reads still have API presentation mapping; further vertical migration remains. |
-| Budget versions and lines | Canonical reads still have API presentation mapping; further vertical migration remains. |
-| Planned-cost versions and lines | Canonical reads still have API presentation mapping; further vertical migration remains. |
+| Financial profile, cost codes and restrictions | Canonical Setup facts now pass through the API; presenters build configuration views. Retired configuration model/serializer files and exports removed. |
+| Budget versions and lines | Canonical workspace facts now pass through the API, with presenter-owned labels and existing governed command results unchanged. |
+| Planned-cost versions and lines | Canonical workspace facts now pass through the API; presenter owns display formatting. |
 | Financial Changes and impacts | Canonical reads still have API presentation mapping; further vertical migration remains. |
 | Overview | Canonical reads still have API presentation mapping; further vertical migration remains. |
 | Billing profiles, schedules, preparations, lines and sources | Canonical reads/application mutation results still have API presentation mapping; further vertical migration remains. |
@@ -1619,6 +1619,62 @@ This inventory explicitly leaves the remaining Finance cutovers open. It does
 not certify all PM/Platform DTO migration or reopen the closed Finance feature
 program. Rate/Forecast regression evidence is recorded with the integrated
 verification below after shared imports are stable.
+
+### PM Entity Migration Register — Current Worktree
+
+Every feature requires a handler/Reader -> API -> presenter/controller -> QML
+trace and focused regression evidence. Passing a feature test alone does not
+certify all PM. The following is the scope register, not a blanket completion
+claim; final integration evidence must be appended after the current cuts.
+
+| Entity/surface | Outward contract and current disposition |
+| --- | --- |
+| Projects, project resources, project activity | Canonical Reader pages and application write responses; Projects presenters own labels. |
+| Dashboard | Application dashboard report facts reach the presenter; desktop-only presentation builders moved to UI. |
+| Portfolio intake, templates, scenarios, dependencies, heatmap, executive view | Application responses and immutable analytical read facts replace duplicate desktop entity copies. Interface-only selector metadata remains distinct. |
+| Register risks/issues/changes | Application maps the domain-bearing internal Reader result once into neutral entry/catalog responses. This mapping is necessary: the internal Reader wraps mutable domain entries and must not be exposed to UI. Overdue policy remains server-authored. |
+| Resources, skills, certifications, availability, projects, assignments, activity | Existing canonical resource facts/application responses feed presenters directly. Employee identity and core data remain Platform-owned. |
+| Collaboration comments, mentions, inbox, reactions, presence, document references | Canonical query facts/application command responses; QML formatting stays in presenters. |
+| Tasks, assignments, dependencies, task time | Current cutover removes desktop entity copies; transaction-scoped command behavior, capacity parity and bounded enrichment require final integrated proof. Not closed merely because DTO declarations moved. |
+| Scheduling | Resource load and constraint facts pass through; schedule/dependency/leveling/baseline/calendar/Gantt cutover remains under verification. |
+| Timesheet resource/period/entries/history and Review Queue | Resource workspace Reader facts, canonical Review Queue page/inspector, neutral TimeEntry command results and immutable Platform period aggregates. Retired assignment snapshot had no production consumers and is removed; tests now exercise canonical Task Time reconciliation. |
+| Finance | Rate/Forecast and Setup/Budget/Planned Cost read cutovers implemented; remaining destination-specific work is tracked in the Finance table. Finance migration is not complete. |
+
+Timesheet API no longer serializes entry/period/review results into Desktop DTOs.
+Entry domain-to-result mapping occurs once in the PM application command;
+it preserves Decimal hours and revision, and detaches the outward result from
+mutable Time domain state. Time retains ownership of the write transaction.
+Review Queue project names reuse the presenter's already-loaded project map,
+eliminating API per-row project lookups without changing server totals or
+capabilities. Retired snapshot/period-option helpers and fake snapshot methods
+are deleted rather than preserved as pre-release compatibility.
+
+The presentation typing pass replaces imprecise object dictionaries with
+feature-local TypedDict shapes. These are static descriptions of existing QML
+view data, not new application/Reader DTO copies. The initial 154 Mypy errors
+were resolved across 935 files before subsequent feature cuts; rerun required
+after all concurrent cuts. Missing edit versions are rejected rather than sent
+as optional values to required-version commands.
+
+### Finance Desktop API Structure — Investigated Target
+
+The inspected Finance API has 1,667 lines, 96 public methods and ten injected
+dependencies. Feature subpackages matching the owning application structure
+are preferable to the current horizontal models/serializers/builders buckets.
+Use budgets, planned_costs, forecasts, rate_cards, configuration,
+financial_changes, cost, commitments, invoicing, analytics/performance,
+accounting, revenue and reporting as applicable to actual responsibilities.
+Shared selectors/scope validation belong in a small shared package only when
+they have multiple real consumers.
+
+Keep root api.py as a typed composition of feature APIs, not another 96-method
+forwarding facade or a collection of operation mixins. Composition constructs
+and injects feature APIs using the existing handler instances; no new Session
+or handler graph is built. Consumers receive the narrow feature API they need.
+Migrate callers and delete the monolithic paths without compatibility aliases.
+Do not relocate obsolete serializer/DTO copies merely to fill new folders.
+This restructuring is investigated, not implemented during the current DTO
+verification cuts.
 
 ### PM Vertical Trace — Shared/Downstream Surfaces
 

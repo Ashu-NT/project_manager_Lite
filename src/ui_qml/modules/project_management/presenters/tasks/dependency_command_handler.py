@@ -34,20 +34,20 @@ def _serialize_dependency_preview(dto) -> dict[str, object]:
         "summary": dto.summary,
         "detail": dto.detail,
         "riskLevel": dto.risk_level,
-        "affectedTaskCount": dto.affected_task_count,
-        "largestShiftDays": dto.largest_shift_days,
+        "affectedTaskCount": len(dto.impact_rows),
+        "largestShiftDays": max((max(abs(row.start_shift_days or 0), abs(row.finish_shift_days or 0)) for row in dto.impact_rows), default=0),
         "rows": [
             {
                 "taskId": row.task_id,
                 "taskName": row.task_name,
-                "beforeStartLabel": row.before_start_label,
-                "beforeFinishLabel": row.before_finish_label,
-                "afterStartLabel": row.after_start_label,
-                "afterFinishLabel": row.after_finish_label,
+                "beforeStartLabel": row.before_start.isoformat() if row.before_start is not None else "--",
+                "beforeFinishLabel": row.before_finish.isoformat() if row.before_finish is not None else "--",
+                "afterStartLabel": row.after_start.isoformat() if row.after_start is not None else "--",
+                "afterFinishLabel": row.after_finish.isoformat() if row.after_finish is not None else "--",
                 "startShiftDays": row.start_shift_days,
                 "finishShiftDays": row.finish_shift_days,
             }
-            for row in dto.rows
+            for row in dto.impact_rows
         ],
         "suggestions": list(dto.suggestions),
     }
