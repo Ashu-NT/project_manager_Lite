@@ -20,7 +20,9 @@ def build_project_tasks_state(
 ) -> ProjectCatalogWorkspaceViewModel:
     normalized_project_id = (project_id or "").strip()
     tasks = (
-        tasks_desktop_api.list_tasks(normalized_project_id) if normalized_project_id else ()
+        tasks_desktop_api.list_tasks(normalized_project_id)
+        if normalized_project_id
+        else ()
     )
     items = tuple(
         ProjectRecordViewModel(
@@ -41,7 +43,9 @@ def build_project_tasks_state(
         selected_project_id=normalized_project_id,
         project_tasks=ProjectSectionCollectionViewModel(
             title="Tasks",
-            subtitle=f"{len(items)} task(s) in this project." if items else "Tasks linked to this project.",
+            subtitle=f"{len(items)} task(s) in this project."
+            if items
+            else "Tasks linked to this project.",
             empty_state="No tasks have been added to this project yet.",
             items=items,
         ),

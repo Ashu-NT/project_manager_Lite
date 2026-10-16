@@ -86,4 +86,4 @@ def test_project_desktop_consumes_application_response_and_forwards_command_unch
     result = api.create_project(ProjectCreateCommand(name="Desktop typed project", status="ACTIVE"))
     assert result.name == "Desktop typed project"
     assert result.status == "ACTIVE"
-    assert result.status_label == "Active"
+    assert isinstance(result, ProjectResponse)

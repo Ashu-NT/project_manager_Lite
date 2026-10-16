@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
 )
@@ -35,11 +37,14 @@ def build_workspace_state(
     page_size: int = 25,
     sort_key: str = "title",
     sort_direction: str = "asc",
+    department_labels: Mapping[str, str] | None = None,
 ) -> ProjectCatalogWorkspaceViewModel:
     status_options = (
         ProjectStatusOptionViewModel(value="all", label="All statuses"),
         *(
-            ProjectStatusOptionViewModel(value=option.value, label=option.label)
+            ProjectStatusOptionViewModel(
+                value=option.value, label=option.value.replace("_", " ").title()
+            )
             for option in desktop_api.list_statuses()
         ),
     )
@@ -76,17 +81,17 @@ def build_workspace_state(
         selected_project_id, paged_projects
     )
     selected_project = next(
-        (p for p in paged_projects if p.id == resolved_selected_project_id),
+        (p for p in paged_projects if p.project.id == resolved_selected_project_id),
         None,
     )
     return ProjectCatalogWorkspaceViewModel(
         overview=build_overview(
-            total=project_page.total,
+            total=project_page.summary.total,
             filtered_total=project_page.filtered_total,
-            active=project_page.active,
-            planned=project_page.planned,
-            on_hold=project_page.on_hold,
-            completed=project_page.completed,
+            active=project_page.summary.active,
+            planned=project_page.summary.planned,
+            on_hold=project_page.summary.on_hold,
+            completed=project_page.summary.completed,
         ),
         status_options=status_options,
         selected_status_filter=normalized_status_filter,
@@ -100,11 +105,16 @@ def build_workspace_state(
         end_date_from=normalized_end_from,
         end_date_to=normalized_end_to,
         search_text=normalized_search,
-        projects=tuple(to_project_record(project) for project in paged_projects),
+        projects=tuple(
+            to_project_record(project, department_labels=department_labels)
+            for project in paged_projects
+        ),
         selected_project_id=resolved_selected_project_id,
-        selected_project_detail=build_detail_view_model(selected_project),
+        selected_project_detail=build_detail_view_model(
+            selected_project, department_labels=department_labels
+        ),
         empty_state=build_empty_state(
-            total=project_page.total,
+            total=project_page.summary.total,
             filtered_total=project_page.filtered_total,
             search_text=normalized_search,
             status_filter=normalized_status_filter,
@@ -121,8 +131,8 @@ def build_workspace_state(
         total_count=project_page.filtered_total,
         page=project_page.page,
         page_size=project_page.page_size,
-        sort_key=project_page.sort_key,
-        sort_direction=project_page.sort_direction,
+        sort_key=project_page.sort.key,
+        sort_direction=project_page.sort.direction.value,
         approved_budget_visible=project_page.approved_budget_visible,
     )
 
@@ -131,6 +141,7 @@ def build_project_detail_state(
     desktop_api: ProjectManagementProjectsDesktopApi,
     *,
     project_id: str,
+    department_labels: Mapping[str, str] | None = None,
 ) -> ProjectCatalogWorkspaceViewModel:
     # Opening one project's detail must not scale with the total project
     # count -- get_project() is a real single-row repository lookup (with
@@ -143,6 +154,10 @@ def build_project_detail_state(
             subtitle="Project lifecycle, ownership, status, and list workflows.",
             metrics=(),
         ),
-        selected_project_id=normalized_project_id if selected_project is not None else "",
-        selected_project_detail=build_detail_view_model(selected_project),
+        selected_project_id=normalized_project_id
+        if selected_project is not None
+        else "",
+        selected_project_detail=build_detail_view_model(
+            selected_project, department_labels=department_labels
+        ),
     )

@@ -5,6 +5,9 @@ from decimal import Decimal
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
 )
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_hours,
+)
 from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
     ProjectResourceAssignCommand,
     ProjectResourceUpdateCommand,
@@ -64,7 +67,23 @@ def get_project_resource_usage(
     normalized_id = (project_resource_id or "").strip()
     if not normalized_id:
         return None
-    return desktop_api.get_project_resource_usage(normalized_id)
+    usage = desktop_api.get_project_resource_usage(normalized_id)
+    if usage is None:
+        return None
+    return {
+        "projectResourceId": usage.project_resource_id,
+        "plannedHoursLabel": format_hours(usage.planned_hours),
+        "allocatedToTasksHoursLabel": format_hours(usage.allocated_to_tasks_hours),
+        "unallocatedPlannedHoursLabel": format_hours(usage.unallocated_planned_hours),
+        "actualHoursLabel": format_hours(usage.actual_hours),
+        "remainingProjectHoursLabel": format_hours(usage.remaining_project_hours),
+        "plannedBurnPercent": usage.planned_burn_percent,
+        "taskAssignmentCount": usage.task_assignment_count,
+        "envelopeStatus": usage.envelope_status,
+        "envelopeStatusLabel": usage.envelope_status.replace("_", " ").title(),
+        "burnStatus": usage.burn_status,
+        "burnStatusLabel": usage.burn_status.replace("_", " ").title(),
+    }
 
 
 def remove_project_resource(

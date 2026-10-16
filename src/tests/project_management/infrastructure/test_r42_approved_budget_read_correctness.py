@@ -37,6 +37,9 @@ from src.ui_qml.modules.project_management.controllers.common.workspace_controll
 from src.ui_qml.modules.project_management.controllers.projects.project_domain_event_binder import (
     on_budget_project_summary_stale,
 )
+from src.ui_qml.modules.project_management.presenters.projects.project_mapper import (
+    build_project_state,
+)
 from src.ui_qml.modules.project_management.presenters.projects.projects_workspace_presenter import (
     ProjectProjectsWorkspacePresenter,
 )
@@ -112,13 +115,7 @@ def _set_principal(
 
 
 def _desktop_api(services):
-    return build_project_management_projects_desktop_api(
-        project_create=services["project_create"],
-        project_update=services["project_update"],
-        project_query=services["project_query"],
-        site_query=services["site_query"],
-        department_query=services["department_query"],
-    )
+    return build_project_management_projects_desktop_api(project_create=services["project_create"], project_update=services["project_update"], project_query=services["project_query"])
 
 
 def test_approved_budget_projection_sums_lines_and_uses_budget_currency(
@@ -137,12 +134,12 @@ def test_approved_budget_projection_sums_lines_and_uses_budget_currency(
     assert detail_item is not None
     assert detail_item.approved_budget == catalog_item.approved_budget
     assert detail_item.approved_budget_currency == catalog_item.approved_budget_currency
-    assert catalog_dto.approved_budget == "100"
-    assert catalog_dto.approved_budget_label == "GBP 100.00"
+    assert catalog_dto.approved_budget == Decimal("100")
+    assert build_project_state(catalog_dto)["approvedBudgetLabel"] == "GBP 100.00"
     assert detail_dto is not None
     assert detail_dto.approved_budget == catalog_dto.approved_budget
     assert detail_dto.approved_budget_currency == catalog_dto.approved_budget_currency
-    assert detail_dto.approved_budget_label == catalog_dto.approved_budget_label
+    assert build_project_state(detail_dto)["approvedBudgetLabel"] == build_project_state(catalog_dto)["approvedBudgetLabel"]
     assert detail_dto.financial_currency_code == "EUR"
 
     presenter = ProjectProjectsWorkspacePresenter(desktop_api=_desktop_api(services))
@@ -179,11 +176,11 @@ def test_project_read_without_finance_read_redacts_catalog_and_detail(services) 
     assert detail.approved_budget_visible is False
     assert page_dto.approved_budget_visible is False
     assert page_dto.items[0].approved_budget is None
-    assert page_dto.items[0].approved_budget_label == ""
+    assert build_project_state(page_dto.items[0])["approvedBudgetLabel"] == ""
     assert page_dto.items[0].approved_budget_currency == ""
     assert detail_dto is not None
     assert detail_dto.approved_budget is None
-    assert detail_dto.approved_budget_label == ""
+    assert build_project_state(detail_dto)["approvedBudgetLabel"] == ""
     assert detail_dto.approved_budget_currency == ""
     assert detail_dto.approved_budget_visible is False
 
@@ -322,7 +319,7 @@ def test_only_currently_approved_budget_is_projected(services) -> None:
     closed = _desktop_api(services).get_project(project.id)
     assert closed is not None
     assert closed.approved_budget is None
-    assert closed.approved_budget_label == "No approved budget"
+    assert build_project_state(closed)["approvedBudgetLabel"] == "No approved budget"
     assert closed.approved_budget_currency == ""
 
 

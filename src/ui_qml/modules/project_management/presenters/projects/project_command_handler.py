@@ -36,14 +36,15 @@ def suggest_code(
         use_year=not bool(name),
     )
 
+
 def create_project(
     desktop_api: ProjectManagementProjectsDesktopApi,
     payload: dict[str, Any],
 ) -> None:
     command = ProjectCreateCommand(
         name=require_text(payload, "name", "Project name is required."),
-        code=optional_text(payload, "projectCode"),
-        description=optional_text(payload, "description"),
+        code=optional_text(payload, "projectCode") or "",
+        description=optional_text(payload, "description") or "",
         status=optional_text(payload, "status") or "PLANNED",
         client_name=optional_text(payload, "clientName"),
         client_contact=optional_text(payload, "clientContact"),
@@ -55,12 +56,15 @@ def create_project(
     )
     desktop_api.create_project(command)
 
+
 def update_project(
     desktop_api: ProjectManagementProjectsDesktopApi,
     payload: dict[str, Any],
 ) -> None:
     command = ProjectUpdateCommand(
-        project_id=require_text(payload, "projectId", "Project ID is required for updates."),
+        project_id=require_text(
+            payload, "projectId", "Project ID is required for updates."
+        ),
         name=require_text(payload, "name", "Project name is required."),
         code=optional_text(payload, "projectCode"),
         description=optional_text(payload, "description"),
@@ -75,6 +79,7 @@ def update_project(
     )
     desktop_api.update_project(command)
 
+
 def set_project_status(
     desktop_api: ProjectManagementProjectsDesktopApi,
     project_id: str,
@@ -88,18 +93,22 @@ def set_project_status(
         raise ValueError("Choose a project status before saving.")
     desktop_api.set_project_status(normalized_project_id, normalized_status)
 
+
 def bulk_set_project_status(
     desktop_api: ProjectManagementProjectsDesktopApi,
     project_ids: list[str],
     status: str,
 ) -> None:
-    normalized_ids = tuple(str(pid).strip() for pid in project_ids if str(pid or "").strip())
+    normalized_ids = tuple(
+        str(pid).strip() for pid in project_ids if str(pid or "").strip()
+    )
     normalized_status = (status or "").strip()
     if not normalized_ids:
         raise ValueError("At least one project is required to change status.")
     if not normalized_status:
         raise ValueError("Choose a project status before saving.")
     desktop_api.bulk_set_project_status(normalized_ids, normalized_status)
+
 
 def delete_project(
     desktop_api: ProjectManagementProjectsDesktopApi,

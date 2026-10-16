@@ -36,18 +36,18 @@ def project_tasks_page(page) -> dict[str, object]:
 
 def project_resources_page(page) -> dict[str, object]:
     rows = [{
-        "id": item.id, "title": item.resource_name, "resourceName": item.resource_name,
+        "id": item.project_resource_id, "title": item.resource_name, "resourceName": item.resource_name,
         "resourceCode": item.resource_code or "--", "role": item.role or "Team member",
         "plannedHours": _hours(item.planned_hours), "allocatedHours": _hours(item.allocated_hours),
         "actualHours": _hours(item.actual_hours), "remainingHours": _hours(item.remaining_hours),
         "statusLabel": "Active" if item.is_active else "Inactive",
-        "state": {"projectResourceId": item.id, "resourceId": item.resource_id,
-                  "plannedHours": item.planned_hours, "isActive": item.is_active,
+        "state": {"projectResourceId": item.project_resource_id, "resourceId": item.resource_id,
+                  "plannedHours": str(item.planned_hours), "isActive": item.is_active,
                   "version": item.version},
     } for item in page.items]
     return {"items": rows, "total": page.filtered_total, "page": page.page,
-            "pageSize": page.page_size, "sortKey": page.sort_key,
-            "sortDirection": page.sort_direction}
+            "pageSize": page.page_size, "sortKey": page.sort.key,
+            "sortDirection": page.sort.direction.value}
 
 
 def task_assignments_page(page) -> dict[str, object]:

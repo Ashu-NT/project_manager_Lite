@@ -47,6 +47,7 @@ def build_overview(
         ),
     )
 
+
 def build_empty_overview() -> ProjectCatalogOverviewViewModel:
     return ProjectCatalogOverviewViewModel(
         title="Projects",

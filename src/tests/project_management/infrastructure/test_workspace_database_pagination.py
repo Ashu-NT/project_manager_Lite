@@ -23,6 +23,9 @@ from src.core.modules.project_management.application.resources.dto.commands.cata
 from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
     RegisterEntryCreateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
     ProjectStatus,
@@ -70,7 +73,7 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
 
 def test_project_and_task_detail_activity_decode_canonical_payloads(services) -> None:
     project = services['project_create'].create_project(ProjectCreateCommand(name="Activity Contract Project"))
-    task = services['task_lifecycle_commands'].create_task(project.id, "Activity Contract Task")
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Activity Contract Task"))
 
     project_activity = services["project_query"].query_project_activity_page(
         project.id,

@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from src.core.modules.project_management.infrastructure.importers.models.import_models import (
-    ImportParser,
-    ImportPreviewModel,
-)
+from src.core.modules.project_management.application.projects.dto.responses.import_preview import (ImportPreviewModel)
+from src.core.modules.project_management.infrastructure.importers.models.import_models import (ImportParser)
 from src.core.modules.project_management.infrastructure.importers.scheduling.mpp.mpp_parser import (
     MSProjectXmlParser,
 )

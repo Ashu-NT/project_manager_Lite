@@ -5,14 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from src.core.modules.project_management.domain.identifiers import generate_id
-from src.core.modules.project_management.infrastructure.importers.models.import_models import (
-    ImportFieldMapping,
-    ImportMappingProfile,
-    ImportPreviewModel,
-    ImportRow,
-    ImportValidationIssue,
-    ImportValidationSeverity,
-)
+from src.core.modules.project_management.application.projects.dto.responses.import_preview import (ImportPreviewModel, ImportRow, ImportValidationIssue, ImportValidationSeverity)
+from src.core.modules.project_management.infrastructure.importers.models.import_models import (ImportFieldMapping, ImportMappingProfile)
 
 
 class ImportValidationService:

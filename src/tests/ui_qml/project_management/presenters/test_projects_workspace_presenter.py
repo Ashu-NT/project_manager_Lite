@@ -6,23 +6,29 @@ Covers: build_project_tasks_state, build_project_resources_state,
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from src.core.modules.project_management.api.desktop.common.detail_pages import (
-    DetailActivityDesktopDto,
-    DetailActivityPageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.projects import (
-    ProjectResourceDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.projects.models.project import (
-    ProjectManagerOptionDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.register import (
     RegisterEntryDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks import TaskDesktopDto
+from src.core.modules.project_management.application.resources.dto.responses.catalog import (
+    ResourceResponse,
+)
+from src.core.modules.project_management.application.resources.dto.responses.project_resources import (
+    ProjectResourceResponse,
+)
+from src.core.modules.project_management.contracts.reads.projects.models import (
+    ProjectActivityFact,
+    ProjectActivityPage,
+    ProjectManagerCandidateFact,
+)
+from src.core.modules.project_management.contracts.reads.sorting import (
+    ReadSort,
+    ReadSortDirection,
+)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.modules.project_management.presenters.projects import (
     ProjectProjectsWorkspacePresenter,
@@ -52,21 +58,15 @@ def _task(**kw) -> TaskDesktopDto:
     )
 
 
-def _resource(**kw) -> ProjectResourceDesktopDto:
-    return ProjectResourceDesktopDto(
-        id=kw.get("id", "r-1"),
-        project_id=kw.get("project_id", "p-1"),
-        resource_id=kw.get("resource_id", "res-1"),
-        resource_name=kw.get("resource_name", "Alice Smith"),
-        role=kw.get("role", "Developer"),
-        worker_type_label=kw.get("worker_type_label", "Employee"),
-        hourly_rate=kw.get("hourly_rate", 80.0),
-        hourly_rate_label=kw.get("hourly_rate_label", "$80/hr"),
-        currency_code=kw.get("currency_code", "USD"),
-        planned_hours=kw.get("planned_hours", 200.0),
-        planned_hours_label=kw.get("planned_hours_label", "200h"),
-        is_active=kw.get("is_active", True),
-        status_label=kw.get("status_label", "Active"),
+def _resource(**kw):
+    resource_id = kw.get("resource_id", "res-1")
+    return SimpleNamespace(
+        project_resource=ProjectResourceResponse(
+            id=kw.get("id", "r-1"), project_id=kw.get("project_id", "p-1"), resource_id=resource_id,
+            hourly_rate=Decimal(str(kw.get("hourly_rate", 80))), currency_code=kw.get("currency_code", "USD"),
+            planned_hours=Decimal(str(kw.get("planned_hours", 200))), is_active=kw.get("is_active", True),
+        ),
+        resource=ResourceResponse(id=resource_id, name=kw.get("resource_name", "Alice Smith"), role=kw.get("role", "Developer")),
     )
 
 
@@ -94,9 +94,9 @@ def _risk(**kw) -> RegisterEntryDesktopDto:
     )
 
 
-def _activity_entry(**kw) -> DetailActivityDesktopDto:
-    return DetailActivityDesktopDto(
-        id=kw.get("id", "act-1"),
+def _activity_entry(**kw) -> ProjectActivityFact:
+    return ProjectActivityFact(
+        activity_id=kw.get("id", "act-1"),
         occurred_at=kw.get("occurred_at", datetime(2026, 3, 1, 9, 30, tzinfo=UTC)),
         actor_id=kw.get("actor_id", "user-1"),
         action=kw.get("action", "project.update"),
@@ -122,8 +122,9 @@ def _presenter(
     tasks_api.list_tasks.return_value = list(tasks)
 
     projects_api = MagicMock()
-    projects_api.list_project_resources.return_value = list(resources)
-    projects_api.list_project_activity_page.return_value = DetailActivityPageDesktopDto(
+    projects_api.list_project_resources.return_value = [row.project_resource for row in resources]
+    projects_api.list_resource_context.return_value = [row.resource for row in resources]
+    projects_api.list_project_activity_page.return_value = ProjectActivityPage(
         items=tuple(activity_entries) if activity_entries is not None else (),
         filtered_total=len(activity_entries) if activity_entries is not None else 0,
         reference_labels={
@@ -227,7 +228,7 @@ class TestBuildProjectResourcesState:
     def test_single_resource_fields_mapped_correctly(self):
         res = _resource(
             id="r-99", resource_name="Bob Jones", role="PM",
-            planned_hours_label="320h", hourly_rate_label="$90/hr", status_label="Active",
+            planned_hours=320, hourly_rate=90,
         )
         p, _, projects_api, __ = _presenter(resources=[res])
 
@@ -239,8 +240,8 @@ class TestBuildProjectResourcesState:
         assert item.id == "r-99"
         assert item.title == "Bob Jones"
         assert item.subtitle == "PM"
-        assert item.supporting_text == "320h"
-        assert item.meta_text == "$90/hr"
+        assert item.supporting_text == "320.0 h"
+        assert item.meta_text == "90.00 USD/hr"
         assert item.status_label == "Active"
         projects_api.list_project_resources.assert_called_once_with("proj-1")
 
@@ -409,7 +410,7 @@ class TestBuildProjectActivityPage:
             "client_party_id": {"from": None, "to": "party-1"},
         }})
         p, _, projects_api, _ = _presenter(activity_entries=[entry])
-        projects_api.list_project_activity_page.return_value = DetailActivityPageDesktopDto(
+        projects_api.list_project_activity_page.return_value = ProjectActivityPage(
             items=(entry,), filtered_total=1,
             reference_labels={"user": {"user-1": "History Actor"},
                               "party": {"party-1": "Customer Group"}},
@@ -424,7 +425,7 @@ class TestBuildProjectActivityPage:
     def test_manager_options_return_user_ids_not_resource_ids(self):
         p, _, projects_api, _ = _presenter()
         projects_api.list_manager_candidates.return_value = (
-            ProjectManagerOptionDesktopDto(user_id="user-1", label="Jane Doe"),
+            ProjectManagerCandidateFact(user_id="user-1", display_name="Jane Doe"),
         )
 
         assert p.build_manager_options() == [{"value": "user-1", "label": "Jane Doe"}]
@@ -500,9 +501,9 @@ class TestBuildProjectActivityPage:
 
     def test_paging_metadata_is_carried_through_from_the_desktop_page(self):
         p, _, projects_api, __ = _presenter(activity_entries=[_activity_entry()])
-        projects_api.list_project_activity_page.return_value = DetailActivityPageDesktopDto(
+        projects_api.list_project_activity_page.return_value = ProjectActivityPage(
             items=(_activity_entry(),), filtered_total=42, page=3, page_size=10,
-            sort_key="occurredAt", sort_direction="desc",
+            sort=ReadSort("occurredAt", ReadSortDirection.DESCENDING),
         )
         result = p.build_project_activity_page(project_id="p-1")
         assert result["total"] == 42

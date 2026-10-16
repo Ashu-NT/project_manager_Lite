@@ -17,11 +17,8 @@ from src.core.modules.project_management.api.desktop.dashboard.builders.overview
 from src.core.modules.project_management.api.desktop.dashboard.builders.panel_builder import (
     _build_resource_overload_panel,
 )
-from src.core.modules.project_management.api.desktop.projects.builders.resource_builder import (
-    list_resources_for_context,
-)
-from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
-    serialize_project_resource,
+from src.core.modules.project_management.api.desktop.projects.api import (
+    ProjectManagementProjectsDesktopApi,
 )
 from src.core.modules.project_management.api.desktop.register.builders.entry_list_builder import (
     build_entry_list,
@@ -69,6 +66,9 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryType,
 )
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
+from src.ui_qml.modules.project_management.presenters.projects.resources_builder import (
+    to_project_resource_record,
+)
 
 
 class _ImpactService:
@@ -134,10 +134,7 @@ class _ScopedResourceService:
 def test_da1_project_resource_scope_resolution_uses_public_application_query() -> None:
     resource_service = _ScopedResourceService()
 
-    rows = list_resources_for_context(
-        "project-1",
-        resource_query=resource_service,
-    )
+    rows = ProjectManagementProjectsDesktopApi(resource_query=resource_service).list_resource_context("project-1")
 
     assert [row.id for row in rows] == ["resource-active-org"]
     assert resource_service.context_calls == ["project-1"]
@@ -331,6 +328,7 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
         currency_code="GBP",
         planned_hours=Decimal(40),
         is_active=True,
+        version=1,
     )
     resource = SimpleNamespace(
         id="resource-1",
@@ -342,7 +340,7 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
         is_active=True,
     )
 
-    project_row = serialize_project_resource(project_resource, resource_by_id=resource)
+    project_row = to_project_resource_record(project_resource, resource)
     task_options = build_project_resource_options(
         "project-1",
         project_resource_query=SimpleNamespace(
@@ -353,8 +351,8 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
         ),
     )
 
-    assert project_row.hourly_rate == "125"
-    assert project_row.currency_code == "GBP"
+    assert project_row.state["hourlyRate"] == "125"
+    assert project_row.meta_text == "125.00 GBP/hr"
     assert task_options[0].label == "Planner (125.00 GBP/hr)"
 
 

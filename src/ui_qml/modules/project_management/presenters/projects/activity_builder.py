@@ -47,14 +47,15 @@ def build_project_activity_page(
         field_labels=_CHANGE_FIELD_LABELS,
         field_lookup=_CHANGE_FIELD_LOOKUP,
         boolean_fields=_BOOLEAN_FIELDS,
+        entry_id=lambda item: item.activity_id,
     )
     return {
         "items": serialize_activity_items(items),
         "total": page.filtered_total,
         "page": page.page,
         "pageSize": page.page_size,
-        "sortKey": page.sort_key,
-        "sortDirection": page.sort_direction,
+        "sortKey": page.sort.key,
+        "sortDirection": page.sort.direction.value,
     }
 
 

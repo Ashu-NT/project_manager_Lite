@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from src.ui_qml.shared.models.activity_item import (
@@ -68,6 +68,7 @@ def build_activity_records(
     field_labels: dict[str, str],
     field_lookup: dict[str, str] | None = None,
     boolean_fields: frozenset[str] = frozenset(),
+    entry_id: Callable[[Any], str] | None = None,
 ) -> tuple[ActivityItemViewModel, ...]:
     """Map one entity's paged activity rows (`id`/`occurred_at`/`actor_id`/
     `action`/`entity_type`/`summary`/`details`, as returned by a bounded,
@@ -90,7 +91,7 @@ def build_activity_records(
         )
         records.append(
             ActivityItemViewModel(
-                id=entry.id,
+                id=entry_id(entry) if entry_id is not None else entry.id,
                 title=title,
                 actor_display=(
                     getattr(entry, "actor_display", "")

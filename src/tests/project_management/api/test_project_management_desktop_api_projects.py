@@ -40,7 +40,7 @@ def test_project_management_projects_desktop_api_lists_statuses() -> None:
         "ON_HOLD",
         "COMPLETED",
     ]
-    assert statuses[2].label == "On Hold"
+    assert statuses[2] is ProjectStatus.ON_HOLD
 
 
 def test_project_query_checks_module_entitlement_before_repository() -> None:
@@ -91,8 +91,8 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
     listed = api.list_projects()
 
     assert created.status == "ACTIVE"
-    assert listed[0].approved_budget_label == ""
-    assert listed[0].status_label == "Active"
+    assert isinstance(listed[0], ProjectResponse)
+    assert listed[0].status is ProjectStatus.ACTIVE
 
     updated = api.update_project(
         ProjectUpdateCommand(
@@ -110,12 +110,12 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
 
     assert updated.name == "Plant Upgrade Phase 1"
     assert updated.status == "ON_HOLD"
-    assert updated.approved_budget_label == ""
+    assert isinstance(updated, ProjectResponse)
 
     completed = api.set_project_status(created.id, "COMPLETED")
 
     assert completed.status == "COMPLETED"
-    assert completed.status_label == "Completed"
+    assert isinstance(completed, ProjectResponse)
 
     api.delete_project(created.id)
 
@@ -145,9 +145,9 @@ def test_project_management_projects_desktop_api_get_project_by_id() -> None:
     found = api.get_project(created.id)
 
     assert found is not None
-    assert found.id == created.id
-    assert found.name == "Harbor Expansion"
-    assert found.status_label == "Active"
+    assert found.project.id == created.id
+    assert found.project.name == "Harbor Expansion"
+    assert found.project.status is ProjectStatus.ACTIVE
 
 
 def test_project_management_projects_desktop_api_get_project_missing_returns_none() -> None:
@@ -223,9 +223,10 @@ class _FakeProjectService:
         project.version += 1
         return map_project_response(project)
 
-    def set_status(self, project_id: str, status: ProjectStatus) -> None:
+    def set_status(self, project_id: str, status: ProjectStatus) -> ProjectResponse:
         self._projects[project_id].status = status
         self._projects[project_id].version += 1
+        return map_project_response(self._projects[project_id])
 
     def delete_project(self, project_id: str) -> None:
         del self._projects[project_id]

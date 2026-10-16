@@ -5,6 +5,10 @@ from types import SimpleNamespace
 from src.core.modules.project_management.api.desktop import (
     build_project_management_projects_desktop_api,
 )
+from src.core.modules.project_management.contracts.reads.projects.models import (
+    ProjectCatalogProjectFact,
+    ProjectCatalogReadItem,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
@@ -79,16 +83,25 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
         offset = (page - 1) * page_size
         return SimpleNamespace(
             items=tuple(
-                SimpleNamespace(
-                    project=project,
+                ProjectCatalogReadItem(
+                    project=ProjectCatalogProjectFact(
+                        id=project.id, name=project.name, code="", description=project.description,
+                        start_date=project.start_date, end_date=project.end_date, status=project.status,
+                        client_name=project.client_name, client_contact=project.client_contact,
+                        organization_id="org", site_id=project.site_id, department_id=None,
+                        client_party_id=None, manager_user_id=None, version=project.version,
+                    ),
                     site_label="",
                     financial_currency_code=("EUR" if project.id == "proj-1" else ""),
                     approved_budget=(Decimal(250000) if project.id == "proj-1" else None),
+                    approved_budget_visible=True,
+                    approved_budget_currency="EUR",
                     client_label=project.client_name or "",
                 )
                 for project in filtered[offset : offset + page_size]
             ),
             filtered_total=len(filtered),
+            approved_budget_visible=True,
             page=page,
             page_size=page_size,
             sort=SimpleNamespace(key=sort_key, direction=SimpleNamespace(value=sort_direction)),

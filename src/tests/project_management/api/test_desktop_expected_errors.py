@@ -16,11 +16,7 @@ from src.core.modules.project_management.api.desktop.projects.import_preview imp
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
-from src.core.modules.project_management.infrastructure.importers.models.import_models import (
-    ImportPreviewModel,
-    ImportValidationIssue,
-    ImportValidationSeverity,
-)
+from src.core.modules.project_management.application.projects.dto.responses.import_preview import (ImportPreviewModel, ImportValidationIssue, ImportValidationSeverity)
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.common.exceptions import (
     BusinessRuleError,

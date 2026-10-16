@@ -54,7 +54,9 @@ def test_qml_python_layer_does_not_import_legacy_widget_ui_or_infrastructure() -
                 violations.append((str(path.relative_to(ROOT)), imported))
             if ".repositories" in imported or imported.endswith(".repositories"):
                 violations.append((str(path.relative_to(ROOT)), imported))
-            if ".contracts.reads" in imported or ".persistence.reads" in imported:
+            # Immutable DTO model modules are consumable across the API boundary;
+            # Reader interfaces and persistence implementations remain forbidden.
+            if (".contracts.reads" in imported and ".models" not in imported) or ".persistence.reads" in imported:
                 violations.append((str(path.relative_to(ROOT)), imported))
 
     assert not violations, f"QML Python layer imports forbidden layers: {violations}"

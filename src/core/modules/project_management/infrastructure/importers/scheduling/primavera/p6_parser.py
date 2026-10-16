@@ -4,11 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.modules.project_management.infrastructure.importers.models.import_models import (
-    ImportMappingProfile,
-    ImportParser,
-    ImportRow,
-)
+from src.core.modules.project_management.application.projects.dto.responses.import_preview import (ImportRow)
+from src.core.modules.project_management.infrastructure.importers.models.import_models import (ImportMappingProfile, ImportParser)
 
 
 class P6Parser(ImportParser):

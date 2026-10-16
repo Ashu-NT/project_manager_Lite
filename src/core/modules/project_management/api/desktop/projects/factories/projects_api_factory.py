@@ -15,8 +15,6 @@ def build_project_management_projects_desktop_api(
     project_resource_query=None,
     project_resource_commands=None,
     resource_query=None,
-    site_query=None,
-    department_query=None,
 ) -> ProjectManagementProjectsDesktopApi:
     return ProjectManagementProjectsDesktopApi(
         project_create=project_create,
@@ -27,8 +25,6 @@ def build_project_management_projects_desktop_api(
         project_resource_query=project_resource_query,
         project_resource_commands=project_resource_commands,
         resource_query=resource_query,
-        site_query=site_query,
-        department_query=department_query,
     )
 
 

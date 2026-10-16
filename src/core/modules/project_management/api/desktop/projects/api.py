@@ -2,37 +2,6 @@
 
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop.common.detail_pages import (
-    DetailActivityDesktopDto,
-    DetailActivityPageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.projects.builders.resource_builder import (
-    build_assignable_options,
-    resource_lookup,
-)
-from src.core.modules.project_management.api.desktop.projects.builders.status_builder import (
-    build_status_options,
-)
-from src.core.modules.project_management.api.desktop.projects.formatters.project import (
-    present_project,
-)
-from src.core.modules.project_management.api.desktop.projects.models.project import (
-    ProjectCatalogPageDesktopDto,
-    ProjectDesktopDto,
-    ProjectManagerOptionDesktopDto,
-    ProjectStatusDescriptor,
-)
-from src.core.modules.project_management.api.desktop.projects.models.resources import (
-    ProjectAssignableResourceOptionDescriptor,
-    ProjectResourceDesktopDto,
-    ProjectResourceDetailDesktopDto,
-    ProjectResourceDetailPageDesktopDto,
-    ProjectResourceUsageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
-    serialize_project_resource,
-    serialize_project_resource_usage,
-)
 from src.core.modules.project_management.api.desktop.projects.utils.project_utils import (
     coerce_project_status,
     optional_date,
@@ -57,6 +26,9 @@ from src.core.modules.project_management.application.projects.dto.commands.proje
     ProjectResourceAssignCommand,
     ProjectResourceUpdateCommand,
 )
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
+)
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
 )
@@ -65,10 +37,21 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceQueryHandler,
     ResourceQueryHandler,
 )
-from src.core.platform.application.master_data.department import (
-    DepartmentQueryHandler,
+from src.core.modules.project_management.application.resources.dto.responses.catalog import (
+    ResourceResponse,
 )
-from src.core.platform.application.master_data.site import SiteQueryHandler
+from src.core.modules.project_management.application.resources.dto.responses.project_resources import (
+    ProjectResourceResponse,
+)
+from src.core.modules.project_management.contracts.reads.projects.models import (
+    ProjectActivityPage,
+    ProjectCatalogReadItem,
+    ProjectCatalogReadPage,
+    ProjectManagerCandidateFact,
+    ProjectResourceDetailPage,
+    ProjectResourceUsageFact,
+)
+from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.common.exceptions import (
     ConfigurationError,
 )
@@ -86,8 +69,6 @@ class ProjectManagementProjectsDesktopApi:
         project_resource_query: ProjectResourceQueryHandler | None = None,
         project_resource_commands: ProjectResourceCommandHandler | None = None,
         resource_query: ResourceQueryHandler | None = None,
-        site_query: SiteQueryHandler | None = None,
-        department_query: DepartmentQueryHandler | None = None,
     ) -> None:
         self._project_create = project_create
         self._project_update = project_update
@@ -97,35 +78,21 @@ class ProjectManagementProjectsDesktopApi:
         self._project_resource_query = project_resource_query
         self._project_resource_commands = project_resource_commands
         self._resource_service = resource_query
-        self._site_query = site_query
-        self._department_query = department_query
 
     # ── Status options ────────────────────────────────────────────────────────
 
-    def list_statuses(self) -> tuple[ProjectStatusDescriptor, ...]:
-        return build_status_options()
+    def list_statuses(self) -> tuple[ProjectStatus, ...]:
+        return tuple(ProjectStatus)
 
-    def list_manager_candidates(self) -> tuple[ProjectManagerOptionDesktopDto, ...]:
-        return tuple(
-            ProjectManagerOptionDesktopDto(user_id=row.user_id, label=row.display_name)
-            for row in self._require_project_query().list_eligible_manager_candidates()
-        )
+    def list_manager_candidates(self) -> tuple[ProjectManagerCandidateFact, ...]:
+        return tuple(self._require_project_query().list_eligible_manager_candidates())
 
     # ── Project CRUD ──────────────────────────────────────────────────────────
 
-    def list_projects(self) -> tuple[ProjectDesktopDto, ...]:
+    def list_projects(self) -> tuple[ProjectResponse, ...]:
         if self._project_query is None:
             return ()
-        site_lookup = self._site_lookup()
-        department_lookup = self._department_lookup()
-        projects = sorted(
-            self._require_project_query().list_projects(),
-            key=lambda p: (p.name or "").casefold(),
-        )
-        return tuple(
-            present_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
-            for p in projects
-        )
+        return tuple(self._project_query.list_projects())
 
     def list_project_page(
         self,
@@ -145,7 +112,7 @@ class ProjectManagementProjectsDesktopApi:
         page_size: int = 25,
         sort_key: str = "title",
         sort_direction: str = "asc",
-    ) -> ProjectCatalogPageDesktopDto:
+    ) -> ProjectCatalogReadPage:
         service = self._require_project_query()
         normalized_status = str(status or "all").strip().lower()
         status_value = (
@@ -162,8 +129,12 @@ class ProjectManagementProjectsDesktopApi:
             project_name=str(project_name or "").strip() or None,
             client_name=str(client_name or "").strip() or None,
             site_id=None if normalized_site_id in ("", "all") else normalized_site_id,
-            department_id=None if normalized_department_id in ("", "all") else normalized_department_id,
-            manager_user_id=None if normalized_manager_id in ("", "all") else normalized_manager_id,
+            department_id=None
+            if normalized_department_id in ("", "all")
+            else normalized_department_id,
+            manager_user_id=None
+            if normalized_manager_id in ("", "all")
+            else normalized_manager_id,
             start_date_from=optional_date(start_date_from),
             start_date_to=optional_date(start_date_to),
             end_date_from=optional_date(end_date_from),
@@ -173,139 +144,53 @@ class ProjectManagementProjectsDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        department_lookup = self._department_lookup()
-        return ProjectCatalogPageDesktopDto(
-            items=tuple(
-                present_project(
-                    item,
-                    site_lookup={str(item.project.site_id or ""): item.site_label},
-                    department_lookup=department_lookup,
-                    client_label=item.client_label,
-                )
-                for item in result.items
-            ),
-            filtered_total=result.filtered_total,
-            total=result.summary.total,
-            active=result.summary.active,
-            planned=result.summary.planned,
-            on_hold=result.summary.on_hold,
-            completed=result.summary.completed,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
-            approved_budget_visible=bool(
-                getattr(
-                    result,
-                    "approved_budget_visible",
-                    any(
-                        bool(
-                            getattr(
-                                item,
-                                "approved_budget_visible",
-                                item.approved_budget is not None,
-                            )
-                        )
-                        for item in result.items
-                    ),
-                )
-            ),
-        )
+        return result
 
-    def get_project(self, project_id: str) -> ProjectDesktopDto | None:
+    def get_project(self, project_id: str) -> ProjectCatalogReadItem | None:
         normalized_id = str(project_id or "").strip()
         if not normalized_id or self._project_query is None:
             return None
-        item = self._require_project_query().query_project_detail(normalized_id)
-        if item is None:
-            return None
-        return present_project(
-            item,
-            site_lookup={str(item.project.site_id or ""): item.site_label},
-            department_lookup=self._department_lookup(),
-            client_label=item.client_label,
-        )
+        return self._project_query.query_project_detail(normalized_id)
 
-    def list_projects_by_status(self, status: str) -> tuple[ProjectDesktopDto, ...]:
+    def list_projects_by_status(self, status: str) -> tuple[ProjectResponse, ...]:
         if self._project_query is None:
             return ()
-        site_lookup = self._site_lookup()
-        department_lookup = self._department_lookup()
-        projects = sorted(
-            self._require_project_query().list_projects_by_status(coerce_project_status(status)),
-            key=lambda p: (p.name or "").casefold(),
-        )
         return tuple(
-            present_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
-            for p in projects
+            self._project_query.list_projects_by_status(coerce_project_status(status))
         )
 
-    def search_projects(self, query: str) -> tuple[ProjectDesktopDto, ...]:
+    def search_projects(self, query: str) -> tuple[ProjectResponse, ...]:
         if self._project_query is None or not query:
             return ()
-        site_lookup = self._site_lookup()
-        department_lookup = self._department_lookup()
-        projects = sorted(
-            self._require_project_query().search_projects_by_name(query),
-            key=lambda p: (p.name or "").casefold(),
-        )
-        return tuple(
-            present_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
-            for p in projects
-        )
+        return tuple(self._project_query.search_projects_by_name(query))
 
-    def create_project(self, command: ProjectCreateCommand) -> ProjectDesktopDto:
+    def create_project(self, command: ProjectCreateCommand) -> ProjectResponse:
         if self._project_create is None:
             raise ConfigurationError("Project creation is not connected.")
-        service = self._project_create
-        project = service.create_project(command)
-        return present_project(
-            project,
-            site_lookup=self._site_lookup(),
-            department_lookup=self._department_lookup(),
-        )
+        return self._project_create.create_project(command)
 
-    def update_project(self, command: ProjectUpdateCommand) -> ProjectDesktopDto:
+    def update_project(self, command: ProjectUpdateCommand) -> ProjectResponse:
         if self._project_update is None:
             raise ConfigurationError("Project updates are not connected.")
-        service = self._project_update
-        project = service.update_project(command)
-        return present_project(
-            project,
-            site_lookup=self._site_lookup(),
-            department_lookup=self._department_lookup(),
-        )
+        return self._project_update.update_project(command)
 
-    def set_project_status(self, project_id: str, status: str) -> ProjectDesktopDto:
+    def set_project_status(self, project_id: str, status: str) -> ProjectResponse:
         if self._project_status is None:
             raise ConfigurationError("Project status changes are not connected.")
-        service = self._project_status
-        service.set_status(project_id, coerce_project_status(status))
-        project = self._require_project_query().get_project(project_id)
-        if project is None:
-            raise RuntimeError("Project status updated but the project could not be reloaded.")
-        return present_project(
-            project,
-            site_lookup=self._site_lookup(),
-            department_lookup=self._department_lookup(),
+        return self._project_status.set_status(
+            project_id, coerce_project_status(status)
         )
 
     def bulk_set_project_status(
         self, project_ids: tuple[str, ...], status: str
-    ) -> tuple[ProjectDesktopDto, ...]:
+    ) -> tuple[ProjectResponse, ...]:
         if self._project_status is None:
             raise ConfigurationError("Project status changes are not connected.")
-        service = self._project_status
-        service.bulk_set_status(project_ids, coerce_project_status(status))
-        site_lookup = self._site_lookup()
-        department_lookup = self._department_lookup()
-        results = []
-        for project_id in project_ids:
-            project = self._require_project_query().get_project(project_id)
-            if project is None:
-                raise RuntimeError("Project status updated but the project could not be reloaded.")
-            results.append(present_project(project, site_lookup=site_lookup, department_lookup=department_lookup))
-        return tuple(results)
+        return tuple(
+            self._project_status.bulk_set_status(
+                project_ids, coerce_project_status(status)
+            )
+        )
 
     def delete_project(self, project_id: str) -> None:
         if self._project_deletion is None:
@@ -314,90 +199,97 @@ class ProjectManagementProjectsDesktopApi:
 
     # ── Project resources ─────────────────────────────────────────────────────
 
-    def list_project_resources(self, project_id: str) -> tuple[ProjectResourceDesktopDto, ...]:
+    def list_project_resources(
+        self, project_id: str
+    ) -> tuple[ProjectResourceResponse, ...]:
         normalized_id = str(project_id or "").strip()
         if not normalized_id or self._project_resource_query is None:
             return ()
-        project_resources = self._project_resource_query.list_for_project_workspace(normalized_id)
-
-        resource_ids = tuple(str(getattr(pr, "resource_id", "") or "") for pr in project_resources)
-        resources_by_id = resource_lookup(
-            normalized_id, resource_ids,
-            resource_query=self._resource_service,
+        return tuple(
+            self._project_resource_query.list_for_project_workspace(normalized_id)
         )
-        rows = [
-            serialize_project_resource(
-                pr,
-                resource_by_id=resources_by_id.get(str(getattr(pr, "resource_id", "") or "")),
-            )
-            for pr in project_resources
-        ]
-        return tuple(sorted(rows, key=lambda r: (not r.is_active, r.resource_name.casefold())))
 
     def list_project_resources_page(
-        self, project_id: str, *, search_text: str = "", active: bool | None = None,
-        page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
+        self,
+        project_id: str,
+        *,
+        search_text: str = "",
+        active: bool | None = None,
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "resourceName",
         sort_direction: str = "asc",
-    ) -> ProjectResourceDetailPageDesktopDto:
+    ) -> ProjectResourceDetailPage:
         result = self._require_project_query().query_project_resources_page(
-            project_id, search_text=search_text, active=active, page=page,
-            page_size=page_size, sort_key=sort_key, sort_direction=sort_direction)
-        return ProjectResourceDetailPageDesktopDto(
-            items=tuple(ProjectResourceDetailDesktopDto(
-                id=item.project_resource_id, resource_id=item.resource_id,
-                resource_code=item.resource_code, resource_name=item.resource_name,
-                role=item.role, planned_hours=str(item.planned_hours),
-                allocated_hours=str(item.allocated_hours), actual_hours=str(item.actual_hours),
-                remaining_hours=str(item.remaining_hours), is_active=item.is_active,
-                version=item.version,
-            ) for item in result.items), filtered_total=result.filtered_total,
-            page=result.page, page_size=result.page_size, sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value)
+            project_id,
+            search_text=search_text,
+            active=active,
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return result
 
     def list_project_activity_page(
-        self, project_id: str, *, search_text: str = "", category: str = "all",
-        page: int = 1, page_size: int = 25,
-    ) -> DetailActivityPageDesktopDto:
+        self,
+        project_id: str,
+        *,
+        search_text: str = "",
+        category: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> ProjectActivityPage:
         result = self._require_project_query().query_project_activity_page(
-            project_id, search_text=search_text, category=category,
-            page=page, page_size=page_size)
-        return DetailActivityPageDesktopDto(
-            items=tuple(DetailActivityDesktopDto(
-                id=item.activity_id, occurred_at=item.occurred_at,
-                actor_id=item.actor_id, action=item.action, entity_type=item.entity_type,
-                summary=item.summary, details=item.details,
-                actor_kind=item.actor_kind, actor_display=item.actor_display,
-            ) for item in result.items), filtered_total=result.filtered_total,
-            page=result.page, page_size=result.page_size,
-            reference_labels=result.reference_labels)
+            project_id,
+            search_text=search_text,
+            category=category,
+            page=page,
+            page_size=page_size,
+        )
+        return result
 
-    def list_assignable_resources(self, project_id: str) -> tuple[ProjectAssignableResourceOptionDescriptor, ...]:
+    def list_resource_context(
+        self, project_id: str, *, resource_ids: tuple[str, ...] = ()
+    ) -> tuple[ResourceResponse, ...]:
+        if self._resource_service is None:
+            return ()
+        return tuple(
+            self._resource_service.list_for_project_workspace(
+                project_id, resource_ids=resource_ids
+            )
+        )
+
+    def list_assignable_resources(
+        self, project_id: str
+    ) -> tuple[ResourceResponse, ...]:
         normalized_id = str(project_id or "").strip()
         if not normalized_id:
             return ()
-        assigned_ids = {row.resource_id for row in self.list_project_resources(normalized_id)}
-        return build_assignable_options(
-            normalized_id, assigned_ids,
-            resource_query=self._resource_service,
+        assigned_ids = {
+            row.resource_id for row in self.list_project_resources(normalized_id)
+        }
+        return tuple(
+            row
+            for row in self.list_resource_context(normalized_id)
+            if row.is_active and row.id not in assigned_ids
         )
 
-    def add_project_resource(self, command: ProjectResourceAssignCommand) -> ProjectResourceDesktopDto:
-        project_resource = self._require_project_resource_commands().add_to_project(command)
-        res = resource_lookup(
-            project_resource.project_id, (project_resource.resource_id,),
-            resource_query=self._resource_service,
-        ).get(project_resource.resource_id)
-        return serialize_project_resource(project_resource, resource_by_id=res)
+    def add_project_resource(
+        self, command: ProjectResourceAssignCommand
+    ) -> ProjectResourceResponse:
+        return self._require_project_resource_commands().add_to_project(command)
 
     def update_project_resource(self, command: ProjectResourceUpdateCommand) -> None:
         self._require_project_resource_commands().update(command)
 
-    def get_project_resource_usage(self, project_resource_id: str) -> ProjectResourceUsageDesktopDto | None:
+    def get_project_resource_usage(
+        self, project_resource_id: str
+    ) -> ProjectResourceUsageFact | None:
         normalized_id = str(project_resource_id or "").strip()
         if not normalized_id or self._project_resource_query is None:
             return None
-        fact = self._project_resource_query.get_usage(normalized_id)
-        return serialize_project_resource_usage(fact)
+        return self._project_resource_query.get_usage(normalized_id)
 
     def remove_project_resource(self, project_resource_id: str) -> None:
         self._require_project_resource_commands().delete(project_resource_id)
@@ -406,36 +298,17 @@ class ProjectManagementProjectsDesktopApi:
 
     def _require_project_query(self) -> ProjectQueryHandler:
         if self._project_query is None:
-            raise ConfigurationError("Project management projects query is not connected.")
+            raise ConfigurationError(
+                "Project management projects query is not connected."
+            )
         return self._project_query
 
     def _require_project_resource_commands(self) -> ProjectResourceCommandHandler:
         if self._project_resource_commands is None:
-            raise ConfigurationError("Project management project-resource desktop API is not connected.")
+            raise ConfigurationError(
+                "Project management project-resource desktop API is not connected."
+            )
         return self._project_resource_commands
 
-    def _site_lookup(self) -> dict[str, str]:
-        if self._site_query is None:
-            return {}
-        try:
-            return {
-                str(site.id): str(getattr(site, "name", "") or "").strip()
-                for site in self._site_query.list_sites(active_only=None)
-                if getattr(site, "id", None)
-            }
-        except Exception:  # noqa: BLE001
-            return {}
-
-    def _department_lookup(self) -> dict[str, str]:
-        if self._department_query is None:
-            return {}
-        try:
-            return {
-                str(department.id): str(getattr(department, "name", "") or "").strip()
-                for department in self._department_query.list_departments(active_only=None)
-                if getattr(department, "id", None)
-            }
-        except Exception:  # noqa: BLE001
-            return {}
 
 __all__ = ["ProjectManagementProjectsDesktopApi"]

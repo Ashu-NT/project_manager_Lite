@@ -109,20 +109,7 @@ def get_project_resource_usage(controller, project_resource_id: str) -> dict[str
         return {}
     if usage is None:
         return {}
-    return {
-        "projectResourceId": usage.project_resource_id,
-        "plannedHoursLabel": usage.planned_hours_label,
-        "allocatedToTasksHoursLabel": usage.allocated_to_tasks_hours_label,
-        "unallocatedPlannedHoursLabel": usage.unallocated_planned_hours_label,
-        "actualHoursLabel": usage.actual_hours_label,
-        "remainingProjectHoursLabel": usage.remaining_project_hours_label,
-        "plannedBurnPercent": usage.planned_burn_percent,
-        "taskAssignmentCount": usage.task_assignment_count,
-        "envelopeStatus": usage.envelope_status,
-        "envelopeStatusLabel": usage.envelope_status_label,
-        "burnStatus": usage.burn_status,
-        "burnStatusLabel": usage.burn_status_label,
-    }
+    return usage
 
 
 def remove_project_resource(controller, project_resource_id: str) -> dict[str, object]:

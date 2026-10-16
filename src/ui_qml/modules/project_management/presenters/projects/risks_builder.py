@@ -42,7 +42,9 @@ def build_project_risks_state(
         selected_project_id=normalized_project_id,
         project_risks=ProjectSectionCollectionViewModel(
             title="Risks",
-            subtitle=f"{len(items)} risk(s) recorded." if items else "Risks and mitigation records.",
+            subtitle=f"{len(items)} risk(s) recorded."
+            if items
+            else "Risks and mitigation records.",
             empty_state="No risks have been logged for this project yet.",
             items=items,
         ),

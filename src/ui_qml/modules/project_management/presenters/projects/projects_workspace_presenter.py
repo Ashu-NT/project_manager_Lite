@@ -32,6 +32,7 @@ from src.ui_qml.modules.project_management.utils.file_paths import (
 )
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogWorkspaceViewModel,
+    ProjectRecordViewModel,
 )
 
 from .activity_builder import build_project_activity_page
@@ -68,9 +69,15 @@ class ProjectProjectsWorkspacePresenter:
         site_api: PlatformSiteDesktopApi | None = None,
         department_api: PlatformDepartmentDesktopApi | None = None,
     ) -> None:
-        self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
-        self._tasks_desktop_api = tasks_desktop_api or build_project_management_tasks_desktop_api()
-        self._register_desktop_api = register_desktop_api or build_project_management_register_desktop_api()
+        self._desktop_api = (
+            desktop_api or build_project_management_projects_desktop_api()
+        )
+        self._tasks_desktop_api = (
+            tasks_desktop_api or build_project_management_tasks_desktop_api()
+        )
+        self._register_desktop_api = (
+            register_desktop_api or build_project_management_register_desktop_api()
+        )
         self._site_api = site_api
         self._department_api = department_api
         self._import_sessions: dict[str, object] = {}
@@ -113,6 +120,7 @@ class ProjectProjectsWorkspacePresenter:
             page_size=page_size,
             sort_key=sort_key,
             sort_direction=sort_direction,
+            department_labels=self._department_labels(),
         )
 
     def list_export_records(
@@ -134,7 +142,7 @@ class ProjectProjectsWorkspacePresenter:
         batch_size: int = 500,
     ):
         page = 1
-        rows = []
+        rows: list[ProjectRecordViewModel] = []
         while True:
             state = self.build_workspace_state(
                 search_text=search_text,
@@ -159,35 +167,92 @@ class ProjectProjectsWorkspacePresenter:
                 return tuple(rows)
             page += 1
 
-    def build_project_detail_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_detail_state(self._desktop_api, project_id=project_id)
+    def build_project_detail_state(
+        self, *, project_id: str
+    ) -> ProjectCatalogWorkspaceViewModel:
+        return build_project_detail_state(
+            self._desktop_api,
+            project_id=project_id,
+            department_labels=self._department_labels(),
+        )
 
-    def build_project_tasks_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
+    def _department_labels(self) -> dict[str, str]:
+        if self._department_api is None:
+            return {}
+        result = self._department_api.list_departments(active_only=None)
+        return (
+            {row.id: row.name for row in result.data}
+            if result.ok and result.data is not None
+            else {}
+        )
+
+    def build_project_tasks_state(
+        self, *, project_id: str
+    ) -> ProjectCatalogWorkspaceViewModel:
         return build_project_tasks_state(self._tasks_desktop_api, project_id=project_id)
 
-    def build_project_tasks_page(self, *, project_id: str, search_text: str = "",
-                                 status: str = "all", schedule: str = "all",
-                                 page: int = 1, page_size: int = 25,
-                                 sort_key: str = "wbsCode", sort_direction: str = "asc") -> dict[str, object]:
-        return project_tasks_page(self._tasks_desktop_api.list_task_page(
-            project_id=project_id, search_text=search_text, status=status,
-            schedule=schedule, page=page, page_size=page_size,
-            sort_key=sort_key, sort_direction=sort_direction))
+    def build_project_tasks_page(
+        self,
+        *,
+        project_id: str,
+        search_text: str = "",
+        status: str = "all",
+        schedule: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "wbsCode",
+        sort_direction: str = "asc",
+    ) -> dict[str, object]:
+        return project_tasks_page(
+            self._tasks_desktop_api.list_task_page(
+                project_id=project_id,
+                search_text=search_text,
+                status=status,
+                schedule=schedule,
+                page=page,
+                page_size=page_size,
+                sort_key=sort_key,
+                sort_direction=sort_direction,
+            )
+        )
 
-    def build_project_resources_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
+    def build_project_resources_state(
+        self, *, project_id: str
+    ) -> ProjectCatalogWorkspaceViewModel:
         return build_project_resources_state(self._desktop_api, project_id=project_id)
 
-    def build_project_resources_page(self, *, project_id: str, search_text: str = "",
-                                     active: str = "all", page: int = 1,
-                                     page_size: int = 25, sort_key: str = "resourceName",
-                                     sort_direction: str = "asc") -> dict[str, object]:
-        active_value = True if active == "active" else False if active == "inactive" else None
-        return project_resources_page(self._desktop_api.list_project_resources_page(
-            project_id, search_text=search_text, active=active_value, page=page,
-            page_size=page_size, sort_key=sort_key, sort_direction=sort_direction))
+    def build_project_resources_page(
+        self,
+        *,
+        project_id: str,
+        search_text: str = "",
+        active: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "resourceName",
+        sort_direction: str = "asc",
+    ) -> dict[str, object]:
+        active_value = (
+            True if active == "active" else False if active == "inactive" else None
+        )
+        return project_resources_page(
+            self._desktop_api.list_project_resources_page(
+                project_id,
+                search_text=search_text,
+                active=active_value,
+                page=page,
+                page_size=page_size,
+                sort_key=sort_key,
+                sort_direction=sort_direction,
+            )
+        )
 
-    def build_assignable_resource_options(self, *, project_id: str) -> list[dict[str, str]]:
-        return build_assignable_resource_options(self._desktop_api, project_id=project_id)
+    def build_assignable_resource_options(
+        self, *, project_id: str
+    ) -> list[dict[str, str]]:
+        return build_assignable_resource_options(
+            self._desktop_api, project_id=project_id
+        )
 
     def assign_resource_to_project(
         self,
@@ -224,23 +289,39 @@ class ProjectProjectsWorkspacePresenter:
         )
 
     def remove_project_resource(self, *, project_resource_id: str) -> None:
-        remove_project_resource(self._desktop_api, project_resource_id=project_resource_id)
+        remove_project_resource(
+            self._desktop_api, project_resource_id=project_resource_id
+        )
 
     def get_project_resource_usage(self, *, project_resource_id: str):
         return get_project_resource_usage(
             self._desktop_api, project_resource_id=project_resource_id
         )
 
-    def build_project_risks_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_risks_state(self._register_desktop_api, project_id=project_id)
+    def build_project_risks_state(
+        self, *, project_id: str
+    ) -> ProjectCatalogWorkspaceViewModel:
+        return build_project_risks_state(
+            self._register_desktop_api, project_id=project_id
+        )
 
-    def build_project_activity_page(self, *, project_id: str, search_text: str = "",
-                                    category: str = "all", page: int = 1,
-                                    page_size: int = 25) -> dict[str, object]:
+    def build_project_activity_page(
+        self,
+        *,
+        project_id: str,
+        search_text: str = "",
+        category: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> dict[str, object]:
         return build_project_activity_page(
             self._desktop_api.list_project_activity_page(
-                project_id, search_text=search_text, category=category,
-                page=page, page_size=page_size),
+                project_id,
+                search_text=search_text,
+                category=category,
+                page=page,
+                page_size=page_size,
+            ),
         )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
@@ -257,7 +338,9 @@ class ProjectProjectsWorkspacePresenter:
                 "value": row.id,
                 "label": row.name,
                 "supportingText": " | ".join(
-                    value for value in (row.site_code, row.city or "", row.country or "") if value
+                    value
+                    for value in (row.site_code, row.city or "", row.country or "")
+                    if value
                 ),
             }
             for row in result.data
@@ -273,7 +356,7 @@ class ProjectProjectsWorkspacePresenter:
 
     def build_manager_options(self) -> list[dict[str, str]]:
         return [
-            {"value": row.user_id, "label": row.label}
+            {"value": row.user_id, "label": row.display_name}
             for row in self._desktop_api.list_manager_candidates()
         ]
 
@@ -292,7 +375,9 @@ class ProjectProjectsWorkspacePresenter:
     def delete_project(self, project_id: str) -> None:
         delete_project(self._desktop_api, project_id)
 
-    def preview_import(self, *, file_path: str, source_format: str) -> dict[str, object]:
+    def preview_import(
+        self, *, file_path: str, source_format: str
+    ) -> dict[str, object]:
         return preview_import(
             self._import_sessions,
             file_path=local_path_from_qml_file_url(file_path),
@@ -301,5 +386,6 @@ class ProjectProjectsWorkspacePresenter:
 
     def execute_import(self, *, session_id: str) -> dict[str, object]:
         return execute_import(self._import_sessions, session_id=session_id)
+
 
 __all__ = ["ProjectProjectsWorkspacePresenter"]

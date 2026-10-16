@@ -8,6 +8,7 @@ def normalize_status_filter(status_filter: str, status_options: Any) -> str:
     available_values = {option.value.lower(): option.value for option in status_options}
     return available_values.get(normalized_value, "all")
 
+
 def build_empty_state(
     *,
     total: int,
@@ -27,7 +28,9 @@ def build_empty_state(
     if filtered_total:
         return ""
     if not total:
-        return "No projects are available yet. Create the first project to start planning."
+        return (
+            "No projects are available yet. Create the first project to start planning."
+        )
     any_filter_active = (
         bool(search_text)
         or status_filter != "all"

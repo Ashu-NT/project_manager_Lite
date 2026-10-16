@@ -10,9 +10,11 @@ def require_text(payload: dict[str, Any], key: str, message: str) -> str:
         raise ValueError(message)
     return value
 
+
 def optional_text(payload: dict[str, Any], key: str) -> str | None:
     value = str(payload.get(key, "") or "").strip()
     return value or None
+
 
 def optional_float(payload: dict[str, Any], key: str) -> float | None:
     value = str(payload.get(key, "") or "").strip()
@@ -23,11 +25,13 @@ def optional_float(payload: dict[str, Any], key: str) -> float | None:
     except ValueError as exc:
         raise ValueError("Planned budget must be a valid number.") from exc
 
+
 def optional_int(payload: dict[str, Any], key: str) -> int | None:
     value = payload.get(key)
     if value in (None, ""):
         return None
     return int(value)
+
 
 def optional_date(payload: dict[str, Any], key: str) -> date | None:
     value = str(payload.get(key, "") or "").strip()
