@@ -18,6 +18,7 @@ from src.core.modules.project_management.application.financials.cost.entries.aud
     record_project_cost_entry_audit,
 )
 from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
+    build_cost_entry_capabilities,
     is_manual_actual_entry,
 )
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
@@ -30,8 +31,14 @@ from src.core.modules.project_management.application.financials.cost.entries.dto
 from src.core.modules.project_management.application.financials.cost.entries.dto.responses.approval import (
     FinancialCostEntryApprovalDto,
 )
-from src.core.modules.project_management.application.financials.cost.entries.mappers.responses import (
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.cost_entry import (
+    CostEntryResponse,
+)
+from src.core.modules.project_management.application.financials.cost.entries.mappers.approval import (
     map_cost_entry_approval,
+)
+from src.core.modules.project_management.application.financials.cost.entries.mappers.cost_entry import (
+    map_cost_entry,
 )
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
@@ -78,7 +85,9 @@ class ProjectCostEntryReviewCommandHandler(ProjectManagementModuleGuardMixin):
         self._approval_commands = approval_commands
         self._record_event = record_event
 
-    def approve(self, command: FinancialDecideActualCommand) -> FinancialCostEntryApprovalDto:
+    def approve(
+        self, command: FinancialDecideActualCommand
+    ) -> FinancialCostEntryApprovalDto:
         entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="approve")
         governed = self._approval_commands is not None and is_governance_required(
@@ -109,28 +118,32 @@ class ProjectCostEntryReviewCommandHandler(ProjectManagementModuleGuardMixin):
                     "notes": command.notes,
                 },
             )
-            return map_cost_entry_approval(CostEntryApprovalResult(
-                outcome=CostEntryApprovalOutcome.PENDING_APPROVAL,
-                entry_id=entry.id,
-                project_id=entry.project_id,
-                status=entry.status,
-                row_version=entry.row_version,
-                approval_request_id=request.id,
-            ))
+            return map_cost_entry_approval(
+                CostEntryApprovalResult(
+                    outcome=CostEntryApprovalOutcome.PENDING_APPROVAL,
+                    entry_id=entry.id,
+                    project_id=entry.project_id,
+                    status=entry.status,
+                    row_version=entry.row_version,
+                    approval_request_id=request.id,
+                )
+            )
         approved, _event = self._apply_approval_decision(
             entry_id=entry.id,
             expected_version=command.expected_version,
             actor_id=self._actor_id(),
         )
-        return map_cost_entry_approval(CostEntryApprovalResult(
-            outcome=CostEntryApprovalOutcome.APPLIED,
-            entry_id=approved.id,
-            project_id=approved.project_id,
-            status=approved.status,
-            row_version=approved.row_version,
-        ))
+        return map_cost_entry_approval(
+            CostEntryApprovalResult(
+                outcome=CostEntryApprovalOutcome.APPLIED,
+                entry_id=approved.id,
+                project_id=approved.project_id,
+                status=approved.status,
+                row_version=approved.row_version,
+            )
+        )
 
-    def reject(self, command: FinancialDecideActualCommand) -> ProjectCostEntry:
+    def reject(self, command: FinancialDecideActualCommand) -> CostEntryResponse:
         entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="reject")
         if self._approval_commands is not None and is_governance_required(
@@ -149,7 +162,12 @@ class ProjectCostEntryReviewCommandHandler(ProjectManagementModuleGuardMixin):
             actor_id=self._actor_id(),
             notes=command.notes,
         )
-        return rejected
+        return map_cost_entry(
+            rejected,
+            capabilities=build_cost_entry_capabilities(
+                rejected, user_session=self._user_session
+            ),
+        )
 
     def _require_entry(
         self, entry_id: str, *, for_update: bool = False

@@ -17,6 +17,7 @@ from src.core.modules.project_management.application.financials.cost.entries.aud
     record_project_cost_entry_audit,
 )
 from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
+    build_cost_entry_capabilities,
     is_manual_actual_entry,
 )
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
@@ -28,8 +29,14 @@ from src.core.modules.project_management.application.financials.cost.entries.dto
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
 )
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.cost_entry import (
+    CostEntryResponse,
+)
 from src.core.modules.project_management.application.financials.cost.entries.manual_source import (
     build_manual_source,
+)
+from src.core.modules.project_management.application.financials.cost.entries.mappers.cost_entry import (
+    map_cost_entry,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourceReference,
@@ -96,7 +103,7 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
         self._tenant_context_service = tenant_context_service
         self._record_event = record_event
 
-    def post(self, command: FinancialPostActualCommand) -> ProjectCostEntry:
+    def post(self, command: FinancialPostActualCommand) -> CostEntryResponse:
         entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="post")
         self._require_command_permission(
@@ -144,9 +151,14 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return entry
+        return map_cost_entry(
+            entry,
+            capabilities=build_cost_entry_capabilities(
+                entry, user_session=self._user_session
+            ),
+        )
 
-    def reverse(self, command: FinancialReverseActualCommand) -> ProjectCostEntry:
+    def reverse(self, command: FinancialReverseActualCommand) -> CostEntryResponse:
         entry = self._require_entry(command.entry_id, for_update=True)
         self._require_manual_interactive_entry(entry, operation="reverse")
         self._require_command_permission(
@@ -167,7 +179,12 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
         )
         existing = self._entry_repo.get_by_idempotency_key(source.idempotency_key)
         if existing is not None:
-            return self._resolve_replay(existing, source)
+            return map_cost_entry(
+                self._resolve_replay(existing, source),
+                capabilities=build_cost_entry_capabilities(
+                    existing, user_session=self._user_session
+                ),
+            )
         self._require_expected_version(entry, command.expected_version)
         period = self._financial_period_queries.require_open_period_for_date(
             command.posting_date
@@ -178,7 +195,8 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
         reversal = ProjectCostEntry.create_posted_reversal(
             original=entry,
             reversal_id=reversal_id,
-            description=str(command.reason or "").strip() or f"Reversal of {entry.description}",
+            description=str(command.reason or "").strip()
+            or f"Reversal of {entry.description}",
             source=source,
             posting_date=command.posting_date,
             financial_period_id=period.id,
@@ -194,7 +212,9 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
                     actor_id=actor_id,
                     occurred_at=now,
                 )
-                self._entry_repo.update(entry, expected_row_version=command.expected_version)
+                self._entry_repo.update(
+                    entry, expected_row_version=command.expected_version
+                )
                 self._entry_repo.flush()
         except IntegrityError as exc:
             raise BusinessRuleError(
@@ -214,7 +234,12 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return reversal
+        return map_cost_entry(
+            reversal,
+            capabilities=build_cost_entry_capabilities(
+                reversal, user_session=self._user_session
+            ),
+        )
 
     def _require_entry(
         self, entry_id: str, *, for_update: bool = False

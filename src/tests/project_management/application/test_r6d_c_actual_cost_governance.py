@@ -8,10 +8,23 @@ from decimal import Decimal
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
+    build_cost_entry_capabilities,
+)
 from src.core.modules.project_management.application.financials.cost.entries.commands import (
     ProjectCostEntryLifecycleCommandHandler,
     ProjectCostEntryPostingCommandHandler,
     ProjectCostEntryReviewCommandHandler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_review import (
+    FinancialDecideActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
+    FinancialVersionedActualCommand,
 )
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
@@ -35,23 +48,13 @@ from src.core.platform.domain.finance import Money
 def _setup(services):
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(ProjectCreateCommand(name="R6D-C Actual governance", financial_currency_code=organization.base_currency))
-    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
-        code="R6DC-ACTUAL", name="R6D-C Actual"
-    ))
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(FinancialCreateCostCodeCommand(code="R6DC-ACTUAL", name="R6D-C Actual")))
     return organization, project, cost_code
 
 
 def _draft(services):
     organization, project, cost_code = _setup(services)
-    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
-        project_id=project.id,
-        command_id="r6dc-manual",
-        description="Governed manual actual",
-        amount=Decimal("125.40"),
-        currency_code=organization.base_currency,
-        transaction_date=date(2026, 9, 9),
-        cost_code_id=cost_code.id,
-    ))
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(FinancialCreateManualActualCommand(project_id=project.id, command_id="r6dc-manual", description="Governed manual actual", amount=Decimal("125.40"), currency_code=organization.base_currency, transaction_date=date(2026, 9, 9), cost_code_id=cost_code.id)))
     return organization, project, cost_code, entry
 
 
@@ -65,26 +68,26 @@ def _become(services, user_id: str) -> None:
 def test_requester_cannot_approve_or_reject_even_with_both_permissions(services):
     _organization, _project, _cost_code, draft = _draft(services)
     services['cost_entry_query']
-    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(FinancialVersionedActualCommand(entry_id=draft.id, expected_version=draft.row_version)))
 
     with pytest.raises(BusinessRuleError, match="cannot approve or reject") as approve_error:
-        services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
+        services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version)))
     assert approve_error.value.code == "PROJECT_COST_ENTRY_SELF_DECISION_FORBIDDEN"
 
     with pytest.raises(BusinessRuleError, match="cannot approve or reject") as reject_error:
-        services['finance_governance_commands'].cost_entry_review(lambda handler: handler.reject(submitted.id, expected_version=submitted.row_version))
+        services['finance_governance_commands'].cost_entry_review(lambda handler: handler.reject(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version)))
     assert reject_error.value.code == "PROJECT_COST_ENTRY_SELF_DECISION_FORBIDDEN"
 
 
 def test_independent_decider_can_approve(services):
     _organization, _project, _cost_code, draft = _draft(services)
     services['cost_entry_query']
-    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(FinancialVersionedActualCommand(entry_id=draft.id, expected_version=draft.row_version)))
     _become(services, "r6dc-independent-decider")
 
-    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
+    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version)))
 
-    assert result.outcome.value == "applied"
+    assert result.outcome == "applied"
 
 
 def test_desktop_actual_capabilities_are_permission_source_and_actor_aware(services):
@@ -99,9 +102,7 @@ def test_desktop_actual_capabilities_are_permission_source_and_actor_aware(servi
     assert draft_dto.can_delete is True
     assert draft_dto.can_submit is True
 
-    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(
-        draft.id, expected_version=draft.row_version
-    ))
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(FinancialVersionedActualCommand(entry_id=draft.id, expected_version=draft.row_version)))
     submitted_dto = desktop_api.list_cost_entries(project.id).items[0]
     assert submitted_dto.can_approve is False
     assert submitted_dto.can_reject is False
@@ -145,7 +146,7 @@ def test_source_owned_entry_has_no_interactive_mutation_capability(services):
         actor_id=actor_id,
         occurred_at=datetime.now(UTC),
     )
-    capabilities = services['cost_entry_query'].capabilities_for(entry)
+    capabilities = build_cost_entry_capabilities(entry, user_session=services['user_session'])
     assert capabilities.project_visible is True
     assert capabilities.is_manual is False
     assert not any(

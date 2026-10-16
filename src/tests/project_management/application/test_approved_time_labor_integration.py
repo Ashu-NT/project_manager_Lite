@@ -1,4 +1,3 @@
-
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
@@ -9,14 +8,31 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import select
 
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.financial_profile import (
+    FinancialUpdateProfileCommand,
+)
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_cards import (
+    FinancialCreateRateCardCommand,
+    FinancialVersionedRateCardCommand,
+)
+from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_lines import (
+    FinancialAddRateLineCommand,
+    FinancialVersionedRateLineCommand,
 )
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
 )
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
 )
 from src.core.modules.project_management.contracts.reads.financials.integration.models.integration_facts import (
     ApprovedTimePostingFailureQuery,
@@ -67,28 +83,15 @@ def _setup(services):
             ServicePrincipalCreateCommand(name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME, description="Posts approved Time facts into PM Finance labor actuals.", initial_role_name="viewer"))
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(ProjectCreateCommand(name="Approved Time Finance", financial_currency_code=organization.base_currency))
-    cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(
-        code="LABOR-ACTUAL", name="Labor actual"
-    ))
+    cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(FinancialCreateCostCodeCommand(code="LABOR-ACTUAL", name="Labor actual")))
     profile = services["financial_configuration_query"].get_profile(project.id)
-    services["finance_governance_commands"].financial_profile(lambda commands: commands.configure_profile(
-        project.id,
-        expected_version=profile.version,
-        default_cost_code_id=cost_code.id,
-    ))
+    services["finance_governance_commands"].financial_profile(lambda commands: commands.configure_profile(FinancialUpdateProfileCommand(project_id=project.id, expected_version=profile.version, default_cost_code_id=cost_code.id)))
     services["financial_period_commands"].create_period(
         FinancialPeriodCreateCommand(code="LABOR-2026-05", name="May 2026", fiscal_year=2026, period_number=5, start_date=date(2026, 5, 1).isoformat(), end_date=date(2026, 5, 31).isoformat()))
     resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Approved Time Engineer", hourly_rate=0, currency_code=organization.base_currency))
-    card = services["finance_governance_commands"].rate_card(lambda commands: commands.create_rate_card(
-        name="Approved Time rates", project_id=project.id
-    ))
-    services["finance_governance_commands"].rate_line(lambda commands: commands.create_line(
-        card.id, rate_type=RateType.COST, unit="HOUR", rate_amount=Decimal(50),
-        rate_currency=organization.base_currency, resource_id=resource.id,
-    ))
-    task = services['task_lifecycle_commands'].create_task(
-        project.id, "Approved Time Task", start_date=date(2026, 5, 1), duration_days=10
-    )
+    card = services["finance_governance_commands"].rate_card(lambda commands: commands.create_rate_card(FinancialCreateRateCardCommand(name="Approved Time rates", project_id=project.id)))
+    services["finance_governance_commands"].rate_line(lambda commands: commands.create_line(FinancialAddRateLineCommand(rate_card_id=card.rate_card_id, rate_type=RateType.COST.value, unit="HOUR", rate_amount=str(Decimal(50)), rate_currency=organization.base_currency, resource_id=resource.id, expected_card_version=card.version)))
+    task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Approved Time Task", start_date=date(2026, 5, 1), duration_days=10))
     assignment = services['task_assignment_commands'].assign_resource(
         task.id, resource.id, allocation_percent=100
     )
@@ -441,9 +444,7 @@ def test_approved_time_worker_records_success_and_replay_statement_counts(servic
 def test_approved_time_worker_no_rate_failure_statement_count(services) -> None:
     _, project, resource, _, assignment = _setup(services)
     line = services["session"].execute(select(RateCardLineORM)).scalar_one()
-    services["finance_governance_commands"].rate_line(lambda commands: commands.deactivate_line(
-        line.id, expected_version=line.version
-    ))
+    services["finance_governance_commands"].rate_line(lambda commands: commands.deactivate_line(FinancialVersionedRateLineCommand(rate_line_id=line.id, expected_version=line.version, expected_card_version=services["rate_card_query"].list_rate_cards(project_id=project.id)[0].version)))
     _approve_without_immediate_dispatch(
         services, resource_id=resource.id, assignment_id=assignment.id
     )
@@ -553,9 +554,7 @@ def test_disabled_worker_identity_is_quarantined_without_posting(services) -> No
 def test_missing_cost_rate_is_durable_and_never_posts_zero_actual(services) -> None:
     _, project, resource, _, assignment = _setup(services)
     card = services["rate_card_query"].list_rate_cards(project_id=project.id)[0]
-    services["finance_governance_commands"].rate_card(lambda commands: commands.deactivate_rate_card(
-        card.id, expected_version=card.version
-    ))
+    services["finance_governance_commands"].rate_card(lambda commands: commands.deactivate_rate_card(FinancialVersionedRateCardCommand(rate_card_id=card.id, expected_version=card.version)))
 
     services["time_entry_commands"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 13), hours=Decimal(2)
@@ -580,10 +579,7 @@ def test_posting_failure_read_is_bounded_scoped_and_sensitive_by_permission(
 ) -> None:
     _, project, resource, _, assignment = _setup(services)
     card = services["rate_card_query"].list_rate_cards(project_id=project.id)[0]
-    services["finance_governance_commands"].rate_card(lambda commands: commands.deactivate_rate_card(
-        card.id,
-        expected_version=card.version,
-    ))
+    services["finance_governance_commands"].rate_card(lambda commands: commands.deactivate_rate_card(FinancialVersionedRateCardCommand(rate_card_id=card.id, expected_version=card.version)))
     services["time_entry_commands"].add_time_entry(
         assignment.id,
         entry_date=date(2026, 5, 13),
@@ -676,18 +672,9 @@ def test_rate_changes_do_not_revalue_existing_labor_provenance(services) -> None
     )
 
     card = services["rate_card_query"].list_rate_cards(project_id=project.id)[0]
-    services["finance_governance_commands"].rate_card(lambda commands: commands.deactivate_rate_card(card.id, expected_version=card.version))
-    successor = services["finance_governance_commands"].rate_card(lambda commands: commands.create_rate_card(
-        name="Approved Time successor rates", project_id=project.id
-    ))
-    services["finance_governance_commands"].rate_line(lambda commands: commands.create_line(
-        successor.id,
-        rate_type=RateType.COST,
-        unit="HOUR",
-        rate_amount=Decimal(75),
-        rate_currency=organization.base_currency,
-        resource_id=resource.id,
-    ))
+    services["finance_governance_commands"].rate_card(lambda commands: commands.deactivate_rate_card(FinancialVersionedRateCardCommand(rate_card_id=card.id, expected_version=card.version)))
+    successor = services["finance_governance_commands"].rate_card(lambda commands: commands.create_rate_card(FinancialCreateRateCardCommand(name="Approved Time successor rates", project_id=project.id)))
+    services["finance_governance_commands"].rate_line(lambda commands: commands.create_line(FinancialAddRateLineCommand(rate_card_id=successor.rate_card_id, rate_type=RateType.COST.value, unit="HOUR", rate_amount=str(Decimal(75)), rate_currency=organization.base_currency, resource_id=resource.id, expected_card_version=successor.version)))
     services["session"].expire_all()
     persisted = services["session"].execute(select(ApprovedTimeLaborPostingORM)).scalar_one()
     assert (

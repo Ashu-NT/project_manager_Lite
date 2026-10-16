@@ -8,9 +8,14 @@ from src.core.modules.project_management.application.financials.cost.entries.dto
 )
 
 
-def map_cost_entry_approval(result: CostEntryApprovalResult) -> FinancialCostEntryApprovalDto:
+def map_cost_entry_approval(
+    result: CostEntryApprovalResult,
+) -> FinancialCostEntryApprovalDto:
     return FinancialCostEntryApprovalDto(
-        outcome=result.outcome.value, entry_id=result.entry_id, project_id=result.project_id,
-        status=result.status.value, row_version=result.row_version,
+        outcome=result.outcome.value,
+        entry_id=result.entry_id,
+        project_id=result.project_id,
+        status=result.status.value,
+        row_version=result.row_version,
         approval_request_id=result.approval_request_id or "",
     )

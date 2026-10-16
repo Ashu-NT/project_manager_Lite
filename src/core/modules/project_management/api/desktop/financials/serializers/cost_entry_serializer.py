@@ -7,19 +7,15 @@ from src.core.modules.project_management.api.desktop.common.financial_formatting
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostEntryDto,
 )
-from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
-    CostEntryActionCapabilities,
-)
-from src.core.modules.project_management.domain.financials.cost_entry import (
-    ProjectCostEntry,
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.cost_entry import (
+    CostEntryResponse,
 )
 
 
 def serialize_cost_entry(
-    entry: ProjectCostEntry,
-    capabilities: CostEntryActionCapabilities | None = None,
+    entry: CostEntryResponse,
 ) -> FinancialCostEntryDto:
-    actions = capabilities or CostEntryActionCapabilities.none()
+    actions = entry.capabilities
     return FinancialCostEntryDto(
         id=entry.id,
         project_id=entry.project_id,

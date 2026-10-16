@@ -97,11 +97,40 @@ is verified against persistence rather than leaked into the public response.
 
 Verification: 280 notification/durable-delivery/shell UI/architecture/composition
 tests passed; scoped Mypy passed for 16 source files. This closes the
-Notification result boundary only. Actual Cost handlers still expose domain
-entries through the desktop cost-entry serializer and remain an unfinished
-output cutover. Desktop labels, formatted dates/money, icons and chart/table
+Notification result boundary only. Desktop labels, formatted dates/money, icons and chart/table
 descriptors are not neutral application results and must not be moved merely
 to empty API folders. Full A4-A6 certification remains outstanding.
+
+**Actual Cost output cutover (2026-10-16):** the feature now owns
+`dto/responses/cost_entry.py` and `mappers/cost_entry.py`. The frozen, slotted
+`CostEntryResponse` carries detached scalar cost/source/version evidence,
+Decimal money, optional posting evidence and server-authored action
+capabilities. There is no existing equivalent Reader DTO to duplicate.
+Create/replay/update/submit/reject/post/reverse and get/list now return that
+response; approval keeps its existing distinct governed-decision result.
+Private approval-participant operations and trusted approved-Time/Procurement
+posting retain their existing domain/transaction contracts. Repositories,
+savepoints, UoW commit ownership, audits and events are unchanged.
+
+The desktop cost serializer now performs presentation only on the response;
+it neither receives the aggregate nor rebuilds capabilities. Removed the
+redundant API serialization and query-requirement wrappers and the query's
+aggregate-taking capability facade. Renamed generic `mappers/responses.py`
+to content-specific `mappers/approval.py`. No compatibility wrappers or
+duplicate handler/session graphs were introduced. Tests verify frozen
+snapshots across lifecycle changes, replay, Decimal/None preservation,
+desktop capabilities and stable query counts as page size increases.
+
+Final targeted verification: 309 tests passed across cost lifecycle/output,
+desktop Finance, approved-Time labor, allocation N+1, neutral Procurement
+delivery, architecture and composition. Ten live PostgreSQL Actual Cost
+tests passed through the existing dedicated integration environment,
+including runtime-role RLS, hostile scope, stale writes and concurrency.
+Previously stale test callers were updated to the existing command DTOs and
+required version tokens; no production business rules were loosened.
+Mypy passed for 1,302 PM/Platform application/API source files; repository
+Ruff F/I, compilation and diff checks passed. Full suites were not run and
+the wider boundary migration is not certified. No commit was made.
 
 Pre-release permits coordinated interface cutovers and deletion of obsolete
 internal paths, but does not justify changing RBAC, tenant isolation,

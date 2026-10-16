@@ -11,8 +11,22 @@ from alembic.config import Config
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
 from src.core.modules.project_management.application.financials.cost.entries import (
     CostEntryApprovalOutcome,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_posting import (
+    FinancialPostActualCommand,
+    FinancialReverseActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_review import (
+    FinancialDecideActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
+    FinancialVersionedActualCommand,
 )
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
@@ -70,10 +84,7 @@ def _source(*, command_id: str = "command-1", content_hash: str = "a" * 64):
 def _create_project_finance_setup(services):
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(ProjectCreateCommand(name="Canonical actuals", financial_currency_code=organization.base_currency))
-    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
-        code="ACTUAL-LABOR",
-        name="Actual labor",
-    ))
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(FinancialCreateCostCodeCommand(code="ACTUAL-LABOR", name="Actual labor")))
     period = services["financial_period_commands"].create_period(
         FinancialPeriodCreateCommand(code="FY26-P01", name="January 2026", fiscal_year=2026, period_number=1, start_date=date(2026, 1, 1).isoformat(), end_date=date(2026, 1, 31).isoformat()))
     return organization, project, cost_code, period
@@ -81,15 +92,7 @@ def _create_project_finance_setup(services):
 
 def _create_draft(services, *, command_id: str = "manual-1", amount: str = "125.50"):
     organization, project, cost_code, period = _create_project_finance_setup(services)
-    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
-        project_id=project.id,
-        command_id=command_id,
-        description="Approved labor adjustment",
-        amount=Decimal(amount),
-        currency_code=organization.base_currency,
-        transaction_date=date(2026, 1, 12),
-        cost_code_id=cost_code.id,
-    ))
+    entry = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(FinancialCreateManualActualCommand(project_id=project.id, command_id=command_id, description="Approved labor adjustment", amount=Decimal(amount), currency_code=organization.base_currency, transaction_date=date(2026, 1, 12), cost_code_id=cost_code.id)))
     return organization, project, cost_code, period, entry
 
 
@@ -162,52 +165,23 @@ def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(service
     organization, project, cost_code, _period, draft = _create_draft(services)
     services['cost_entry_query']
 
-    replay = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
-        project_id=project.id,
-        command_id="manual-1",
-        description="Approved labor adjustment",
-        amount=Decimal("125.50"),
-        currency_code=organization.base_currency,
-        transaction_date=date(2026, 1, 12),
-        cost_code_id=cost_code.id,
-    ))
+    replay = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(FinancialCreateManualActualCommand(project_id=project.id, command_id="manual-1", description="Approved labor adjustment", amount=Decimal("125.50"), currency_code=organization.base_currency, transaction_date=date(2026, 1, 12), cost_code_id=cost_code.id)))
     assert replay.id == draft.id
     with pytest.raises(BusinessRuleError) as conflict:
-        services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
-            project_id=project.id,
-            command_id="manual-1",
-            description="Conflicting replay",
-            amount=Decimal("125.50"),
-            currency_code=organization.base_currency,
-            transaction_date=date(2026, 1, 12),
-            cost_code_id=cost_code.id,
-        ))
+        services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(FinancialCreateManualActualCommand(project_id=project.id, command_id="manual-1", description="Conflicting replay", amount=Decimal("125.50"), currency_code=organization.base_currency, transaction_date=date(2026, 1, 12), cost_code_id=cost_code.id)))
     assert conflict.value.code == "PROJECT_COST_ENTRY_SOURCE_REPLAY_CONFLICT"
 
-    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(FinancialVersionedActualCommand(entry_id=draft.id, expected_version=draft.row_version)))
     _become_independent_decider(services)
-    approved_result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(
-        submitted.id,
-        expected_version=submitted.row_version,
-    ))
+    approved_result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version)))
     assert approved_result.outcome == CostEntryApprovalOutcome.APPLIED
     approved = services['cost_entry_query'].get_entry(draft.id)
-    posted = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
-        approved.id,
-        expected_version=approved.row_version,
-        posting_date=date(2026, 1, 15),
-    ))
+    posted = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(FinancialPostActualCommand(entry_id=approved.id, expected_version=approved.row_version, posting_date=date(2026, 1, 15))))
     assert posted.status == ProjectCostEntryStatus.POSTED
     assert posted.base_amount == posted.amount
     assert posted.exchange_rate == Decimal(1)
 
-    reversal = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.reverse(
-        posted.id,
-        expected_version=posted.row_version,
-        command_id="reverse-manual-1",
-        posting_date=date(2026, 1, 20),
-        reason="Correct duplicate source transaction",
-    ))
+    reversal = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.reverse(FinancialReverseActualCommand(entry_id=posted.id, expected_version=posted.row_version, command_id="reverse-manual-1", posting_date=date(2026, 1, 20), reason="Correct duplicate source transaction")))
     original = services['cost_entry_query'].get_entry(posted.id)
     assert original.status == ProjectCostEntryStatus.REVERSED
     assert original.reversed_by_entry_id == reversal.id
@@ -220,13 +194,7 @@ def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(service
     assert reversal.base_currency_code == original.base_currency_code
     assert reversal.amount + original.amount == Decimal(0)
 
-    reversal_retry = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.reverse(
-        posted.id,
-        expected_version=posted.row_version,
-        command_id="reverse-manual-1",
-        posting_date=date(2026, 1, 20),
-        reason="Correct duplicate source transaction",
-    ))
+    reversal_retry = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.reverse(FinancialReverseActualCommand(entry_id=posted.id, expected_version=posted.row_version, command_id="reverse-manual-1", posting_date=date(2026, 1, 20), reason="Correct duplicate source transaction")))
     assert reversal_retry.id == reversal.id
 
     entries, total = services['cost_entry_query'].list_for_project(project.id, limit=1)
@@ -240,26 +208,10 @@ def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
     organization, project, cost_code, _period = _create_project_finance_setup(services)
     service = services['cost_entry_query']
     for index in range(55):
-        services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
-            project_id=project.id,
-            command_id=f"r17-actual-{index:03d}",
-            description=f"Actual {index:03d}",
-            amount=Decimal("0.01"),
-            currency_code=organization.base_currency,
-            transaction_date=date(2026, 1, 12),
-            cost_code_id=cost_code.id,
-        ))
+        services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(FinancialCreateManualActualCommand(project_id=project.id, command_id=f"r17-actual-{index:03d}", description=f"Actual {index:03d}", amount=Decimal("0.01"), currency_code=organization.base_currency, transaction_date=date(2026, 1, 12), cost_code_id=cost_code.id)))
 
     foreign_project = services['project_create'].create_project(ProjectCreateCommand(name="Other scoped actuals", financial_currency_code=organization.base_currency))
-    services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
-        project_id=foreign_project.id,
-        command_id="r17-foreign-actual",
-        description="Foreign Actual",
-        amount=Decimal("99.99"),
-        currency_code=organization.base_currency,
-        transaction_date=date(2026, 1, 12),
-        cost_code_id=cost_code.id,
-    ))
+    services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(FinancialCreateManualActualCommand(project_id=foreign_project.id, command_id="r17-foreign-actual", description="Foreign Actual", amount=Decimal("99.99"), currency_code=organization.base_currency, transaction_date=date(2026, 1, 12), cost_code_id=cost_code.id)))
 
     first_page, first_total = services['cost_entry_query'].list_for_project(
         project.id,
@@ -310,37 +262,17 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
     organization, project, cost_code, _period = _create_project_finance_setup(services)
     transaction_currency = "USD" if organization.base_currency != "USD" else "EUR"
     services['cost_entry_query']
-    draft = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
-        project_id=project.id,
-        command_id="fx-command",
-        description="Imported equipment charge",
-        amount=Decimal(100),
-        currency_code=transaction_currency,
-        transaction_date=date(2026, 1, 5),
-        cost_code_id=cost_code.id,
-    ))
-    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
+    draft = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(FinancialCreateManualActualCommand(project_id=project.id, command_id="fx-command", description="Imported equipment charge", amount=Decimal(100), currency_code=transaction_currency, transaction_date=date(2026, 1, 5), cost_code_id=cost_code.id)))
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(FinancialVersionedActualCommand(entry_id=draft.id, expected_version=draft.row_version)))
     _become_independent_decider(services)
-    services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
+    services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version)))
     approved = services['cost_entry_query'].get_entry(draft.id)
     with pytest.raises(ValidationError) as missing_fx:
-        services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
-            approved.id,
-            expected_version=approved.row_version,
-            posting_date=date(2026, 1, 8),
-        ))
+        services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(FinancialPostActualCommand(entry_id=approved.id, expected_version=approved.row_version, posting_date=date(2026, 1, 8))))
     assert missing_fx.value.code == "PROJECT_COST_ENTRY_FX_SNAPSHOT_REQUIRED"
 
     captured_at = datetime(2026, 1, 8, 9, 0, tzinfo=UTC)
-    posted = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
-        approved.id,
-        expected_version=approved.row_version,
-        posting_date=date(2026, 1, 8),
-        exchange_rate=Decimal("0.900000000000"),
-        exchange_rate_date=date(2026, 1, 8),
-        exchange_rate_source="ECB closing rate",
-        exchange_rate_captured_at=captured_at,
-    ))
+    posted = services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(FinancialPostActualCommand(entry_id=approved.id, expected_version=approved.row_version, posting_date=date(2026, 1, 8), exchange_rate=Decimal("0.900000000000"), exchange_rate_date=date(2026, 1, 8), exchange_rate_source="ECB closing rate", exchange_rate_captured_at=captured_at)))
     assert posted.base_amount == Decimal("90.00")
     assert posted.base_currency_code == organization.base_currency
     assert posted.exchange_rate_source == "ECB closing rate"
@@ -350,18 +282,14 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
 def test_posting_rejects_closed_period(services) -> None:
     _organization, _project, _cost_code, period, draft = _create_draft(services)
     services['cost_entry_query']
-    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(FinancialVersionedActualCommand(entry_id=draft.id, expected_version=draft.row_version)))
     _become_independent_decider(services)
-    services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
+    services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version)))
     approved = services['cost_entry_query'].get_entry(draft.id)
     services["financial_period_commands"].close_period(
         FinancialPeriodTransitionCommand(period_id=period.id, expected_version=period.version))
     with pytest.raises(BusinessRuleError) as blocked:
-        services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(
-            approved.id,
-            expected_version=approved.row_version,
-            posting_date=date(2026, 1, 15),
-        ))
+        services['finance_governance_commands'].cost_entry_posting(lambda handler: handler.post(FinancialPostActualCommand(entry_id=approved.id, expected_version=approved.row_version, posting_date=date(2026, 1, 15))))
     assert blocked.value.code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
 
 
@@ -372,14 +300,14 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _organization, project, _cost_code, _period, draft = _create_draft(services)
     services['cost_entry_query']
-    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(draft.id, expected_version=draft.row_version))
+    submitted = services['finance_governance_commands'].cost_entry(lambda handler: handler.submit(FinancialVersionedActualCommand(entry_id=draft.id, expected_version=draft.row_version)))
     services["user_registration"].register_user(
         "cost-requester",
         "StrongPass123",
         role_names=["planner"],
     )
     _login(services, "cost-requester", "StrongPass123")
-    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(submitted.id, expected_version=submitted.row_version))
+    result = services['finance_governance_commands'].cost_entry_review(lambda handler: handler.approve(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version)))
     assert result.outcome == CostEntryApprovalOutcome.PENDING_APPROVAL
     request = services["approval_queries"].list_pending(project_id=project.id)[0]
     requester_id = request.requested_by_user_id

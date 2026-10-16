@@ -667,7 +667,7 @@ class ProjectManagementFinancialsDesktopApi:
                 sort_direction=sort.direction.value,
             )
         return FinancialCostEntryPageDto(
-            items=tuple(self._serialize_cost_entry(entry) for entry in entries),
+            items=tuple(serialize_cost_entry(entry) for entry in entries),
             total=total,
             offset=normalized_offset,
             limit=limit,
@@ -704,13 +704,13 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialCreateManualActualCommand
     ) -> FinancialCostEntryDto:
         entry = self._require_finance_governance_commands().cost_entry(lambda commands: commands.create_manual_entry(command))
-        return self._serialize_cost_entry(entry)
+        return serialize_cost_entry(entry)
 
     def update_actual_draft(
         self, command: FinancialUpdateActualDraftCommand
     ) -> FinancialCostEntryDto:
         entry = self._require_finance_governance_commands().cost_entry(lambda commands: commands.update_draft(command))
-        return self._serialize_cost_entry(entry)
+        return serialize_cost_entry(entry)
 
     def delete_actual_draft(self, command: FinancialVersionedActualCommand) -> None:
         self._require_finance_governance_commands().cost_entry(lambda commands: commands.delete_draft(command))
@@ -718,7 +718,7 @@ class ProjectManagementFinancialsDesktopApi:
     def submit_actual(
         self, command: FinancialVersionedActualCommand
     ) -> FinancialCostEntryDto:
-        return self._serialize_cost_entry(
+        return serialize_cost_entry(
             self._require_finance_governance_commands().cost_entry(lambda commands: commands.submit(command))
         )
 
@@ -731,25 +731,22 @@ class ProjectManagementFinancialsDesktopApi:
     def reject_actual(
         self, command: FinancialDecideActualCommand
     ) -> FinancialCostEntryDto:
-        return self._serialize_cost_entry(
+        return serialize_cost_entry(
             self._require_finance_governance_commands().cost_entry_review(lambda commands: commands.reject(command))
         )
 
     def post_actual(self, command: FinancialPostActualCommand) -> FinancialCostEntryDto:
-        return self._serialize_cost_entry(
+        return serialize_cost_entry(
             self._require_finance_governance_commands().cost_entry_posting(lambda commands: commands.post(command))
         )
 
     def reverse_actual(
         self, command: FinancialReverseActualCommand
     ) -> FinancialCostEntryDto:
-        return self._serialize_cost_entry(
+        return serialize_cost_entry(
             self._require_finance_governance_commands().cost_entry_posting(lambda commands: commands.reverse(command))
         )
 
-    def _serialize_cost_entry(self, entry) -> FinancialCostEntryDto:
-        service = self._require_cost_entry_query()
-        return serialize_cost_entry(entry, service.capabilities_for(entry))
 
     def get_finance_overview(self, project_id: str) -> FinancialOverviewDto:
         if not project_id or self._finance_snapshot_query is None:
@@ -1635,10 +1632,6 @@ class ProjectManagementFinancialsDesktopApi:
                 project_id, as_of_date=resolved_as_of
             )
 
-    def _require_cost_entry_query(self) -> ProjectCostEntryQueryHandler:
-        if self._cost_entry_query is None:
-            raise ConfigurationError("Project cost-entry service is not connected.")
-        return self._cost_entry_query
 
     def _require_billing_profile_query(self) -> ProjectBillingProfileQueryHandler:
         if self._billing_profile_query is None:

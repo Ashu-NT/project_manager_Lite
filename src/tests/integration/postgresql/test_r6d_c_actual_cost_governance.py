@@ -16,6 +16,10 @@ from src.core.modules.project_management.application.financials.cost.entries.com
     ProjectCostEntryPostingCommandHandler,
     ProjectCostEntryReviewCommandHandler,
 )
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
+    FinancialUpdateActualDraftCommand,
+)
 from src.core.modules.project_management.application.financials.governance.command_boundary import (
     FinanceGovernanceCommandBoundary,
 )
@@ -409,42 +413,15 @@ def test_manual_actual_command_uses_runtime_role_fresh_uow_and_stale_write_guard
 ):
     boundary = _boundary(postgres_test_environment)
     draft = boundary.cost_entry(
-        lambda service: service.create_manual_entry(
-            project_id=PROJECT_A,
-            command_id="r6dc-runtime-create",
-            description="Runtime governed actual",
-            amount=Decimal("125.40"),
-            currency_code="USD",
-            transaction_date=date(2026, 9, 9),
-            cost_code_id=COST_A,
-            resource_id=RESOURCE_A,
-        )
+        lambda service: service.create_manual_entry(FinancialCreateManualActualCommand(project_id=PROJECT_A, command_id="r6dc-runtime-create", description="Runtime governed actual", amount=Decimal("125.40"), currency_code="USD", transaction_date=date(2026, 9, 9), cost_code_id=COST_A, resource_id=RESOURCE_A))
     )
     updated = boundary.cost_entry(
-        lambda service: service.update_draft(
-            draft.id,
-            expected_version=draft.row_version,
-            description="Runtime governed actual corrected",
-            amount=Decimal("126.40"),
-            currency_code="USD",
-            transaction_date=date(2026, 9, 9),
-            cost_code_id=COST_A,
-            resource_id=RESOURCE_A,
-        )
+        lambda service: service.update_draft(FinancialUpdateActualDraftCommand(entry_id=draft.id, expected_version=draft.row_version, description="Runtime governed actual corrected", amount=Decimal("126.40"), currency_code="USD", transaction_date=date(2026, 9, 9), cost_code_id=COST_A, resource_id=RESOURCE_A))
     )
     assert updated.amount == Decimal("126.40")
     with pytest.raises(ConcurrencyError):
         boundary.cost_entry(
-            lambda service: service.update_draft(
-                draft.id,
-                expected_version=draft.row_version,
-                description="Stale overwrite",
-                amount=Decimal("999.00"),
-                currency_code="USD",
-                transaction_date=date(2026, 9, 9),
-                cost_code_id=COST_A,
-                resource_id=RESOURCE_A,
-            )
+            lambda service: service.update_draft(FinancialUpdateActualDraftCommand(entry_id=draft.id, expected_version=draft.row_version, description="Stale overwrite", amount=Decimal("999.00"), currency_code="USD", transaction_date=date(2026, 9, 9), cost_code_id=COST_A, resource_id=RESOURCE_A))
         )
 
     session = postgres_test_environment.runtime_session(
@@ -467,15 +444,7 @@ def test_project_permission_denies_same_organization_foreign_project(
     boundary = _boundary(postgres_test_environment)
     with pytest.raises(BusinessRuleError) as denied:
         boundary.cost_entry(
-            lambda service: service.create_manual_entry(
-                project_id=PROJECT_A2,
-                command_id="r6dc-foreign-project",
-                description="Must be denied",
-                amount=Decimal("10.00"),
-                currency_code="USD",
-                transaction_date=date(2026, 9, 9),
-                cost_code_id=COST_A,
-            )
+            lambda service: service.create_manual_entry(FinancialCreateManualActualCommand(project_id=PROJECT_A2, command_id="r6dc-foreign-project", description="Must be denied", amount=Decimal("10.00"), currency_code="USD", transaction_date=date(2026, 9, 9), cost_code_id=COST_A))
         )
     assert denied.value.code == "PERMISSION_DENIED"
 

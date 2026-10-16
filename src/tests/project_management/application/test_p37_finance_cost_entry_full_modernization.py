@@ -6,6 +6,9 @@ from decimal import Decimal
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
     CostEntryRecorded,
     CostEntryRemoved,
@@ -13,6 +16,18 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
     CostEntryStatusChanged,
     CostEntryStatusChangeType,
     CostEntryUpdated,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_posting import (
+    FinancialPostActualCommand,
+    FinancialReverseActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_review import (
+    FinancialDecideActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
+    FinancialUpdateActualDraftCommand,
+    FinancialVersionedActualCommand,
 )
 from src.core.modules.project_management.application.financials.cost.entries.event_handlers.view_invalidation import (
     COST_ENTRY_ACTUALS_SCOPE_CODE,
@@ -62,9 +77,7 @@ def _cost_entry_hints(hints):
 def _setup(services):
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(ProjectCreateCommand(name="P37 Cost Entry project", financial_currency_code=organization.base_currency))
-    cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(
-        code="P37-LABOR", name="P37 Labor"
-    ))
+    cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(FinancialCreateCostCodeCommand(code="P37-LABOR", name="P37 Labor")))
     period = services["financial_period_commands"].create_period(
         FinancialPeriodCreateCommand(code="P37-2026-01", name="January 2026", fiscal_year=2026, period_number=1, start_date=date(2026, 1, 1).isoformat(), end_date=date(2026, 1, 31).isoformat()))
     return organization, project, cost_code, period
@@ -72,15 +85,7 @@ def _setup(services):
 
 def _create_draft(services, project, cost_code, *, command_id="p37-manual-1", amount="100.00"):
     organization = services["tenant_context_service"].get_active_organization()
-    return services["finance_governance_commands"].cost_entry(lambda commands: commands.create_manual_entry(
-        project_id=project.id,
-        command_id=command_id,
-        description="P37 manual entry",
-        amount=Decimal(amount),
-        currency_code=organization.base_currency,
-        transaction_date=date(2026, 1, 12),
-        cost_code_id=cost_code.id,
-    ))
+    return services["finance_governance_commands"].cost_entry(lambda commands: commands.create_manual_entry(FinancialCreateManualActualCommand(project_id=project.id, command_id=command_id, description="P37 manual entry", amount=Decimal(amount), currency_code=organization.base_currency, transaction_date=date(2026, 1, 12), cost_code_id=cost_code.id)))
 
 
 def _become_independent_decider(services) -> None:
@@ -235,15 +240,7 @@ def test_update_draft_produces_exactly_one_list_hint(services):
     entry = _create_draft(services, project, cost_code)
     hints = _spy_hints(services)
 
-    updated = services["finance_governance_commands"].cost_entry(lambda commands: commands.update_draft(
-        entry.id,
-        expected_version=entry.row_version,
-        description="Revised description",
-        amount=Decimal("150.00"),
-        currency_code=organization.base_currency,
-        transaction_date=date(2026, 1, 13),
-        cost_code_id=cost_code.id,
-    ))
+    updated = services["finance_governance_commands"].cost_entry(lambda commands: commands.update_draft(FinancialUpdateActualDraftCommand(entry_id=entry.id, expected_version=entry.row_version, description="Revised description", amount=Decimal("150.00"), currency_code=organization.base_currency, transaction_date=date(2026, 1, 13), cost_code_id=cost_code.id)))
 
     cost_hints = _cost_entry_hints(hints)
     assert len(cost_hints) == 1
@@ -256,7 +253,7 @@ def test_delete_draft_produces_exactly_one_list_hint(services):
     entry = _create_draft(services, project, cost_code)
     hints = _spy_hints(services)
 
-    services["finance_governance_commands"].cost_entry(lambda commands: commands.delete_draft(entry.id, expected_version=entry.row_version))
+    services["finance_governance_commands"].cost_entry(lambda commands: commands.delete_draft(FinancialVersionedActualCommand(entry_id=entry.id, expected_version=entry.row_version)))
 
     cost_hints = _cost_entry_hints(hints)
     assert len(cost_hints) == 1
@@ -271,21 +268,19 @@ def test_submit_approve_post_progression_produces_source_derived_hints(services)
     service = services["cost_entry_query"]
 
     hints = _spy_hints(services)
-    submitted = services["finance_governance_commands"].cost_entry(lambda commands: commands.submit(entry.id, expected_version=entry.row_version))
+    submitted = services["finance_governance_commands"].cost_entry(lambda commands: commands.submit(FinancialVersionedActualCommand(entry_id=entry.id, expected_version=entry.row_version)))
     submit_hints = _cost_entry_hints(hints)
     assert [h.scope_code for h in submit_hints] == [COST_ENTRY_LIST_SCOPE_CODE]
 
     hints.clear()
     _become_independent_decider(services)
-    services["finance_governance_commands"].cost_entry_review(lambda commands: commands.approve(submitted.id, expected_version=submitted.row_version))
+    services["finance_governance_commands"].cost_entry_review(lambda commands: commands.approve(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version)))
     approved = service.get_entry(submitted.id)
     approve_hints = _cost_entry_hints(hints)
     assert [h.scope_code for h in approve_hints] == [COST_ENTRY_LIST_SCOPE_CODE]
 
     hints.clear()
-    posted = services["finance_governance_commands"].cost_entry_posting(lambda commands: commands.post(
-        approved.id, expected_version=approved.row_version, posting_date=date(2026, 1, 15)
-    ))
+    posted = services["finance_governance_commands"].cost_entry_posting(lambda commands: commands.post(FinancialPostActualCommand(entry_id=approved.id, expected_version=approved.row_version, posting_date=date(2026, 1, 15))))
     post_hints = {h.scope_code for h in _cost_entry_hints(hints)}
     assert post_hints == {COST_ENTRY_LIST_SCOPE_CODE, COST_ENTRY_ACTUALS_SCOPE_CODE}
     assert posted.status == ProjectCostEntryStatus.POSTED
@@ -294,13 +289,11 @@ def test_submit_approve_post_progression_produces_source_derived_hints(services)
 def test_reject_produces_exactly_one_list_hint(services):
     _, project, cost_code, _period = _setup(services)
     entry = _create_draft(services, project, cost_code)
-    submitted = services["finance_governance_commands"].cost_entry(lambda commands: commands.submit(entry.id, expected_version=entry.row_version))
+    submitted = services["finance_governance_commands"].cost_entry(lambda commands: commands.submit(FinancialVersionedActualCommand(entry_id=entry.id, expected_version=entry.row_version)))
 
     hints = _spy_hints(services)
     _become_independent_decider(services)
-    rejected = services["finance_governance_commands"].cost_entry_review(lambda commands: commands.reject(
-        submitted.id, expected_version=submitted.row_version, notes="Needs correction"
-    ))
+    rejected = services["finance_governance_commands"].cost_entry_review(lambda commands: commands.reject(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version, notes="Needs correction")))
     reject_hints = _cost_entry_hints(hints)
     assert [h.scope_code for h in reject_hints] == [COST_ENTRY_LIST_SCOPE_CODE]
     assert rejected.status == ProjectCostEntryStatus.DRAFT
@@ -311,19 +304,14 @@ def test_reverse_produces_both_list_and_actuals_hints(services):
     _, project, cost_code, _period = _setup(services)
     entry = _create_draft(services, project, cost_code)
     service = services["cost_entry_query"]
-    submitted = services["finance_governance_commands"].cost_entry(lambda commands: commands.submit(entry.id, expected_version=entry.row_version))
+    submitted = services["finance_governance_commands"].cost_entry(lambda commands: commands.submit(FinancialVersionedActualCommand(entry_id=entry.id, expected_version=entry.row_version)))
     _become_independent_decider(services)
-    services["finance_governance_commands"].cost_entry_review(lambda commands: commands.approve(submitted.id, expected_version=submitted.row_version))
+    services["finance_governance_commands"].cost_entry_review(lambda commands: commands.approve(FinancialDecideActualCommand(entry_id=submitted.id, expected_version=submitted.row_version)))
     approved = service.get_entry(submitted.id)
-    posted = services["finance_governance_commands"].cost_entry_posting(lambda commands: commands.post(
-        approved.id, expected_version=approved.row_version, posting_date=date(2026, 1, 15)
-    ))
+    posted = services["finance_governance_commands"].cost_entry_posting(lambda commands: commands.post(FinancialPostActualCommand(entry_id=approved.id, expected_version=approved.row_version, posting_date=date(2026, 1, 15))))
 
     hints = _spy_hints(services)
-    reversal = services["finance_governance_commands"].cost_entry_posting(lambda commands: commands.reverse(
-        posted.id, expected_version=posted.row_version, command_id="p37-reverse-1",
-        posting_date=date(2026, 1, 20), reason="Correct duplicate",
-    ))
+    reversal = services["finance_governance_commands"].cost_entry_posting(lambda commands: commands.reverse(FinancialReverseActualCommand(entry_id=posted.id, expected_version=posted.row_version, command_id="p37-reverse-1", posting_date=date(2026, 1, 20), reason="Correct duplicate")))
     reversal_hints = {h.scope_code for h in _cost_entry_hints(hints)}
     assert reversal_hints == {COST_ENTRY_LIST_SCOPE_CODE, COST_ENTRY_ACTUALS_SCOPE_CODE}
     assert reversal.reverses_entry_id == posted.id

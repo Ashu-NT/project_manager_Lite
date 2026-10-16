@@ -12,6 +12,12 @@ from src.core.modules.project_management.api.desktop.financials.api import (
 from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
     COMMITMENT_CATEGORY,
 )
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.financial_profile import (
+    FinancialUpdateProfileCommand,
+)
 from src.core.modules.project_management.application.financials.integration.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
 )
@@ -62,15 +68,9 @@ def _setup(services):
         ServicePrincipalCreateCommand(name=PROCUREMENT_FINANCE_PRINCIPAL_NAME, description="Projects Procurement facts into PM Finance.", initial_role_name="viewer"))
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(ProjectCreateCommand(name="Procurement delivery", financial_currency_code=organization.base_currency))
-    cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(
-        code="PROC-DELIVERY", name="Procurement delivery"
-    ))
+    cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(FinancialCreateCostCodeCommand(code="PROC-DELIVERY", name="Procurement delivery")))
     profile = services["financial_configuration_query"].get_profile(project.id)
-    services["finance_governance_commands"].financial_profile(lambda commands: commands.configure_profile(
-        project.id,
-        expected_version=profile.version,
-        default_cost_code_id=cost_code.id,
-    ))
+    services["finance_governance_commands"].financial_profile(lambda commands: commands.configure_profile(FinancialUpdateProfileCommand(project_id=project.id, expected_version=profile.version, default_cost_code_id=cost_code.id)))
     site = services["site_commands"].create_site(SiteCreateCommand(site_code="PROC-DELIVERY", name="Procurement delivery site", currency_code=organization.base_currency))
     supplier = services["party_commands"].create_party(PartyCreateCommand(party_code="PROC-DELIVERY", party_name="Procurement supplier", roles=["SUPPLIER"]))
     services["financial_period_commands"].create_period(

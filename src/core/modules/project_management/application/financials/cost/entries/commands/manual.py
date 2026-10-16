@@ -16,6 +16,7 @@ from src.core.modules.project_management.application.financials.cost.entries.aud
     record_project_cost_entry_audit,
 )
 from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
+    build_cost_entry_capabilities,
     is_manual_actual_entry,
 )
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
@@ -30,9 +31,15 @@ from src.core.modules.project_management.application.financials.cost.entries.dto
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
 )
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.cost_entry import (
+    CostEntryResponse,
+)
 from src.core.modules.project_management.application.financials.cost.entries.manual_source import (
     build_manual_content,
     build_manual_source,
+)
+from src.core.modules.project_management.application.financials.cost.entries.mappers.cost_entry import (
+    map_cost_entry,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourceReference,
@@ -114,7 +121,9 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         self._tenant_context_service = tenant_context_service
         self._record_event = record_event
 
-    def create_manual_entry(self, command: FinancialCreateManualActualCommand) -> ProjectCostEntry:
+    def create_manual_entry(
+        self, command: FinancialCreateManualActualCommand
+    ) -> CostEntryResponse:
         self._require_command_permission(
             command.project_id, "project_cost.create", "create project cost entry"
         )
@@ -149,7 +158,12 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         )
         existing = self._entry_repo.get_by_idempotency_key(source.idempotency_key)
         if existing is not None:
-            return self._resolve_replay(existing, source)
+            return map_cost_entry(
+                self._resolve_replay(existing, source),
+                capabilities=build_cost_entry_capabilities(
+                    existing, user_session=self._user_session
+                ),
+            )
         actor_id = self._actor_id()
         now = self._clock.now()
         entry = ProjectCostEntry.create_draft(
@@ -176,7 +190,12 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         except IntegrityError as exc:
             concurrent = self._entry_repo.get_by_idempotency_key(source.idempotency_key)
             if concurrent is not None:
-                return self._resolve_replay(concurrent, source)
+                return map_cost_entry(
+                    self._resolve_replay(concurrent, source),
+                    capabilities=build_cost_entry_capabilities(
+                        concurrent, user_session=self._user_session
+                    ),
+                )
             raise BusinessRuleError(
                 "Project cost entry conflicts with an existing financial source.",
                 code="PROJECT_COST_ENTRY_SOURCE_CONFLICT",
@@ -193,9 +212,16 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return entry
+        return map_cost_entry(
+            entry,
+            capabilities=build_cost_entry_capabilities(
+                entry, user_session=self._user_session
+            ),
+        )
 
-    def update_draft(self, command: FinancialUpdateActualDraftCommand) -> ProjectCostEntry:
+    def update_draft(
+        self, command: FinancialUpdateActualDraftCommand
+    ) -> CostEntryResponse:
         entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="edit")
         self._require_command_permission(
@@ -250,7 +276,12 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return entry
+        return map_cost_entry(
+            entry,
+            capabilities=build_cost_entry_capabilities(
+                entry, user_session=self._user_session
+            ),
+        )
 
     def delete_draft(self, command: FinancialVersionedActualCommand) -> None:
         entry = self._require_entry(command.entry_id)
@@ -266,7 +297,9 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
                 "Only a draft project cost entry can be deleted.",
                 code="PROJECT_COST_ENTRY_DELETE_FORBIDDEN",
             )
-        self._entry_repo.delete_draft(entry.id, expected_row_version=command.expected_version)
+        self._entry_repo.delete_draft(
+            entry.id, expected_row_version=command.expected_version
+        )
         self._record_audit("delete_draft", entry)
         event = CostEntryRemoved(
             tenant_id=entry.tenant_id,
@@ -279,7 +312,7 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
             self._record_event(event)
         self._session.flush()
 
-    def submit(self, command: FinancialVersionedActualCommand) -> ProjectCostEntry:
+    def submit(self, command: FinancialVersionedActualCommand) -> CostEntryResponse:
         entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="submit")
         self._require_command_permission(
@@ -300,7 +333,12 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return entry
+        return map_cost_entry(
+            entry,
+            capabilities=build_cost_entry_capabilities(
+                entry, user_session=self._user_session
+            ),
+        )
 
     def _require_command_permission(
         self, project_id: str, permission: str, operation: str

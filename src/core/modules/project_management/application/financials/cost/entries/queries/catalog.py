@@ -7,9 +7,14 @@ from src.core.modules.project_management.application.common.module_guard import 
     ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
-    CostEntryActionCapabilities,
     build_cost_entry_capabilities,
     can_create_manual_actual,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.cost_entry import (
+    CostEntryResponse,
+)
+from src.core.modules.project_management.application.financials.cost.entries.mappers.cost_entry import (
+    map_cost_entry,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourceModule,
@@ -47,7 +52,7 @@ class ProjectCostEntryQueryHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def get_entry(self, entry_id: str) -> ProjectCostEntry:
+    def get_entry(self, entry_id: str) -> CostEntryResponse:
         require_permission(
             self._user_session,
             "finance.read",
@@ -60,7 +65,12 @@ class ProjectCostEntryQueryHandler(ProjectManagementModuleGuardMixin):
             "finance.read",
             operation_label="view project cost entry",
         )
-        return entry
+        return map_cost_entry(
+            entry,
+            capabilities=build_cost_entry_capabilities(
+                entry, user_session=self._user_session
+            ),
+        )
 
     def list_for_project(
         self,
@@ -72,7 +82,7 @@ class ProjectCostEntryQueryHandler(ProjectManagementModuleGuardMixin):
         limit: int = 50,
         sort_key: str = "metaText",
         sort_direction: str = "desc",
-    ) -> tuple[list[ProjectCostEntry], int]:
+    ) -> tuple[list[CostEntryResponse], int]:
         require_permission(
             self._user_session,
             "finance.read",
@@ -104,7 +114,7 @@ class ProjectCostEntryQueryHandler(ProjectManagementModuleGuardMixin):
                 "Project cost entry source is invalid.",
                 code="PROJECT_COST_ENTRY_SOURCE_INVALID",
             ) from exc
-        return self._entry_repo.list_for_project(
+        entries, total = self._entry_repo.list_for_project(
             project_id,
             status=resolved_status,
             source_module=resolved_source,
@@ -116,8 +126,15 @@ class ProjectCostEntryQueryHandler(ProjectManagementModuleGuardMixin):
             ),
         )
 
-    def capabilities_for(self, entry: ProjectCostEntry) -> CostEntryActionCapabilities:
-        return build_cost_entry_capabilities(entry, user_session=self._user_session)
+        return [
+            map_cost_entry(
+                entry,
+                capabilities=build_cost_entry_capabilities(
+                    entry, user_session=self._user_session
+                ),
+            )
+            for entry in entries
+        ], total
 
     def can_create_manual_entry(self, project_id: str) -> bool:
         return can_create_manual_actual(
