@@ -17,6 +17,9 @@ from src.core.modules.project_management.application.financials.invoicing.billin
 from src.core.modules.project_management.application.financials.invoicing.commands.preparation_approval import (
     BillingPreparationApprovalCommandHandler,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillingPreparationStatus,
 )
@@ -53,9 +56,7 @@ def _login_independent_reviewer(services, suffix: str) -> None:
 def _setup_billable_project(services, *, suffix: str):
     boundary = services["finance_governance_commands"]
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        f"Billing Approval Project {suffix}", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=f"Billing Approval Project {suffix}", financial_currency_code=organization.base_currency))
     cost_code = boundary.cost_code(lambda commands: commands.create_cost_code(
         code=f"BILL-APPROVAL-{suffix}", name="Billing approval cost code"
     ))

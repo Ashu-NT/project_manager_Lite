@@ -161,7 +161,7 @@ def test_portfolio_dependency_and_template_commands_use_operation_uows(harness):
     h.uow.dependencies.delete.assert_called_once_with(dependency.id)
     templates = PortfolioTemplateCommandHandler(scoring_template_repo=h.repo, policy=h.policy, uow_factory=h.factory)
     template = templates.create_scoring_template(PortfolioTemplateCreateCommand("New", activate=False))
-    h.repo.get.return_value = template
+    h.repo.get.return_value = h.uow.scoring_templates.add.call_args.args[0]
     activated = templates.activate_scoring_template(PortfolioTemplateActivateCommand(template.id))
     assert activated.is_active
     assert h.factory.create.call_count == 4
@@ -176,7 +176,7 @@ def test_register_command_consumption_checks_scope_versions_and_bulk_uow(harness
     h = harness
     commands = _register(h)
     entry = commands.create_entry(RegisterEntryCreateCommand("p1", title="Risk", severity="critical", code="RISK-1"))
-    h.repo.get.return_value = entry
+    h.repo.get.return_value = h.uow.entries.add.call_args.args[0]
     with pytest.raises(ConcurrencyError, match="changed"):
         commands.update_entry(RegisterEntryUpdateCommand(entry.id, "p1", title="Risk", expected_version=entry.version + 1))
     with pytest.raises(NotFoundError):

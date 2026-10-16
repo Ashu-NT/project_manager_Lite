@@ -2,12 +2,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import src.core.platform.application.master_data.documents.mappers.document as response_mapper
+import src.core.platform.application.master_data.org.mappers.organization as organization_mapper
 from src.core.platform.application.master_data.documents.document_access import (
     DOCUMENT_READ_PERMISSION,
     is_document_visible,
 )
 from src.core.platform.application.master_data.documents.document_context import (
     active_organization,
+)
+from src.core.platform.application.master_data.documents.dto.responses.document import (
+    DocumentDto,
+    DocumentLinkDto,
+    DocumentPageDto,
+    DocumentStructureDto,
+)
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -33,7 +44,6 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
 from src.core.platform.domain.master_data.documents import (
     Document,
     DocumentLink,
-    DocumentStructure,
 )
 from src.core.platform.domain.master_data.documents.document_link import (
     normalize_document_entity_id as _normalize_document_entity_id,
@@ -47,7 +57,6 @@ from src.core.platform.domain.master_data.documents.document_link import (
 from src.core.platform.domain.master_data.documents.support import (
     normalize_object_scope as _normalize_object_scope,
 )
-from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
 _DEFAULT_DOCUMENT_PAGE_SIZE = 25
@@ -103,19 +112,19 @@ class DocumentQueryHandler:
         self._overview_rollup_reader = overview_rollup_reader
         self._access_policy = access_policy
 
-    def get_context_organization(self) -> Organization:
+    def get_context_organization(self) -> OrganizationDto:
         require_permission(self._user_session, DOCUMENT_READ_PERMISSION, operation_label="view document context")
-        return active_organization(self._tenant_context_service)
+        return organization_mapper.serialize_organization_context(active_organization(self._tenant_context_service))
 
-    def list_documents(self, *, active_only: bool | None = None) -> list[Document]:
+    def list_documents(self, *, active_only: bool | None = None) -> list[DocumentDto]:
         require_permission(self._user_session, DOCUMENT_READ_PERMISSION, operation_label="list documents")
         organization = active_organization(self._tenant_context_service)
         visibility = self._access_policy.visibility()
-        return [
+        return [response_mapper.serialize_document(row) for row in ([
             document
             for document in self._document_repo.list_for_organization(organization.id, active_only=active_only)
             if self._is_visible(document, visibility)
-        ]
+        ])]
 
     def list_documents_page_for_organization(
         self,
@@ -125,7 +134,7 @@ class DocumentQueryHandler:
         page_size: int = _DEFAULT_DOCUMENT_PAGE_SIZE,
         search: str = "",
         active_only: bool | None = None,
-    ) -> DocumentPage:
+    ) -> DocumentPageDto:
         """Tenant-scoped read for ANY organization in the caller's tenant --
         unlike list_documents(), not limited to the session's active
         organization. For Organization Detail's Documents tab, where an
@@ -168,13 +177,13 @@ class DocumentQueryHandler:
             search=search,
             active_only=active_only,
         )
-        return DocumentPage(
+        return response_mapper.serialize_document_page(DocumentPage(
             items=items,
             total=total,
             filtered_total=filtered_total,
             page=normalized_page,
             page_size=normalized_page_size,
-        )
+        ))
 
     def get_document_rollup_summary(self) -> DocumentRollupSummary:
         require_permission(self._user_session, DOCUMENT_READ_PERMISSION, operation_label="view document rollup summary")
@@ -199,20 +208,20 @@ class DocumentQueryHandler:
         *,
         active_only: bool | None = None,
         object_scope: str | None = None,
-    ) -> list[DocumentStructure]:
+    ) -> list[DocumentStructureDto]:
         require_permission(self._user_session, DOCUMENT_READ_PERMISSION, operation_label="list document structures")
         organization = active_organization(self._tenant_context_service)
         resolved_scope = _normalize_object_scope(object_scope) if object_scope is not None else None
-        return self._structure_repo.list_for_organization(
+        return [response_mapper.serialize_document_structure(row) for row in (self._structure_repo.list_for_organization(
             organization.id,
             active_only=active_only,
             object_scope=resolved_scope,
-        )
+        ))]
 
-    def list_links(self, document_id: str) -> list[DocumentLink]:
+    def list_links(self, document_id: str) -> list[DocumentLinkDto]:
         require_permission(self._user_session, DOCUMENT_READ_PERMISSION, operation_label="list document links")
         document = self._require_document_in_context(document_id)
-        return self._link_repo.list_for_document(document.id)
+        return [response_mapper.serialize_document_link(row) for row in (self._link_repo.list_for_document(document.id))]
 
     def list_links_for_entity(self, *, module_code: str, entity_type: str, entity_id: str) -> list[DocumentLink]:
         require_permission(self._user_session, DOCUMENT_READ_PERMISSION, operation_label="list entity document links")
@@ -226,9 +235,9 @@ class DocumentQueryHandler:
         visibility = self._access_policy.visibility()
         return [link for link in links if self._is_document_id_visible(link.document_id, visibility)]
 
-    def get_document(self, document_id: str) -> Document:
+    def get_document(self, document_id: str) -> DocumentDto:
         require_permission(self._user_session, DOCUMENT_READ_PERMISSION, operation_label="view document")
-        return self._require_document_in_context(document_id)
+        return response_mapper.serialize_document(self._require_document_in_context(document_id))
 
     def get_link(self, link_id: str) -> DocumentLink:
         require_permission(self._user_session, DOCUMENT_READ_PERMISSION, operation_label="view document link")
@@ -253,7 +262,7 @@ class DocumentQueryHandler:
         search: str = "",
         active_only: bool | None = None,
         document_type: str | None = None,
-    ) -> EntityDocumentPage:
+    ) -> DocumentPageDto:
         """The real entity-scoped, paginated, Document-joined read
         list_links_for_entity() never provided. Always scoped to the
         caller's active organization (consistent with list_links_for_entity
@@ -287,13 +296,13 @@ class DocumentQueryHandler:
             active_only=active_only,
             document_type=document_type,
         )
-        return EntityDocumentPage(
+        return response_mapper.serialize_entity_document_page(EntityDocumentPage(
             items=[EntityDocumentRow(document=document, link=link) for document, link in rows],
             total=total,
             filtered_total=filtered_total,
             page=normalized_page,
             page_size=normalized_page_size,
-        )
+        ))
 
     def _require_document_in_context(self, document_id: str) -> Document:
         organization = active_organization(self._tenant_context_service)

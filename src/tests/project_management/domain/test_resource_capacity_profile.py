@@ -1,12 +1,20 @@
+
 from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.resources import (
     ResourceUtilizationBand,
     is_resource_near_capacity,
     is_resource_overloaded,
     resource_utilization_band,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+    ResourceUpdateCommand,
 )
 
 
@@ -36,36 +44,12 @@ def test_resource_utilization_policy_has_canonical_boundaries(
 
 
 def test_resource_profile_fields_roundtrip(services):
-    created = services["resource_master_commands"].create_resource(
-        "Capacity Resource",
-        role="Developer",
-        hourly_rate=90.0,
-        capacity_percent=80.0,
-        address="Berlin Office",
-        contact="cap.resource@example.com",
-    )
+    created = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Capacity Resource", role="Developer", hourly_rate=90.0, capacity_percent=80.0, address="Berlin Office", contact="cap.resource@example.com"))
     assert created.capacity_percent == pytest.approx(80.0)
     assert created.address == "Berlin Office"
     assert created.contact == "cap.resource@example.com"
 
-    updated = services["resource_master_commands"].update_resource(
-        resource_id=created.id,
-        expected_version=created.version,
-        name=created.name,
-        code=created.code,
-        kind=created.kind,
-        role=created.role,
-        hourly_rate=created.hourly_rate,
-        cost_type=created.cost_type,
-        currency_code=created.currency_code,
-        capacity_percent=120.0,
-        address="Remote",
-        contact="updated@example.com",
-        worker_type=created.worker_type,
-        employee_id=created.employee_id,
-        department_id=created.department_id,
-        site_id=created.site_id,
-    )
+    updated = services["resource_master_commands"].update_resource(ResourceUpdateCommand(resource_id=created.id, expected_version=created.version, name=created.name, code=created.code, kind=created.kind, role=created.role, hourly_rate=created.hourly_rate, cost_type=created.cost_type, currency_code=created.currency_code, capacity_percent=120.0, address="Remote", contact="updated@example.com", worker_type=created.worker_type, employee_id=created.employee_id, department_id=created.department_id, site_id=created.site_id))
     assert updated.capacity_percent == pytest.approx(120.0)
     assert updated.address == "Remote"
     assert updated.contact == "updated@example.com"
@@ -83,10 +67,10 @@ def test_assignment_overallocation_uses_resource_capacity(services):
     112.5% of effective capacity) is genuinely over -- proving
     Resource.capacity_percent is actually applied by the calendar-based
     capacity authority (docs §44), not just carried as inert metadata."""
-    project = services['project_create'].create_project("Capacity Allocation Rules", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Capacity Allocation Rules", description=""))
     t1 = services['task_lifecycle_commands'].create_task(project.id, "Task One", start_date=date(2024, 1, 2), duration_days=2)
     t2 = services['task_lifecycle_commands'].create_task(project.id, "Task Two", start_date=date(2024, 1, 2), duration_days=2)
-    resource = services["resource_master_commands"].create_resource("Capacity Dev", "Developer", capacity_percent=80.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Capacity Dev", role="Developer", capacity_percent=80.0))
 
     services['task_assignment_commands'].assign_resource(t1.id, resource.id, allocation_percent=60.0)
     services['task_assignment_commands'].assign_resource(t2.id, resource.id, allocation_percent=30.0)
@@ -96,10 +80,10 @@ def test_assignment_overallocation_uses_resource_capacity(services):
 
 
 def test_resource_load_summary_reports_capacity_and_utilization(services):
-    project = services['project_create'].create_project("Capacity Load Summary", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Capacity Load Summary", description=""))
     t1 = services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 2), duration_days=2)
     t2 = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2024, 1, 2), duration_days=2)
-    resource = services["resource_master_commands"].create_resource("Load Resource", "Dev", capacity_percent=80.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Load Resource", role="Dev", capacity_percent=80.0))
 
     services['task_assignment_commands'].assign_resource(t1.id, resource.id, allocation_percent=50.0)
     services['task_assignment_commands'].assign_resource(t2.id, resource.id, allocation_percent=30.0)
@@ -112,10 +96,10 @@ def test_resource_load_summary_reports_capacity_and_utilization(services):
 
 
 def test_resource_load_summary_uses_peak_concurrent_allocation(services):
-    project = services['project_create'].create_project("Peak Resource Load", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Peak Resource Load", description=""))
     t1 = services['task_lifecycle_commands'].create_task(project.id, "Seq A", start_date=date(2024, 1, 2), duration_days=2)
     t2 = services['task_lifecycle_commands'].create_task(project.id, "Seq B", start_date=date(2024, 1, 8), duration_days=2)
-    resource = services["resource_master_commands"].create_resource("Peak Dev", "Dev", capacity_percent=100.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Peak Dev", role="Dev", capacity_percent=100.0))
 
     services['task_assignment_commands'].assign_resource(t1.id, resource.id, allocation_percent=60.0)
     services['task_assignment_commands'].assign_resource(t2.id, resource.id, allocation_percent=60.0)
@@ -129,9 +113,9 @@ def test_resource_load_summary_uses_peak_concurrent_allocation(services):
 def test_resource_load_summary_batches_resource_lookup(services, monkeypatch):
     reporting = services["project_kpi_report"]
 
-    project = services['project_create'].create_project("Batched Resource Load", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Batched Resource Load", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Work", start_date=date(2024, 1, 2), duration_days=2)
-    resources = [services["resource_master_commands"].create_resource(f"Batch {index}", "Dev") for index in range(2)]
+    resources = [services["resource_master_commands"].create_resource(ResourceCreateCommand(name=f"Batch {index}", role="Dev")) for index in range(2)]
     for resource in resources:
         services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=25.0)
 

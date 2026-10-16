@@ -80,47 +80,36 @@ class FinancialProfileCommandHandler(ProjectManagementModuleGuardMixin):
             self._record_event(event)
 
     def configure_profile(self, command: FinancialUpdateProfileCommand) -> ProjectFinancialProfile:
-        project_id = command.project_id
-        expected_version = command.expected_version
-        currency_code = command.currency_code
-        billing_method = command.billing_method
-        budget_control_mode = command.budget_control_mode
-        cost_code_policy = command.cost_code_policy
-        financial_start_date = command.financial_start_date
-        financial_end_date = command.financial_end_date
-        is_funded = command.is_funded
-        is_billable = command.is_billable
-        default_cost_code_id = command.default_cost_code_id
-        self._require_project(project_id, "finance.manage", "configure financial profile")
-        current = self._require_profile(project_id)
-        self._require_expected_version(current.version, expected_version, "Financial profile")
+        self._require_project(command.project_id, "finance.manage", "configure financial profile")
+        current = self._require_profile(command.project_id)
+        self._require_expected_version(current.version, command.expected_version, "Financial profile")
         values: dict[str, Any] = {
-            "currency_code": current.currency_code if currency_code is _UNSET else currency_code,
-            "billing_method": current.billing_method if billing_method is _UNSET else billing_method,
+            "currency_code": current.currency_code if command.currency_code is _UNSET else command.currency_code,
+            "billing_method": current.billing_method if command.billing_method is _UNSET else command.billing_method,
             "budget_control_mode": (
                 current.budget_control_mode
-                if budget_control_mode is _UNSET
-                else budget_control_mode
+                if command.budget_control_mode is _UNSET
+                else command.budget_control_mode
             ),
             "cost_code_policy": (
-                current.cost_code_policy if cost_code_policy is _UNSET else cost_code_policy
+                current.cost_code_policy if command.cost_code_policy is _UNSET else command.cost_code_policy
             ),
             "financial_start_date": (
                 current.financial_start_date
-                if financial_start_date is _UNSET
-                else financial_start_date
+                if command.financial_start_date is _UNSET
+                else command.financial_start_date
             ),
             "financial_end_date": (
                 current.financial_end_date
-                if financial_end_date is _UNSET
-                else financial_end_date
+                if command.financial_end_date is _UNSET
+                else command.financial_end_date
             ),
-            "is_funded": current.is_funded if is_funded is _UNSET else is_funded,
-            "is_billable": current.is_billable if is_billable is _UNSET else is_billable,
+            "is_funded": current.is_funded if command.is_funded is _UNSET else command.is_funded,
+            "is_billable": current.is_billable if command.is_billable is _UNSET else command.is_billable,
             "default_cost_code_id": (
                 current.default_cost_code_id
-                if default_cost_code_id is _UNSET
-                else default_cost_code_id
+                if command.default_cost_code_id is _UNSET
+                else command.default_cost_code_id
             ),
         }
         candidate = replace(current, **values)
@@ -137,7 +126,7 @@ class FinancialProfileCommandHandler(ProjectManagementModuleGuardMixin):
             and candidate.default_cost_code_id
             not in {
                 row.cost_code_id
-                for row in self._cost_code_repo.list_restrictions(project_id)
+                for row in self._cost_code_repo.list_restrictions(command.project_id)
             }
         ):
             raise BusinessRuleError(
@@ -163,13 +152,10 @@ class FinancialProfileCommandHandler(ProjectManagementModuleGuardMixin):
         return candidate
 
     def transition_profile(self, command: FinancialTransitionProfileCommand) -> ProjectFinancialProfile:
-        project_id = command.project_id
-        target = command.target_status
-        expected_version = command.expected_version
-        self._require_project(project_id, "finance.manage", "transition financial profile")
-        current = self._require_profile(project_id)
-        self._require_expected_version(current.version, expected_version, "Financial profile")
-        resolved_target = FinancialProfileStatus(target)
+        self._require_project(command.project_id, "finance.manage", "transition financial profile")
+        current = self._require_profile(command.project_id)
+        self._require_expected_version(current.version, command.expected_version, "Financial profile")
+        resolved_target = FinancialProfileStatus(command.target_status)
         if resolved_target == current.status:
             return current
         candidate = replace(current)

@@ -55,17 +55,13 @@ class PortfolioDependencyCommandHandler(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
 
     def create_project_dependency(self, command: PortfolioDependencyCreateCommand) -> PortfolioProjectDependency:
-        predecessor_project_id = command.predecessor_project_id
-        successor_project_id = command.successor_project_id
-        dependency_type = command.dependency_type
-        summary = command.summary
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio dependency")
         accessible_projects = {project.id: project for project in self._policy.accessible_projects()}
         dependency = PortfolioProjectDependency.create(
-            predecessor_project_id=predecessor_project_id,
-            successor_project_id=successor_project_id,
-            dependency_type=dependency_type,
-            summary=summary,
+            predecessor_project_id=command.predecessor_project_id,
+            successor_project_id=command.successor_project_id,
+            dependency_type=command.dependency_type,
+            summary=command.summary,
         )
         predecessor = accessible_projects.get(dependency.predecessor_project_id)
         successor = accessible_projects.get(dependency.successor_project_id)
@@ -144,13 +140,12 @@ class PortfolioDependencyCommandHandler(ProjectManagementModuleGuardMixin):
         return dependency
 
     def remove_project_dependency(self, command: PortfolioDependencyRemoveCommand) -> None:
-        dependency_id = command.dependency_id
         require_permission(self._user_session, "portfolio.manage", operation_label="remove portfolio dependency")
         self._policy.organization_id(
             operation_label="remove portfolio dependency"
         )
         scope = self._policy.scope(operation_label="remove portfolio dependency")
-        dependency = self._dependency_repo.get(dependency_id)
+        dependency = self._dependency_repo.get(command.dependency_id)
         if dependency is None:
             raise NotFoundError(
                 "Portfolio dependency not found.",
@@ -165,7 +160,7 @@ class PortfolioDependencyCommandHandler(ProjectManagementModuleGuardMixin):
                 code="PORTFOLIO_DEPENDENCY_SCOPE_INVALID",
             )
         with self._uow_factory.create(context=new_portfolio_context()) as uow:
-            uow.dependencies.delete(dependency_id)
+            uow.dependencies.delete(command.dependency_id)
             record_audit_entry(
                 uow,
                 operation="delete",

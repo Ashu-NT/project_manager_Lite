@@ -55,6 +55,7 @@ def build_portfolio_capabilities(
     platform_services: PlatformServiceBundle,
     *,
     project_calendar_adapter: ProjectCalendarAdapter,
+    resource_pool_query: PortfolioResourcePoolQueryHandler,
 ) -> PortfolioComposition:
     uow_factory = SqlAlchemyPortfolioUnitOfWorkFactory(
         session_factory=sessionmaker(bind=platform_services.session.bind, future=True),
@@ -88,6 +89,7 @@ def build_portfolio_capabilities(
         policy=policy,
         tenant_context_service=tenant_context_service,
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
+        resource_pool_query=resource_pool_query,
         **guard,
     )
     return PortfolioComposition(

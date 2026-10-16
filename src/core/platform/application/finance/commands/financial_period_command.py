@@ -9,10 +9,14 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import src.core.platform.application.finance.mappers.financial_period as response_mapper
 from src.core.platform.application.finance.dto.commands.financial_periods import (
     FinancialPeriodCreateCommand,
     FinancialPeriodTransitionCommand,
     FinancialPeriodUpdateCommand,
+)
+from src.core.platform.application.finance.dto.responses.financial_period import (
+    FinancialPeriodDto,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -76,7 +80,7 @@ class FinancialPeriodCommandHandler:
         self._enterprise_audit_service = enterprise_audit_service
         self._now_provider = now_provider
 
-    def create_period(self, command: FinancialPeriodCreateCommand) -> FinancialPeriod:
+    def create_period(self, command: FinancialPeriodCreateCommand) -> FinancialPeriodDto:
         code = command.code
         name = command.name
         fiscal_year = command.fiscal_year
@@ -116,9 +120,9 @@ class FinancialPeriodCommandHandler:
             ) from exc
         self._record_audit("create", period, old=None)
         self._session.commit()
-        return period
+        return response_mapper.serialize(period)
 
-    def update_period(self, command: FinancialPeriodUpdateCommand) -> FinancialPeriod:
+    def update_period(self, command: FinancialPeriodUpdateCommand) -> FinancialPeriodDto:
         period_id = command.period_id
         expected_version = command.expected_version
         code = command.code
@@ -162,25 +166,25 @@ class FinancialPeriodCommandHandler:
             ) from exc
         self._record_audit_value("update", current, old_value=old_value)
         self._session.commit()
-        return current
+        return response_mapper.serialize(current)
 
-    def close_period(self, command: FinancialPeriodTransitionCommand) -> FinancialPeriod:
+    def close_period(self, command: FinancialPeriodTransitionCommand) -> FinancialPeriodDto:
         period_id = command.period_id
         expected_version = command.expected_version
-        return self._transition(
+        return response_mapper.serialize(self._transition(
             period_id,
             expected_version=expected_version,
             operation="close",
-        )
+        ))
 
-    def lock_period(self, command: FinancialPeriodTransitionCommand) -> FinancialPeriod:
+    def lock_period(self, command: FinancialPeriodTransitionCommand) -> FinancialPeriodDto:
         period_id = command.period_id
         expected_version = command.expected_version
-        return self._transition(
+        return response_mapper.serialize(self._transition(
             period_id,
             expected_version=expected_version,
             operation="lock",
-        )
+        ))
 
     def _transition(
         self,

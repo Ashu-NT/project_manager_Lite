@@ -1,7 +1,22 @@
+
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
+
 """Shared fake service implementations for timesheet desktop API tests (project/resource/task fakes)."""
+
 from datetime import date, timedelta
 from types import SimpleNamespace
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
+)
+from src.core.modules.project_management.application.projects.mappers.project import (
+    map_project_response,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     TimesheetAssignmentContext,
 )
@@ -20,36 +35,27 @@ class _FakeProjectService:
         self._next_id = 1
 
     def list_projects(self) -> list[Project]:
-        return list(self._projects.values())
+        return [map_project_response(project) for project in self._projects.values()]
 
-    def create_project(
-        self,
-        *,
-        name: str,
-        description: str = "",
-        status: "ProjectStatus | None" = None,
-        client_name: str | None = None,
-        client_contact: str | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
-    ) -> Project:
+    def create_project(self, command: ProjectCreateCommand) -> ProjectResponse:
         project = Project(
             id=f"proj-{self._next_id}",
-            name=name,
-            description=description,
-            start_date=start_date,
-            end_date=end_date,
-            status=status if status is not None else ProjectStatus.PLANNED,
-            client_name=client_name,
-            client_contact=client_contact,
+            name=command.name,
+            description=command.description,
+            start_date=command.start_date,
+            end_date=command.end_date,
+            status=ProjectStatus(command.status),
+            client_name=command.client_name,
+            client_contact=command.client_contact,
             version=1,
         )
         self._next_id += 1
         self._projects[project.id] = project
-        return project
+        return map_project_response(project)
 
     def get_project(self, project_id: str) -> Project | None:
-        return self._projects.get(project_id)
+        project = self._projects.get(project_id)
+        return None if project is None else map_project_response(project)
 
 
 class _FakeEmployeeService:
@@ -72,38 +78,23 @@ class _FakeResourceService:
     def list_resources(self) -> list[SimpleNamespace]:
         return list(self._resources.values())
 
-    def create_resource(
-        self,
-        *,
-        name: str,
-        role: str = "",
-        hourly_rate: float = 0.0,
-        is_active: bool = True,
-        cost_type: CostType = CostType.LABOR,
-        currency_code: str | None = None,
-        capacity_percent: float = 100.0,
-        address: str = "",
-        contact: str = "",
-        worker_type: WorkerType = WorkerType.EXTERNAL,
-        employee_id: str | None = None,
-        code: str = "",
-    ) -> SimpleNamespace:
-        employee = self._employee_service.get_employee(employee_id) if employee_id else None
+    def create_resource(self, command: ResourceCreateCommand) -> SimpleNamespace:
+        employee = self._employee_service.get_employee(command.employee_id) if command.employee_id else None
         resource = SimpleNamespace(
             id=f"res-{self._next_id}",
-            name=employee.full_name if employee is not None else name,
-            role=employee.title if employee is not None else role,
-            code=code or f"RES-{self._next_id:04d}",
-            hourly_rate=hourly_rate,
-            is_active=is_active,
-            cost_type=cost_type,
-            currency_code=(currency_code or "").strip().upper() or None,
+            name=employee.full_name if employee is not None else command.name,
+            role=employee.title if employee is not None else command.role,
+            code=command.code or f"RES-{self._next_id:04d}",
+            hourly_rate=command.hourly_rate,
+            is_active=command.is_active,
+            cost_type=CostType(command.cost_type),
+            currency_code=(command.currency_code or "").strip().upper() or None,
             version=1,
-            capacity_percent=capacity_percent,
-            address=address,
-            contact=(employee.email or employee.phone or "") if employee is not None else contact,
-            worker_type=worker_type,
-            employee_id=employee_id,
+            capacity_percent=command.capacity_percent,
+            address=command.address,
+            contact=(employee.email or employee.phone or "") if employee is not None else command.contact,
+            worker_type=WorkerType(command.worker_type),
+            employee_id=command.employee_id,
         )
         self._next_id += 1
         self._resources[resource.id] = resource

@@ -4,6 +4,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import src.core.platform.application.master_data.org.mappers.organization as response_mapper
+import src.core.platform.application.tenant.tenancy.mappers.tenant as switch_mapper
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
+)
+from src.core.platform.application.master_data.org.mappers import (
+    organization as organization_mapper,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     record_authorization_denial,
 )
@@ -11,6 +19,8 @@ from src.core.platform.application.tenant.tenancy.context_policy import (
     LocalSingleTenantContextPolicy,
     TenancyMode,
 )
+from src.core.platform.application.tenant.tenancy.dto.responses.tenant import TenantDto
+from src.core.platform.application.tenant.tenancy.mappers import tenant as tenant_mapper
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     DomainError,
@@ -124,11 +134,11 @@ class TenantContextService:
         return organizations[0].id if len(organizations) == 1 else None
 
     def get_active_tenant_id(self) -> str | None:
-        tenant = self.get_active_tenant()
+        tenant = self.resolve_active_tenant()
         return tenant.id if tenant is not None else None
 
     def require_active_tenant_id(self, *, operation_label: str) -> str:
-        tenant = self.get_active_tenant()
+        tenant = self.resolve_active_tenant()
         if tenant is None:
             raise BusinessRuleError(
                 f"Active tenant context is required for {operation_label}.",
@@ -136,13 +146,17 @@ class TenantContextService:
             )
         return tenant.id
 
-    def get_active_tenant(self) -> Tenant | None:
+    def get_active_tenant(self) -> TenantDto | None:
+        tenant = self.resolve_active_tenant()
+        return tenant_mapper.serialize_tenant(tenant) if tenant is not None else None
+
+    def resolve_active_tenant(self) -> Tenant | None:
         return self._context_policy.resolve_active_tenant(
             session_tenant_id=self._session_tenant_id(),
             tenant_repo=self._tenant_repo,
         )
 
-    def set_active_tenant(self, tenant_id: str) -> Tenant:
+    def set_active_tenant(self, tenant_id: str) -> TenantDto:
         if self._context_policy.mode is TenancyMode.SAAS:
             return self.switch_to_tenant(tenant_id)
         if (
@@ -156,7 +170,7 @@ class TenantContextService:
             self._require_current_principal_tenant_access(tenant.id)
             if self._user_session is not None:
                 self._user_session.set_active_tenant_id(tenant.id)
-            return tenant
+            return tenant_mapper.serialize_tenant(tenant)
         except DomainError as exc:
             self._record_context_switch_denial(
                 switch_type="tenant",
@@ -273,11 +287,11 @@ class TenantContextService:
         return tenant.id, organization.id
 
     def get_active_organization_id(self) -> str | None:
-        organization = self.get_active_organization()
+        organization = self.resolve_active_organization()
         return organization.id if organization is not None else None
 
     def require_active_organization_id(self, *, operation_label: str) -> str:
-        organization = self.get_active_organization()
+        organization = self.resolve_active_organization()
         if organization is None:
             raise BusinessRuleError(
                 f"Active organization context is required for {operation_label}.",
@@ -285,7 +299,11 @@ class TenantContextService:
             )
         return organization.id
 
-    def get_active_organization(self) -> Organization | None:
+    def get_active_organization(self) -> OrganizationDto | None:
+        organization = self.resolve_active_organization()
+        return organization_mapper.serialize_organization(organization) if organization is not None else None
+
+    def resolve_active_organization(self) -> Organization | None:
         organization_id = self._session_organization_id()
         if organization_id:
             organization = self._organization_repo.get(organization_id)
@@ -297,7 +315,7 @@ class TenantContextService:
                 self._user_session.set_active_organization_id(None)
         return None
 
-    def list_accessible_organizations(self) -> list[Organization]:
+    def list_accessible_organizations(self) -> list[OrganizationDto]:
         """Active organizations in the active tenant that the current session may switch
         into -- the exact same predicate `set_active_organization` itself enforces (`status
         == ACTIVE` + `_can_access`), computed without mutating context. Backs the
@@ -307,13 +325,13 @@ class TenantContextService:
         tenant_id = self.get_active_tenant_id()
         if not tenant_id:
             return []
-        return [
+        return [response_mapper.serialize_organization(row) for row in ([
             organization
             for organization in self._organization_repo.list_for_tenant(
                 tenant_id, status=ORGANIZATION_STATUS_ACTIVE
             )
             if self._can_access(organization)
-        ]
+        ])]
 
     def require_history_organization_access(
         self,
@@ -351,9 +369,9 @@ class TenantContextService:
             )
         return organization
 
-    def set_active_organization(self, organization_id: str) -> Organization:
+    def set_active_organization(self, organization_id: str) -> OrganizationDto:
         try:
-            return self._set_active_organization(organization_id)
+            return response_mapper.serialize_organization(self._set_active_organization(organization_id))
         except DomainError as exc:
             self._record_context_switch_denial(
                 switch_type="organization",
@@ -426,14 +444,14 @@ class TenantContextService:
             )
         return organization
 
-    def switch_to_tenant(self, tenant_id: str) -> Tenant:
+    def switch_to_tenant(self, tenant_id: str) -> TenantDto:
         """Atomically switch tenant context.
 
         A failed authority rebuild leaves the previous principal and context
         untouched.
         """
         try:
-            return self._switch_to_tenant(tenant_id)
+            return switch_mapper.serialize_tenant(self._switch_to_tenant(tenant_id))
         except DomainError as exc:
             self._record_context_switch_denial(
                 switch_type="tenant",
@@ -520,13 +538,13 @@ class TenantContextService:
         )
 
     def require_context(self, *, operation_label: str) -> TenantContext:
-        tenant = self.get_active_tenant()
+        tenant = self.resolve_active_tenant()
         if tenant is None:
             raise BusinessRuleError(
                 f"Active tenant context is required for {operation_label}.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        organization = self.get_active_organization()
+        organization = self.resolve_active_organization()
         return TenantContext(
             tenant_id=tenant.id,
             tenant=tenant,

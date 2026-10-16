@@ -8,6 +8,15 @@ import pytest
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_PERMISSIONS,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineCreateCommand,
 )
@@ -26,23 +35,14 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _seed_labor_finance_project(services) -> str:
-    project = services['project_create'].create_project(
-        "Phase A0 Finance",
-        start_date=date(2026, 1, 5),
-        financial_currency_code="EUR",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Phase A0 Finance", start_date=date(2026, 1, 5), financial_currency_code="EUR"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Restricted labor",
         start_date=date(2026, 1, 5),
         duration_days=2,
     )
-    resource = services["resource_master_commands"].create_resource(
-        "Sensitive Engineer",
-        "Engineer",
-        hourly_rate=125.0,
-        currency_code="EUR",
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Sensitive Engineer", role="Engineer", hourly_rate=125.0, currency_code="EUR"))
     rate_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="Phase A0 Project Rates",
         project_id=project.id,
@@ -56,13 +56,7 @@ def _seed_labor_finance_project(services) -> str:
         resource_id=resource.id,
         effective_from=date(2026, 1, 5),
     ))
-    project_resource = services["project_resource_commands"].add_to_project(
-        project_id=project.id,
-        resource_id=resource.id,
-        planned_hours=16.0,
-        hourly_rate=125.0,
-        currency_code="EUR",
-    )
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, planned_hours=16.0, hourly_rate=125.0, currency_code="EUR"))
     assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id,
         project_resource_id=project_resource.id,
@@ -201,10 +195,7 @@ def test_global_sensitive_grant_does_not_bypass_project_scope(services):
 
 def _create_audited_cost_entry(services, *, command_id: str):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Audited canonical cost",
-        financial_currency_code=organization.base_currency,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Audited canonical cost", financial_currency_code=organization.base_currency))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"AUD-{command_id[-4:].upper()}",
         name="Audit evidence",
@@ -249,10 +240,7 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
     )
 
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Fail-closed canonical cost audit",
-        financial_currency_code=organization.base_currency,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Fail-closed canonical cost audit", financial_currency_code=organization.base_currency))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="AUD-FAIL",
         name="Fail-closed audit",
@@ -496,11 +484,7 @@ def test_finance_project_scope_does_not_leak_across_projects(services):
     """Case F: a project-scoped finance.read grant for Project A must not
     authorize Project B."""
     project_a_id = _seed_labor_finance_project(services)
-    project_b = services['project_create'].create_project(
-        "F0 project scope isolation B",
-        start_date=date(2026, 1, 5),
-        financial_currency_code="EUR",
-    )
+    project_b = services['project_create'].create_project(ProjectCreateCommand(name="F0 project scope isolation B", start_date=date(2026, 1, 5), financial_currency_code="EUR"))
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
     services["user_session"].set_principal(

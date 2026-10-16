@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import src.core.platform.application.tenant.tenancy.mappers.tenant as response_mapper
+from src.core.platform.application.tenant.tenancy.dto.responses.tenant import (
+    TenantInvitationDto,
+)
 from src.core.platform.application.tenant.tenancy.membership_support import (
     TenantMembershipSupport,
 )
@@ -8,7 +12,6 @@ from src.core.platform.contract.uow.tenancy.tenant_membership_unit_of_work impor
 )
 from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_INVITED,
-    UserTenantMembership,
 )
 
 
@@ -24,7 +27,7 @@ class TenantMembershipQueryHandler:
         self._uow_factory = uow_factory
         self._support = support
 
-    def list_my_pending_invitations(self) -> list[UserTenantMembership]:
+    def list_my_pending_invitations(self) -> list[TenantInvitationDto]:
         actor = self._support.require_authenticated_principal()
         with self._uow_factory.create(context=self._support.new_context()) as uow:
             pending = [
@@ -36,4 +39,4 @@ class TenantMembershipQueryHandler:
                 and not membership.invitation_is_expired()
             ]
             uow.commit()
-        return pending
+        return [response_mapper.serialize_invitation(row) for row in (pending)]

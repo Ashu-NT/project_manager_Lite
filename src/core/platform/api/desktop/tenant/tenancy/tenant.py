@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.master_data.org.models.organization import (
-    OrganizationDto,
-)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.support._support import (
     execute_desktop_operation,
-    serialize_organization,
 )
-from src.core.platform.api.desktop.tenant.tenancy.models.tenant import (
-    TenantDto,
-    TenantInvitationDto,
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
 )
 from src.core.platform.application.tenant.tenancy.commands.invitations import (
     TenantInvitationCommandHandler,
@@ -21,6 +16,10 @@ from src.core.platform.application.tenant.tenancy.commands.tenant_lifecycle impo
 from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
     TenantCreateCommand,
 )
+from src.core.platform.application.tenant.tenancy.dto.responses.tenant import (
+    TenantDto,
+    TenantInvitationDto,
+)
 from src.core.platform.application.tenant.tenancy.queries.admin import (
     TenantAdminQueryHandler,
 )
@@ -30,8 +29,6 @@ from src.core.platform.application.tenant.tenancy.queries.membership import (
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
 
 
 class PlatformTenantDesktopApi:
@@ -58,7 +55,7 @@ class PlatformTenantDesktopApi:
     def list_accessible_tenants(self) -> DesktopApiResult[tuple[TenantDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
-                self._serialize_tenant(t)
+                t
                 for t in self._tenant_admin_queries.list_accessible_tenants()
             )
         )
@@ -68,7 +65,7 @@ class PlatformTenantDesktopApi:
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
-                serialize_organization(o)
+                o
                 for o in self._tenant_context_service.list_accessible_organizations()
             )
         )
@@ -76,7 +73,7 @@ class PlatformTenantDesktopApi:
     def get_active_organization(self) -> DesktopApiResult[OrganizationDto | None]:
         return execute_desktop_operation(
             lambda: (
-                serialize_organization(organization)
+                organization
                 if (
                     organization
                     := self._tenant_context_service.get_active_organization()
@@ -90,24 +87,20 @@ class PlatformTenantDesktopApi:
         self, organization_id: str
     ) -> DesktopApiResult[OrganizationDto]:
         return execute_desktop_operation(
-            lambda: serialize_organization(
-                self._tenant_context_service.set_active_organization(organization_id)
-            )
+            lambda: self._tenant_context_service.set_active_organization(organization_id)
         )
 
     def create_tenant(
         self, command: TenantCreateCommand
     ) -> DesktopApiResult[TenantDto]:
         return execute_desktop_operation(
-            lambda: self._serialize_tenant(
-                self._tenant_lifecycle_commands.create_tenant(command)
-            )
+            lambda: self._tenant_lifecycle_commands.create_tenant(command)
         )
 
     def get_active_tenant(self) -> DesktopApiResult[TenantDto | None]:
         return execute_desktop_operation(
             lambda: (
-                self._serialize_tenant(tenant)
+                tenant
                 if (tenant := self._tenant_context_service.get_active_tenant())
                 is not None
                 else None
@@ -116,9 +109,7 @@ class PlatformTenantDesktopApi:
 
     def switch_to_tenant(self, tenant_id: str) -> DesktopApiResult[TenantDto]:
         return execute_desktop_operation(
-            lambda: self._serialize_tenant(
-                self._tenant_context_service.switch_to_tenant(tenant_id)
-            )
+            lambda: self._tenant_context_service.switch_to_tenant(tenant_id)
         )
 
     def list_pending_invitations(
@@ -126,7 +117,7 @@ class PlatformTenantDesktopApi:
     ) -> DesktopApiResult[tuple[TenantInvitationDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
-                self._serialize_invitation(membership)
+                membership
                 for membership in self._tenant_membership_queries.list_my_pending_invitations()
             )
         )
@@ -136,38 +127,10 @@ class PlatformTenantDesktopApi:
         tenant_id: str,
     ) -> DesktopApiResult[TenantInvitationDto]:
         return execute_desktop_operation(
-            lambda: self._serialize_invitation(
-                self._tenant_invitation_commands.accept_invitation_for_tenant(tenant_id)
-            )
+            lambda: self._tenant_invitation_commands.accept_invitation_for_tenant(tenant_id)
         )
 
-    @staticmethod
-    def _serialize_tenant(tenant: Tenant) -> TenantDto:
-        return TenantDto(
-            id=tenant.id,
-            tenant_code=tenant.tenant_code,
-            display_name=tenant.display_name,
-            tenant_status=tenant.tenant_status,
-            is_active=tenant.is_active,
-        )
 
-    @staticmethod
-    def _serialize_invitation(
-        membership: UserTenantMembership,
-    ) -> TenantInvitationDto:
-        if membership.invited_at is None or membership.invitation_expires_at is None:
-            raise BusinessRuleError(
-                "Tenant invitation metadata is incomplete.",
-                code="TENANT_INVITATION_METADATA_INVALID",
-            )
-        return TenantInvitationDto(
-            membership_id=membership.id,
-            tenant_id=membership.tenant_id,
-            status=membership.status,
-            invited_by_user_id=membership.invited_by_user_id,
-            invited_at=membership.invited_at,
-            expires_at=membership.invitation_expires_at,
-        )
 
 
 __all__ = ["PlatformTenantDesktopApi"]

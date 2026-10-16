@@ -1,5 +1,9 @@
+
 from sqlalchemy import event
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
@@ -9,7 +13,7 @@ from src.core.platform.common.exceptions import ValidationError
 
 def test_mention_search_uses_effective_scope_and_revocation(services) -> None:
     access = services["access_service"]
-    project = services['project_create'].create_project("Mention search")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Mention search"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Discussion")
     user = services["user_registration"].register_user(
         "r7e-mention-search", "StrongPass123", role_names=[],

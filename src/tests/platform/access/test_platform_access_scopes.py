@@ -5,6 +5,9 @@ import pytest
 from src.core.modules.project_management.access.policy import (
     resolve_project_scope_permissions,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
@@ -206,9 +209,7 @@ def test_access_service_allows_organization_scope_grant_to_a_disabled_organizati
 
 
 def test_access_service_rejects_target_from_another_tenant(services):
-    project = services['project_create'].create_project(
-        "Cross Tenant Access Target"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Cross Tenant Access Target"))
     other_tenant = services["tenant_lifecycle_commands"].create_tenant(TenantCreateCommand(tenant_code="ACCESS-TARGET", display_name="Access Target Tenant"))
     target = services["user_registration"].register_user(
         "cross-tenant-membership-target",
@@ -225,7 +226,7 @@ def test_access_service_rejects_target_from_another_tenant(services):
 
 def test_auth_build_principal_populates_generic_scoped_access_from_project_memberships(services):
     access = services["access_service"]
-    project = services['project_create'].create_project("Scoped Principal Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Scoped Principal Project"))
     user = _register_active_tenant_user(
         services,
         "scoped-principal-user",

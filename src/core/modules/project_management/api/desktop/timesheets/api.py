@@ -33,8 +33,6 @@ from src.core.modules.project_management.api.desktop.timesheets.models.workspace
     ResourceTimesheetEntryPageDesktopDto,
     ResourceTimesheetHistoryPageDesktopDto,
     ResourceTimesheetPeriodDesktopDto,
-    TimesheetResourcePageDesktopDto,
-    TimesheetWorkspaceAccessDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.timesheets.serializers.entry_serializer import (
     serialize_entry,
@@ -49,8 +47,6 @@ from src.core.modules.project_management.api.desktop.timesheets.serializers.revi
 from src.core.modules.project_management.api.desktop.timesheets.serializers.workspace_serializer import (
     serialize_resource_entry,
     serialize_resource_period,
-    serialize_timesheet_resource,
-    serialize_workspace_access,
 )
 from src.core.modules.project_management.api.desktop.timesheets.utils.status_utils import (
     coerce_queue_status,
@@ -75,6 +71,10 @@ from src.core.modules.project_management.application.timesheets import (
 from src.core.modules.project_management.application.timesheets.dto.commands.time_entries import (
     TimesheetEntryCreateCommand,
     TimesheetEntryUpdateCommand,
+)
+from src.core.modules.project_management.application.timesheets.dto.responses.workspace import (
+    TimesheetResourcePageResponseDto,
+    TimesheetWorkspaceAccessResponseDto,
 )
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetScope,
@@ -152,10 +152,8 @@ class ProjectManagementTimesheetsDesktopApi:
             task_lookup_query=self._task_lookup_query,
         )
 
-    def get_timesheet_workspace_access(self) -> TimesheetWorkspaceAccessDesktopDto:
-        return serialize_workspace_access(
-            _connected(self._workspace_query).get_timesheet_workspace_access()
-        )
+    def get_timesheet_workspace_access(self) -> TimesheetWorkspaceAccessResponseDto:
+        return _connected(self._workspace_query).get_timesheet_workspace_access()
 
     def list_timesheet_resources_page(
         self,
@@ -164,19 +162,14 @@ class ProjectManagementTimesheetsDesktopApi:
         search_text: str = "",
         page: int = 1,
         page_size: int = 20,
-    ) -> TimesheetResourcePageDesktopDto:
+    ) -> TimesheetResourcePageResponseDto:
         result = _connected(self._workspace_query).query_timesheet_resources(
             scope=scope,
             search_text=search_text,
             page=page,
             page_size=page_size,
         )
-        return TimesheetResourcePageDesktopDto(
-            items=tuple(serialize_timesheet_resource(item) for item in result.items),
-            total=result.total,
-            page=result.page,
-            page_size=result.page_size,
-        )
+        return result
 
     def list_resource_assignments(
         self,

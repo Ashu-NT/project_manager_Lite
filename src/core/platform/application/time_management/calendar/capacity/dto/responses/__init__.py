@@ -1,1 +1,0 @@
-"""Calendar application DTO package."""

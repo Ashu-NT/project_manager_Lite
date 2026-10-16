@@ -15,6 +15,15 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.resources.factories.resources_api_factory import (
     build_project_management_resources_desktop_api,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.resources.dto.commands.skills import (
     ResourceAddSkillCommand,
 )
@@ -33,27 +42,11 @@ from src.ui_qml.shell.qml_engine import create_qml_engine
 def _seed_resource_context(services):
     services["project_resource_query"]
 
-    resource = services["resource_master_commands"].create_resource("R5E Planner", role="Planner")
-    alpha = services['project_create'].create_project(
-        "Alpha Delivery",
-        code="R5E-ALPHA",
-        status=ProjectStatus.ACTIVE,
-        start_date=date(2026, 8, 1),
-        end_date=date(2026, 12, 31),
-    )
-    zulu = services['project_create'].create_project(
-        "Zulu Delivery",
-        code="R5E-ZULU",
-        status=ProjectStatus.PLANNED,
-        start_date=date(2026, 9, 1),
-        end_date=date(2026, 12, 31),
-    )
-    alpha_resource = services["project_resource_commands"].add_to_project(
-        alpha.id, resource.id, planned_hours=Decimal(120)
-    )
-    zulu_resource = services["project_resource_commands"].add_to_project(
-        zulu.id, resource.id, planned_hours=Decimal(80)
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="R5E Planner", role="Planner"))
+    alpha = services['project_create'].create_project(ProjectCreateCommand(name="Alpha Delivery", code="R5E-ALPHA", status=ProjectStatus.ACTIVE, start_date=date(2026, 8, 1), end_date=date(2026, 12, 31)))
+    zulu = services['project_create'].create_project(ProjectCreateCommand(name="Zulu Delivery", code="R5E-ZULU", status=ProjectStatus.PLANNED, start_date=date(2026, 9, 1), end_date=date(2026, 12, 31)))
+    alpha_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=alpha.id, resource_id=resource.id, planned_hours=Decimal(120)))
+    zulu_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=zulu.id, resource_id=resource.id, planned_hours=Decimal(80)))
     alpha_task = services['task_lifecycle_commands'].create_task(
         alpha.id,
         "Alpha planning",
@@ -169,14 +162,14 @@ def test_r5e_assignments_keep_project_envelope_planned_and_actual_distinct(servi
 
     assert page.filtered_total == 2
     assert len(statements) <= 3
-    assert by_task[seeded.alpha_task.id].allocated_planned_hours == Decimal(40)
-    assert by_task[seeded.zulu_task.id].allocated_planned_hours == Decimal(30)
-    assert by_task[seeded.alpha_task.id].actual_hours == Decimal(25)
-    assert by_task[seeded.zulu_task.id].actual_hours == Decimal(10)
+    assert Decimal(by_task[seeded.alpha_task.id].allocated_planned_hours) == Decimal(40)
+    assert Decimal(by_task[seeded.zulu_task.id].allocated_planned_hours) == Decimal(30)
+    assert Decimal(by_task[seeded.alpha_task.id].actual_hours) == Decimal(25)
+    assert Decimal(by_task[seeded.zulu_task.id].actual_hours) == Decimal(10)
     assert {item.actual_hours_source for item in page.items} == {"time_entries"}
     assert seeded.alpha_resource.planned_hours == Decimal(120)
-    assert sum(item.allocated_planned_hours for item in page.items) == Decimal(70)
-    assert sum(item.actual_hours for item in page.items) == Decimal(35)
+    assert sum(Decimal(item.allocated_planned_hours) for item in page.items) == Decimal(70)
+    assert sum(Decimal(item.actual_hours) for item in page.items) == Decimal(35)
 
 
 def test_r5e_assignment_filters_and_cross_page_sort_are_authoritative(services) -> None:

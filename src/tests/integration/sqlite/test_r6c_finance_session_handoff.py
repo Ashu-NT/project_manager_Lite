@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.db.engine import create_database_engine
 from src.infra.persistence.orm.base import Base
@@ -23,7 +26,7 @@ def test_budget_command_uses_fresh_uow_after_shared_session_reads(tmp_path) -> N
         admin = services["authentication"].authenticate("admin", "ChangeMe123!")
         user_session.set_principal(services["principal_builder"].build(admin))
 
-        project = services['project_create'].create_project("SQLite Finance")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="SQLite Finance"))
         boundary = services["finance_governance_commands"]
         budget = boundary.budget_lifecycle(
             lambda service: service.create_budget(project.id, "Draft", "XAF"),

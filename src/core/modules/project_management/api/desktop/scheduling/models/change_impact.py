@@ -3,57 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-
-@dataclass(frozen=True)
-class SchedulingChangeImpactAffectedTaskDto:
-    task_id: str
-    task_name: str
-    start_shift_days: int
-    finish_shift_days: int
-    is_critical: bool
-
-
-@dataclass(frozen=True)
-class SchedulingChangeImpactDto:
-    task_id: str
-    affected_count: int
-    max_project_finish_shift_days: int
-    requires_approval: bool
-    newly_critical_count: int
-    no_longer_critical_count: int
-    affected_tasks: tuple[SchedulingChangeImpactAffectedTaskDto, ...]
-
-
-@dataclass(frozen=True)
-class ScheduleImpactAffectedTaskDto:
-    task_id: str
-    task_name: str
-    original_start: date | None
-    original_finish: date | None
-    proposed_start: date | None
-    proposed_finish: date | None
-    start_shift_days: int
-    finish_shift_days: int
-    is_critical: bool
-    is_milestone: bool = False
-
-
-@dataclass(frozen=True)
-class ScheduleImpactReportDto:
-    task_id: str
-    project_id: str
-    is_available: bool
-    simulated_delay_days: int
-    affected_count: int
-    max_project_finish_shift_days: int
-    requires_approval: bool
-    affected_tasks: tuple[ScheduleImpactAffectedTaskDto, ...]
-    newly_critical_task_ids: tuple[str, ...]
-    no_longer_critical_task_ids: tuple[str, ...]
-    critical_path_changed: bool = False
-    conflict_count: int = 0
-    blocked_by_deadline: bool = False
-    blocked_reason: str = ""
+from src.core.modules.project_management.application.scheduling.dto.responses.change_impact import (
+    ActualVarianceDto,
+    DownstreamExposureDto,
+)
 
 
 @dataclass(frozen=True)
@@ -75,22 +28,8 @@ class ScheduleConflictDto:
     difference_working_days: int
 
 
-@dataclass(frozen=True)
-class ActualVarianceDto:
-    task_id: str
-    task_name: str
-    direction: str
-    actual_date: date
-    dependency_required_date: date
-    difference_working_days: int
 
 
-@dataclass(frozen=True)
-class DownstreamExposureDto:
-    direct_successor_count: int
-    downstream_task_count: int
-    downstream_milestone_count: int
-    critical_downstream_count: int
 
 
 @dataclass(frozen=True)
@@ -116,14 +55,4 @@ class TaskScheduleImpactOverviewDesktopDto:
     downstream: DownstreamExposureDto
 
 
-__all__ = [
-    "ActualVarianceDto",
-    "DownstreamExposureDto",
-    "ScheduleConflictDto",
-    "ScheduleDriverDto",
-    "ScheduleImpactAffectedTaskDto",
-    "ScheduleImpactReportDto",
-    "SchedulingChangeImpactAffectedTaskDto",
-    "SchedulingChangeImpactDto",
-    "TaskScheduleImpactOverviewDesktopDto",
-]
+__all__ = ['ScheduleConflictDto', 'ScheduleDriverDto', 'TaskScheduleImpactOverviewDesktopDto']

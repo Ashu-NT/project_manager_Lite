@@ -4,6 +4,9 @@ from datetime import date, datetime
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineCreateCommand,
     SchedulingBaselineRejectCommand,
@@ -163,7 +166,7 @@ def test_baseline_task_and_variance_dtos_normalize_and_validate_local_fields():
 def test_baseline_service_uses_domain_normalization_for_create_and_reject_flow(services):
     services['baseline_query']
 
-    project = services['project_create'].create_project("Baseline DTO Service Proof")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Baseline DTO Service Proof"))
     services['task_lifecycle_commands'].create_task(project.id, "First Task", start_date=date(2026, 7, 1), duration_days=2)
 
     created = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "  Weekly Freeze  ", rate_as_of=date.today()))
@@ -181,7 +184,7 @@ def test_baseline_service_uses_domain_normalization_for_create_and_reject_flow(s
 def test_baseline_captures_explicit_milestone_as_immutable_snapshot(services):
     services['baseline_query']
 
-    project = services['project_create'].create_project("Milestone Snapshot Proof")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Milestone Snapshot Proof"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Release Gate",

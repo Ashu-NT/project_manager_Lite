@@ -17,9 +17,15 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_lifecycle import (
     FinancialVersionedForecastCommand,
 )
+from src.core.modules.project_management.application.financials.forecasts.dto.responses.mutations import (
+    FinancialForecastMutationDto,
+)
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastVersionChanged,
     ForecastVersionChangeType,
+)
+from src.core.modules.project_management.application.financials.forecasts.mappers.responses import (
+    map_forecast,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectFinancialProfileRepository,
@@ -169,7 +175,7 @@ class ForecastLifecycleCommands(ProjectManagementModuleGuardMixin):
         return forecast
 
 
-    def submit_forecast(self, command: FinancialVersionedForecastCommand) -> ProjectForecast:
+    def submit_forecast(self, command: FinancialVersionedForecastCommand) -> FinancialForecastMutationDto:
         forecast_id = command.forecast_id
         submitted_by = self._command_actor_id()
         expected_version = command.expected_version
@@ -195,7 +201,7 @@ class ForecastLifecycleCommands(ProjectManagementModuleGuardMixin):
         self._record_forecast_audit("submit", forecast)
         self._session.flush()
         self._emit_version_event(forecast, change_type=ForecastVersionChangeType.SUBMITTED, occurred_at=now)
-        return forecast
+        return map_forecast(forecast)
 
 
     def delete_forecast(self, forecast_id: str, *, expected_version: int) -> None:

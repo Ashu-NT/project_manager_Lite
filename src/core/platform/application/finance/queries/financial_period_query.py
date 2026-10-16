@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+import src.core.platform.application.finance.mappers.financial_period as response_mapper
+from src.core.platform.application.finance.dto.responses.financial_period import (
+    FinancialPeriodDto,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -36,7 +40,7 @@ class FinancialPeriodQueryHandler:
         *,
         fiscal_year: int | None = None,
         status: FinancialPeriodStatus | str | None = None,
-    ) -> list[FinancialPeriod]:
+    ) -> list[FinancialPeriodDto]:
         require_permission(
             self._user_session,
             "finance.read",
@@ -49,18 +53,18 @@ class FinancialPeriodQueryHandler:
                 "Financial period status is invalid.",
                 code="FINANCIAL_PERIOD_STATUS_INVALID",
             ) from exc
-        return self._period_repo.list(
+        return [response_mapper.serialize(row) for row in (self._period_repo.list(
             fiscal_year=fiscal_year,
             status=resolved_status,
-        )
+        ))]
 
-    def get_period(self, period_id: str) -> FinancialPeriod:
+    def get_period(self, period_id: str) -> FinancialPeriodDto:
         require_permission(
             self._user_session,
             "finance.read",
             operation_label="view financial period",
         )
-        return self._require_period(period_id)
+        return response_mapper.serialize(self._require_period(period_id))
 
     def require_open_period_for_date(self, posting_date: date) -> FinancialPeriod:
         """Resolve and validate the period used by a normal financial posting."""

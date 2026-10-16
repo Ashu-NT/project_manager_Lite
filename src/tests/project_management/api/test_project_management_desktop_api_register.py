@@ -4,6 +4,15 @@ from datetime import date
 from src.core.modules.project_management.api.desktop import (
     build_project_management_register_desktop_api,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
+)
+from src.core.modules.project_management.application.projects.mappers.project import (
+    map_project_response,
+)
 from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
     RegisterEntryCreateCommand,
     RegisterEntryDeleteCommand,
@@ -23,14 +32,8 @@ from src.core.modules.project_management.domain.risk.register import (
 
 def test_project_management_register_desktop_api_mutates_register_entries() -> None:
     project_service = _FakeProjectService()
-    project_alpha = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-    )
-    project_beta = project_service.create_project(
-        name="Warehouse Retrofit",
-        description="Upgrade lighting and controls.",
-    )
+    project_alpha = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line."))
+    project_beta = project_service.create_project(ProjectCreateCommand(name="Warehouse Retrofit", description="Upgrade lighting and controls."))
     register_service = _FakeRegisterService()
     api = build_project_management_register_desktop_api(
         project_service=project_service,
@@ -113,36 +116,27 @@ class _FakeProjectService:
         self._next_id = 1
 
     def list_projects(self) -> list[Project]:
-        return list(self._projects.values())
+        return [map_project_response(project) for project in self._projects.values()]
 
-    def create_project(
-        self,
-        *,
-        name: str,
-        description: str = "",
-        status: "ProjectStatus | None" = None,
-        client_name: str | None = None,
-        client_contact: str | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
-    ) -> Project:
+    def create_project(self, command: ProjectCreateCommand) -> ProjectResponse:
         project = Project(
             id=f"proj-{self._next_id}",
-            name=name,
-            description=description,
-            start_date=start_date,
-            end_date=end_date,
-            status=status if status is not None else ProjectStatus.PLANNED,
-            client_name=client_name,
-            client_contact=client_contact,
+            name=command.name,
+            description=command.description,
+            start_date=command.start_date,
+            end_date=command.end_date,
+            status=ProjectStatus(command.status),
+            client_name=command.client_name,
+            client_contact=command.client_contact,
             version=1,
         )
         self._next_id += 1
         self._projects[project.id] = project
-        return project
+        return map_project_response(project)
 
     def get_project(self, project_id: str) -> Project | None:
-        return self._projects.get(project_id)
+        project = self._projects.get(project_id)
+        return None if project is None else map_project_response(project)
 
     def update_project(self, project_id: str, **kwargs) -> Project:
         project = self._projects[project_id]

@@ -17,11 +17,13 @@ from PySide6.QtCore import (
 )
 
 from src.core.modules.project_management.api.desktop.scheduling.models import (
-    GanttBaselineOverlayDto,
-    GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
     GanttProjectionDto,
     GanttTaskRowDto,
+)
+from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
+    GanttBaselineOverlayDto,
+    GanttBaselineTaskSnapshotDto,
 )
 
 

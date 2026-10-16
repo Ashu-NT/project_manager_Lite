@@ -6,6 +6,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+import src.core.platform.application.master_data.org.mappers.organization as response_mapper
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationCalendarSummaryDto,
+    OrganizationCatalogPageDto,
+    OrganizationDto,
+    OrganizationStatisticsDto,
+)
 from src.core.platform.application.master_data.org.organization_context import (
     require_current_tenant_id,
 )
@@ -115,7 +122,7 @@ class OrganizationQueryHandler:
         """Public accessor for the tenant-resolution guard other Organization methods use internally."""
         return require_current_tenant_id(self._user_session, operation_label=operation_label)
 
-    def list_organizations(self, *, status: str | None = None) -> list[Organization]:
+    def list_organizations(self, *, status: str | None = None) -> list[OrganizationDto]:
         require_permission(self._user_session, "settings.manage", operation_label="list organizations")
         tenant_id = require_current_tenant_id(self._user_session, operation_label="list organizations")
         result = self._organization_repo.list_for_tenant(tenant_id, status=status)
@@ -126,7 +133,7 @@ class OrganizationQueryHandler:
         # causes unrelated writers to fail with "database is locked". This
         # commit has no data to persist; it only ends that transaction.
         self._session.commit()
-        return result
+        return [response_mapper.serialize_organization(row) for row in (result)]
 
     def list_organizations_page(
         self,
@@ -135,7 +142,7 @@ class OrganizationQueryHandler:
         page_size: int = _DEFAULT_ORGANIZATION_PAGE_SIZE,
         search: str | None = None,
         status: str | None = None,
-    ) -> OrganizationPage:
+    ) -> OrganizationCatalogPageDto:
         require_permission(self._user_session, "settings.manage", operation_label="list organizations")
         tenant_id = require_current_tenant_id(self._user_session, operation_label="list organizations")
         normalized_page = max(1, page)
@@ -150,15 +157,15 @@ class OrganizationQueryHandler:
         # See list_organizations() -- releases the implicit read transaction
         # on this shared session so it never blocks WAL checkpointing.
         self._session.commit()
-        return OrganizationPage(
+        return response_mapper.serialize_organization_page(OrganizationPage(
             items=items,
             total=total,
             filtered_total=filtered_total,
             page=normalized_page,
             page_size=normalized_page_size,
-        )
+        ))
 
-    def get_organization_statistics(self, organization_id: str) -> OrganizationStatistics:
+    def get_organization_statistics(self, organization_id: str) -> OrganizationStatisticsDto:
         """Composed real counts for one organization -- one aggregate query
         per entity via the existing overview/headcount read models, never a
         row-level fetch-and-count. Scoped to the given `organization_id`
@@ -167,7 +174,7 @@ class OrganizationQueryHandler:
         require_permission(self._user_session, "settings.manage", operation_label="view organization statistics")
         tenant_id = require_current_tenant_id(self._user_session, operation_label="view organization statistics")
         if self._overview_rollup_reader is None:
-            return OrganizationStatistics()
+            return response_mapper.serialize_organization_statistics(OrganizationStatistics())
         site_summary = self._overview_rollup_reader.get_site_summary(
             organization_id=organization_id, tenant_id=tenant_id
         )
@@ -185,21 +192,21 @@ class OrganizationQueryHandler:
         # See list_organizations() -- releases the implicit read transaction
         # on this shared session so it never blocks WAL checkpointing.
         self._session.commit()
-        return OrganizationStatistics(
+        return response_mapper.serialize_organization_statistics(OrganizationStatistics(
             site_count=site_summary.total,
             department_count=department_summary.total,
             employee_count=employee_count,
             document_count=document_summary.total,
-        )
+        ))
 
-    def get_organization_calendar_summary(self, organization_id: str) -> OrganizationCalendarSummary:
+    def get_organization_calendar_summary(self, organization_id: str) -> OrganizationCalendarSummaryDto:
         """Scoped to the given organization_id explicitly, matching
         get_organization_statistics() above -- Organization Overview may be
         showing an organization the caller hasn't switched to."""
         require_permission(self._user_session, "settings.manage", operation_label="view organization calendar")
         tenant_id = require_current_tenant_id(self._user_session, operation_label="view organization calendar")
         if self._overview_rollup_reader is None:
-            return OrganizationCalendarSummary()
+            return response_mapper.serialize_organization_calendar_summary(OrganizationCalendarSummary())
         summary = self._overview_rollup_reader.get_calendar_summary(
             organization_id=organization_id, tenant_id=tenant_id
         )
@@ -207,8 +214,8 @@ class OrganizationQueryHandler:
         # on this shared session so it never blocks WAL checkpointing.
         self._session.commit()
         if not summary.calendar_id:
-            return OrganizationCalendarSummary()
-        return OrganizationCalendarSummary(
+            return response_mapper.serialize_organization_calendar_summary(OrganizationCalendarSummary())
+        return response_mapper.serialize_organization_calendar_summary(OrganizationCalendarSummary(
             has_calendar=True,
             calendar_id=summary.calendar_id,
             calendar_name=summary.calendar_name,
@@ -216,7 +223,7 @@ class OrganizationQueryHandler:
             locale=summary.locale,
             working_weekdays=summary.working_weekdays,
             holiday_count=summary.holiday_count,
-        )
+        ))
 
     def get_organization_recent_activity(
         self, organization_id: str, *, limit: int = 5

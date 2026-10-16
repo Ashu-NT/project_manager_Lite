@@ -14,6 +14,12 @@ from datetime import date, datetime
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.health import (
     run_pm_data_integrity_checks,
 )
@@ -293,9 +299,9 @@ def test_baseline_snapshot_of_deleted_task_is_not_flagged(session):
 
 # ── service-level guard (friendly error before the DB constraint fires) ──────
 def test_assign_resource_twice_raises_assignment_duplicate(services):
-    project = services['project_create'].create_project("Dup Assign", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Dup Assign", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2)
-    resource = services["resource_master_commands"].create_resource("Dup Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Dup Dev", role="Developer", hourly_rate=100.0))
 
     services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=50.0)
     with pytest.raises(ValidationError) as exc:

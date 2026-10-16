@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import src.core.platform.application.security.auth.mappers.user as response_mapper
+from src.core.platform.application.security.auth.dto.responses.user import (
+    RoleDto,
+    UserDto,
+)
 from src.core.platform.application.security.auth.queries.auth_queries import (
     AuthQueryHandler,
 )
@@ -16,6 +21,7 @@ from src.core.platform.application.security.authorization.roles.role_scope_polic
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
     PlatformOverviewRollupReader,
+    UserRollupSummary,
 )
 from src.core.platform.contract.repositories.security.auth import (
     RoleRepository,
@@ -23,7 +29,6 @@ from src.core.platform.contract.repositories.security.auth import (
 )
 from src.core.platform.domain.security.auth import (
     Role,
-    UserAccount,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
@@ -48,18 +53,18 @@ class UserDirectoryQueryHandler:
         self._overview_rollup_reader = overview_rollup_reader
         self._target_users = target_users
 
-    def list_users(self) -> list[UserAccount]:
+    def list_users(self) -> list[UserDto]:
         require_any_permission(
             self._user_session,
             ("auth.manage", "auth.read", "access.manage", "security.manage"),
             operation_label="list users",
         )
         if self._target_users.is_platform_operator():
-            return self._user_repo.list_all()
+            return [response_mapper.serialize_user(row, role_names=tuple(sorted(self._auth_queries.get_user_role_names(row.id)))) for row in (self._user_repo.list_all())]
         tenant_id = self._target_users.require_actor_active_tenant(
             operation_label="list tenant users",
         )
-        return [
+        return [response_mapper.serialize_user(row, role_names=tuple(sorted(self._auth_queries.get_user_role_names(row.id)))) for row in ([
             user
             for user in self._user_repo.list_for_tenant(tenant_id)
             if not any(
@@ -68,9 +73,9 @@ class UserDirectoryQueryHandler:
                     user.id
                 ).role_names
             )
-        ]
+        ])]
 
-    def get_user_rollup_summary(self):
+    def get_user_rollup_summary(self) -> UserRollupSummary:
         """Overview-only equivalent of list_users() -- one SQL query instead of one full
         materialization plus, for tenant callers, a per-user platform-role-exclusion N+1. Same
         permission check and platform-operator/tenant-caller branch as list_users(), which the
@@ -105,7 +110,7 @@ class UserDirectoryQueryHandler:
         )
         return self._role_repo.list_for_tenant(tenant_id)
 
-    def list_customer_assignable_roles(self) -> list[Role]:
+    def list_customer_assignable_roles(self) -> list[RoleDto]:
         require_any_permission(
             self._user_session,
             ("auth.manage", "auth.read"),
@@ -114,7 +119,7 @@ class UserDirectoryQueryHandler:
         tenant_id = self._target_users.require_actor_active_tenant(
             operation_label="list tenant-assignable roles",
         )
-        return [
+        return [response_mapper.serialize_role(row) for row in ([
             role
             for role in self._role_repo.list_for_tenant(tenant_id)
             if role.is_system
@@ -122,7 +127,7 @@ class UserDirectoryQueryHandler:
             and role.is_assignable
             and role.allowed_scope_type == "tenant"
             and is_customer_assignable_role(role.name)
-        ]
+        ])]
 
 
 __all__ = ["UserDirectoryQueryHandler"]

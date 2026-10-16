@@ -359,11 +359,16 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus,
         platform_services.platform_view_invalidation_channel,
     )
+    portfolio_resource_pool_query = build_portfolio_resource_pool_query(
+        session,
+        platform_services,
+    )
     portfolio = build_portfolio_capabilities(
         session,
         repositories,
         platform_services,
         project_calendar_adapter=_pre_project_calendar_adapter,
+        resource_pool_query=portfolio_resource_pool_query,
     )
     register_baseline_view_invalidation(
         platform_services.platform_post_commit_bus,
@@ -419,10 +424,6 @@ def build_project_management_service_bundle(
         repositories,
         platform_services,
         availability_service=enterprise_resource_availability,
-    )
-    portfolio_resource_pool_query = build_portfolio_resource_pool_query(
-        session,
-        platform_services,
     )
     logger.debug("Project Management core services built")
     register_project_management_approval_handlers(

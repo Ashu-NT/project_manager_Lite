@@ -65,13 +65,8 @@ class TaskHierarchyCommandHandler(ProjectManagementModuleGuardMixin):
         self._uow_scope = uow_scope
 
     def move_task(self, command: TaskWbsMoveCommand) -> Task:
-        task_id = command.task_id
-        parent_task_id = command.parent_task_id
-        wbs_code = command.wbs_code
-        sort_order = command.sort_order
-        expected_version = command.expected_version
         require_permission(self._user_session, "task.manage", operation_label="move task in WBS")
-        task = self._task_repo.get(task_id)
+        task = self._task_repo.get(command.task_id)
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         require_project_permission(
@@ -80,7 +75,7 @@ class TaskHierarchyCommandHandler(ProjectManagementModuleGuardMixin):
             "task.manage",
             operation_label="move task in WBS",
         )
-        if expected_version is not None and task.version != expected_version:
+        if command.expected_version is not None and task.version != command.expected_version:
             raise ConcurrencyError(
                 "Task changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
@@ -88,7 +83,7 @@ class TaskHierarchyCommandHandler(ProjectManagementModuleGuardMixin):
         tasks = self._task_repo.list_by_project(task.project_id)
         parent = self._hierarchy_policy._require_wbs_parent(
             project_id=task.project_id,
-            parent_task_id=parent_task_id,
+            parent_task_id=command.parent_task_id,
             moving_task_id=task.id,
             tasks=tasks,
         )
@@ -122,13 +117,13 @@ class TaskHierarchyCommandHandler(ProjectManagementModuleGuardMixin):
         siblings = [
             item
             for item in tasks
-            if item.parent_task_id == parent_task_id and item.id not in subtree_ids
+            if item.parent_task_id == command.parent_task_id and item.id not in subtree_ids
         ]
         resolved_wbs = self._hierarchy_policy._validate_wbs_code_for_parent(
-            wbs_code
+            command.wbs_code
             or (
                 task.wbs_code
-                if task.parent_task_id == parent_task_id
+                if task.parent_task_id == command.parent_task_id
                 else self._hierarchy_policy._next_wbs_code(parent, siblings)
             ),
             parent,
@@ -151,12 +146,12 @@ class TaskHierarchyCommandHandler(ProjectManagementModuleGuardMixin):
             )
         default_index = (
             task.sort_order
-            if task.parent_task_id == parent_task_id
+            if task.parent_task_id == command.parent_task_id
             else len(siblings)
         )
         target_index = max(
             0,
-            min(default_index if sort_order is None else sort_order, len(siblings)),
+            min(default_index if command.sort_order is None else command.sort_order, len(siblings)),
         )
         target_siblings = list(siblings)
         target_siblings.insert(target_index, task)
@@ -172,7 +167,7 @@ class TaskHierarchyCommandHandler(ProjectManagementModuleGuardMixin):
         for index, sibling in enumerate(target_siblings):
             updates[sibling.id] = replace(
                 sibling,
-                parent_task_id=parent_task_id if sibling.id == task.id else sibling.parent_task_id,
+                parent_task_id=command.parent_task_id if sibling.id == task.id else sibling.parent_task_id,
                 wbs_code=replacement_codes.get(sibling.id, sibling.wbs_code),
                 sort_order=index,
             )
@@ -203,7 +198,7 @@ class TaskHierarchyCommandHandler(ProjectManagementModuleGuardMixin):
                     module="project_management",
                     workspace_id=task.project_id,
                     details={
-                        "parent_task_id": parent_task_id,
+                        "parent_task_id": command.parent_task_id,
                         "wbs_code": resolved_wbs,
                         "sort_order": target_index,
                     },

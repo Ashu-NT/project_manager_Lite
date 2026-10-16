@@ -4,6 +4,9 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
     RegisterEntryCreateCommand,
     RegisterEntryDeleteCommand,
@@ -107,9 +110,7 @@ def _register_hints(hints):
 
 def _setup(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "P41 Register project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P41 Register project", financial_currency_code=organization.base_currency))
     return organization, project
 
 

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+
+from src.core.platform.application.time_management.calendar.dto.responses.working_calendar import (
+    WorkingCalendarHolidayDto,
+)
 
 
 @dataclass(frozen=True)
@@ -18,11 +21,6 @@ class WorkingCalendarDayDto:
     checked: bool
 
 
-@dataclass(frozen=True)
-class WorkingCalendarHolidayDto:
-    id: str
-    date: date
-    name: str
 
 
 @dataclass(frozen=True)
@@ -32,11 +30,3 @@ class WorkingCalendarSnapshotDto:
     working_days: tuple[WorkingCalendarDayDto, ...]
     hours_per_day: float
     holidays: tuple[WorkingCalendarHolidayDto, ...]
-
-
-@dataclass(frozen=True)
-class WorkingDayCalculationDto:
-    start_date: date
-    working_days: int
-    result_date: date
-    skipped_non_working_days: int

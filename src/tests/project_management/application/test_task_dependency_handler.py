@@ -4,11 +4,14 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 
 
 def _two_tasks(services):
-    project = services['project_create'].create_project("Dependency Rollback", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Rollback", description=""))
     tasks = services['task_lookup_query']
     first = services['task_lifecycle_commands'].create_task(project.id, "First", start_date=date(2026, 9, 7), duration_days=2)
     second = services['task_lifecycle_commands'].create_task(project.id, "Second", start_date=date(2026, 9, 10), duration_days=2)

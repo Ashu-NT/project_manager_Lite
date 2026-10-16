@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import src.core.platform.application.security.auth.mappers.user as response_mapper
 from src.core.platform.application.security.auth.audit.security_audit import (
     SecurityAuditRecorder,
 )
@@ -15,6 +16,7 @@ from src.core.platform.application.security.auth.auth_validation_policy import (
 from src.core.platform.application.security.auth.dto.commands.users import (
     UserPasswordResetCommand,
 )
+from src.core.platform.application.security.auth.dto.responses.user import UserDto
 from src.core.platform.application.security.auth.queries.auth_queries import (
     AuthQueryHandler,
 )
@@ -112,7 +114,7 @@ class PasswordCommandHandler:
             change_type=PasswordChangeType.FORCE_RESET_REQUIRED,
         )
 
-    def reset_user_password(self, command: UserPasswordResetCommand) -> UserAccount:
+    def reset_user_password(self, command: UserPasswordResetCommand) -> UserDto:
         user_id = command.user_id
         new_password = command.new_password
         require_permission(self._user_session, "auth.manage", operation_label="reset user password")
@@ -135,7 +137,8 @@ class PasswordCommandHandler:
             change_type=PasswordChangeType.RESET,
         )
         self._lifecycle.refresh_current_session_if_user(user.id)
-        return user
+        response_user = user
+        return response_mapper.serialize_user(response_user, role_names=tuple(sorted(self._auth_queries.get_user_role_names(response_user.id))))
 
     def _persist_password_mutation(
         self,

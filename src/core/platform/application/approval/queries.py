@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from src.core.platform.application.approval.dto.responses.requests import (
+    ApprovalRequestResponse,
+)
+from src.core.platform.application.approval.mappers.requests import (
+    approval_request_response,
+)
 from src.core.platform.application.approval.scope import ApprovalScope
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_any_permission,
@@ -20,6 +26,23 @@ class ApprovalQueryHandler:
         self._user_session = user_session
 
     def list_requests(
+        self,
+        *,
+        status: ApprovalStatus | str | None = None,
+        project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
+        limit: int = 200,
+    ) -> list[ApprovalRequestResponse]:
+        requests = self._list_request_models(
+            status=status, project_id=project_id, entity_type=entity_type, limit=limit,
+        )
+        eligible_ids = self.eligible_request_ids(tuple(requests))
+        return [
+            approval_request_response(request, can_decide=request.id in eligible_ids)
+            for request in requests
+        ]
+
+    def _list_request_models(
         self,
         *,
         status: ApprovalStatus | str | None = None,
@@ -61,7 +84,7 @@ class ApprovalQueryHandler:
         )
 
     def list_pending(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
-        return self.list_requests(status=ApprovalStatus.PENDING, limit=limit, project_id=project_id)
+        return self._list_request_models(status=ApprovalStatus.PENDING, limit=limit, project_id=project_id)
 
     def count_pending(self, *, project_id: str | None = None) -> int:
         """Exact count, independent of any list/preview limit -- callers
@@ -80,7 +103,7 @@ class ApprovalQueryHandler:
         )
 
     def list_recent(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
-        return self.list_requests(status=None, limit=limit, project_id=project_id)
+        return self._list_request_models(status=None, limit=limit, project_id=project_id)
 
     def _list_approval_rows(
         self,

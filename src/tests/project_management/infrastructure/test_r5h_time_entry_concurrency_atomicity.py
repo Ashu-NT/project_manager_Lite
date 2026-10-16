@@ -1,19 +1,26 @@
+
 from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 
 
 def _create_entry_context(services):
-    project = services['project_create'].create_project("R5H TimeEntry Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R5H TimeEntry Project"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "R5H TimeEntry Task",
         start_date=date(2026, 8, 24),
         duration_days=3,
     )
-    resource = services["resource_master_commands"].create_resource("R5H TimeEntry Resource")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="R5H TimeEntry Resource"))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
     entry = services["time_entry_commands"].add_time_entry(
         assignment.id,

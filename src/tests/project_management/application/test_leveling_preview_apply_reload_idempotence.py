@@ -12,6 +12,12 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     run_cpm,
 )
@@ -37,10 +43,10 @@ class TestPreviewApplyReloadIdempotence:
         ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
-        project = services['project_create'].create_project("Idempotence Pure CPM", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Idempotence Pure CPM", description=""))
         task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = services["resource_master_commands"].create_resource("Idempotence Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Idempotence Dev", role="Developer", hourly_rate=100.0))
         services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
@@ -92,10 +98,10 @@ class TestPreviewApplyReloadIdempotence:
         calendar = services["work_calendar_engine"]
         sched = services["scheduling_engine"]
 
-        project = services['project_create'].create_project("Idempotence Live Engine", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Idempotence Live Engine", description=""))
         task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = services["resource_master_commands"].create_resource("Idempotence Live Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Idempotence Live Dev", role="Developer", hourly_rate=100.0))
         services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 

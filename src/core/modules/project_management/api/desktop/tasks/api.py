@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
 from typing import TypeVar
 
 from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
@@ -18,11 +17,9 @@ from src.core.modules.project_management.api.desktop.common.detail_pages import 
     DetailActivityPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
-    ScheduleImpactReportDto,
     TaskScheduleImpactOverviewDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
-    serialize_schedule_impact_report,
     serialize_task_schedule_overview,
 )
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
@@ -109,6 +106,9 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
+)
+from src.core.modules.project_management.application.scheduling.dto.responses.change_impact import (
+    ScheduleImpactReportDto,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
@@ -258,34 +258,9 @@ class ProjectManagementTasksDesktopApi:
         )
         return next((row for row in rows if row.id == task.id), None)
 
-    def _serialize_project_tasks(
-        self,
-        project_id: str,
-        project_name: str,
-    ) -> tuple[TaskDesktopDto, ...]:
-        list_hierarchy = getattr(self._task_hierarchy_query, "list_task_hierarchy", None)
-        list_rollups = getattr(self._task_hierarchy_query, "list_task_hierarchy_rollups", None)
-        if callable(list_hierarchy) and callable(list_rollups):
-            nodes = list_hierarchy(project_id)
-            rollups = list_rollups(project_id)
-            return tuple(
-                serialize_task(
-                    node.task,
-                    project_name=project_name,
-                    hierarchy_node=node,
-                    rollup=rollups.get(node.task.id),
-                )
-                for node in nodes
-            )
-        tasks = sorted(
-            self._require_task_capability(self._task_lookup_query).list_tasks_for_project(project_id),
-            key=lambda task: (
-                task.start_date or date.max,
-                -int(task.priority or 0),
-                (task.name or "").casefold(),
-            ),
-        )
-        return tuple(serialize_task(task, project_name=project_name) for task in tasks)
+    def _serialize_project_tasks(self, project_id: str, project_name: str) -> tuple[TaskDesktopDto, ...]:
+        responses = self._require_task_capability(self._task_hierarchy_query).query_task_responses(project_id)
+        return tuple(serialize_task(response, project_name=project_name) for response in responses)
 
     def list_dependency_types(self) -> tuple[TaskDependencyTypeDescriptor, ...]:
         return tuple(
@@ -956,10 +931,17 @@ class ProjectManagementTasksDesktopApi:
         asks for it, never automatically on task selection."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
-        unavailable = serialize_schedule_impact_report(
+        unavailable = ScheduleImpactReportDto(
             task_id=normalized_task_id,
             project_id=normalized_project_id,
             simulated_delay_days=delay_working_days,
+            is_available=False,
+            affected_count=0,
+            max_project_finish_shift_days=0,
+            requires_approval=False,
+            affected_tasks=(),
+            newly_critical_task_ids=(),
+            no_longer_critical_task_ids=(),
         )
         if (
             not normalized_task_id
@@ -991,12 +973,7 @@ class ProjectManagementTasksDesktopApi:
                 delay_working_days,
             )
             return unavailable
-        return serialize_schedule_impact_report(
-            task_id=normalized_task_id,
-            project_id=normalized_project_id,
-            simulated_delay_days=delay_working_days,
-            report=report,
-        )
+        return report
 
 
     def _require_task_capability(self, capability: _CapabilityT | None) -> _CapabilityT:

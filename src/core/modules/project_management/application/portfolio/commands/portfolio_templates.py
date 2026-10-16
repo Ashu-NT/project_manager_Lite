@@ -11,6 +11,12 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scor
     PortfolioTemplateActivateCommand,
     PortfolioTemplateCreateCommand,
 )
+from src.core.modules.project_management.application.portfolio.dto.responses.templates import (
+    PortfolioTemplateResponseDto,
+)
+from src.core.modules.project_management.application.portfolio.mappers.templates import (
+    map_template,
+)
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioScoringTemplateChangeType,
 )
@@ -58,14 +64,7 @@ class PortfolioTemplateCommandHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioScoringTemplate:
-        name = command.name
-        summary = command.summary
-        strategic_weight = command.strategic_weight
-        value_weight = command.value_weight
-        urgency_weight = command.urgency_weight
-        risk_weight = command.risk_weight
-        activate = command.activate
+    def create_scoring_template(self, command: PortfolioTemplateCreateCommand) -> PortfolioTemplateResponseDto:
         require_permission(self._user_session, "portfolio.manage", operation_label="create scoring template")
         organization_id = self._policy.organization_id(operation_label="create scoring template")
         try:
@@ -74,20 +73,20 @@ class PortfolioTemplateCommandHandler(ProjectManagementModuleGuardMixin):
                 templates = uow.scoring_templates.list()
                 template = PortfolioScoringTemplate.create(
                     organization_id=organization_id,
-                    name=name,
-                    summary=summary,
-                    strategic_weight=strategic_weight,
-                    value_weight=value_weight,
-                    urgency_weight=urgency_weight,
-                    risk_weight=risk_weight,
-                    is_active=bool(activate),
+                    name=command.name,
+                    summary=command.summary,
+                    strategic_weight=command.strategic_weight,
+                    value_weight=command.value_weight,
+                    urgency_weight=command.urgency_weight,
+                    risk_weight=command.risk_weight,
+                    is_active=bool(command.activate),
                 )
                 if any(existing.name.casefold() == template.name.casefold() for existing in templates):
                     raise ValidationError(
                         "A scoring template with that name already exists.",
                         code="PORTFOLIO_TEMPLATE_DUPLICATE",
                     )
-                if activate:
+                if command.activate:
                     self._policy.deactivate_other_templates(uow=uow, events=events)
                 uow.scoring_templates.add(template)
                 record_audit_entry(
@@ -125,20 +124,19 @@ class PortfolioTemplateCommandHandler(ProjectManagementModuleGuardMixin):
                 "Another scoring template activation conflicted with this request. Please retry.",
                 code="PORTFOLIO_TEMPLATE_ACTIVATION_CONFLICT",
             ) from exc
-        return template
+        return map_template(template)
 
-    def activate_scoring_template(self, command: PortfolioTemplateActivateCommand) -> PortfolioScoringTemplate:
-        template_id = command.template_id
+    def activate_scoring_template(self, command: PortfolioTemplateActivateCommand) -> PortfolioTemplateResponseDto:
         require_permission(self._user_session, "portfolio.manage", operation_label="activate scoring template")
         self._policy.organization_id(operation_label="activate scoring template")
-        template = self._scoring_template_repo.get(template_id)
+        template = self._scoring_template_repo.get(command.template_id)
         if template is None:
             raise NotFoundError(
                 "Portfolio scoring template not found.",
                 code="PORTFOLIO_TEMPLATE_NOT_FOUND",
             )
         if template.is_active:
-            return template
+            return map_template(template)
         try:
             with self._uow_factory.create(context=new_portfolio_context()) as uow:
                 events: list = []
@@ -177,7 +175,7 @@ class PortfolioTemplateCommandHandler(ProjectManagementModuleGuardMixin):
                 "Another scoring template activation conflicted with this request. Please retry.",
                 code="PORTFOLIO_TEMPLATE_ACTIVATION_CONFLICT",
             ) from exc
-        return candidate
+        return map_template(candidate)
 
 
 __all__ = ["PortfolioTemplateCommandHandler"]

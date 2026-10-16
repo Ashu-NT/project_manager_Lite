@@ -9,6 +9,9 @@ from datetime import date
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
     ProjectBaselineCreated,
 )
@@ -26,7 +29,7 @@ from src.infra.persistence.orm.base import Base
 
 
 def _make_project(services, name: str = "Baseline Project"):
-    return services['project_create'].create_project(name, "")
+    return services['project_create'].create_project(ProjectCreateCommand(name=name, description=""))
 
 
 def _login(services, username: str, password: str) -> None:

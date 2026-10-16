@@ -7,6 +7,15 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.certifications import (
+    ResourceAddCertificationCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.skills import (
+    ResourceAddSkillCommand,
+)
 from src.core.modules.project_management.contracts.reads import ReadSort
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -28,13 +37,9 @@ def test_fresh_baseline_contains_time_entry_version(tmp_path) -> None:
 
 def test_resource_skills_are_server_paged_filtered_sorted_and_scoped(services) -> None:
     capability_query = services["resource_capability_query"]
-    resource = services["resource_master_commands"].create_resource("Capability Reader")
-    services["resource_capability_commands"].add_resource_skill(
-        resource.id, "z-plan", "Zulu Planning", proficiency="beginner"
-    )
-    services["resource_capability_commands"].add_resource_skill(
-        resource.id, "a-build", "Alpha Building", proficiency="expert"
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Capability Reader"))
+    services["resource_capability_commands"].add_resource_skill(ResourceAddSkillCommand(resource_id=resource.id, skill_code="z-plan", skill_name="Zulu Planning", proficiency="beginner"))
+    services["resource_capability_commands"].add_resource_skill(ResourceAddSkillCommand(resource_id=resource.id, skill_code="a-build", skill_name="Alpha Building", proficiency="expert"))
 
     first = capability_query.query_resource_skills_page(
         resource.id, page=1, page_size=1, sort_key="skillName", sort_direction="asc"
@@ -73,28 +78,11 @@ def test_resource_skills_are_server_paged_filtered_sorted_and_scoped(services) -
 
 
 def test_resource_certifications_use_authoritative_status_filter_and_sort(services) -> None:
-    resource = services["resource_master_commands"].create_resource("Certification Reader")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Certification Reader"))
     today = date.today()
-    services["resource_capability_commands"].add_resource_certification(
-        resource.id,
-        "VALID",
-        "Valid Credential",
-        expiry_date=today + timedelta(days=60),
-        issuer="Authority Z",
-    )
-    services["resource_capability_commands"].add_resource_certification(
-        resource.id,
-        "EXPIRING",
-        "Expiring Credential",
-        expiry_date=today + timedelta(days=10),
-        issuer="Authority A",
-    )
-    services["resource_capability_commands"].add_resource_certification(
-        resource.id,
-        "OPEN",
-        "No Expiry Credential",
-        issuer="Authority M",
-    )
+    services["resource_capability_commands"].add_resource_certification(ResourceAddCertificationCommand(resource_id=resource.id, certification_code="VALID", certification_name="Valid Credential", expiry_date=today + timedelta(days=60), issuer="Authority Z"))
+    services["resource_capability_commands"].add_resource_certification(ResourceAddCertificationCommand(resource_id=resource.id, certification_code="EXPIRING", certification_name="Expiring Credential", expiry_date=today + timedelta(days=10), issuer="Authority A"))
+    services["resource_capability_commands"].add_resource_certification(ResourceAddCertificationCommand(resource_id=resource.id, certification_code="OPEN", certification_name="No Expiry Credential", issuer="Authority M"))
 
     expiring = services["resource_capability_query"].query_resource_certifications_page(
         resource.id, status="expiring-soon"

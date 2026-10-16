@@ -12,6 +12,9 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.contracts.reads.financials.rate_cards.models.rate_facts import (
     RateCardRequest,
     RateLineRequest,
@@ -38,9 +41,7 @@ def _statement_count(session):
 
 
 def _seed_rates(services):
-    project = services['project_create'].create_project(
-        "R6B Rate Reader", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Rate Reader", financial_currency_code="USD"))
     services['rate_card_query']
     organization_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(name="Alpha Organization Rates"))
     project_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(

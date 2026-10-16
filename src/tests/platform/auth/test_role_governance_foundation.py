@@ -11,6 +11,9 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
@@ -293,7 +296,7 @@ def _prepare_project_canonical_assignment(
 
 def test_project_role_assignment_is_scoped_and_audited(services) -> None:
     tenant_id = _tenant_id(services)
-    project = services['project_create'].create_project("Governance Project A")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Governance Project A"))
     _, target, target_role = _prepare_project_canonical_assignment(
         services,
         target_role_name="project_viewer",
@@ -312,7 +315,7 @@ def test_project_role_assignment_is_scoped_and_audited(services) -> None:
 
 
 def test_project_role_assignment_rejects_unresolvable_project(services) -> None:
-    project = services['project_create'].create_project("Governance Project B")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Governance Project B"))
     _, target, target_role = _prepare_project_canonical_assignment(
         services,
         target_role_name="project_viewer",

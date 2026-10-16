@@ -9,13 +9,17 @@ from src.core.modules.project_management.application.risk.queries.register_query
     RegisterQueryHandler,
 )
 from src.core.modules.project_management.domain.risk.register import (
-    RegisterEntry,
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
 )
 
 _ALL_FILTER_VALUES = (None, "", "all", "ALL")
+
+
+from src.core.modules.project_management.application.risk.dto.responses.entries import (
+    RegisterEntryResponseDto,
+)
 
 
 def build_entry_list(
@@ -25,7 +29,7 @@ def build_entry_list(
     entry_type: str | RegisterEntryType | None = None,
     status: str | RegisterEntryStatus | None = None,
     severity: str | RegisterEntrySeverity | None = None,
-) -> tuple[RegisterEntry, ...]:
+) -> tuple[RegisterEntryResponseDto, ...]:
     if register_query is None:
         return ()
     entries = register_query.list_entries(

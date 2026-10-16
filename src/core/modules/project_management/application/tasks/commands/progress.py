@@ -24,6 +24,10 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_pro
     TaskBulkStatusCommand,
     TaskProgressCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.responses.task import (
+    TaskResponseDto,
+)
+from src.core.modules.project_management.application.tasks.mappers.task import map_task
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskProgressChanged,
     TaskStatusChanged,
@@ -67,15 +71,16 @@ class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
         self._validation_policy = validation_policy
         self._uow_scope = uow_scope
 
-    def set_tasks_status(self, command: TaskBulkStatusCommand) -> list[Task]:
-        task_ids = command.task_ids
+    def set_tasks_status(self, command: TaskBulkStatusCommand) -> list[TaskResponseDto]:
+        return [map_task(task, project_name="") for task in self._set_tasks_status_entities(command)]
+
+    def _set_tasks_status_entities(self, command: TaskBulkStatusCommand) -> list[Task]:
         status = task_status(command.status)
-        reopen_percent_complete = command.reopen_percent_complete
         require_permission(self._user_session, "task.manage", operation_label="set task status")
         normalized_ids = tuple(
             task_id
             for task_id in dict.fromkeys(
-                str(task_id or "").strip() for task_id in task_ids
+                str(task_id or "").strip() for task_id in command.task_ids
             )
             if task_id
         )
@@ -106,11 +111,11 @@ class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
             if (
                 task.status == TaskStatus.DONE
                 and status == TaskStatus.IN_PROGRESS
-                and reopen_percent_complete is not None
+                and command.reopen_percent_complete is not None
             ):
                 percent_complete = replace(
                     task,
-                    percent_complete=reopen_percent_complete,
+                    percent_complete=command.reopen_percent_complete,
                 ).percent_complete
             elif status == TaskStatus.DONE:
                 percent_complete = 100.0
@@ -155,15 +160,10 @@ class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
         return candidates
 
-    def update_progress(self, command: TaskProgressCommand) -> Task:
-        task_id = command.task_id
-        percent_complete = command.percent_complete
-        actual_start = command.actual_start
-        actual_end = command.actual_end
+    def update_progress(self, command: TaskProgressCommand) -> TaskResponseDto:
         status = task_status(command.status) if command.status is not None else None
-        expected_version = command.expected_version
         require_permission(self._user_session, "task.manage", operation_label="update task progress")
-        task = self._task_repo.get(task_id)
+        task = self._task_repo.get(command.task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         require_project_permission(
@@ -172,7 +172,7 @@ class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
             "task.manage",
             operation_label="update task progress",
         )
-        if expected_version is not None and task.version != expected_version:
+        if command.expected_version is not None and task.version != command.expected_version:
             raise ConcurrencyError(
                 "Task changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
@@ -181,8 +181,8 @@ class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
 
         next_percent_complete = task.percent_complete
         next_status = task.status
-        if percent_complete is not None:
-            next_percent_complete = replace(task, percent_complete=percent_complete).percent_complete
+        if command.percent_complete is not None:
+            next_percent_complete = replace(task, percent_complete=command.percent_complete).percent_complete
             if next_percent_complete == 0 and task.status != TaskStatus.TODO:
                 next_status = TaskStatus.TODO
             elif 0 < next_percent_complete < 100 and task.status == TaskStatus.TODO:
@@ -195,8 +195,8 @@ class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
         candidate = replace(
             task,
             percent_complete=next_percent_complete,
-            actual_start=task.actual_start if actual_start is None else actual_start,
-            actual_end=task.actual_end if actual_end is None else actual_end,
+            actual_start=task.actual_start if command.actual_start is None else command.actual_start,
+            actual_end=task.actual_end if command.actual_end is None else command.actual_end,
             status=next_status if status is None else status,
         )
         self._validation_policy.validate_task_within_project_dates(
@@ -245,7 +245,7 @@ class TaskProgressCommandHandler(ProjectManagementModuleGuardMixin):
                     )
                 )
             uow.commit()
-        return candidate
+        return map_task(candidate, project_name="")
 
 
 __all__ = ["TaskProgressCommandHandler"]

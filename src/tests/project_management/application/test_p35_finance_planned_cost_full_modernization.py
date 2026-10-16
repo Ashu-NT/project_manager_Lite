@@ -21,6 +21,15 @@ from src.core.modules.project_management.application.financials.planned_costs.ev
 from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
     PlannedCostSnapshotCalculated,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -51,9 +60,7 @@ def _planned_cost_hints(hints):
 
 
 def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float = 50.0):
-    project = services['project_create'].create_project(
-        "P35 Planned Cost Project", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P35 Planned Cost Project", financial_currency_code="USD"))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="P35-LABOR-DEFAULT", name="P35 Default Labor"
     ))
@@ -61,9 +68,7 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
     services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
         project.id, expected_version=profile.version, default_cost_code_id=cost_code.id,
     ))
-    resource = services["resource_master_commands"].create_resource(
-        "P35 Engineer", hourly_rate=hourly_rate, currency_code="USD"
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="P35 Engineer", hourly_rate=hourly_rate, currency_code="USD"))
     rate_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="P35 Planned Cost Project Rates", project_id=project.id,
     ))
@@ -71,10 +76,7 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
         rate_card.id, rate_type=RateType.COST, unit="HOUR",
         rate_amount=Decimal(str(hourly_rate)), rate_currency="USD", resource_id=resource.id,
     ))
-    project_resource = services["project_resource_commands"].add_to_project(
-        project.id, resource.id, hourly_rate=hourly_rate, currency_code="USD",
-        planned_hours=planned_hours,
-    )
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, hourly_rate=hourly_rate, currency_code="USD", planned_hours=planned_hours))
     task = services['task_lifecycle_commands'].create_task(project.id, "P35 Design Task")
     assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
@@ -202,9 +204,7 @@ def test_second_calculation_supersedes_and_produces_one_hint(services):
 
 
 def test_invalid_calculation_produces_zero_hints(services):
-    project = services['project_create'].create_project(
-        "P35 No Cost Code Project", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P35 No Cost Code Project", financial_currency_code="USD"))
     hints = _spy_hints(services)
     with pytest.raises(BusinessRuleError):
         services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(project.id, calculated_by="admin"))

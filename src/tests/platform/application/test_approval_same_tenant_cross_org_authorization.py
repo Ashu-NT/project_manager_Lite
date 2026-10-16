@@ -22,6 +22,9 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
@@ -135,9 +138,7 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
 def _submitted_budget_in_org_a1(services, *, org_a1_id: str):
 
     assert _session_active_organization_id(services) == org_a1_id
-    project = services['project_create'].create_project(
-        _unique("XORG-Budget-Project"), financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=_unique("XORG-Budget-Project"), financial_currency_code="USD"))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("XORG-CC"), name="Cross-org cost code"
     ))

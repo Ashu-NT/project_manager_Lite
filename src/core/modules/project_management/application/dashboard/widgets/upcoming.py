@@ -6,7 +6,9 @@ from datetime import date, timedelta
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import (
     UpcomingTask,
 )
-from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.modules.project_management.application.resources.dto.responses.catalog import (
+    ResourceResponse,
+)
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 
 
@@ -18,7 +20,7 @@ class DashboardUpcomingWidget:
         *,
         tasks: list[Task],
         assignments_by_task: Mapping[str, list[TaskAssignment]],
-        resources_by_id: Mapping[str, Resource],
+        resources_by_id: Mapping[str, ResourceResponse],
     ) -> list[UpcomingTask]:
         today = date.today()  # noqa: DTZ011
         horizon = today + timedelta(days=14)

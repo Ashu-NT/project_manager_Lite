@@ -3,6 +3,10 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -589,7 +593,7 @@ class ProjectManagementProjectsWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def createProject(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
-            operation=lambda: self._projects_workspace_presenter.create_project(dict(payload)),
+            operation=lambda: self._projects_workspace_presenter.create_project(ProjectCreateCommand(name=dict(payload))),
             success_message="Project created.",
             on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
@@ -604,7 +608,7 @@ class ProjectManagementProjectsWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def updateProject(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
-            operation=lambda: self._projects_workspace_presenter.update_project(dict(payload)),
+            operation=lambda: self._projects_workspace_presenter.update_project(ProjectUpdateCommand(project_id=dict(payload))),
             success_message="Project updated.",
             on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,

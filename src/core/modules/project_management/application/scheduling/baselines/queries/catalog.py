@@ -6,6 +6,12 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.scheduling.dto.responses.baselines import (
+    SchedulingBaselineVarianceRowDto,
+)
+from src.core.modules.project_management.application.scheduling.mappers.baselines import (
+    map_baseline_variance,
+)
 from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
     BaselineRepository,
 )
@@ -119,6 +125,9 @@ class BaselineQueryHandler(ProjectManagementModuleGuardMixin):
         )
         return self._baselines.list_variance_records(baseline_id)
 
+
+    def query_variance_responses(self, baseline_id: str) -> tuple[SchedulingBaselineVarianceRowDto, ...]:
+        return tuple(map_baseline_variance(record) for record in self.list_variance_records(baseline_id))
 
     def get_baseline_task(self, baseline_id: str, task_id: str) -> BaselineTask | None:
         """Return one task's snapshot from a baseline, or None if the

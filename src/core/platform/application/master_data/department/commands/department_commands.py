@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.master_data.department.mappers.department as response_mapper
 from src.core.platform.application.master_data.department.department_context import (
     active_organization,
 )
@@ -20,6 +21,9 @@ from src.core.platform.application.master_data.department.department_validation 
 from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
+)
+from src.core.platform.application.master_data.department.dto.responses.department import (
+    DepartmentDto,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -100,7 +104,7 @@ class DepartmentCommandHandler:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
-    def create_department(self, command: DepartmentCreateCommand) -> Department:
+    def create_department(self, command: DepartmentCreateCommand) -> DepartmentDto:
         """Lifecycle is never settable through Create -- every new department
         starts ACTIVE. Use activate_department/deactivate_department afterward
         for any non-active initial state a test or import needs."""
@@ -178,9 +182,9 @@ class DepartmentCommandHandler:
                     "Department code already exists in the active organization.",
                     code="DEPARTMENT_CODE_EXISTS",
                 ) from exc
-        return department
+        return response_mapper.serialize_department(department)
 
-    def update_department(self, command: DepartmentUpdateCommand) -> Department:
+    def update_department(self, command: DepartmentUpdateCommand) -> DepartmentDto:
         """Pure profile update -- lifecycle is never settable here; use
         activate_department/deactivate_department instead."""
         require_permission(self._user_session, "settings.manage", operation_label="update department")
@@ -243,7 +247,7 @@ class DepartmentCommandHandler:
                 or candidate.notes != department.notes
             )
             if not profile_changed:
-                return department
+                return response_mapper.serialize_department(department)
             candidate = replace(candidate, updated_at=datetime.now(UTC))
             if command.department_code is not None:
                 existing = uow.departments.get_by_code(organization.id, candidate.department_code)
@@ -293,7 +297,7 @@ class DepartmentCommandHandler:
                     "Department code already exists in the active organization.",
                     code="DEPARTMENT_CODE_EXISTS",
                 ) from exc
-        return candidate
+        return response_mapper.serialize_department(candidate)
 
     def _transition_department_status(
         self, department_id: str, *, new_is_active: bool, action: str
@@ -356,15 +360,15 @@ class DepartmentCommandHandler:
             uow.commit()
         return candidate
 
-    def activate_department(self, department_id: str) -> Department:
-        return self._transition_department_status(
+    def activate_department(self, department_id: str) -> DepartmentDto:
+        return response_mapper.serialize_department(self._transition_department_status(
             department_id, new_is_active=True, action="department.activate"
-        )
+        ))
 
-    def deactivate_department(self, department_id: str) -> Department:
-        return self._transition_department_status(
+    def deactivate_department(self, department_id: str) -> DepartmentDto:
+        return response_mapper.serialize_department(self._transition_department_status(
             department_id, new_is_active=False, action="department.deactivate"
-        )
+        ))
 
 
 __all__ = ["DepartmentCommandHandler"]

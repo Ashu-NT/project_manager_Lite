@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.security.auth.mappers.user as response_mapper
 from src.core.platform.application.security.auth.audit.security_audit import (
     SecurityAuditRecorder,
 )
@@ -23,6 +24,7 @@ from src.core.platform.application.security.auth.commands.federated_identity imp
 from src.core.platform.application.security.auth.dto.commands.users import (
     UserCreateCommand,
 )
+from src.core.platform.application.security.auth.dto.responses.user import UserDto
 from src.core.platform.application.security.auth.queries.auth_queries import (
     AuthQueryHandler,
 )
@@ -461,7 +463,7 @@ class UserRegistrationHandler:
             account_type=account_type,
         )
 
-    def onboard_tenant_user(self, command: UserCreateCommand) -> UserAccount:
+    def onboard_tenant_user(self, command: UserCreateCommand) -> UserDto:
         username = command.username
         raw_password = command.password
         display_name = command.display_name
@@ -475,7 +477,7 @@ class UserRegistrationHandler:
         tenant_id = self._target_users.require_actor_active_tenant(
             operation_label="onboard a tenant user",
         )
-        return self._create_user(
+        response_user = self._create_user(
             username,
             raw_password,
             display_name,
@@ -486,6 +488,7 @@ class UserRegistrationHandler:
             tenant_id=tenant_id,
             audit_action="tenant_user.onboard",
         )
+        return response_mapper.serialize_user(response_user, role_names=tuple(sorted(self._auth_queries.get_user_role_names(response_user.id))))
 
     def register_bootstrap_user(
         self,

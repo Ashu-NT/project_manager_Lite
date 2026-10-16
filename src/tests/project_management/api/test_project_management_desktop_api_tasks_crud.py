@@ -1,3 +1,4 @@
+
 from datetime import date
 from types import SimpleNamespace
 
@@ -5,6 +6,9 @@ import pytest
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
 )
 from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
     TaskCreateCommand,
@@ -56,10 +60,7 @@ def test_project_management_tasks_desktop_api_lists_statuses() -> None:
 
 def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     project_service = _FakeProjectService()
-    project = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-    )
+    project = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line."))
     task_service = _FakeTaskService()
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
@@ -127,10 +128,7 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
 
 def test_project_management_tasks_desktop_api_threads_is_milestone() -> None:
     project_service = _FakeProjectService()
-    project = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-    )
+    project = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line."))
     task_service = _FakeTaskService()
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
@@ -181,10 +179,7 @@ def test_project_management_tasks_desktop_api_uses_task_scoped_project_query() -
             return list(self._projects)
 
     project_service = _FakeProjectService()
-    project = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-    )
+    project = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line."))
     project.organization_id = "org-test"
     task_service = _FakeTaskService()
     task = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Cable Pull", description="Primary feeder cable installation.", start_date=date(2026, 5, 3), duration_days=4, priority=80, deadline=date(2026, 5, 8)))

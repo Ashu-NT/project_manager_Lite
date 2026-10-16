@@ -1,7 +1,5 @@
 """Resource use cases."""
 from src.core.modules.project_management.application.resources.capacity.queries.workload import (
-    ResourceWorkloadDayFact,
-    ResourceWorkloadFact,
     ResourceWorkloadQueryHandler,
 )
 from src.core.modules.project_management.application.resources.capacity.resource_load_engine import (
@@ -55,8 +53,6 @@ __all__ = [
     "ResourcePoolSummary",
     "ResourceQueryHandler",
     "ResourceUtilizationBand",
-    "ResourceWorkloadDayFact",
-    "ResourceWorkloadFact",
     "ResourceWorkloadQueryHandler",
     "SkillViolation",
     "is_resource_near_capacity",

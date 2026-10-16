@@ -13,6 +13,9 @@ from src.core.modules.project_management.application.financials.budgets.dto.resp
     BudgetApprovalOutcome,
     BudgetApprovalResult,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.budget import (
     BudgetLine,
     BudgetStatus,
@@ -42,9 +45,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _make_project(services, name: str = "Budget Project"):
-    return services["project_create"].create_project(
-        name, financial_currency_code="USD"
-    )
+    return services["project_create"].create_project(ProjectCreateCommand(name=name, financial_currency_code="USD"))
 
 
 def _make_cost_code(services, code: str, name: str = "Cost Code"):

@@ -1,17 +1,33 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date
-from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.financials.financial_changes._command_values import (
+    command_amount,
+    command_date,
+    command_impact_type,
+    optional_command_date,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_draft import (
+    FinancialCreateChangeCommand,
+    FinancialUpdateChangeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_impacts import (
+    FinancialChangeImpactCommand,
+    FinancialRemoveChangeImpactCommand,
+    FinancialUpdateChangeImpactCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.responses.mutations import (
+    FinancialChangeMutationDto,
+)
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeEventType,
 )
-from src.core.modules.project_management.application.financials.financial_changes.mutation_result import (
-    FinancialChangeImpactMutationResult,
+from src.core.modules.project_management.application.financials.financial_changes.mappers.responses import (
+    map_change,
 )
 from src.core.modules.project_management.application.financials.financial_changes.policy import (
     FinancialChangeAuditPolicy,
@@ -97,39 +113,32 @@ class FinancialChangeDraftCommandHandler(
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
 
-    def create_change(
-        self,
-        project_id: str,
-        *,
-        title: str,
-        reason: str,
-        effective_date: date,
-        created_by: str,
-        description: str = "",
-    ) -> FinancialChangeRequest:
+    def create_change(self, command: FinancialCreateChangeCommand) -> FinancialChangeMutationDto:
+        created_by = self._command_actor_id()
+        effective_date = command_date(command.effective_date, "Effective date")
         self._require_project_permission(
-            project_id, "financial_change.manage", "create financial change"
+            command.project_id, "financial_change.manage", "create financial change"
         )
-        if self._project_repo.get(project_id) is None:
+        if self._project_repo.get(command.project_id) is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        profile = self._financial_profile_repo.get_by_project(project_id)
+        profile = self._financial_profile_repo.get_by_project(command.project_id)
         if profile is None:
             raise NotFoundError(
                 "Project financial profile not found; configure finance before change control.",
                 code="PROJECT_FINANCIAL_PROFILE_NOT_FOUND",
             )
         context = self._require_context("create financial change")
-        latest = self._change_repo.get_latest_for_project(project_id)
-        base_budget = self._budget_repo.get_approved_for_project(project_id)
-        base_forecast = self._forecast_repo.get_approved_for_project(project_id)
+        latest = self._change_repo.get_latest_for_project(command.project_id)
+        base_budget = self._budget_repo.get_approved_for_project(command.project_id)
+        base_forecast = self._forecast_repo.get_approved_for_project(command.project_id)
         now = self._clock.now()
         change = FinancialChangeRequest.create(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
-            project_id=project_id,
-            title=title,
-            reason=reason,
-            description=description,
+            project_id=command.project_id,
+            title=command.title,
+            reason=command.reason,
+            description=command.description,
             effective_date=effective_date,
             currency_code=profile.currency_code,
             created_by=created_by,
@@ -153,26 +162,18 @@ class FinancialChangeDraftCommandHandler(
                 ) from exc
             raise
         self._emit_change_event(change, FinancialChangeEventType.CREATED)
-        return change
+        return map_change(change)
 
-    def update_change(
-        self,
-        change_id: str,
-        *,
-        title: str,
-        reason: str,
-        description: str,
-        effective_date: date,
-        expected_version: int,
-    ) -> FinancialChangeRequest:
+    def update_change(self, command: FinancialUpdateChangeCommand) -> FinancialChangeMutationDto:
+        effective_date = command_date(command.effective_date, "Effective date")
         change = self._require_mutable_change(
-            change_id, expected_version, "update financial change"
+            command.change_id, command.expected_version, "update financial change"
         )
         now = self._clock.now()
         change.update_draft(
-            title=title,
-            reason=reason,
-            description=description,
+            title=command.title,
+            reason=command.reason,
+            description=command.description,
             effective_date=effective_date,
             updated_at=now,
         )
@@ -181,31 +182,19 @@ class FinancialChangeDraftCommandHandler(
                 self._require_cost_code(
                     change.project_id, impact.cost_code_id, effective_date
                 )
-        self._change_repo.update(change, expected_row_version=expected_version)
+        self._change_repo.update(change, expected_row_version=command.expected_version)
         self._audit_change("update", change)
         self._session.flush()
         self._emit_change_event(change, FinancialChangeEventType.UPDATED)
-        return change
+        return map_change(change)
 
-    def add_impact(
-        self,
-        change_id: str,
-        *,
-        impact_type: FinancialChangeImpactType,
-        description: str,
-        expected_change_version: int,
-        amount: Decimal = Decimal(0),
-        currency_code: str | None = None,
-        cost_code_id: str | None = None,
-        task_id: str | None = None,
-        target_line_id: str | None = None,
-        schedule_start: date | None = None,
-        schedule_finish: date | None = None,
-    ) -> FinancialChangeImpactMutationResult:
+    def add_impact(self, command: FinancialChangeImpactCommand) -> FinancialChangeMutationDto:
+        amount = command_amount(command.amount)
+        impact_type = command_impact_type(command.impact_type)
         change = self._require_mutable_change(
-            change_id, expected_change_version, "add financial change impact"
+            command.change_id, command.expected_change_version, "add financial change impact"
         )
-        resolved_currency = currency_code or (
+        resolved_currency = (command.currency_code or None) or (
             change.currency_code if amount != 0 else None
         )
         if resolved_currency and resolved_currency != change.currency_code:
@@ -213,31 +202,31 @@ class FinancialChangeDraftCommandHandler(
                 "Financial change impact currency must match the project finance currency.",
                 code="FINANCIAL_CHANGE_CURRENCY_MISMATCH",
             )
-        if cost_code_id:
+        if command.cost_code_id:
             self._require_cost_code(
-                change.project_id, cost_code_id, change.effective_date
+                change.project_id, command.cost_code_id, change.effective_date
             )
-        task = self._require_task(change.project_id, task_id) if task_id else None
+        task = self._require_task(change.project_id, command.task_id) if command.task_id else None
         impact = FinancialChangeImpact.create(
             tenant_id=change.tenant_id,
             organization_id=change.organization_id,
             change_request_id=change.id,
             project_id=change.project_id,
             impact_type=impact_type,
-            description=description,
+            description=command.description,
             amount=amount,
             currency_code=resolved_currency,
-            cost_code_id=cost_code_id,
-            task_id=task_id,
-            target_line_id=target_line_id,
+            cost_code_id=command.cost_code_id,
+            task_id=command.task_id,
+            target_line_id=command.target_line_id,
             target_task_version=(
                 task.version
                 if task is not None
                 and impact_type is FinancialChangeImpactType.SCHEDULE
                 else None
             ),
-            schedule_start=schedule_start,
-            schedule_finish=schedule_finish,
+            schedule_start=optional_command_date(command.schedule_start),
+            schedule_finish=optional_command_date(command.schedule_finish),
             created_at=self._clock.now(),
         )
         self._validate_target(change, impact)
@@ -267,31 +256,18 @@ class FinancialChangeDraftCommandHandler(
         now = self._clock.now()
         self._change_repo.add_impact(impact)
         change.touch(updated_at=now)
-        self._change_repo.update(change, expected_row_version=expected_change_version)
+        self._change_repo.update(change, expected_row_version=command.expected_change_version)
         self._audit_impact("add", change, impact)
         self._session.flush()
         self._emit_change_event(
             change, FinancialChangeEventType.IMPACT_ADDED, impact_id=impact.id
         )
-        return FinancialChangeImpactMutationResult(change=change, impact=impact)
+        return map_change(change, impact=impact)
 
-    def update_impact(
-        self,
-        impact_id: str,
-        *,
-        impact_type: FinancialChangeImpactType,
-        description: str,
-        expected_impact_version: int,
-        expected_change_version: int,
-        amount: Decimal = Decimal(0),
-        currency_code: str | None = None,
-        cost_code_id: str | None = None,
-        task_id: str | None = None,
-        target_line_id: str | None = None,
-        schedule_start: date | None = None,
-        schedule_finish: date | None = None,
-    ) -> FinancialChangeImpactMutationResult:
-        impact = self._require_impact(impact_id)
+    def update_impact(self, command: FinancialUpdateChangeImpactCommand) -> FinancialChangeMutationDto:
+        amount = command_amount(command.amount)
+        impact_type = command_impact_type(command.impact_type)
+        impact = self._require_impact(command.impact_id)
         if impact.impact_type is not impact_type:
             raise BusinessRuleError(
                 "Financial change impact type is immutable.",
@@ -299,15 +275,15 @@ class FinancialChangeDraftCommandHandler(
             )
         change = self._require_mutable_change(
             impact.change_request_id,
-            expected_change_version,
+            command.expected_change_version,
             "update financial change impact",
         )
-        if impact.row_version != expected_impact_version:
+        if impact.row_version != command.expected_impact_version:
             raise ConcurrencyError(
                 "Financial change impact was updated since you opened it.",
                 code="STALE_WRITE",
             )
-        resolved_currency = currency_code or (
+        resolved_currency = (command.currency_code or None) or (
             change.currency_code if amount != 0 else None
         )
         if resolved_currency and resolved_currency != change.currency_code:
@@ -315,27 +291,27 @@ class FinancialChangeDraftCommandHandler(
                 "Financial change impact currency must match the project finance currency.",
                 code="FINANCIAL_CHANGE_CURRENCY_MISMATCH",
             )
-        if cost_code_id:
+        if command.cost_code_id:
             self._require_cost_code(
-                change.project_id, cost_code_id, change.effective_date
+                change.project_id, command.cost_code_id, change.effective_date
             )
-        task = self._require_task(change.project_id, task_id) if task_id else None
+        task = self._require_task(change.project_id, command.task_id) if command.task_id else None
         now = self._clock.now()
         impact.update_draft(
-            description=description,
+            description=command.description,
             amount=amount,
             currency_code=resolved_currency,
-            cost_code_id=cost_code_id,
-            task_id=task_id,
-            target_line_id=target_line_id,
+            cost_code_id=command.cost_code_id,
+            task_id=command.task_id,
+            target_line_id=command.target_line_id,
             target_task_version=(
                 task.version
                 if task is not None
                 and impact.impact_type is FinancialChangeImpactType.SCHEDULE
                 else None
             ),
-            schedule_start=schedule_start,
-            schedule_finish=schedule_finish,
+            schedule_start=optional_command_date(command.schedule_start),
+            schedule_finish=optional_command_date(command.schedule_finish),
             updated_at=now,
         )
         self._validate_target(change, impact)
@@ -365,28 +341,22 @@ class FinancialChangeDraftCommandHandler(
                     code="FINANCIAL_CHANGE_DUPLICATE_SCHEDULE_TARGET",
                 )
         self._change_repo.update_impact(
-            impact, expected_row_version=expected_impact_version
+            impact, expected_row_version=command.expected_impact_version
         )
         change.touch(updated_at=now)
-        self._change_repo.update(change, expected_row_version=expected_change_version)
+        self._change_repo.update(change, expected_row_version=command.expected_change_version)
         self._audit_impact("update", change, impact)
         self._session.flush()
         self._emit_change_event(
             change, FinancialChangeEventType.IMPACT_UPDATED, impact_id=impact.id
         )
-        return FinancialChangeImpactMutationResult(change=change, impact=impact)
+        return map_change(change, impact=impact)
 
-    def remove_impact(
-        self,
-        impact_id: str,
-        *,
-        expected_impact_version: int,
-        expected_change_version: int,
-    ) -> FinancialChangeRequest:
-        impact = self._require_impact(impact_id)
+    def remove_impact(self, command: FinancialRemoveChangeImpactCommand) -> FinancialChangeMutationDto:
+        impact = self._require_impact(command.impact_id)
         change = self._require_mutable_change(
             impact.change_request_id,
-            expected_change_version,
+            command.expected_change_version,
             "remove financial change impact",
         )
         if impact.applied_reference_id:
@@ -396,15 +366,15 @@ class FinancialChangeDraftCommandHandler(
             )
         self._audit_impact("remove", change, impact)
         self._change_repo.delete_impact(
-            impact.id, expected_row_version=expected_impact_version
+            impact.id, expected_row_version=command.expected_impact_version
         )
         change.touch(updated_at=self._clock.now())
-        self._change_repo.update(change, expected_row_version=expected_change_version)
+        self._change_repo.update(change, expected_row_version=command.expected_change_version)
         self._session.flush()
         self._emit_change_event(
             change, FinancialChangeEventType.IMPACT_REMOVED, impact_id=impact.id
         )
-        return change
+        return map_change(change)
 
 
 __all__ = ["FinancialChangeDraftCommandHandler"]

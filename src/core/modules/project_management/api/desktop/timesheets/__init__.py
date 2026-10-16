@@ -30,28 +30,6 @@ from src.core.modules.project_management.api.desktop.timesheets.models.workspace
     ResourceTimesheetEntryPageDesktopDto,
     ResourceTimesheetHistoryPageDesktopDto,
     ResourceTimesheetPeriodDesktopDto,
-    TimesheetResourceDesktopDto,
-    TimesheetResourcePageDesktopDto,
-    TimesheetWorkspaceAccessDesktopDto,
 )
 
-__all__ = [
-    "ProjectManagementTimesheetsDesktopApi",
-    "ResourceTimesheetEntryDesktopDto",
-    "ResourceTimesheetEntryPageDesktopDto",
-    "ResourceTimesheetHistoryPageDesktopDto",
-    "ResourceTimesheetPeriodDesktopDto",
-    "TimesheetAssignmentOptionDescriptor",
-    "TimesheetAssignmentSnapshotDesktopDto",
-    "TimesheetEntryDesktopDto",
-    "TimesheetOptionDescriptor",
-    "TimesheetPeriodOptionDescriptor",
-    "TimesheetPeriodSummaryDesktopDto",
-    "TimesheetProjectOptionDescriptor",
-    "TimesheetResourceDesktopDto",
-    "TimesheetResourcePageDesktopDto",
-    "TimesheetReviewDetailDesktopDto",
-    "TimesheetReviewPageDesktopDto",
-    "TimesheetWorkspaceAccessDesktopDto",
-    "build_project_management_timesheets_desktop_api",
-]
+__all__ = ['ProjectManagementTimesheetsDesktopApi', 'ResourceTimesheetEntryDesktopDto', 'ResourceTimesheetEntryPageDesktopDto', 'ResourceTimesheetHistoryPageDesktopDto', 'ResourceTimesheetPeriodDesktopDto', 'TimesheetAssignmentOptionDescriptor', 'TimesheetAssignmentSnapshotDesktopDto', 'TimesheetEntryDesktopDto', 'TimesheetOptionDescriptor', 'TimesheetPeriodOptionDescriptor', 'TimesheetPeriodSummaryDesktopDto', 'TimesheetProjectOptionDescriptor', 'TimesheetReviewDetailDesktopDto', 'TimesheetReviewPageDesktopDto', 'build_project_management_timesheets_desktop_api']

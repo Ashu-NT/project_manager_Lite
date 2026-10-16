@@ -4,12 +4,18 @@ from unittest.mock import Mock
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def test_task_detail_batch_lookup_uses_one_scoped_repository_call(services, monkeypatch) -> None:
-    project = services["project_create"].create_project("Batch task lookup")
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Batch task lookup"))
     tasks = [services["task_lifecycle_commands"].create_task(project.id, name) for name in ("Task A", "Task B")]
     detail = services["task_detail_query"]
     read = Mock(wraps=detail._task_repo.list_by_ids)
@@ -20,7 +26,7 @@ def test_task_detail_batch_lookup_uses_one_scoped_repository_call(services, monk
 
 
 def test_task_detail_batch_lookup_preserves_project_denial(services, monkeypatch) -> None:
-    project = services["project_create"].create_project("Denied batch lookup")
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Denied batch lookup"))
     task = services["task_lifecycle_commands"].create_task(project.id, "Restricted")
     detail = services["task_detail_query"]
     deny = Mock(side_effect=BusinessRuleError("Project access denied.", code="PERMISSION_DENIED"))
@@ -33,12 +39,12 @@ def test_task_detail_batch_lookup_preserves_project_denial(services, monkeypatch
 
 def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services) -> None:
     detail = services["task_detail_query"]
-    project = services['project_create'].create_project("Task detail query project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Task detail query project"))
     predecessor = services['task_lifecycle_commands'].create_task(project.id, "Predecessor")
     task = services['task_lifecycle_commands'].create_task(project.id, "Target")
     successor = services['task_lifecycle_commands'].create_task(project.id, "Successor")
-    zed = services["resource_master_commands"].create_resource("Zed Resource")
-    ada = services["resource_master_commands"].create_resource("Ada Resource")
+    zed = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Zed Resource"))
+    ada = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Ada Resource"))
     services['task_assignment_commands'].assign_resource(task.id, zed.id, allocation_percent=25)
     services['task_assignment_commands'].assign_resource(task.id, ada.id, allocation_percent=25)
     services['task_dependency_commands'].add_dependency(predecessor.id, task.id, DependencyType.FINISH_TO_START)
@@ -70,7 +76,7 @@ def test_task_detail_pages_keep_server_order_filters_and_bounded_pages(services)
 
 
 def test_task_detail_scope_denial_stops_before_reader(services, monkeypatch) -> None:
-    project = services['project_create'].create_project("Task detail scope project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Task detail scope project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Scoped task")
     detail = services["task_detail_query"]
     reader = detail._task_workspace_reader

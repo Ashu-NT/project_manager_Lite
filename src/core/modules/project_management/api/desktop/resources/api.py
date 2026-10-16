@@ -23,8 +23,6 @@ from src.core.modules.project_management.api.desktop.resources.models.certificat
 )
 from src.core.modules.project_management.api.desktop.resources.models.context import (
     ResourceActivityPageDesktopDto,
-    ResourceAssignmentsPageDesktopDto,
-    ResourceProjectsPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
@@ -48,8 +46,6 @@ from src.core.modules.project_management.api.desktop.resources.serializers.certi
 )
 from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
     serialize_resource_activity,
-    serialize_resource_assignment,
-    serialize_resource_project,
 )
 from src.core.modules.project_management.api.desktop.resources.serializers.resource_serializer import (
     serialize_resource,
@@ -65,12 +61,14 @@ from src.core.modules.project_management.api.desktop.resources.utils.date_utils 
 )
 from src.core.modules.project_management.api.desktop.resources.utils.resource_enum_utils import (
     coerce_cost_type,
-    coerce_worker_type,
 )
 from src.core.modules.project_management.application.resources import (
     ResourceCapabilityCommandHandler,
     ResourceMasterCommandHandler,
     ResourceQueryHandler,
+)
+from src.core.modules.project_management.application.resources.capacity.queries.workload import (
+    ResourceWorkloadQueryHandler,
 )
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
@@ -87,6 +85,10 @@ from src.core.modules.project_management.application.resources.dto.commands.skil
     ResourceAddSkillCommand,
     ResourceRemoveSkillCommand,
     ResourceUpdateSkillCommand,
+)
+from src.core.modules.project_management.application.resources.dto.responses.context import (
+    ResourceAssignmentsPageResponse,
+    ResourceProjectsPageResponse,
 )
 from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
     ResourceContextQueryHandler,
@@ -138,7 +140,7 @@ class ProjectManagementResourcesDesktopApi:
         resource_context_query: ResourceContextQueryHandler | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
         employee_query: EmployeeQueryHandler | None = None,
-        workload_service: object | None = None,
+        workload_service: ResourceWorkloadQueryHandler | None = None,
         department_query: DepartmentQueryHandler | None = None,
         site_query: SiteQueryHandler | None = None,
     ) -> None:
@@ -245,22 +247,7 @@ class ProjectManagementResourcesDesktopApi:
 
     def create_resource(self, command: ResourceCreateCommand) -> ResourceDesktopDto:
         service = self._require_resource_master_commands("create resource")
-        resource = service.create_resource(
-            name=command.name,
-            code=command.code,
-            kind=command.kind,
-            role=command.role,
-            hourly_rate=command.hourly_rate,
-            cost_type=coerce_cost_type(command.cost_type),
-            currency_code=command.currency_code,
-            capacity_percent=command.capacity_percent,
-            address=command.address,
-            contact=command.contact,
-            worker_type=coerce_worker_type(command.worker_type),
-            employee_id=command.employee_id,
-            department_id=command.department_id,
-            site_id=command.site_id,
-        )
+        resource = service.create_resource(command)
         return serialize_resource(
             resource,
             employee_lookup=build_employee_lookup(self._employee_query),
@@ -268,24 +255,7 @@ class ProjectManagementResourcesDesktopApi:
 
     def update_resource(self, command: ResourceUpdateCommand) -> ResourceDesktopDto:
         service = self._require_resource_master_commands("update resource")
-        resource = service.update_resource(
-            resource_id=command.resource_id,
-            expected_version=command.expected_version,
-            name=command.name,
-            code=command.code,
-            kind=command.kind,
-            role=command.role,
-            hourly_rate=command.hourly_rate,
-            cost_type=coerce_cost_type(command.cost_type),
-            currency_code=command.currency_code,
-            capacity_percent=command.capacity_percent,
-            address=command.address,
-            contact=command.contact,
-            worker_type=coerce_worker_type(command.worker_type),
-            employee_id=command.employee_id,
-            department_id=command.department_id,
-            site_id=command.site_id,
-        )
+        resource = service.update_resource(command)
         return serialize_resource(
             resource,
             employee_lookup=build_employee_lookup(self._employee_query),
@@ -293,10 +263,7 @@ class ProjectManagementResourcesDesktopApi:
 
     def deactivate_resource(self, command: ResourceLifecycleCommand) -> ResourceDesktopDto:
         service = self._require_resource_master_commands("deactivate resource")
-        updated = service.deactivate_resource(
-            resource_id=command.resource_id,
-            expected_version=command.expected_version,
-        )
+        updated = service.deactivate_resource(command)
         return serialize_resource(
             updated,
             employee_lookup=build_employee_lookup(self._employee_query),
@@ -304,10 +271,7 @@ class ProjectManagementResourcesDesktopApi:
 
     def reactivate_resource(self, command: ResourceLifecycleCommand) -> ResourceDesktopDto:
         service = self._require_resource_master_commands("reactivate resource")
-        updated = service.reactivate_resource(
-            resource_id=command.resource_id,
-            expected_version=command.expected_version,
-        )
+        updated = service.reactivate_resource(command)
         return serialize_resource(
             updated,
             employee_lookup=build_employee_lookup(self._employee_query),
@@ -315,10 +279,7 @@ class ProjectManagementResourcesDesktopApi:
 
     def purge_resource(self, command: ResourcePurgeCommand) -> None:
         service = self._require_resource_master_commands("purge resource")
-        service.purge_resource(
-            resource_id=command.resource_id,
-            expected_version=command.expected_version,
-        )
+        service.purge_resource(command)
 
     def list_resource_skills_page(
         self,
@@ -366,13 +327,7 @@ class ProjectManagementResourcesDesktopApi:
         command: ResourceAddSkillCommand,
     ) -> ResourceSkillDesktopDto:
         service = self._require_resource_capability_commands("add resource skill")
-        skill = service.add_resource_skill(
-            resource_id=command.resource_id,
-            skill_code=command.skill_code,
-            skill_name=command.skill_name,
-            proficiency=command.proficiency,
-            notes=command.notes,
-        )
+        skill = service.add_resource_skill(command)
         return serialize_skill(skill)
 
     def list_resource_certifications_page(
@@ -424,63 +379,33 @@ class ProjectManagementResourcesDesktopApi:
         self, command: ResourceUpdateSkillCommand
     ) -> ResourceSkillDesktopDto:
         service = self._require_resource_capability_commands("update resource skill")
-        skill = service.update_resource_skill(
-            skill_id=command.skill_id,
-            expected_version=command.expected_version,
-            skill_code=command.skill_code,
-            skill_name=command.skill_name,
-            proficiency=command.proficiency,
-            notes=command.notes,
-        )
+        skill = service.update_resource_skill(command)
         return serialize_skill(skill)
 
     def remove_resource_skill(self, command: ResourceRemoveSkillCommand) -> None:
         service = self._require_resource_capability_commands("remove resource skill")
-        service.remove_resource_skill(
-            command.skill_id, expected_version=command.expected_version
-        )
+        service.remove_resource_skill(command)
 
     def add_resource_certification(
         self,
         command: ResourceAddCertificationCommand,
     ) -> ResourceCertificationDesktopDto:
         service = self._require_resource_capability_commands("add resource certification")
-        certification = service.add_resource_certification(
-            resource_id=command.resource_id,
-            certification_code=command.certification_code,
-            certification_name=command.certification_name,
-            issued_date=parse_date(command.issued_date),
-            expiry_date=parse_date(command.expiry_date),
-            certificate_number=command.certificate_number,
-            issuer=command.issuer,
-            notes=command.notes,
-        )
+        certification = service.add_resource_certification(command)
         return serialize_certification(certification)
 
     def update_resource_certification(
         self, command: ResourceUpdateCertificationCommand
     ) -> ResourceCertificationDesktopDto:
         service = self._require_resource_capability_commands("update resource certification")
-        certification = service.update_resource_certification(
-            cert_id=command.cert_id,
-            expected_version=command.expected_version,
-            certification_code=command.certification_code,
-            certification_name=command.certification_name,
-            issued_date=parse_date(command.issued_date),
-            expiry_date=parse_date(command.expiry_date),
-            certificate_number=command.certificate_number,
-            issuer=command.issuer,
-            notes=command.notes,
-        )
+        certification = service.update_resource_certification(command)
         return serialize_certification(certification)
 
     def remove_resource_certification(
         self, command: ResourceRemoveCertificationCommand
     ) -> None:
         service = self._require_resource_capability_commands("remove resource certification")
-        service.remove_resource_certification(
-            command.cert_id, expected_version=command.expected_version
-        )
+        service.remove_resource_certification(command)
 
     def list_resource_projects_page(
         self,
@@ -493,7 +418,7 @@ class ProjectManagementResourcesDesktopApi:
         page_size: int = 25,
         sort_key: str = "projectName",
         sort_direction: str = "asc",
-    ) -> ResourceProjectsPageDesktopDto:
+    ) -> ResourceProjectsPageResponse:
         active_value = (
             True if str(active).lower() == "active"
             else False if str(active).lower() == "inactive"
@@ -509,14 +434,7 @@ class ProjectManagementResourcesDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return ResourceProjectsPageDesktopDto(
-            items=tuple(serialize_resource_project(item) for item in result.items),
-            filtered_total=result.filtered_total,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
-        )
+        return result
 
     def list_resource_assignments_page(
         self,
@@ -533,7 +451,7 @@ class ProjectManagementResourcesDesktopApi:
         page_size: int = 25,
         sort_key: str = "scheduledStart",
         sort_direction: str = "asc",
-    ) -> ResourceAssignmentsPageDesktopDto:
+    ) -> ResourceAssignmentsPageResponse:
         result = self._require_resource_context_query().query_resource_assignments_page(
             resource_id,
             search_text=search_text,
@@ -551,14 +469,7 @@ class ProjectManagementResourcesDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return ResourceAssignmentsPageDesktopDto(
-            items=tuple(serialize_resource_assignment(item) for item in result.items),
-            filtered_total=result.filtered_total,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
-        )
+        return result
 
     def list_resource_activity_page(
         self,

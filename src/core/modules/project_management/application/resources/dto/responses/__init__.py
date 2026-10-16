@@ -1,1 +1,1 @@
-"""Application responses contracts."""
+"""Transport-neutral resource responses."""

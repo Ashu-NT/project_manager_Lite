@@ -11,6 +11,9 @@ from decimal import Decimal
 from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
     PortfolioDependencyCreateCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
     PortfolioIntakeItemORM,
@@ -207,12 +210,7 @@ def _seed_projects_with_financial_profile(services, count: int, *, late_task_cou
     today = date.today()
     projects = []
     for index in range(count):
-        project = services['project_create'].create_project(
-            f"Heatmap Scale Project {index:03d}",
-            start_date=today - timedelta(days=30),
-            end_date=today + timedelta(days=30),
-            financial_currency_code="EUR",
-        )
+        project = services['project_create'].create_project(ProjectCreateCommand(name=f"Heatmap Scale Project {index:03d}", start_date=today - timedelta(days=30), end_date=today + timedelta(days=30), financial_currency_code="EUR"))
         projects.append(project)
         if index < late_task_count:
             services['task_lifecycle_commands'].create_task(

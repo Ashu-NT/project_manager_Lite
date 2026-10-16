@@ -229,7 +229,11 @@ def test_budget_line_consumes_zero_and_parent_version_without_committing():
         budget_id=budget.id, expected_parent_version=1, cost_code_id="cc-1",
         description="Zero estimate", amount="0.00", currency_code="USD",
     )
-    line = handler.add_line(command)
+    response = handler.add_line(command)
+    line = repo.add_line.call_args.args[0]
+    assert response.budget_line_id == line.id
+    assert response.budget_id == budget.id
+    assert response.row_version == line.row_version
     assert line.amount == Decimal("0.00")
     assert (line.tenant_id, line.organization_id, line.project_id) == (
         "tenant-1", "org-1", "project-1",
@@ -255,8 +259,10 @@ def test_budget_line_update_accepts_zero_and_explicitly_clears_task():
         cost_code_id="cc-1", description="Zero", amount="0", currency_code="USD",
         task_id=None,
     ))
-    assert result.amount == Decimal(0)
-    assert result.task_id is None
+    assert result.budget_line_id == line.id
+    assert result.row_version == line.row_version
+    assert line.amount == Decimal(0)
+    assert line.task_id is None
     repo.update_line.assert_called_once_with(line, expected_row_version=1)
     repo.update.assert_called_once_with(budget, expected_row_version=1)
     session.commit.assert_not_called()

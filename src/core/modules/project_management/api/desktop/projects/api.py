@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 from src.core.modules.project_management.api.desktop.common.detail_pages import (
     DetailActivityDesktopDto,
     DetailActivityPageDesktopDto,
@@ -14,6 +12,9 @@ from src.core.modules.project_management.api.desktop.projects.builders.resource_
 )
 from src.core.modules.project_management.api.desktop.projects.builders.status_builder import (
     build_status_options,
+)
+from src.core.modules.project_management.api.desktop.projects.formatters.project import (
+    present_project,
 )
 from src.core.modules.project_management.api.desktop.projects.models.project import (
     ProjectCatalogPageDesktopDto,
@@ -27,9 +28,6 @@ from src.core.modules.project_management.api.desktop.projects.models.resources i
     ProjectResourceDetailDesktopDto,
     ProjectResourceDetailPageDesktopDto,
     ProjectResourceUsageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.projects.serializers.project_serializer import (
-    serialize_project,
 )
 from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
     serialize_project_resource,
@@ -73,8 +71,6 @@ from src.core.platform.application.master_data.department import (
 from src.core.platform.application.master_data.site import SiteQueryHandler
 from src.core.platform.common.exceptions import (
     ConfigurationError,
-    UnsupportedOperationError,
-    ValidationError,
 )
 
 
@@ -127,7 +123,7 @@ class ProjectManagementProjectsDesktopApi:
             key=lambda p: (p.name or "").casefold(),
         )
         return tuple(
-            serialize_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
+            present_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
             for p in projects
         )
 
@@ -180,24 +176,10 @@ class ProjectManagementProjectsDesktopApi:
         department_lookup = self._department_lookup()
         return ProjectCatalogPageDesktopDto(
             items=tuple(
-                serialize_project(
-                    item.project,
+                present_project(
+                    item,
                     site_lookup={str(item.project.site_id or ""): item.site_label},
                     department_lookup=department_lookup,
-                    financial_currency_code=item.financial_currency_code,
-                    approved_budget=item.approved_budget,
-                    approved_budget_currency=getattr(
-                        item,
-                        "approved_budget_currency",
-                        item.financial_currency_code,
-                    ),
-                    approved_budget_visible=bool(
-                        getattr(
-                            item,
-                            "approved_budget_visible",
-                            item.approved_budget is not None,
-                        )
-                    ),
                     client_label=item.client_label,
                 )
                 for item in result.items
@@ -237,14 +219,10 @@ class ProjectManagementProjectsDesktopApi:
         item = self._require_project_query().query_project_detail(normalized_id)
         if item is None:
             return None
-        return serialize_project(
-            item.project,
+        return present_project(
+            item,
             site_lookup={str(item.project.site_id or ""): item.site_label},
             department_lookup=self._department_lookup(),
-            financial_currency_code=item.financial_currency_code,
-            approved_budget=item.approved_budget,
-            approved_budget_currency=item.approved_budget_currency,
-            approved_budget_visible=item.approved_budget_visible,
             client_label=item.client_label,
         )
 
@@ -258,7 +236,7 @@ class ProjectManagementProjectsDesktopApi:
             key=lambda p: (p.name or "").casefold(),
         )
         return tuple(
-            serialize_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
+            present_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
             for p in projects
         )
 
@@ -272,7 +250,7 @@ class ProjectManagementProjectsDesktopApi:
             key=lambda p: (p.name or "").casefold(),
         )
         return tuple(
-            serialize_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
+            present_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
             for p in projects
         )
 
@@ -280,23 +258,8 @@ class ProjectManagementProjectsDesktopApi:
         if self._project_create is None:
             raise ConfigurationError("Project creation is not connected.")
         service = self._project_create
-        project = service.create_project(
-            name=command.name,
-            code=command.code,
-            description=command.description,
-            status=coerce_project_status(command.status),
-            client_name=command.client_name,
-            client_contact=command.client_contact,
-            financial_currency_code=command.financial_currency_code,
-            start_date=command.start_date,
-            end_date=command.end_date,
-            organization_id=command.organization_id,
-            site_id=command.site_id,
-            department_id=command.department_id,
-            client_party_id=command.client_party_id,
-            manager_user_id=command.manager_user_id,
-        )
-        return serialize_project(
+        project = service.create_project(command)
+        return present_project(
             project,
             site_lookup=self._site_lookup(),
             department_lookup=self._department_lookup(),
@@ -306,24 +269,8 @@ class ProjectManagementProjectsDesktopApi:
         if self._project_update is None:
             raise ConfigurationError("Project updates are not connected.")
         service = self._project_update
-        project = service.update_project(
-            command.project_id,
-            expected_version=command.expected_version,
-            name=command.name,
-            code=command.code,
-            description=command.description,
-            status=coerce_project_status(command.status),
-            start_date=command.start_date,
-            end_date=command.end_date,
-            client_name=command.client_name,
-            client_contact=command.client_contact,
-            organization_id=command.organization_id,
-            site_id=command.site_id,
-            department_id=command.department_id,
-            client_party_id=command.client_party_id,
-            manager_user_id=command.manager_user_id,
-        )
-        return serialize_project(
+        project = service.update_project(command)
+        return present_project(
             project,
             site_lookup=self._site_lookup(),
             department_lookup=self._department_lookup(),
@@ -337,7 +284,7 @@ class ProjectManagementProjectsDesktopApi:
         project = self._require_project_query().get_project(project_id)
         if project is None:
             raise RuntimeError("Project status updated but the project could not be reloaded.")
-        return serialize_project(
+        return present_project(
             project,
             site_lookup=self._site_lookup(),
             department_lookup=self._department_lookup(),
@@ -357,7 +304,7 @@ class ProjectManagementProjectsDesktopApi:
             project = self._require_project_query().get_project(project_id)
             if project is None:
                 raise RuntimeError("Project status updated but the project could not be reloaded.")
-            results.append(serialize_project(project, site_lookup=site_lookup, department_lookup=department_lookup))
+            results.append(present_project(project, site_lookup=site_lookup, department_lookup=department_lookup))
         return tuple(results)
 
     def delete_project(self, project_id: str) -> None:
@@ -371,14 +318,7 @@ class ProjectManagementProjectsDesktopApi:
         normalized_id = str(project_id or "").strip()
         if not normalized_id or self._project_resource_query is None:
             return ()
-        list_by_project = getattr(
-            self._project_resource_query,
-            "list_for_project_workspace",
-            None,
-        )
-        if not callable(list_by_project):
-            return ()
-        project_resources = list(list_by_project(normalized_id))
+        project_resources = self._project_resource_query.list_for_project_workspace(normalized_id)
 
         resource_ids = tuple(str(getattr(pr, "resource_id", "") or "") for pr in project_resources)
         resources_by_id = resource_lookup(
@@ -442,66 +382,25 @@ class ProjectManagementProjectsDesktopApi:
         )
 
     def add_project_resource(self, command: ProjectResourceAssignCommand) -> ProjectResourceDesktopDto:
-        normalized_project_id = str(command.project_id or "").strip()
-        normalized_resource_id = str(command.resource_id or "").strip()
-        if not normalized_project_id:
-            raise ValidationError("Project ID is required to assign a resource.", code="PROJECT_ID_REQUIRED")
-        if not normalized_resource_id:
-            raise ValidationError("Resource selection is required.", code="RESOURCE_ID_REQUIRED")
-        service = self._require_project_resource_commands()
-        add_fn = getattr(service, "add_to_project", None) or getattr(service, "create", None)
-        if not callable(add_fn):
-            raise UnsupportedOperationError("Project resource service does not support project assignment.")
-        project_resource = add_fn(
-            project_id=normalized_project_id,
-            resource_id=normalized_resource_id,
-            hourly_rate=command.hourly_rate,
-            currency_code=command.currency_code,
-            planned_hours=command.planned_hours,
-            is_active=True,
-        )
+        project_resource = self._require_project_resource_commands().add_to_project(command)
         res = resource_lookup(
-            normalized_project_id, (normalized_resource_id,),
+            project_resource.project_id, (project_resource.resource_id,),
             resource_query=self._resource_service,
-        ).get(normalized_resource_id)
+        ).get(project_resource.resource_id)
         return serialize_project_resource(project_resource, resource_by_id=res)
 
     def update_project_resource(self, command: ProjectResourceUpdateCommand) -> None:
-        normalized_id = str(command.project_resource_id or "").strip()
-        if not normalized_id:
-            raise ValidationError("Project resource ID is required.", code="PROJECT_RESOURCE_ID_REQUIRED")
-        service = self._require_project_resource_commands()
-        update = getattr(service, "update", None)
-        if not callable(update):
-            raise UnsupportedOperationError("Project resource service does not support updates.")
-        update(
-            normalized_id,
-            hourly_rate=command.hourly_rate,
-            currency_code=None,
-            planned_hours=max(Decimal(0), command.planned_hours),
-            is_active=command.is_active,
-            expected_version=command.expected_version,
-        )
+        self._require_project_resource_commands().update(command)
 
     def get_project_resource_usage(self, project_resource_id: str) -> ProjectResourceUsageDesktopDto | None:
         normalized_id = str(project_resource_id or "").strip()
         if not normalized_id or self._project_resource_query is None:
             return None
-        get_usage = getattr(self._project_resource_query, "get_usage", None)
-        if not callable(get_usage):
-            return None
-        fact = get_usage(normalized_id)
+        fact = self._project_resource_query.get_usage(normalized_id)
         return serialize_project_resource_usage(fact)
 
     def remove_project_resource(self, project_resource_id: str) -> None:
-        normalized_id = str(project_resource_id or "").strip()
-        if not normalized_id:
-            raise ValidationError("Project resource ID is required.", code="PROJECT_RESOURCE_ID_REQUIRED")
-        service = self._require_project_resource_commands()
-        delete = getattr(service, "delete", None)
-        if not callable(delete):
-            raise UnsupportedOperationError("Project resource service does not support deletion.")
-        delete(normalized_id)
+        self._require_project_resource_commands().delete(project_resource_id)
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

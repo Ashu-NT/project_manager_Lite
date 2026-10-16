@@ -1,7 +1,9 @@
 """Factory for building the scheduling desktop API."""
-
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
+)
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    ProjectCalendarAdapter,
 )
 
 
@@ -18,6 +20,7 @@ def build_project_management_scheduling_desktop_api(
     platform_calendar_api=None,
     work_calendar_service=None,
     work_calendar_engine=None,
+    project_calendar_adapter: ProjectCalendarAdapter | None = None,
     baseline_query=None,
     baseline_commands=None,
     baseline_compare_report=None,
@@ -38,6 +41,7 @@ def build_project_management_scheduling_desktop_api(
         platform_calendar_api=platform_calendar_api,
         work_calendar_service=work_calendar_service,
         work_calendar_engine=work_calendar_engine,
+        project_calendar_adapter=project_calendar_adapter,
         baseline_query=baseline_query,
         baseline_commands=baseline_commands,
         baseline_compare_report=baseline_compare_report,

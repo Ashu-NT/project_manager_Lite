@@ -7,9 +7,10 @@ from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
 )
-from src.core.platform.access.domain import ScopedAccessGrant
-from src.core.platform.api.desktop.access.models.access import (
+from src.core.platform.access.application.dto.responses.scoped_access import (
     ScopedAccessGrantDto,
+)
+from src.core.platform.api.desktop.access.models.access import (
     ScopeTargetDto,
     ScopeTypeChoiceDto,
 )
@@ -75,7 +76,7 @@ class PlatformAccessDesktopApi:
     ) -> DesktopApiResult[tuple[ScopedAccessGrantDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
-                self._serialize_grant(grant)
+                grant
                 for grant in self._access_service.list_scope_grants(scope_type, scope_id)
             )
         )
@@ -85,9 +86,7 @@ class PlatformAccessDesktopApi:
         command: ScopedAccessGrantAssignCommand,
     ) -> DesktopApiResult[ScopedAccessGrantDto]:
         return execute_desktop_operation(
-            lambda: self._serialize_grant(
-                self._access_service.assign_scope_grant(command)
-            )
+            lambda: self._access_service.assign_scope_grant(command)
         )
 
     def remove_scope_grant(self, command: ScopedAccessGrantRemoveCommand) -> DesktopApiResult[None]:
@@ -95,17 +94,6 @@ class PlatformAccessDesktopApi:
             lambda: self._access_service.remove_scope_grant(command)
         )
 
-    @staticmethod
-    def _serialize_grant(grant: ScopedAccessGrant) -> ScopedAccessGrantDto:
-        return ScopedAccessGrantDto(
-            id=grant.id,
-            scope_type=grant.scope_type,
-            scope_id=grant.scope_id,
-            user_id=grant.user_id,
-            scope_role=grant.scope_role,
-            permission_codes=tuple(grant.permission_codes or ()),
-            created_at=grant.created_at,
-        )
 
 
 __all__ = ["PlatformAccessDesktopApi"]

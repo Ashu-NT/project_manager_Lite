@@ -8,6 +8,10 @@ from src.core.platform.application.master_data.documents.commands.document_comma
 from src.core.platform.application.master_data.documents.dto.commands.links import (
     DocumentLinkCreateCommand,
 )
+from src.core.platform.application.master_data.documents.dto.responses.document import (
+    DocumentDto,
+    DocumentLinkDto,
+)
 from src.core.platform.application.master_data.documents.queries.document_queries import (
     DocumentQueryHandler,
 )
@@ -36,7 +40,6 @@ if TYPE_CHECKING:
     from src.core.platform.contract.repositories.master_data.employee.contracts import (
         EmployeeRepository,
     )
-    from src.core.platform.domain.master_data.documents import Document, DocumentLink
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.uow.master_data.employee_unit_of_work import (
     EmployeeUnitOfWorkFactory,
@@ -70,7 +73,7 @@ class EmployeeDocumentCommandHandler:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
-    def link_employee_document(self, employee_id: str, document_id: str) -> DocumentLink:
+    def link_employee_document(self, employee_id: str, document_id: str) -> DocumentLinkDto:
         """Links an existing Document to this Employee -- the generic
         DocumentLink relationship, translated internally from the explicit
         employee_id the caller provides (never a raw entity_type/entity_id pair
@@ -86,7 +89,7 @@ class EmployeeDocumentCommandHandler:
         require_permission(self._user_session, "employee.manage", operation_label="link employee document")
         require_permission(self._user_session, _DOCUMENT_MANAGE_PERMISSION, operation_label="link employee document")
         _employee, organization_id = require_employee_in_context(self._employee_repo, self._tenant_context_service, employee_id)
-        document: Document = self._document_query.get_document(document_id)
+        document: DocumentDto = self._document_query.get_document(document_id)
         link = self._document_commands.add_link(DocumentLinkCreateCommand(document_id=document_id, module_code=_MODULE_CODE, entity_type=_ENTITY_TYPE, entity_id=employee_id))
         with self._uow_factory.create(context=_new_context()) as uow:
             record_activity(

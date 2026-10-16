@@ -179,3 +179,38 @@ def test_register_dashboard_snapshot_exposes_scalar_risk_facts() -> None:
     high_risks = next(f for f in fields(RegisterDashboardSnapshot) if f.name == "high_risks")
     assert "RegisterHighRiskItem" in str(high_risks.type)
     assert "RegisterEntry," not in str(high_risks.type)
+
+
+def test_application_mappers_do_not_rebuild_the_same_dto_field_for_field() -> None:
+    violations: list[str] = []
+    for application in (SRC_ROOT / "platform/application", SRC_ROOT / "modules/project_management/application"):
+        for path in application.rglob("mappers/*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+            for node in tree.body:
+                if not isinstance(node, ast.FunctionDef) or len(node.args.args) != 1:
+                    continue
+                parameter = node.args.args[0]
+                if not isinstance(parameter.annotation, ast.Name) or not isinstance(node.returns, ast.Name):
+                    continue
+                if parameter.annotation.id != node.returns.id:
+                    continue
+                statements = [statement for statement in node.body if not (
+                    isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant)
+                    and isinstance(statement.value.value, str)
+                )]
+                if len(statements) != 1 or not isinstance(statements[0], ast.Return):
+                    continue
+                result = statements[0].value
+                if not isinstance(result, ast.Call) or not isinstance(result.func, ast.Name):
+                    continue
+                if result.func.id != node.returns.id or result.args or not result.keywords:
+                    continue
+                if all(
+                    isinstance(keyword.value, ast.Attribute)
+                    and isinstance(keyword.value.value, ast.Name)
+                    and keyword.value.value.id == parameter.arg
+                    and keyword.arg == keyword.value.attr
+                    for keyword in result.keywords
+                ):
+                    violations.append(f"{path.relative_to(SRC_ROOT)}:{node.name}")
+    assert not violations, "Identity DTO copies should return the canonical value directly: " + str(violations)

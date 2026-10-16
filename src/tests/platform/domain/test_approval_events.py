@@ -19,6 +19,9 @@ from src.core.modules.project_management.application.financials.invoicing.billin
     BillingPreparationStatusChanged,
     BillingPreparationStatusChangeType,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
@@ -88,9 +91,7 @@ def _spy_recorded_events(uow_factory, monkeypatch) -> list:
 
 def _submitted_budget(services, session):
     _login(services, "admin", "ChangeMe123!")
-    project = services['project_create'].create_project(
-        _unique("Approval Events Project"), financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=_unique("Approval Events Project"), financial_currency_code="USD"))
     services['budget_query']
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("EVT-CC"), name="Approval events cost code"
@@ -313,9 +314,7 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
     )
 
     _login(services, "admin", "ChangeMe123!")
-    project = services['project_create'].create_project(
-        _unique("Events Finance Project"), financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=_unique("Events Finance Project"), financial_currency_code="USD"))
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("EVT-FIN-CC"), name="Events finance cost code"
     ))
@@ -370,9 +369,7 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
 
     _login(services, "admin", "ChangeMe123!")
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        _unique("Events Billing Project"), financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=_unique("Events Billing Project"), financial_currency_code=organization.base_currency))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("EVT-BILL-CC"), name="Events billing cost code"
     ))

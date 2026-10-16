@@ -1,12 +1,16 @@
+
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.contracts.ports.scheduling.schedule_change import (
     ApprovedTaskScheduleChange,
 )
 
 
 def test_approved_schedule_validation_loads_targets_in_batch(services, monkeypatch):
-    project = services['project_create'].create_project("Batch schedule approval")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Batch schedule approval"))
     tasks = services['task_lookup_query']
     first = services['task_lifecycle_commands'].create_task(project.id, "First")
     second = services['task_lifecycle_commands'].create_task(project.id, "Second")

@@ -1,8 +1,12 @@
+
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import event
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
     TaskCommentORM,
 )
@@ -13,7 +17,7 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 
 
 def test_task_detail_comment_pages_remain_bounded_and_stably_ordered(services) -> None:
-    project = services['project_create'].create_project("R7E discussion paging")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R7E discussion paging"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Discuss")
     session = services["session"]
     now = datetime.now(UTC)

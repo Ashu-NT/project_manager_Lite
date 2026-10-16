@@ -4,6 +4,8 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import src.core.platform.application.security.auth.mappers.user as response_mapper
+from src.core.platform.application.security.auth.dto.responses.user import UserDto
 from src.core.platform.application.security.auth.session.session_utils import (
     next_session_expiry,
     rotate_session_revision,
@@ -136,7 +138,7 @@ class AuthSessionCommandHandler:
         self._lifecycle.refresh_current_session_if_user(user.id)
         return user
 
-    def revoke_user_sessions(self, user_id: str, *, note: str = "") -> UserAccount:
+    def revoke_user_sessions(self, user_id: str, *, note: str = "") -> UserDto:
         require_any_permission(
             self._user_session,
             ("auth.manage", "security.manage"),
@@ -178,7 +180,8 @@ class AuthSessionCommandHandler:
             )
             uow.commit()
         self._lifecycle.refresh_current_session_if_user(user.id)
-        return user
+        response_user = user
+        return response_mapper.serialize_user(response_user, role_names=tuple(sorted(self._auth_queries.get_user_role_names(response_user.id))))
 
     def persist_session_context(self, session_context) -> None:
         if self._auth_session_repo is None:

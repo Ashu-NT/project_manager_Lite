@@ -16,6 +16,9 @@ import pytest
 from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
     TASK_COMMENT_CATEGORY,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
     SqlAlchemyTaskCommentRepository,
     SqlAlchemyTaskPresenceRepository,
@@ -35,7 +38,7 @@ def _boom(*_args, **_kwargs):
 
 
 def _make_task(services):
-    project = services['project_create'].create_project("Collaboration Rollback Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Collaboration Rollback Project"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Collaboration Rollback Task",

@@ -1,15 +1,19 @@
+
 import json
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import event, select
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
     TaskCommentORM,
 )
 
 
 def test_mark_mentions_read_queries_only_recipient_rows_in_bounded_batches(services) -> None:
-    project = services['project_create'].create_project("Mention read batch")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Mention read batch"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Review")
     principal = services["user_session"].principal
     now = datetime.now(UTC)

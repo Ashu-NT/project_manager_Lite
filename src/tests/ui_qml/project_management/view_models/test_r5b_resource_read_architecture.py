@@ -9,6 +9,10 @@ from PySide6.QtCore import QObject, QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
 from sqlalchemy import event
 
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+    ResourceLifecycleCommand,
+)
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadItem,
     ResourceInspectorFact,
@@ -63,8 +67,8 @@ def test_resource_read_facts_are_frozen_scalar_contracts() -> None:
 
 
 def test_resource_inspector_and_summary_are_scoped_bounded_independent_reads(services) -> None:
-    first = services["resource_master_commands"].create_resource(name="Alpha Planner", role="Planner")
-    second = services["resource_master_commands"].create_resource(name="Zulu Planner", role="Planner")
+    first = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Alpha Planner", role="Planner"))
+    second = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Zulu Planner", role="Planner"))
     page = services["resource_query"].query_catalog_page(page=1, page_size=1)
     assert [item.resource_id for item in page.items] == [first.id]
 
@@ -96,7 +100,7 @@ def test_resource_inspector_and_summary_are_scoped_bounded_independent_reads(ser
 
 
 def test_resource_inspector_and_summary_fail_closed_after_organization_switch(services) -> None:
-    resource = services["resource_master_commands"].create_resource(name="Scoped Planner")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Scoped Planner"))
     original = services["tenant_context_service"].get_active_organization()
     other = services["organization_commands"].create_organization(
         organization_code="R5B-OTHER",
@@ -114,7 +118,7 @@ def test_resource_inspector_and_summary_fail_closed_after_organization_switch(se
 
 
 def test_resource_inspector_and_summary_fail_closed_after_tenant_switch(services) -> None:
-    resource = services["resource_master_commands"].create_resource(name="Tenant Scoped Planner")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Tenant Scoped Planner"))
     resource_query = services["resource_query"]
     organization_id = services["user_session"].stored_active_organization_id()
 
@@ -134,7 +138,7 @@ def test_resource_inspector_and_summary_fail_closed_after_tenant_switch(services
 
 
 def test_resource_inspector_and_summary_require_resource_read(services) -> None:
-    resource = services["resource_master_commands"].create_resource(name="Protected Planner")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Protected Planner"))
     user_session = services["user_session"]
     original = user_session.principal
     assert original is not None
@@ -162,11 +166,8 @@ def test_resource_inspector_and_summary_require_resource_read(services) -> None:
 
 
 def test_inactive_resource_inspector_exposes_reactivate_only(services) -> None:
-    resource = services["resource_master_commands"].create_resource(name="Inactive Planner")
-    resource = services["resource_master_commands"].deactivate_resource(
-        resource_id=resource.id,
-        expected_version=resource.version,
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Inactive Planner"))
+    resource = services["resource_master_commands"].deactivate_resource(ResourceLifecycleCommand(resource_id=resource.id, expected_version=resource.version))
 
     inspector = services["resource_query"].get_resource_inspector(resource.id)
 
@@ -176,12 +177,7 @@ def test_inactive_resource_inspector_exposes_reactivate_only(services) -> None:
 
 
 def test_resource_catalog_search_excludes_contact_and_address_pii(services) -> None:
-    services["resource_master_commands"].create_resource(
-        name="Operational Planner",
-        role="Scheduler",
-        contact="private.search@example.com",
-        address="Confidential Residence",
-    )
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Operational Planner", role="Scheduler", contact="private.search@example.com", address="Confidential Residence"))
 
     assert services["resource_query"].query_catalog_page(search_text="Operational").filtered_total == 1
     assert services["resource_query"].query_catalog_page(search_text="Scheduler").filtered_total == 1

@@ -24,6 +24,12 @@ from src.core.modules.project_management.application.reporting import (
     EarnedValueReportBuilder,
     ReportingAccessPolicy,
 )
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.skills import (
+    ResourceAddSkillCommand,
+)
 from src.core.modules.project_management.application.resources.queries.resource_queries import (
     ResourceQueryHandler,
 )
@@ -194,14 +200,12 @@ def test_resource_command_desktop_boundary_checks_module_before_handler() -> Non
         module_catalog_service=_module_catalog(runtime_enabled=False),
     )
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
-        api.add_resource_skill(
-            SimpleNamespace(
+        api.add_resource_skill(ResourceAddSkillCommand(resource_id=SimpleNamespace(
                 resource_id="resource-1", skill_code="planning", skill_name="Planning",
                 proficiency="intermediate", notes="",
-            )
-        )
+            )))
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled"):
-        api.create_resource(SimpleNamespace(name="Resource"))
+        api.create_resource(ResourceCreateCommand(name=SimpleNamespace(name="Resource")))
 
 
 def test_resource_query_desktop_boundary_checks_module_before_handler() -> None:

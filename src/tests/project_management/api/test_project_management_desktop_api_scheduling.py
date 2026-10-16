@@ -6,6 +6,16 @@ from types import SimpleNamespace
 from src.core.modules.project_management.api.desktop import (
     build_project_management_scheduling_desktop_api,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
+)
+from src.core.modules.project_management.application.projects.mappers.project import (
+    map_project_response,
+)
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintValidator,
 )
@@ -23,10 +33,7 @@ from src.core.modules.project_management.domain.tasks.task import Task
 
 def test_project_management_scheduling_desktop_api_supports_schedule_calendar_and_baselines() -> None:
     project_service = _FakeProjectService()
-    project = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-    )
+    project = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line."))
     task_service = _FakeTaskService()
     task_a = task_service.create_task(
         project_id=project.id,
@@ -115,68 +122,46 @@ class _FakeProjectService:
         self._next_id = 1
 
     def list_projects(self) -> list[Project]:
-        return list(self._projects.values())
+        return [map_project_response(project) for project in self._projects.values()]
 
-    def create_project(
-        self,
-        *,
-        name: str,
-        description: str = "",
-        status: "ProjectStatus | None" = None,
-        client_name: str | None = None,
-        client_contact: str | None = None,
-        financial_currency_code: str | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
-    ) -> Project:
+    def create_project(self, command: ProjectCreateCommand) -> ProjectResponse:
         project = Project(
             id=f"proj-{self._next_id}",
-            name=name,
-            description=description,
-            start_date=start_date,
-            end_date=end_date,
-            status=status if status is not None else ProjectStatus.PLANNED,
-            client_name=client_name,
-            client_contact=client_contact,
+            name=command.name,
+            description=command.description,
+            start_date=command.start_date,
+            end_date=command.end_date,
+            status=ProjectStatus(command.status),
+            client_name=command.client_name,
+            client_contact=command.client_contact,
             version=1,
         )
         self._next_id += 1
         self._projects[project.id] = project
-        return project
+        return map_project_response(project)
 
     def get_project(self, project_id: str) -> Project | None:
-        return self._projects.get(project_id)
+        project = self._projects.get(project_id)
+        return None if project is None else map_project_response(project)
 
-    def update_project(
-        self,
-        project_id: str,
-        *,
-        expected_version: int | None = None,
-        name: str | None = None,
-        description: str | None = None,
-        status: ProjectStatus | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        client_name: str | None = None,
-        client_contact: str | None = None,
-    ) -> Project:
-        project = self._projects[project_id]
-        if name is not None:
-            project.name = name
-        if description is not None:
-            project.description = description
-        if status is not None:
-            project.status = status
-        if start_date is not None:
-            project.start_date = start_date
-        if end_date is not None:
-            project.end_date = end_date
-        if client_name is not None:
-            project.client_name = client_name
-        if client_contact is not None:
-            project.client_contact = client_contact
+    def update_project(self, command: ProjectUpdateCommand) -> ProjectResponse:
+        project = self._projects[command.project_id]
+        if command.name is not None:
+            project.name = command.name
+        if command.description is not None:
+            project.description = command.description
+        if command.status is not None:
+            project.status = ProjectStatus(command.status)
+        if command.start_date is not None:
+            project.start_date = command.start_date
+        if command.end_date is not None:
+            project.end_date = command.end_date
+        if command.client_name is not None:
+            project.client_name = command.client_name
+        if command.client_contact is not None:
+            project.client_contact = command.client_contact
         project.version += 1
-        return project
+        return map_project_response(project)
 
     def set_status(self, project_id: str, status: ProjectStatus) -> None:
         self._projects[project_id].status = status

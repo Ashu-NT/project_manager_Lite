@@ -1,28 +1,18 @@
 """Scheduling desktop DTO models."""
 
 from src.core.modules.project_management.api.desktop.scheduling.models.baselines import (
-    SchedulingBaselineComparisonRowDto,
     SchedulingBaselineOptionDescriptor,
     SchedulingBaselineRowDto,
-    SchedulingBaselineVarianceRowDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.calendars import (
     _DAY_LABELS,
     SchedulingCalendarOptionDescriptor,
     SchedulingCalendarSnapshotDto,
     SchedulingDayDescriptor,
-    SchedulingHolidayDto,
-    SchedulingWorkingDayCalculationDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
-    ActualVarianceDto,
-    DownstreamExposureDto,
     ScheduleConflictDto,
     ScheduleDriverDto,
-    ScheduleImpactAffectedTaskDto,
-    ScheduleImpactReportDto,
-    SchedulingChangeImpactAffectedTaskDto,
-    SchedulingChangeImpactDto,
     TaskScheduleImpactOverviewDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.constraints import (
@@ -34,10 +24,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models.dependenc
     SchedulingProjectDependencyDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
-    GanttBaselineOverlayDto,
-    GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
-    GanttNonWorkingIntervalDto,
     GanttProjectionDto,
     GanttTaskRowDto,
 )
@@ -54,40 +41,4 @@ from src.core.modules.project_management.api.desktop.scheduling.models.schedule 
     SchedulingTaskDto,
 )
 
-__all__ = [
-    "_DAY_LABELS",
-    "ActualVarianceDto",
-    "DownstreamExposureDto",
-    "GanttBaselineOverlayDto",
-    "GanttBaselineTaskSnapshotDto",
-    "GanttDependencyEdgeDto",
-    "GanttNonWorkingIntervalDto",
-    "GanttProjectionDto",
-    "GanttTaskRowDto",
-    "ScheduleConflictDto",
-    "ScheduleDriverDto",
-    "ScheduleImpactAffectedTaskDto",
-    "ScheduleImpactReportDto",
-    "SchedulingBaselineComparisonRowDto",
-    "SchedulingBaselineOptionDescriptor",
-    "SchedulingBaselineRowDto",
-    "SchedulingBaselineVarianceRowDto",
-    "SchedulingCalendarOptionDescriptor",
-    "SchedulingCalendarSnapshotDto",
-    "SchedulingChangeImpactAffectedTaskDto",
-    "SchedulingChangeImpactDto",
-    "SchedulingConstraintViolationDto",
-    "SchedulingDayDescriptor",
-    "SchedulingDependencyDto",
-    "SchedulingDependencyTypeDescriptor",
-    "SchedulingHolidayDto",
-    "SchedulingLevelingProposalDto",
-    "SchedulingProjectDependencyDto",
-    "SchedulingProjectOptionDescriptor",
-    "SchedulingProposedTaskMoveDto",
-    "SchedulingResourceLoadDto",
-    "SchedulingTaskDto",
-    "SchedulingUnresolvedConflictDto",
-    "SchedulingWorkingDayCalculationDto",
-    "TaskScheduleImpactOverviewDesktopDto",
-]
+__all__ = ['_DAY_LABELS', 'GanttDependencyEdgeDto', 'GanttProjectionDto', 'GanttTaskRowDto', 'ScheduleConflictDto', 'ScheduleDriverDto', 'SchedulingBaselineOptionDescriptor', 'SchedulingBaselineRowDto', 'SchedulingCalendarOptionDescriptor', 'SchedulingCalendarSnapshotDto', 'SchedulingConstraintViolationDto', 'SchedulingDayDescriptor', 'SchedulingDependencyDto', 'SchedulingDependencyTypeDescriptor', 'SchedulingLevelingProposalDto', 'SchedulingProjectDependencyDto', 'SchedulingProjectOptionDescriptor', 'SchedulingProposedTaskMoveDto', 'SchedulingResourceLoadDto', 'SchedulingTaskDto', 'SchedulingUnresolvedConflictDto', 'TaskScheduleImpactOverviewDesktopDto']

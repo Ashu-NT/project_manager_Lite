@@ -5,9 +5,6 @@ from typing import Any
 from src.core.platform.api.desktop.master_data.department.department import (
     PlatformDepartmentDesktopApi,
 )
-from src.core.platform.api.desktop.master_data.department.models.department import (
-    DepartmentDto,
-)
 from src.core.platform.api.desktop.master_data.employee.employee import (
     PlatformEmployeeDesktopApi,
 )
@@ -16,6 +13,9 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
     DepartmentUpdateCommand,
+)
+from src.core.platform.application.master_data.department.dto.responses.department import (
+    DepartmentDto,
 )
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     int_value,

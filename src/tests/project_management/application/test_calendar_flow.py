@@ -2,6 +2,9 @@
 
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
     ExceptionCreateCommand,
 )
@@ -26,7 +29,7 @@ def test_enterprise_calendar_holiday_blocks_scheduling_day(services):
     exc_svc_commands.add_exception(ExceptionCreateCommand(calendar_id=global_cal_id, exception_date=date(2023, 11, 8), exception_type='HOLIDAY', name='Mid-week break', impact_type='UNAVAILABLE'))
 
     # Create project and 3-working-day task starting Tuesday 2023-11-07
-    project = services['project_create'].create_project("Cal Test", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Cal Test", description=""))
     pid = project.id
     t = services['task_lifecycle_commands'].create_task(
         pid,

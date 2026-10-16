@@ -4,6 +4,9 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
@@ -17,7 +20,7 @@ from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services):
     services['baseline_query']
-    project = services['project_create'].create_project("Baseline Compare", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Baseline Compare", description=""))
     pid = project.id
 
     task_a = services['task_lifecycle_commands'].create_task(pid, "Task A", start_date=date(2024, 1, 1), duration_days=2)
@@ -57,7 +60,7 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
 
 def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
     services['baseline_query']
-    project = services['project_create'].create_project("Baseline Compare Filter", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Baseline Compare Filter", description=""))
     pid = project.id
     services['task_lifecycle_commands'].create_task(pid, "Task Stable", start_date=date(2024, 2, 5), duration_days=2)
 
@@ -78,7 +81,7 @@ def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
 
 def test_compare_baselines_validates_input_and_missing_ids(services):
     services['baseline_query']
-    project = services['project_create'].create_project("Baseline Compare Validation", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Baseline Compare Validation", description=""))
     pid = project.id
     services['task_lifecycle_commands'].create_task(pid, "Task 1", start_date=date(2024, 3, 4), duration_days=1)
     baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(pid, "Only", rate_as_of=date.today()))
@@ -95,7 +98,7 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
 def test_baseline_approval_tracks_current_approved_and_variance_records(services):
     services['baseline_query']
 
-    project = services['project_create'].create_project("Baseline Governance", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Baseline Governance", description=""))
     pid = project.id
     task = services['task_lifecycle_commands'].create_task(pid, "Critical Task", start_date=date(2024, 4, 1), duration_days=2)
 

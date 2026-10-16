@@ -8,6 +8,12 @@ import pytest
 from src.core.modules.project_management.application.resources.commands.skill_commands import (
     ResourceCapabilityCommandHandler,
 )
+from src.core.modules.project_management.application.resources.dto.commands.certifications import (
+    ResourceAddCertificationCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.skills import (
+    ResourceAddSkillCommand,
+)
 from src.core.modules.project_management.domain.resources.skills import (
     CertificationStatus,
     ResourceCertification,
@@ -302,23 +308,8 @@ def test_resource_service_skill_and_certification_commands_use_domain_validation
     cert_repo = _RecordingCertRepo()
     service = _make_resource_service(skill_repo=skill_repo, cert_repo=cert_repo)
 
-    skill = service.add_resource_skill(
-        resource_id="  res-1  ",
-        skill_code="  PYTHON  ",
-        skill_name="  Python  ",
-        proficiency="EXPERT",
-        notes="  Lead skill  ",
-    )
-    cert = service.add_resource_certification(
-        resource_id="  res-1  ",
-        certification_code="  PMP  ",
-        certification_name="  PMP  ",
-        issued_date=date(2026, 1, 1),
-        expiry_date=date(2026, 12, 31),
-        certificate_number="  PMP-001  ",
-        issuer="  PMI  ",
-        notes="  Verified  ",
-    )
+    skill = service.add_resource_skill(ResourceAddSkillCommand(resource_id="  res-1  ", skill_code="  PYTHON  ", skill_name="  Python  ", proficiency="EXPERT", notes="  Lead skill  "))
+    cert = service.add_resource_certification(ResourceAddCertificationCommand(resource_id="  res-1  ", certification_code="  PMP  ", certification_name="  PMP  ", issued_date=date(2026, 1, 1), expiry_date=date(2026, 12, 31), certificate_number="  PMP-001  ", issuer="  PMI  ", notes="  Verified  "))
 
     assert skill_repo.added[0].skill_code == "python"
     assert skill.proficiency == SkillProficiencyLevel.EXPERT
@@ -327,20 +318,9 @@ def test_resource_service_skill_and_certification_commands_use_domain_validation
     assert cert.issuer == "PMI"
 
     with pytest.raises(ValidationError) as exc_skill:
-        service.add_resource_skill(
-            resource_id="res-1",
-            skill_code="python",
-            skill_name="Python",
-            proficiency="guru",
-        )
+        service.add_resource_skill(ResourceAddSkillCommand(resource_id="res-1", skill_code="python", skill_name="Python", proficiency="guru"))
     assert exc_skill.value.code == "RESOURCE_SKILL_PROFICIENCY_INVALID"
 
     with pytest.raises(ValidationError) as exc_cert:
-        service.add_resource_certification(
-            resource_id="res-1",
-            certification_code="pmp",
-            certification_name="PMP",
-            issued_date=date(2026, 12, 31),
-            expiry_date=date(2026, 1, 1),
-        )
+        service.add_resource_certification(ResourceAddCertificationCommand(resource_id="res-1", certification_code="pmp", certification_name="PMP", issued_date=date(2026, 12, 31), expiry_date=date(2026, 1, 1)))
     assert exc_cert.value.code == "RESOURCE_CERTIFICATION_DATE_RANGE_INVALID"

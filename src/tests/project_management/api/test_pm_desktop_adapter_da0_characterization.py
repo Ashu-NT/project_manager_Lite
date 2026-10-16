@@ -29,9 +29,6 @@ from src.core.modules.project_management.api.desktop.register.builders.entry_lis
 from src.core.modules.project_management.api.desktop.resources.api import (
     ProjectManagementResourcesDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
-    serialize_resource_assignment,
-)
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
     build_change_impact,
 )
@@ -50,8 +47,18 @@ from src.core.modules.project_management.api.desktop.tasks.services.access_resol
 from src.core.modules.project_management.application.dashboard.models.report_models import (
     ResourceLoadRow,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
     ResourceUpdateCommand,
+)
+from src.core.modules.project_management.application.resources.mappers.context import (
+    map_resource_assignment_fact,
 )
 from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
     TaskCreateCommand,
@@ -140,15 +147,9 @@ def test_da1_project_resource_scope_resolution_uses_public_application_query() -
 
 
 def test_da1_project_manager_queries_project_resources_without_resource_read(services) -> None:
-    project = services['project_create'].create_project("DA1 Scoped Project")
-    resource = services["resource_master_commands"].create_resource(
-        name="Scoped Planner",
-        role="Planner",
-    )
-    membership = services["project_resource_commands"].add_to_project(
-        project_id=project.id,
-        resource_id=resource.id,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="DA1 Scoped Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Scoped Planner", role="Planner"))
+    membership = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id))
     principal = services["user_session"].principal
     services["user_session"].set_principal(
         UserSessionPrincipal(
@@ -173,16 +174,10 @@ def test_da1_project_manager_queries_project_resources_without_resource_read(ser
 
 
 def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> None:
-    project = services['project_create'].create_project("DA1 Task Project")
-    services['project_create'].create_project("DA1 Hidden Project")
-    resource = services["resource_master_commands"].create_resource(
-        name="Task Planner",
-        role="Planner",
-    )
-    membership = services["project_resource_commands"].add_to_project(
-        project_id=project.id,
-        resource_id=resource.id,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="DA1 Task Project"))
+    services['project_create'].create_project(ProjectCreateCommand(name="DA1 Hidden Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Task Planner", role="Planner"))
+    membership = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id))
     principal = services["user_session"].principal
     services["user_session"].set_principal(
         UserSessionPrincipal(
@@ -248,10 +243,10 @@ class _CapturingResourceService:
     def get_resource(self, _resource_id: str):
         return self.resource
 
-    def update_resource(self, *, resource_id: str, **kwargs):
-        self.update_kwargs = kwargs
-        self.resource.hourly_rate = kwargs.get("hourly_rate") or self.resource.hourly_rate
-        self.resource.currency_code = kwargs.get("currency_code") or self.resource.currency_code
+    def update_resource(self, command: ResourceUpdateCommand) -> SimpleNamespace:
+        self.update_kwargs = {"hourly_rate": command.hourly_rate, "currency_code": command.currency_code}
+        self.resource.hourly_rate = command.hourly_rate
+        self.resource.currency_code = command.currency_code
         return self.resource
 
 
@@ -286,7 +281,7 @@ def test_da3_desktop_forwards_rate_fields_without_policy_decision() -> None:
 
 
 def test_da1_resource_assignments_use_authoritative_typed_read_fact() -> None:
-    row = serialize_resource_assignment(
+    row = map_resource_assignment_fact(
         ResourceAssignmentFact(
             assignment_id="assignment-1",
             resource_id="resource-1",
@@ -318,11 +313,8 @@ def test_da1_resource_assignments_use_authoritative_typed_read_fact() -> None:
 
 
 def test_da1_task_service_lists_authorized_resource_assignments(services) -> None:
-    project = services['project_create'].create_project("DA1 Resource Assignment")
-    resource = services["resource_master_commands"].create_resource(
-        name="DA1 Planner",
-        role="Planner",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="DA1 Resource Assignment"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="DA1 Planner", role="Planner"))
     task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="DA1 Planning Task", start_date=date(2026, 8, 10), duration_days=2))
     assignment = services['task_assignment_commands'].assign_resource(
         task.id,

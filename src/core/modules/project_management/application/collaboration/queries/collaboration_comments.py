@@ -5,6 +5,12 @@ from dataclasses import dataclass
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.collaboration.dto.responses.comments import (
+    TaskCommentPageResponseDto,
+)
+from src.core.modules.project_management.application.collaboration.mappers.comments import (
+    map_comment,
+)
 from src.core.modules.project_management.application.collaboration.utils.visibility import (
     CollaborationVisibilityPolicy,
 )
@@ -59,7 +65,7 @@ class CollaborationCommentQueryHandler(ProjectManagementModuleGuardMixin):
 
     def query_task_comments_page(
         self, task_id: str, *, page: int = 1, page_size: int = 25
-    ) -> TaskDetailCommentReadPage:
+    ) -> TaskCommentPageResponseDto:
         task = self._policy.require_task(task_id)
         require_permission(
             self._user_session, "collaboration.read", operation_label="view task collaboration"
@@ -75,7 +81,7 @@ class CollaborationCommentQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="view task collaboration"
         )
 
-        def read(page_number: int):
+        def read(page_number: int) -> TaskDetailCommentReadPage:
             return self._workspace_reader.read_task_comment_page(
                 tenant_id=scope.tenant_id,
                 organization_id=scope.organization_id,
@@ -88,7 +94,12 @@ class CollaborationCommentQueryHandler(ProjectManagementModuleGuardMixin):
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.total
         )
-        return read(normalized_page) if normalized_page != result.page else result
+        if normalized_page != result.page:
+            result = read(normalized_page)
+        return TaskCommentPageResponseDto(
+            items=tuple(map_comment(comment, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or "")) for comment in result.items),
+            total=result.total, page=result.page, page_size=result.page_size,
+        )
 
     def list_mention_candidates(
         self, task_id: str, *, query: str = "", limit: int = 50

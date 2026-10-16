@@ -7,6 +7,9 @@ from src.core.modules.project_management.access.policy import (
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
 )
@@ -86,7 +89,7 @@ def test_security_and_payroll_roles_expose_expected_permissions(services):
 def test_access_and_security_admin_capabilities_are_separated(services):
     access = services["access_service"]
     active_tenant_id = services["user_session"].active_tenant_id()
-    project = services['project_create'].create_project("Access Admin Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Access Admin Project"))
     # H-8: target must be in the active tenant so security_admin can manage them
     target = services["user_registration"].register_user(
         "locked-target", "StrongPass123", role_names=["viewer"], tenant_id=active_tenant_id

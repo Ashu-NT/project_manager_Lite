@@ -12,6 +12,10 @@ from datetime import date, timedelta
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QJSValue
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+
 
 def _to_py(value):
     return value.toVariant() if isinstance(value, QJSValue) else value
@@ -46,12 +50,7 @@ def _load_projects_page(pm_catalog, platform_catalog):
 
 def test_selecting_a_row_opens_inspector_without_opening_full_detail(services) -> None:
     today = date.today()
-    project = services['project_create'].create_project(
-        "R4.2 Inspector Project",
-        start_date=today - timedelta(days=10),
-        end_date=today + timedelta(days=80),
-        financial_currency_code="EUR",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R4.2 Inspector Project", start_date=today - timedelta(days=10), end_date=today + timedelta(days=80), financial_currency_code="EUR"))
 
     _ensure_qgui_application()
     registry = build_desktop_api_registry(services)
@@ -79,12 +78,7 @@ def test_selecting_a_row_opens_inspector_without_opening_full_detail(services) -
 
 def test_row_activation_still_opens_full_detail(services) -> None:
     today = date.today()
-    project = services['project_create'].create_project(
-        "R4.2 Full Detail Project",
-        start_date=today - timedelta(days=3),
-        end_date=today + timedelta(days=90),
-        financial_currency_code="EUR",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R4.2 Full Detail Project", start_date=today - timedelta(days=3), end_date=today + timedelta(days=90), financial_currency_code="EUR"))
 
     _ensure_qgui_application()
     registry = build_desktop_api_registry(services)

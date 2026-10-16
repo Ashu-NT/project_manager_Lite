@@ -3,12 +3,32 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date
 from typing import cast
 
 from src.core.modules.project_management.application.resources.catalog.resource_capability_events import (
     ResourceCapabilityChanged,
     ResourceCapabilityChangeType,
+)
+from src.core.modules.project_management.application.resources.dto.commands.certifications import (
+    ResourceAddCertificationCommand,
+    ResourceRemoveCertificationCommand,
+    ResourceUpdateCertificationCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.skills import (
+    ResourceAddSkillCommand,
+    ResourceRemoveSkillCommand,
+    ResourceUpdateSkillCommand,
+)
+from src.core.modules.project_management.application.resources.dto.responses.capabilities import (
+    ResourceCertificationResponse,
+    ResourceSkillResponse,
+)
+from src.core.modules.project_management.application.resources.mappers.capabilities import (
+    map_resource_certification,
+    map_resource_skill,
+)
+from src.core.modules.project_management.application.resources.normalization import (
+    parse_certification_date,
 )
 from src.core.modules.project_management.contracts.repositories.resources.skills import (
     ResourceCertificationRepository,
@@ -114,14 +134,7 @@ class ResourceCapabilityCommandHandler:
             )
         )
 
-    def add_resource_skill(
-        self,
-        resource_id: str,
-        skill_code: str,
-        skill_name: str,
-        proficiency: str = "intermediate",
-        notes: str = "",
-    ) -> ResourceSkill:
+    def add_resource_skill(self, command: ResourceAddSkillCommand) -> ResourceSkillResponse:
         require_permission(
             self._user_session, "resource.manage", operation_label="add resource skill"
         )
@@ -129,13 +142,13 @@ class ResourceCapabilityCommandHandler:
             raise ConfigurationError("Skill repository is not configured.")
         # The validated domain dataclass normalizes text to SkillProficiencyLevel.
         skill = ResourceSkill.create(
-            resource_id=resource_id,
-            skill_code=skill_code,
-            skill_name=skill_name,
-            proficiency=cast(SkillProficiencyLevel, proficiency),
-            notes=notes,
+            resource_id=command.resource_id,
+            skill_code=command.skill_code,
+            skill_name=command.skill_name,
+            proficiency=cast(SkillProficiencyLevel, command.proficiency),
+            notes=command.notes,
         )
-        if self._skill_repo.code_exists(resource_id, skill.skill_code):
+        if self._skill_repo.code_exists(command.resource_id, skill.skill_code):
             raise ValidationError(
                 "This skill is already recorded for the resource.",
                 code="RESOURCE_SKILL_DUPLICATE",
@@ -149,40 +162,31 @@ class ResourceCapabilityCommandHandler:
                 uow, created, change_type=ResourceCapabilityChangeType.ADDED
             )
             uow.commit()
-        return created
+        return map_resource_skill(created)
 
-    def update_resource_skill(
-        self,
-        *,
-        skill_id: str,
-        expected_version: int,
-        skill_code: str,
-        skill_name: str,
-        proficiency: str = "intermediate",
-        notes: str = "",
-    ) -> ResourceSkill:
+    def update_resource_skill(self, command: ResourceUpdateSkillCommand) -> ResourceSkillResponse:
         require_permission(
             self._user_session, "resource.manage", operation_label="update resource skill"
         )
         if self._skill_repo is None:
             raise ConfigurationError("Skill repository is not configured.")
-        existing = self._skill_repo.get(skill_id)
+        existing = self._skill_repo.get(command.skill_id)
         if existing is None:
             raise NotFoundError("Skill not found.", code="SKILL_NOT_FOUND")
-        if existing.version != expected_version:
+        if existing.version != command.expected_version:
             raise ConcurrencyError(
                 "Skill changed since you opened it.", code="STALE_WRITE"
             )
         candidate = replace(
             existing,
-            skill_code=skill_code,
-            skill_name=skill_name,
-            proficiency=cast(SkillProficiencyLevel, proficiency),
-            notes=notes,
+            skill_code=command.skill_code,
+            skill_name=command.skill_name,
+            proficiency=cast(SkillProficiencyLevel, command.proficiency),
+            notes=command.notes,
         )
         if candidate == existing:
             # True no-op: no write, audit, event, or version bump.
-            return existing
+            return map_resource_skill(existing)
         if self._skill_repo.code_exists(
             existing.resource_id, candidate.skill_code, exclude_id=existing.id
         ):
@@ -192,50 +196,42 @@ class ResourceCapabilityCommandHandler:
             )
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
-            updated = uow.skills.update(candidate, expected_version=expected_version)
+            updated = uow.skills.update(candidate, expected_version=command.expected_version)
             self._stage_capability_audit(uow, updated, operation="update", action="resource.skill.updated")
             self._stage_capability_activity(uow, updated, action="resource.skill.updated")
             self._record_resource_capability_event(
                 uow, updated, change_type=ResourceCapabilityChangeType.UPDATED
             )
             uow.commit()
-        return updated
+        return map_resource_skill(updated)
 
-    def remove_resource_skill(self, skill_id: str, *, expected_version: int) -> ResourceSkill:
+    def remove_resource_skill(self, command: ResourceRemoveSkillCommand) -> ResourceSkillResponse:
         require_permission(
             self._user_session, "resource.manage", operation_label="remove resource skill"
         )
         if self._skill_repo is None:
             raise ConfigurationError("Skill repository is not configured.")
-        existing = self._skill_repo.get(skill_id)
+        existing = self._skill_repo.get(command.skill_id)
         if existing is None:
             raise NotFoundError("Skill not found.", code="SKILL_NOT_FOUND")
-        if existing.version != expected_version:
+        if existing.version != command.expected_version:
             raise ConcurrencyError(
                 "Skill changed since you opened it.", code="STALE_WRITE"
             )
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
-            uow.skills.delete(skill_id, expected_version=expected_version)
+            uow.skills.delete(command.skill_id, expected_version=command.expected_version)
             self._stage_capability_audit(uow, existing, operation="delete", action="resource.skill.removed")
             self._stage_capability_activity(uow, existing, action="resource.skill.removed")
             self._record_resource_capability_event(
                 uow, existing, change_type=ResourceCapabilityChangeType.REMOVED
             )
             uow.commit()
-        return existing
+        return map_resource_skill(existing)
 
-    def add_resource_certification(
-        self,
-        resource_id: str,
-        certification_code: str,
-        certification_name: str,
-        issued_date: date | None = None,
-        expiry_date: date | None = None,
-        certificate_number: str = "",
-        issuer: str = "",
-        notes: str = "",
-    ) -> ResourceCertification:
+    def add_resource_certification(self, command: ResourceAddCertificationCommand) -> ResourceCertificationResponse:
+        issued_date = parse_certification_date(command.issued_date)
+        expiry_date = parse_certification_date(command.expiry_date)
         require_permission(
             self._user_session,
             "resource.manage",
@@ -244,16 +240,16 @@ class ResourceCapabilityCommandHandler:
         if self._cert_repo is None:
             raise ConfigurationError("Certification repository is not configured.")
         cert = ResourceCertification.create(
-            resource_id=resource_id,
-            certification_code=certification_code,
-            certification_name=certification_name,
+            resource_id=command.resource_id,
+            certification_code=command.certification_code,
+            certification_name=command.certification_name,
             issued_date=issued_date,
             expiry_date=expiry_date,
-            certificate_number=certificate_number,
-            issuer=issuer,
-            notes=notes,
+            certificate_number=command.certificate_number,
+            issuer=command.issuer,
+            notes=command.notes,
         )
-        if self._cert_repo.code_exists(resource_id, cert.certification_code):
+        if self._cert_repo.code_exists(command.resource_id, cert.certification_code):
             raise ValidationError(
                 "This certification is already recorded for the resource.",
                 code="RESOURCE_CERTIFICATION_DUPLICATE",
@@ -267,21 +263,11 @@ class ResourceCapabilityCommandHandler:
                 uow, created, change_type=ResourceCapabilityChangeType.ADDED
             )
             uow.commit()
-        return created
+        return map_resource_certification(created)
 
-    def update_resource_certification(
-        self,
-        *,
-        cert_id: str,
-        expected_version: int,
-        certification_code: str,
-        certification_name: str,
-        issued_date: date | None = None,
-        expiry_date: date | None = None,
-        certificate_number: str = "",
-        issuer: str = "",
-        notes: str = "",
-    ) -> ResourceCertification:
+    def update_resource_certification(self, command: ResourceUpdateCertificationCommand) -> ResourceCertificationResponse:
+        issued_date = parse_certification_date(command.issued_date)
+        expiry_date = parse_certification_date(command.expiry_date)
         require_permission(
             self._user_session,
             "resource.manage",
@@ -289,26 +275,26 @@ class ResourceCapabilityCommandHandler:
         )
         if self._cert_repo is None:
             raise ConfigurationError("Certification repository is not configured.")
-        existing = self._cert_repo.get(cert_id)
+        existing = self._cert_repo.get(command.cert_id)
         if existing is None:
             raise NotFoundError("Certification not found.", code="CERT_NOT_FOUND")
-        if existing.version != expected_version:
+        if existing.version != command.expected_version:
             raise ConcurrencyError(
                 "Certification changed since you opened it.", code="STALE_WRITE"
             )
         candidate = replace(
             existing,
-            certification_code=certification_code,
-            certification_name=certification_name,
+            certification_code=command.certification_code,
+            certification_name=command.certification_name,
             issued_date=issued_date,
             expiry_date=expiry_date,
-            certificate_number=certificate_number,
-            issuer=issuer,
-            notes=notes,
+            certificate_number=command.certificate_number,
+            issuer=command.issuer,
+            notes=command.notes,
         )
         if candidate == existing:
             # True no-op.
-            return existing
+            return map_resource_certification(existing)
         if self._cert_repo.code_exists(
             existing.resource_id,
             candidate.certification_code,
@@ -320,18 +306,16 @@ class ResourceCapabilityCommandHandler:
             )
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
-            updated = uow.certifications.update(candidate, expected_version=expected_version)
+            updated = uow.certifications.update(candidate, expected_version=command.expected_version)
             self._stage_capability_audit(uow, updated, operation="update", action="resource.certification.updated")
             self._stage_capability_activity(uow, updated, action="resource.certification.updated")
             self._record_resource_capability_event(
                 uow, updated, change_type=ResourceCapabilityChangeType.UPDATED
             )
             uow.commit()
-        return updated
+        return map_resource_certification(updated)
 
-    def remove_resource_certification(
-        self, cert_id: str, *, expected_version: int
-    ) -> ResourceCertification:
+    def remove_resource_certification(self, command: ResourceRemoveCertificationCommand) -> ResourceCertificationResponse:
         require_permission(
             self._user_session,
             "resource.manage",
@@ -339,23 +323,23 @@ class ResourceCapabilityCommandHandler:
         )
         if self._cert_repo is None:
             raise ConfigurationError("Certification repository is not configured.")
-        existing = self._cert_repo.get(cert_id)
+        existing = self._cert_repo.get(command.cert_id)
         if existing is None:
             raise NotFoundError("Certification not found.", code="CERT_NOT_FOUND")
-        if existing.version != expected_version:
+        if existing.version != command.expected_version:
             raise ConcurrencyError(
                 "Certification changed since you opened it.", code="STALE_WRITE"
             )
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
-            uow.certifications.delete(cert_id, expected_version=expected_version)
+            uow.certifications.delete(command.cert_id, expected_version=command.expected_version)
             self._stage_capability_audit(uow, existing, operation="delete", action="resource.certification.removed")
             self._stage_capability_activity(uow, existing, action="resource.certification.removed")
             self._record_resource_capability_event(
                 uow, existing, change_type=ResourceCapabilityChangeType.REMOVED
             )
             uow.commit()
-        return existing
+        return map_resource_certification(existing)
 
 
 __all__ = ["ResourceCapabilityCommandHandler"]

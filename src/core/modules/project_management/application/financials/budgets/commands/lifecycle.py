@@ -26,6 +26,12 @@ from src.core.modules.project_management.application.financials.budgets.dto.comm
     FinancialUpdateBudgetCommand,
     FinancialVersionedBudgetCommand,
 )
+from src.core.modules.project_management.application.financials.budgets.dto.responses.mutations import (
+    FinancialBudgetMutationDto,
+)
+from src.core.modules.project_management.application.financials.budgets.mappers.responses import (
+    map_budget,
+)
 from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
 )
@@ -109,18 +115,16 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         self._record_event = record_event
 
 
-    def create_budget(self, command: FinancialCreateBudgetVersionCommand) -> ProjectBudget:
-        project_id = command.project_id
-        name = command.name
+    def create_budget(self, command: FinancialCreateBudgetVersionCommand) -> FinancialBudgetMutationDto:
         currency_code = command.currency_code or None
         require_permission(self._user_session, "budget.manage", operation_label="create project budget")
         require_project_permission(
-            self._user_session, project_id, "budget.manage", operation_label="create project budget"
+            self._user_session, command.project_id, "budget.manage", operation_label="create project budget"
         )
-        project = self._project_repo.get(project_id)
+        project = self._project_repo.get(command.project_id)
         if project is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        profile = self._financial_profile_repo.get_by_project(project_id)
+        profile = self._financial_profile_repo.get_by_project(command.project_id)
         if profile is None:
             raise NotFoundError(
                 "Project financial profile not found; configure the project's "
@@ -134,19 +138,19 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
                 "Active organization context is required to create project budget.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        if self._budget_repo.has_open_for_project(project_id):
+        if self._budget_repo.has_open_for_project(command.project_id):
             raise BusinessRuleError(
                 "A draft or submitted budget already exists for this project.",
                 code="PROJECT_BUDGET_OPEN_VERSION_EXISTS",
             )
-        latest = self._budget_repo.get_latest_for_project(project_id)
+        latest = self._budget_repo.get_latest_for_project(command.project_id)
         revision = (latest.revision + 1) if latest is not None else 1
         now = self._clock.now()
         budget = ProjectBudget.create(
             tenant_id=context.tenant_id,
             organization_id=organization_id,
-            project_id=project_id,
-            name=name,
+            project_id=command.project_id,
+            name=command.name,
             currency_code=currency_code or profile.currency_code,
             revision=revision,
             created_at=now,
@@ -170,24 +174,22 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return budget
+        return map_budget(budget)
 
 
-    def create_successor(self, command: FinancialCreateBudgetSuccessorCommand) -> ProjectBudget:
+    def create_successor(self, command: FinancialCreateBudgetSuccessorCommand) -> FinancialBudgetMutationDto:
         """Create a mutable draft copied from an approved budget revision.
 
         The predecessor remains immutable. Revision assignment, currency, and
         line cloning are server-owned so the desktop cannot manufacture
         financial lineage or silently omit approved dimensions.
         """
-        budget_id = command.predecessor_budget_id
-        name = command.name
         require_permission(
             self._user_session,
             "budget.manage",
             operation_label="create project budget successor",
         )
-        predecessor = self._require_budget(budget_id)
+        predecessor = self._require_budget(command.predecessor_budget_id)
         require_project_permission(
             self._user_session,
             predecessor.project_id,
@@ -212,7 +214,7 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
             organization_id=predecessor.organization_id,
             project_id=predecessor.project_id,
             predecessor_budget_id=predecessor.id,
-            name=name,
+            name=command.name,
             currency_code=predecessor.currency_code,
             revision=(latest.revision + 1) if latest is not None else 1,
             created_at=now,
@@ -251,27 +253,24 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return successor
+        return map_budget(successor)
 
 
-    def submit_budget(self, command: FinancialVersionedBudgetCommand) -> ProjectBudget:
-        budget_id = command.budget_id
+    def submit_budget(self, command: FinancialVersionedBudgetCommand) -> FinancialBudgetMutationDto:
         submitted_by = self._command_actor_id()
-        notes = command.notes
-        expected_version = command.expected_version
         require_permission(self._user_session, "budget.manage", operation_label="submit project budget")
-        budget = self._require_budget(budget_id)
+        budget = self._require_budget(command.budget_id)
         require_project_permission(
             self._user_session, budget.project_id, "budget.manage", operation_label="submit project budget"
         )
-        if budget.row_version != expected_version:
+        if budget.row_version != command.expected_version:
             raise ConcurrencyError("Budget changed since you opened it.", code="STALE_WRITE")
-        lines = self._budget_repo.list_lines(budget_id)
+        lines = self._budget_repo.list_lines(command.budget_id)
         if not lines:
             raise BusinessRuleError("Cannot submit an empty budget.", code="PROJECT_BUDGET_EMPTY")
         now = self._clock.now()
-        budget.submit(submitted_by=submitted_by, submitted_at=now, notes=notes)
-        self._budget_repo.update(budget, expected_row_version=expected_version)
+        budget.submit(submitted_by=submitted_by, submitted_at=now, notes=command.notes)
+        self._budget_repo.update(budget, expected_row_version=command.expected_version)
         self._record_budget_audit(operation="submit", budget=budget)
         event = BudgetStatusChanged(
             tenant_id=budget.tenant_id,
@@ -284,24 +283,21 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return budget
+        return map_budget(budget)
 
 
-    def close_budget(self, command: FinancialVersionedBudgetCommand) -> ProjectBudget:
-        budget_id = command.budget_id
+    def close_budget(self, command: FinancialVersionedBudgetCommand) -> FinancialBudgetMutationDto:
         closed_by = self._command_actor_id()
-        notes = command.notes
-        expected_version = command.expected_version
         require_permission(self._user_session, "budget.approve", operation_label="close project budget")
-        budget = self._require_budget(budget_id)
+        budget = self._require_budget(command.budget_id)
         require_project_permission(
             self._user_session, budget.project_id, "budget.approve", operation_label="close project budget"
         )
-        if budget.row_version != expected_version:
+        if budget.row_version != command.expected_version:
             raise ConcurrencyError("Budget changed since you opened it.", code="STALE_WRITE")
         now = self._clock.now()
-        budget.close(closed_by=closed_by, closed_at=now, notes=notes)
-        self._budget_repo.update(budget, expected_row_version=expected_version)
+        budget.close(closed_by=closed_by, closed_at=now, notes=command.notes)
+        self._budget_repo.update(budget, expected_row_version=command.expected_version)
         self._record_budget_audit(operation="close", budget=budget)
         event = BudgetStatusChanged(
             tenant_id=budget.tenant_id,
@@ -314,30 +310,26 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return budget
+        return map_budget(budget)
 
 
-    def update_budget_header(self, command: FinancialUpdateBudgetCommand) -> ProjectBudget:
-        # currency_code is deliberately not a parameter here — a budget's
+    def update_budget_header(self, command: FinancialUpdateBudgetCommand) -> FinancialBudgetMutationDto:
+        # currency_code is deliberately not a parameter here â€” a budget's
         # currency is immutable after creation once lines may exist in it.
-        budget_id = command.budget_id
-        name = command.name
-        notes = command.notes
-        expected_version = command.expected_version
         require_permission(self._user_session, "budget.manage", operation_label="update project budget")
-        budget = self._require_budget(budget_id)
+        budget = self._require_budget(command.budget_id)
         require_project_permission(
             self._user_session, budget.project_id, "budget.manage", operation_label="update project budget"
         )
         budget.ensure_mutable()
-        if budget.row_version != expected_version:
+        if budget.row_version != command.expected_version:
             raise ConcurrencyError("Budget changed since you opened it.", code="STALE_WRITE")
-        if name is not None:
-            budget.rename(name)
-        if notes is not None:
-            budget.update_notes(notes)
+        if command.name is not None:
+            budget.rename(command.name)
+        if command.notes is not None:
+            budget.update_notes(command.notes)
         budget.touch(updated_at=self._clock.now())
-        self._budget_repo.update(budget, expected_row_version=expected_version)
+        self._budget_repo.update(budget, expected_row_version=command.expected_version)
         self._record_budget_audit(operation="update_header", budget=budget)
         event = BudgetProfileUpdated(
             tenant_id=budget.tenant_id,
@@ -349,14 +341,12 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return budget
+        return map_budget(budget)
 
 
     def delete_budget(self, command: FinancialVersionedBudgetCommand) -> ProjectBudget:
-        budget_id = command.budget_id
-        expected_version = command.expected_version
         require_permission(self._user_session, "budget.manage", operation_label="delete project budget")
-        budget = self._require_budget(budget_id)
+        budget = self._require_budget(command.budget_id)
         require_project_permission(
             self._user_session, budget.project_id, "budget.manage", operation_label="delete project budget"
         )
@@ -368,7 +358,7 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
         # Atomic delete-if-version-matches: a concurrent submit between this
         # DRAFT check and the delete call bumps row_version, so the delete
         # itself (not a redundant manual check here) surfaces STALE_WRITE.
-        self._budget_repo.delete(budget_id, expected_row_version=expected_version)
+        self._budget_repo.delete(command.budget_id, expected_row_version=command.expected_version)
         self._record_budget_audit(operation="delete", budget=budget)
         event = BudgetRemoved(
             tenant_id=budget.tenant_id,
@@ -385,13 +375,13 @@ class BudgetLifecycleCommands(ProjectManagementModuleGuardMixin):
 
     @staticmethod
     def _integrity_message(exc: IntegrityError) -> str:
-        # Deliberately NOT `str(exc)`/`.statement` — both embed the full
+        # Deliberately NOT `str(exc)`/`.statement` â€” both embed the full
         # failing SQL statement, whose column list always contains the
         # literal word "revision" for this table regardless of which
         # constraint actually failed, which would make every conflict here
         # misidentify as a revision conflict. `.orig` (the raw DBAPI
         # exception) carries only the constraint/column text that actually
-        # violated — precise on both SQLite (columns) and PostgreSQL
+        # violated â€” precise on both SQLite (columns) and PostgreSQL
         # (named constraint).
         orig_message = str(getattr(exc, "orig", "") or "")
         return (orig_message or str(exc)).lower()

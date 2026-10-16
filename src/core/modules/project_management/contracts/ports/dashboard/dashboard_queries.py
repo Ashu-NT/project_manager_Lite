@@ -14,11 +14,15 @@ from src.core.modules.project_management.application.financials.cost.dto.respons
 from src.core.modules.project_management.application.financials.earned_value.dto.responses.earned_value import (
     EarnedValueMetrics,
 )
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
+)
+from src.core.modules.project_management.application.resources.dto.responses.catalog import (
+    ResourceResponse,
+)
 from src.core.modules.project_management.application.scheduling.models.cpm import (
     CPMTaskInfo,
 )
-from src.core.modules.project_management.domain.projects.project import Project
-from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 
 
@@ -50,11 +54,11 @@ class DashboardTaskQuery(Protocol):
 
 
 class DashboardResourceQuery(Protocol):
-    def list_resources(self) -> list[Resource]: ...
+    def list_resources(self) -> list[ResourceResponse]: ...
 
 
 class DashboardProjectQuery(Protocol):
-    def list_projects(self) -> Sequence[Project]: ...
+    def list_projects(self) -> Sequence[ProjectResponse]: ...
 
 
 class DashboardScheduleQuery(Protocol):

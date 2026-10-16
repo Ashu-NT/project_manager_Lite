@@ -6,6 +6,9 @@ import time
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.tests.project_management._sql_measurement_helpers import (
     count_calls,
     measure_sql,
@@ -16,7 +19,7 @@ _SIZES = {"small": 1, "medium": 5, "large": 12}
 
 def _seed_collaboration_workspace(services, *, project_count: int) -> None:
     for index in range(project_count):
-        project = services['project_create'].create_project(f"Phase 3D Project {index}")
+        project = services['project_create'].create_project(ProjectCreateCommand(name=f"Phase 3D Project {index}"))
         task = services['task_lifecycle_commands'].create_task(project.id, f"Phase 3D Task {index}")
         services["collaboration_comment_commands"].post_comment(
             task_id=task.id,

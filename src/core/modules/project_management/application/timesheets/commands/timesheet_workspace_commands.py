@@ -68,9 +68,7 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
 
     def add_timesheet_entry(self, command: TimesheetEntryCreateCommand, *, scope: TimesheetScope | str | None = None, resource_id: str | None = None, period_start: date | None = None) -> TimeEntry:
         assignment_id = command.assignment_id.strip()
-        entry_date = command.entry_date
         hours = float(command.hours)
-        note = command.note
         if scope is not None:
             if period_start is None:
                 raise ValidationError("Reporting period is required.", code="TIMESHEET_PERIOD_REQUIRED")
@@ -86,21 +84,17 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
             if not self._period(selected, period_start).can_add_entry:
                 raise _entry_change_denied()
             start, end = self._support.timesheet_period_bounds(period_start)
-            if not start <= entry_date <= end:
+            if not start <= command.entry_date <= end:
                 raise ValidationError(
                     "The time entry date must be inside the selected reporting period.",
                     code="TIME_ENTRY_OUTSIDE_SELECTED_PERIOD",
                 )
         return self._time_entries.add_time_entry(
-            assignment_id, entry_date=entry_date, hours=hours, note=note
+            assignment_id, entry_date=command.entry_date, hours=hours, note=command.note
         )
 
     def update_timesheet_entry(self, command: TimesheetEntryUpdateCommand, *, scope: TimesheetScope | str | None = None, resource_id: str | None = None, period_start: date | None = None) -> TimeEntry:
         entry_id = command.entry_id.strip()
-        expected_version = command.expected_version
-        entry_date = command.entry_date
-        hours = command.hours
-        note = command.note
         if scope is not None:
             if period_start is None:
                 raise ValidationError("Reporting period is required.", code="TIMESHEET_PERIOD_REQUIRED")
@@ -111,15 +105,15 @@ class TimesheetWorkspaceCommandHandler(ProjectManagementModuleGuardMixin):
             if not self._period(selected, period_start).can_edit_entry:
                 raise _entry_change_denied()
             start, end = self._support.timesheet_period_bounds(period_start)
-            target_date = entry_date or entry.entry_date
+            target_date = command.entry_date or entry.entry_date
             if not (start <= entry.entry_date <= end and start <= target_date <= end):
                 raise _entry_outside_period()
         return self._time_entries.update_time_entry(
             entry_id,
-            expected_version=expected_version,
-            entry_date=entry_date,
-            hours=hours,
-            note=note,
+            expected_version=command.expected_version,
+            entry_date=command.entry_date,
+            hours=command.hours,
+            note=command.note,
         )
 
     def delete_timesheet_entry(

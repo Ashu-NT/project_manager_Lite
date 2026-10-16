@@ -10,6 +10,16 @@ from src.core.modules.project_management.api.desktop.projects.factories.projects
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
     RegisterEntryCreateCommand,
 )
@@ -36,8 +46,8 @@ from src.core.platform.application.master_data.site.dto.commands.site import (
 
 
 def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
-    alpha = services['project_create'].create_project("Alpha Delivery", client_name="Northwind")
-    beta = services['project_create'].create_project("Beta Upgrade", client_name="Contoso")
+    alpha = services['project_create'].create_project(ProjectCreateCommand(name="Alpha Delivery", client_name="Northwind"))
+    beta = services['project_create'].create_project(ProjectCreateCommand(name="Beta Upgrade", client_name="Contoso"))
     services['project_status'].set_status(beta.id, ProjectStatus.ACTIVE)
 
     first_page = services["project_query"].query_catalog_page(page=1, page_size=1)
@@ -59,7 +69,7 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
 
 
 def test_project_and_task_detail_activity_decode_canonical_payloads(services) -> None:
-    project = services['project_create'].create_project("Activity Contract Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Activity Contract Project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Activity Contract Task")
 
     project_activity = services["project_query"].query_project_activity_page(
@@ -90,42 +100,12 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
     dept_b = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-B", name="Operations"))
     manager_employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="MANAGER-EMP", full_name="Project Manager", department_id=dept_a.id))
     services["employee_commands"].link_employee_user_account(manager_employee.id, manager_id)
-    services["resource_master_commands"].create_resource(
-        name="Project Manager", worker_type=WorkerType.EMPLOYEE,
-        employee_id=manager_employee.id,
-    )
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Project Manager", worker_type=WorkerType.EMPLOYEE, employee_id=manager_employee.id))
 
-    match = services['project_create'].create_project(
-        "Hamburg Refit",
-        site_id=site_a.id,
-        department_id=dept_a.id,
-        manager_user_id=manager_id,
-        start_date=date(2026, 1, 10),
-        end_date=date(2026, 6, 30),
-    )
-    services['project_create'].create_project(
-        "Rotterdam Refit",
-        site_id=site_b.id,
-        department_id=dept_a.id,
-        manager_user_id=manager_id,
-        start_date=date(2026, 1, 10),
-        end_date=date(2026, 6, 30),
-    )
-    services['project_create'].create_project(
-        "Hamburg Other Dept No Manager",
-        site_id=site_a.id,
-        department_id=dept_b.id,
-        start_date=date(2026, 1, 10),
-        end_date=date(2026, 6, 30),
-    )
-    services['project_create'].create_project(
-        "Hamburg Out Of Range",
-        site_id=site_a.id,
-        department_id=dept_a.id,
-        manager_user_id=manager_id,
-        start_date=date(2027, 1, 10),
-        end_date=date(2027, 6, 30),
-    )
+    match = services['project_create'].create_project(ProjectCreateCommand(name="Hamburg Refit", site_id=site_a.id, department_id=dept_a.id, manager_user_id=manager_id, start_date=date(2026, 1, 10), end_date=date(2026, 6, 30)))
+    services['project_create'].create_project(ProjectCreateCommand(name="Rotterdam Refit", site_id=site_b.id, department_id=dept_a.id, manager_user_id=manager_id, start_date=date(2026, 1, 10), end_date=date(2026, 6, 30)))
+    services['project_create'].create_project(ProjectCreateCommand(name="Hamburg Other Dept No Manager", site_id=site_a.id, department_id=dept_b.id, start_date=date(2026, 1, 10), end_date=date(2026, 6, 30)))
+    services['project_create'].create_project(ProjectCreateCommand(name="Hamburg Out Of Range", site_id=site_a.id, department_id=dept_a.id, manager_user_id=manager_id, start_date=date(2027, 1, 10), end_date=date(2027, 6, 30)))
 
     # Site alone narrows to the three Hamburg-site projects (excludes Rotterdam).
     site_only = services["project_query"].query_catalog_page(site_id=site_a.id, page=1, page_size=25)
@@ -176,16 +156,12 @@ def test_project_resource_activity_is_queryable_by_parent_project_id(services) -
     services["project_resource_query"]
     activity_service = services["activity_service"]
 
-    project_a = services['project_create'].create_project("Parent Entity Activity A")
-    project_b = services['project_create'].create_project("Parent Entity Activity B")
-    resource = services["resource_master_commands"].create_resource("Parent Entity Test Resource", "Planner")
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="Parent Entity Activity A"))
+    project_b = services['project_create'].create_project(ProjectCreateCommand(name="Parent Entity Activity B"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Parent Entity Test Resource", role="Planner"))
 
-    services["project_resource_commands"].add_to_project(
-        project_id=project_a.id, resource_id=resource.id, planned_hours=10,
-    )
-    services["project_resource_commands"].add_to_project(
-        project_id=project_b.id, resource_id=resource.id, planned_hours=5,
-    )
+    services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project_a.id, resource_id=resource.id, planned_hours=10))
+    services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project_b.id, resource_id=resource.id, planned_hours=5))
 
     # Scoping by parent_entity_id must return only project_a's resource
     # activity, not project_b's -- proves the real column-backed filter
@@ -224,11 +200,9 @@ def test_project_resource_activity_is_queryable_by_parent_project_id(services) -
 def test_project_catalog_project_name_and_client_name_filters_compose(services) -> None:
     site_a = services["site_commands"].create_site(SiteCreateCommand(site_code="SITE-N1", name="Name Filter Site"))
 
-    hamburg = services['project_create'].create_project(
-        "Hamburg Refit", client_name="Northwind Shipping", site_id=site_a.id
-    )
-    services['project_create'].create_project("Hamburg Overhaul", client_name="Contoso Freight")
-    services['project_create'].create_project("Rotterdam Refit", client_name="Northwind Shipping")
+    hamburg = services['project_create'].create_project(ProjectCreateCommand(name="Hamburg Refit", client_name="Northwind Shipping", site_id=site_a.id))
+    services['project_create'].create_project(ProjectCreateCommand(name="Hamburg Overhaul", client_name="Contoso Freight"))
+    services['project_create'].create_project(ProjectCreateCommand(name="Rotterdam Refit", client_name="Northwind Shipping"))
 
     # Project name alone narrows to both "Hamburg" projects regardless of client.
     by_name = services["project_query"].query_catalog_page(project_name="hamburg", page=1, page_size=25)
@@ -257,16 +231,12 @@ def test_project_department_id_round_trips_through_create_and_update(services) -
     dept_a = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-RT-A", name="Engineering"))
     dept_b = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-RT-B", name="Operations"))
 
-    created = services['project_create'].create_project("Round Trip Project", department_id=dept_a.id)
+    created = services['project_create'].create_project(ProjectCreateCommand(name="Round Trip Project", department_id=dept_a.id))
     assert created.department_id == dept_a.id
     fetched = services['project_query'].get_project(created.id)
     assert fetched.department_id == dept_a.id
 
-    updated = services['project_update'].update_project(
-        created.id,
-        expected_version=fetched.version,
-        department_id=dept_b.id,
-    )
+    updated = services['project_update'].update_project(ProjectUpdateCommand(project_id=created.id, expected_version=fetched.version, department_id=dept_b.id))
     assert updated.department_id == dept_b.id
     refetched = services['project_query'].get_project(created.id)
     assert refetched.department_id == dept_b.id
@@ -283,17 +253,9 @@ def test_project_update_records_actor_and_field_level_activity_diff(services) ->
     dept_a = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-ACT-A", name="Engineering"))
     dept_b = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-ACT-B", name="Operations"))
 
-    created = services['project_create'].create_project(
-        "Activity Diff Project", department_id=dept_a.id, status=ProjectStatus.PLANNED
-    )
+    created = services['project_create'].create_project(ProjectCreateCommand(name="Activity Diff Project", department_id=dept_a.id, status=ProjectStatus.PLANNED))
 
-    services['project_update'].update_project(
-        created.id,
-        expected_version=created.version,
-        name="Activity Diff Project Renamed",
-        status=ProjectStatus.ACTIVE,
-        department_id=dept_b.id,
-    )
+    services['project_update'].update_project(ProjectUpdateCommand(project_id=created.id, expected_version=created.version, name="Activity Diff Project Renamed", status=ProjectStatus.ACTIVE, department_id=dept_b.id))
 
     entries = activity_service.list_recent(entity_type="project", entity_id=created.id)
     update_entry = next(e for e in entries if e.action == "project.update")
@@ -310,7 +272,7 @@ def test_project_update_records_actor_and_field_level_activity_diff(services) ->
 def test_project_set_status_records_before_and_after_status(services) -> None:
     activity_service = services["activity_service"]
 
-    created = services['project_create'].create_project("Status Diff Project", status=ProjectStatus.PLANNED)
+    created = services['project_create'].create_project(ProjectCreateCommand(name="Status Diff Project", status=ProjectStatus.PLANNED))
     services['project_status'].set_status(created.id, ProjectStatus.ON_HOLD)
 
     entries = activity_service.list_recent(entity_type="project", entity_id=created.id)
@@ -320,9 +282,9 @@ def test_project_set_status_records_before_and_after_status(services) -> None:
 
 
 def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
-    alpha = services['project_create'].create_project("Alpha Sort")
-    beta = services['project_create'].create_project("Beta Sort")
-    gamma = services['project_create'].create_project("Gamma Sort")
+    alpha = services['project_create'].create_project(ProjectCreateCommand(name="Alpha Sort"))
+    beta = services['project_create'].create_project(ProjectCreateCommand(name="Beta Sort"))
+    gamma = services['project_create'].create_project(ProjectCreateCommand(name="Gamma Sort"))
 
     ascending_first = services["project_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=1, page_size=2
@@ -357,7 +319,7 @@ def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
 
 
 def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -> None:
-    project = services['project_create'].create_project("WBS Database Paging")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="WBS Database Paging"))
     root = services['task_lifecycle_commands'].create_task(
         project.id,
         "Summary Delivery",
@@ -410,7 +372,7 @@ def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -
 
 
 def test_task_workspace_milestones_only_filter(services) -> None:
-    project = services['project_create'].create_project("Milestone Filter Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Milestone Filter Project"))
     services['task_lifecycle_commands'].create_task(
         project.id, "Regular Task", start_date=date(2026, 5, 1), duration_days=5
     )
@@ -431,7 +393,7 @@ def test_task_workspace_milestones_only_filter(services) -> None:
 
 
 def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
-    project = services['project_create'].create_project("Task Sort Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Task Sort Project"))
     alpha = services['task_lifecycle_commands'].create_task(project.id, "Alpha Task", wbs_code="1")
     beta = services['task_lifecycle_commands'].create_task(project.id, "Beta Task", wbs_code="2")
     gamma = services['task_lifecycle_commands'].create_task(project.id, "Gamma Task", wbs_code="3")
@@ -494,22 +456,8 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
 def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> None:
     delivery_department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEPT-DELIVERY", name="Delivery"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-RPAGE", full_name="Alex Database", title="Planner", department_id=delivery_department.id, department="Delivery", site_name="Berlin", email="alex.database@example.com"))
-    employee_resource = services["resource_master_commands"].create_resource(
-        name="Alex Database",
-        role="Planner",
-        worker_type=WorkerType.EMPLOYEE,
-        employee_id=employee.id,
-        capacity_percent=80.0,
-        cost_type=CostType.LABOR,
-    )
-    vendor_resource = services["resource_master_commands"].create_resource(
-        name="Vendor Crane",
-        role="Equipment Operator",
-        worker_type=WorkerType.EXTERNAL,
-        capacity_percent=120.0,
-        cost_type=CostType.EQUIPMENT,
-        is_active=False,
-    )
+    employee_resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Alex Database", role="Planner", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id, capacity_percent=80.0, cost_type=CostType.LABOR))
+    vendor_resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Vendor Crane", role="Equipment Operator", worker_type=WorkerType.EXTERNAL, capacity_percent=120.0, cost_type=CostType.EQUIPMENT, is_active=False))
 
     first_page = services["resource_query"].query_catalog_page(page=1, page_size=1)
     second_page = services["resource_query"].query_catalog_page(page=2, page_size=1)
@@ -538,9 +486,9 @@ def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> 
 
 
 def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
-    alpha = services["resource_master_commands"].create_resource(name="Alpha Resource", role="Planner")
-    beta = services["resource_master_commands"].create_resource(name="Beta Resource", role="Planner")
-    gamma = services["resource_master_commands"].create_resource(name="Gamma Resource", role="Planner")
+    alpha = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Alpha Resource", role="Planner"))
+    beta = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Beta Resource", role="Planner"))
+    gamma = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Gamma Resource", role="Planner"))
 
     ascending_first = services["resource_query"].query_catalog_page(
         sort_key="title", sort_direction="asc", page=1, page_size=2
@@ -574,7 +522,7 @@ def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
 
 
 def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -> None:
-    project = services['project_create'].create_project("Register Database Paging")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Register Database Paging"))
     register_query = services["register_query"]
     critical_risk = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="Critical supplier delay", severity=RegisterEntrySeverity.CRITICAL, status=RegisterEntryStatus.OPEN, due_date=date(2026, 5, 1)))
     issue = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.ISSUE, title="Permit issue", severity=RegisterEntrySeverity.HIGH, status=RegisterEntryStatus.IN_PROGRESS, due_date=date(2026, 5, 3)))
@@ -619,7 +567,7 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
 
 
 def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
-    project = services['project_create'].create_project("Register Sort Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Register Sort Project"))
     register_query = services["register_query"]
     alpha = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.RISK, title="Alpha Register Entry", severity=RegisterEntrySeverity.LOW))
     beta = services["register_lifecycle_commands"].create_entry(RegisterEntryCreateCommand(project.id, entry_type=RegisterEntryType.ISSUE, title="Beta Register Entry", severity=RegisterEntrySeverity.MEDIUM))
@@ -680,17 +628,14 @@ def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
 
 
 def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> None:
-    project = services['project_create'].create_project("Timesheet Database Paging")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Timesheet Database Paging"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Database review task",
         start_date=date(2026, 6, 1),
         duration_days=5,
     )
-    resource = services["resource_master_commands"].create_resource(
-        name="Database Reviewer",
-        role="Engineer",
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Database Reviewer", role="Engineer"))
     assignment = services['task_assignment_commands'].assign_resource(
         task.id,
         resource.id,
@@ -720,8 +665,8 @@ def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> No
 
 
 def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None:
-    alpha_project = services['project_create'].create_project("Alpha Review Project")
-    beta_project = services['project_create'].create_project("Beta Review Project")
+    alpha_project = services['project_create'].create_project(ProjectCreateCommand(name="Alpha Review Project"))
+    beta_project = services['project_create'].create_project(ProjectCreateCommand(name="Beta Review Project"))
 
     created = []
     for name, project, month in (
@@ -730,7 +675,7 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
         ("Zoe Reviewer", beta_project, 8),
     ):
         task = services['task_lifecycle_commands'].create_task(project.id, f"{name} Task")
-        resource = services["resource_master_commands"].create_resource(name=name, role="Engineer")
+        resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=name, role="Engineer"))
         assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id)
         period_start = date(2026, month, 1)
         services["time_entry_commands"].add_time_entry(

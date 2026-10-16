@@ -8,6 +8,9 @@ import pytest
 from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_estimates import (
     ManualEtcEstimate,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
     ForecastLineSourceKind,
@@ -17,9 +20,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyEr
 
 
 def test_stale_forecast_submit_is_rejected(services) -> None:
-    project = services["project_create"].create_project(
-        "Stale Forecast submit", financial_currency_code="USD"
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Stale Forecast submit", financial_currency_code="USD"))
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             code="R6C-STALE-SUBMIT", name="Stale submit"
@@ -61,9 +62,7 @@ def test_stale_forecast_submit_is_rejected(services) -> None:
 
 
 def test_generation_cannot_create_a_second_open_forecast(services) -> None:
-    project = services["project_create"].create_project(
-        "Single open Forecast", financial_currency_code="USD"
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Single open Forecast", financial_currency_code="USD"))
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             code="R6C-ONE-OPEN", name="One open Forecast"

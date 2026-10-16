@@ -17,7 +17,7 @@ def active_organization(tenant_context_service: TenantContextService | None) -> 
             "Active organization context is required.",
             code="TENANT_CONTEXT_REQUIRED",
         )
-    organization = tenant_context_service.get_active_organization()
+    organization = tenant_context_service.resolve_active_organization()
     if organization is None:
         raise BusinessRuleError(
             "Active organization context is required.",

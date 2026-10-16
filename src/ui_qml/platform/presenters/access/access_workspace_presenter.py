@@ -11,8 +11,8 @@ from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
     DesktopApiResult,
 )
-from src.core.platform.api.desktop.security.auth.models.user import UserDto
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.application.security.auth.dto.responses.user import UserDto
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     preview_error_result,
 )

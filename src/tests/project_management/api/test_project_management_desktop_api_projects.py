@@ -1,3 +1,5 @@
+
+from dataclasses import asdict
 from datetime import date
 from types import SimpleNamespace
 
@@ -9,6 +11,16 @@ from src.core.modules.project_management.api.desktop import (
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
     ProjectUpdateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
+)
+from src.core.modules.project_management.application.projects.mappers.project import (
+    map_project_response,
+)
+from src.core.modules.project_management.contracts.reads.projects.models import (
+    ProjectCatalogProjectFact,
+    ProjectCatalogReadItem,
 )
 from src.core.modules.project_management.domain.enums import (
     ProjectStatus,
@@ -160,91 +172,56 @@ class _FakeProjectService:
         self._next_id = 1
 
     def list_projects(self) -> list[Project]:
-        return list(self._projects.values())
+        return [map_project_response(project) for project in self._projects.values()]
 
-    def query_project_detail(self, project_id: str):
-        project = self.get_project(project_id)
+    def query_project_detail(self, project_id: str) -> ProjectCatalogReadItem | None:
+        project = self._projects.get(project_id)
         if project is None:
             return None
-        return SimpleNamespace(
-            project=project,
+        return ProjectCatalogReadItem(
+            project=ProjectCatalogProjectFact(**asdict(project)),
             site_label="",
-            financial_currency_code=None,
+            financial_currency_code="",
             approved_budget=None,
-            approved_budget_currency=None,
+            approved_budget_currency="",
             approved_budget_visible=True,
             client_label="",
         )
 
-    def create_project(
-        self,
-        *,
-        name: str,
-        description: str = "",
-        status: "ProjectStatus | None" = None,
-        client_name: str | None = None,
-        client_contact: str | None = None,
-        financial_currency_code: str | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        organization_id: str | None = None,
-        site_id: str | None = None,
-        department_id: str | None = None,
-        client_party_id: str | None = None,
-        manager_user_id: str | None = None,
-        code: str = "",
-    ) -> Project:
+    def create_project(self, command: ProjectCreateCommand) -> ProjectResponse:
         project = Project(
             id=f"proj-{self._next_id}",
-            name=name,
-            description=description,
-            start_date=start_date,
-            end_date=end_date,
-            status=status if status is not None else ProjectStatus.PLANNED,
-            client_name=client_name,
-            client_contact=client_contact,
+            name=command.name,
+            description=command.description,
+            start_date=command.start_date,
+            end_date=command.end_date,
+            status=ProjectStatus(command.status),
+            client_name=command.client_name,
+            client_contact=command.client_contact,
             version=1,
         )
         self._next_id += 1
         self._projects[project.id] = project
-        return project
+        return map_project_response(project)
 
-    def update_project(
-        self,
-        project_id: str,
-        *,
-        expected_version: int | None = None,
-        name: str | None = None,
-        description: str | None = None,
-        status: ProjectStatus | None = None,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        client_name: str | None = None,
-        client_contact: str | None = None,
-        organization_id: str | None = None,
-        site_id: str | None = None,
-        department_id: str | None = None,
-        client_party_id: str | None = None,
-        manager_user_id: str | None = None,
-        code: str | None = None,
-    ) -> Project:
-        project = self._projects[project_id]
-        if name is not None:
-            project.name = name
-        if description is not None:
-            project.description = description
-        if status is not None:
-            project.status = status
-        if start_date is not None:
-            project.start_date = start_date
-        if end_date is not None:
-            project.end_date = end_date
-        if client_name is not None:
-            project.client_name = client_name
-        if client_contact is not None:
-            project.client_contact = client_contact
+    def update_project(self, command: ProjectUpdateCommand) -> ProjectResponse:
+        project = self._projects[command.project_id]
+        if command.name is not None:
+            project.name = command.name
+        if command.description is not None:
+            project.description = command.description
+        if command.status is not None:
+            project.status = ProjectStatus(command.status)
+        if command.start_date is not None:
+            project.start_date = command.start_date
+        if command.end_date is not None:
+            project.end_date = command.end_date
+        if command.client_name is not None:
+            project.client_name = command.client_name
+        if command.client_contact is not None:
+            project.client_contact = command.client_contact
         project.version += 1
-        return project
+        return map_project_response(project)
 
     def set_status(self, project_id: str, status: ProjectStatus) -> None:
         self._projects[project_id].status = status
@@ -254,4 +231,5 @@ class _FakeProjectService:
         del self._projects[project_id]
 
     def get_project(self, project_id: str) -> Project | None:
-        return self._projects.get(project_id)
+        project = self._projects.get(project_id)
+        return None if project is None else map_project_response(project)

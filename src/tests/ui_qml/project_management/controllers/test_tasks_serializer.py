@@ -5,6 +5,9 @@ from datetime import date
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.ui_qml.modules.project_management.controllers.common.serializers.tasks_serializer import (
     serialize_task_record_view_models,
@@ -21,7 +24,7 @@ def test_priority_bucket_label_none_or_empty_is_not_set() -> None:
 
 
 def test_wbs_code_round_trips_from_db_to_serialized_table_row(services) -> None:
-    project = services['project_create'].create_project("WBS Serializer Check")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="WBS Serializer Check"))
     services['task_lifecycle_commands'].create_task(
         project.id,
         "Root Package",
@@ -53,7 +56,7 @@ def test_wbs_code_round_trips_from_db_to_serialized_table_row(services) -> None:
 
 
 def test_milestone_task_shows_marker_in_title_and_milestones_only_filter_selects_it(services) -> None:
-    project = services['project_create'].create_project("Milestone Marker Check")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Milestone Marker Check"))
     services['task_lifecycle_commands'].create_task(
         project.id, "Regular Task", start_date=date(2026, 5, 1), duration_days=5,
     )
@@ -87,7 +90,7 @@ def test_milestone_task_shows_marker_in_title_and_milestones_only_filter_selects
 
 
 def test_priority_label_shows_the_same_bucket_the_priority_filter_selects(services) -> None:
-    project = services['project_create'].create_project("Priority Bucket Check")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Priority Bucket Check"))
     services['task_lifecycle_commands'].create_task(
         project.id, "High Task", start_date=date(2026, 5, 1), duration_days=1, priority=95,
     )

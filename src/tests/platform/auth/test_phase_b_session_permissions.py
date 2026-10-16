@@ -5,6 +5,16 @@ from decimal import Decimal
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+    ProjectResourceUpdateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
@@ -31,13 +41,13 @@ def test_user_session_enforces_manage_permissions(services):
     _login_as(services, "viewer1", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        services['project_create'].create_project("Forbidden project")
+        services['project_create'].create_project(ProjectCreateCommand(name="Forbidden project"))
 
 
 def test_admin_session_can_execute_manage_operations(services):
     _login_as(services, "admin", "ChangeMe123!")
 
-    p = services['project_create'].create_project("Allowed project")
+    p = services['project_create'].create_project(ProjectCreateCommand(name="Allowed project"))
     assert p.id
 
 
@@ -48,13 +58,11 @@ def test_cleared_session_denies_core_read_models(services):
     services["approval_commands"]
     audit = services["enterprise_audit_service"]
 
-    project = services['project_create'].create_project("Read Permission Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Read Permission Project"))
     services['task_lifecycle_commands'].create_task(
         project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2
     )
-    services["resource_master_commands"].create_resource(
-        "Read Permission Resource", hourly_rate=120.0
-    )
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Read Permission Resource", hourly_rate=120.0))
 
     services["user_session"].clear()
 
@@ -88,15 +96,9 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     services['cost_entry_query']
     services["project_resource_query"]
 
-    project = services['project_create'].create_project("Permission project")
-    resource = services["resource_master_commands"].create_resource(
-        "Assigned Resource", hourly_rate=120.0
-    )
-    project_resource = services["project_resource_commands"].add_to_project(
-        project_id=project.id,
-        resource_id=resource.id,
-        planned_hours=40.0,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Permission project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Assigned Resource", hourly_rate=120.0))
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, planned_hours=40.0))
     task = services['task_lifecycle_commands'].create_task(project_id=project.id, name="Permission task")
     assignment = services['task_assignment_commands'].assign_project_resource(task.id, project_resource.id, 50.0)
 
@@ -106,7 +108,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
         services["password_commands"].reset_user_password(UserPasswordResetCommand(user_id=target.id, new_password="ResetByViewer123"))
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        services["resource_master_commands"].create_resource("Forbidden resource")
+        services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Forbidden resource"))
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
@@ -143,33 +145,17 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
     services["project_resource_query"]
     ecs_commands = services["platform_calendar_commands"]
 
-    project = services['project_create'].create_project("Ops permission project")
-    resource = services["resource_master_commands"].create_resource(
-        "Ops resource", hourly_rate=100.0
-    )
-    project_resource = services["project_resource_commands"].add_to_project(
-        project_id=project.id,
-        resource_id=resource.id,
-        planned_hours=16.0,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Ops permission project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Ops resource", hourly_rate=100.0))
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, planned_hours=16.0))
 
     _login_as(services, "viewer3", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        services["project_resource_commands"].add_to_project(
-            project_id=project.id,
-            resource_id=resource.id,
-            planned_hours=8.0,
-        )
+        services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, planned_hours=8.0))
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        services["project_resource_commands"].update(
-            pr_id=project_resource.id,
-            hourly_rate=80.0,
-            currency_code="EUR",
-            planned_hours=20.0,
-            is_active=True,
-        )
+        services["project_resource_commands"].update(ProjectResourceUpdateCommand(project_resource_id=project_resource.id, hourly_rate=80.0, currency_code="EUR", planned_hours=20.0, is_active=True))
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         services["project_resource_commands"].set_active(project_resource.id, False)
@@ -198,7 +184,7 @@ def test_governance_permissions_are_split_between_request_and_decide(
     services['financial_configuration_query']
     approvals = services["approval_commands"]
 
-    project = services['project_create'].create_project("Governance permission split")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Governance permission split"))
     organization = services["tenant_context_service"].get_active_organization()
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(code="HOTEL", name="Hotel"))
     item = services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
@@ -235,16 +221,14 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     _login_as(services, "admin", "ChangeMe123!")
 
 
-    project = services['project_create'].create_project("Timesheet Permission Split")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Timesheet Permission Split"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Timesheet Permission Task",
         start_date=date(2026, 6, 1),
         duration_days=2,
     )
-    resource = services["resource_master_commands"].create_resource(
-        "Planner Logger", hourly_rate=100.0
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Planner Logger", hourly_rate=100.0))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
     services["time_entry_commands"].add_time_entry(
         assignment.id,
@@ -281,16 +265,14 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
 def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
     user_session = services["user_session"]
 
-    project = services['project_create'].create_project("Shared Time Permission Alias")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Shared Time Permission Alias"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Alias Permission Task",
         start_date=date(2026, 7, 1),
         duration_days=2,
     )
-    resource = services["resource_master_commands"].create_resource(
-        "Alias Logger", hourly_rate=100.0
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Alias Logger", hourly_rate=100.0))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
     first = services["time_entry_commands"].add_time_entry(
         assignment.id,

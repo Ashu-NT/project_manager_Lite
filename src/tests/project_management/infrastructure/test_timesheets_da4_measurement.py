@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from sqlalchemy import event
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     TimesheetAssignmentContext,
 )
@@ -11,9 +17,9 @@ def test_timesheet_assignment_context_is_one_tenant_scoped_query(
     services,
     session,
 ) -> None:
-    project = services['project_create'].create_project("DA4 Timesheets")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="DA4 Timesheets"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Review commissioning")
-    resource = services["resource_master_commands"].create_resource("Commissioning Lead")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Commissioning Lead"))
     assignment = services['task_assignment_commands'].assign_resource(
         task.id,
         resource.id,

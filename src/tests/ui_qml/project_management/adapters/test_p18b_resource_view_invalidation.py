@@ -8,6 +8,13 @@ path producing exactly one Resource invalidation (no fake cross-capability event
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+    ResourceUpdateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.skills import (
+    ResourceAddSkillCommand,
+)
 from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
     RESOURCE_CAPABILITIES_SCOPE_CODE,
     RESOURCE_CATEGORY,
@@ -67,7 +74,7 @@ def test_resource_master_changed_produces_resource_list_hint_at_organization_sco
     hints = _spy_hints(services)
     org = services["tenant_context_service"].get_active_organization()
 
-    resource = services["resource_master_commands"].create_resource(name=_unique("MapMaster"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("MapMaster")))
 
     resource_hints = [h for h in hints if h.category == RESOURCE_CATEGORY]
     assert len(resource_hints) == 1
@@ -80,11 +87,11 @@ def test_resource_master_changed_produces_resource_list_hint_at_organization_sco
 
 
 def test_resource_capability_changed_produces_resource_capabilities_hint_at_resource_scope(services):
-    resource = services["resource_master_commands"].create_resource(name=_unique("MapCapability"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("MapCapability")))
     org = services["tenant_context_service"].get_active_organization()
     hints = _spy_hints(services)
 
-    services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python")
+    services["resource_capability_commands"].add_resource_skill(ResourceAddSkillCommand(resource_id=resource.id, skill_code="PY", skill_name="Python"))
 
     resource_hints = [h for h in hints if h.category == RESOURCE_CATEGORY]
     assert len(resource_hints) == 1
@@ -101,10 +108,10 @@ def test_resource_capability_changed_produces_resource_capabilities_hint_at_reso
 def test_capability_change_never_produces_a_resource_list_hint(services):
     """List rows carry no skill/certification data (proven from source) -- a capability change
     must never trigger the list/options scope_code."""
-    resource = services["resource_master_commands"].create_resource(name=_unique("NoListFromCap"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("NoListFromCap")))
     hints = _spy_hints(services)
 
-    services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python")
+    services["resource_capability_commands"].add_resource_skill(ResourceAddSkillCommand(resource_id=resource.id, skill_code="PY", skill_name="Python"))
 
     assert not any(h.scope_code == RESOURCE_LIST_SCOPE_CODE for h in hints if h.category == RESOURCE_CATEGORY)
 
@@ -112,7 +119,7 @@ def test_capability_change_never_produces_a_resource_list_hint(services):
 def test_master_change_never_produces_a_resource_capabilities_hint(services):
     hints = _spy_hints(services)
 
-    services["resource_master_commands"].create_resource(name=_unique("NoCapFromMaster"))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("NoCapFromMaster")))
 
     assert not any(
         h.scope_code == RESOURCE_CAPABILITIES_SCOPE_CODE for h in hints if h.category == RESOURCE_CATEGORY
@@ -120,16 +127,10 @@ def test_master_change_never_produces_a_resource_capabilities_hint(services):
 
 
 def test_each_master_lifecycle_operation_produces_exactly_one_resource_list_hint(services):
-    resource = services["resource_master_commands"].create_resource(name=_unique("LifecycleHints"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("LifecycleHints")))
 
     for operation in (
-        lambda: services["resource_master_commands"].update_resource(
-            resource_id=resource.id, expected_version=resource.version, name="Renamed",
-            code=resource.code, kind=resource.kind, role="", hourly_rate=resource.hourly_rate,
-            cost_type=resource.cost_type, currency_code=resource.currency_code,
-            capacity_percent=resource.capacity_percent, address="", contact="",
-            worker_type=resource.worker_type, employee_id=None, department_id=None, site_id=None,
-        ),
+        lambda: services["resource_master_commands"].update_resource(ResourceUpdateCommand(resource_id=resource.id, expected_version=resource.version, name="Renamed", code=resource.code, kind=resource.kind, role="", hourly_rate=resource.hourly_rate, cost_type=resource.cost_type, currency_code=resource.currency_code, capacity_percent=resource.capacity_percent, address="", contact="", worker_type=resource.worker_type, employee_id=None, department_id=None, site_id=None)),
     ):
         hints = _spy_hints(services)
         resource = operation()
@@ -138,16 +139,10 @@ def test_each_master_lifecycle_operation_produces_exactly_one_resource_list_hint
 
 
 def test_no_op_update_produces_zero_hints(services):
-    resource = services["resource_master_commands"].create_resource(name=_unique("NoopHint"), role="Same")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("NoopHint"), role="Same"))
     hints = _spy_hints(services)
 
-    services["resource_master_commands"].update_resource(
-        resource_id=resource.id, expected_version=resource.version, name=resource.name,
-        code=resource.code, kind=resource.kind, role=resource.role, hourly_rate=resource.hourly_rate,
-        cost_type=resource.cost_type, currency_code=resource.currency_code,
-        capacity_percent=resource.capacity_percent, address=resource.address, contact=resource.contact,
-        worker_type=resource.worker_type, employee_id=None, department_id=None, site_id=None,
-    )
+    services["resource_master_commands"].update_resource(ResourceUpdateCommand(resource_id=resource.id, expected_version=resource.version, name=resource.name, code=resource.code, kind=resource.kind, role=resource.role, hourly_rate=resource.hourly_rate, cost_type=resource.cost_type, currency_code=resource.currency_code, capacity_percent=resource.capacity_percent, address=resource.address, contact=resource.contact, worker_type=resource.worker_type, employee_id=None, department_id=None, site_id=None))
 
     assert [h for h in hints if h.category == RESOURCE_CATEGORY] == []
 
@@ -166,7 +161,7 @@ def test_failed_mutation_produces_zero_hints(services, monkeypatch):
     import pytest
 
     with pytest.raises(RuntimeError):
-        services["resource_master_commands"].create_resource(name=_unique("FailedHint"))
+        services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("FailedHint")))
     monkeypatch.undo()
 
     assert [h for h in hints if h.category == RESOURCE_CATEGORY] == []
@@ -319,8 +314,8 @@ def test_same_resource_list_target_across_two_transactions_produces_two_hints(se
     targeting the same organization must never be silently suppressed by the first."""
     hints = _spy_hints(services)
 
-    services["resource_master_commands"].create_resource(name=_unique("XactA"))
-    services["resource_master_commands"].create_resource(name=_unique("XactB"))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("XactA")))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("XactB")))
 
     list_hints = [h for h in hints if h.category == RESOURCE_CATEGORY and h.scope_code == RESOURCE_LIST_SCOPE_CODE]
     assert len(list_hints) == 2
@@ -341,14 +336,14 @@ def test_org_a_resource_event_does_not_reach_org_b_subscriber(services):
     )
     adapter.resourceListStale.connect(lambda rid: adapter_b_calls.append(rid))
 
-    services["resource_master_commands"].create_resource(name=_unique("OrgIsolation"))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("OrgIsolation")))
 
     assert adapter_b_calls == []
 
 
 def test_resource_a_capability_event_does_not_reach_consumer_filtering_for_resource_b(services):
-    resource_a = services["resource_master_commands"].create_resource(name=_unique("ResA"))
-    resource_b = services["resource_master_commands"].create_resource(name=_unique("ResB"))
+    resource_a = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("ResA")))
+    resource_b = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("ResB")))
     org = services["tenant_context_service"].get_active_organization()
 
     reactions_for_b = []
@@ -361,7 +356,7 @@ def test_resource_a_capability_event_does_not_reach_consumer_filtering_for_resou
         lambda rid: reactions_for_b.append(rid) if rid == resource_b.id else None
     )
 
-    services["resource_capability_commands"].add_resource_skill(resource_a.id, "PY", "Python")
+    services["resource_capability_commands"].add_resource_skill(ResourceAddSkillCommand(resource_id=resource_a.id, skill_code="PY", skill_name="Python"))
 
     assert reactions_for_b == []
 
@@ -391,7 +386,7 @@ def test_resources_workspace_refreshes_on_any_master_change(services):
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    services["resource_master_commands"].create_resource(name=_unique("WorkspaceMaster"))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("WorkspaceMaster")))
 
     assert refresh_calls == ["refresh"]
 
@@ -399,11 +394,11 @@ def test_resources_workspace_refreshes_on_any_master_change(services):
 def test_resources_workspace_does_not_refresh_on_unrelated_resource_capability_change(services):
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.resourcesWorkspace
-    other_resource = services["resource_master_commands"].create_resource(name=_unique("Other"))
+    other_resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("Other")))
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    services["resource_capability_commands"].add_resource_skill(other_resource.id, "PY", "Python")
+    services["resource_capability_commands"].add_resource_skill(ResourceAddSkillCommand(resource_id=other_resource.id, skill_code="PY", skill_name="Python"))
 
     assert refresh_calls == []
 
@@ -411,8 +406,8 @@ def test_resources_workspace_does_not_refresh_on_unrelated_resource_capability_c
 def test_resources_workspace_reloads_capabilities_only_for_selected_resource(services):
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.resourcesWorkspace
-    resource = services["resource_master_commands"].create_resource(name=_unique("SelectedCap"))
-    other_resource = services["resource_master_commands"].create_resource(name=_unique("OtherCap"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("SelectedCap")))
+    other_resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("OtherCap")))
     controller._selected_resource_id = resource.id
 
     reload_calls = []
@@ -420,10 +415,10 @@ def test_resources_workspace_reloads_capabilities_only_for_selected_resource(ser
     original = binder_module.reload_skills_and_certs
     binder_module.reload_skills_and_certs = lambda ctrl, rid: reload_calls.append(rid)
     try:
-        services["resource_capability_commands"].add_resource_skill(other_resource.id, "PY", "Python")
+        services["resource_capability_commands"].add_resource_skill(ResourceAddSkillCommand(resource_id=other_resource.id, skill_code="PY", skill_name="Python"))
         assert reload_calls == []
 
-        services["resource_capability_commands"].add_resource_skill(resource.id, "JS", "JavaScript")
+        services["resource_capability_commands"].add_resource_skill(ResourceAddSkillCommand(resource_id=resource.id, skill_code="JS", skill_name="JavaScript"))
         assert reload_calls == [resource.id]
     finally:
         binder_module.reload_skills_and_certs = original
@@ -455,7 +450,7 @@ def test_dashboard_portfolio_scheduling_tasks_timesheets_refresh_on_master_chang
     for name, controller in controllers.items():
         controller.refresh = (lambda n: lambda: refresh_calls[n].append("refresh"))(name)
 
-    services["resource_master_commands"].create_resource(name=_unique("SharedMasterRefresh"))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("SharedMasterRefresh")))
     QApplication.processEvents()
 
     for name in controllers:
@@ -466,7 +461,7 @@ def test_dashboard_portfolio_scheduling_tasks_timesheets_do_not_refresh_on_capab
     from PySide6.QtWidgets import QApplication
 
     pm_catalog = _pm_catalog(services)
-    resource = services["resource_master_commands"].create_resource(name=_unique("NoCapRefresh"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("NoCapRefresh")))
     controllers = {
         "dashboard": pm_catalog.dashboardWorkspace,
         "portfolio": pm_catalog.portfolioWorkspace,
@@ -479,7 +474,7 @@ def test_dashboard_portfolio_scheduling_tasks_timesheets_do_not_refresh_on_capab
     for name, controller in controllers.items():
         controller.refresh = (lambda n: lambda: refresh_calls[n].append("refresh"))(name)
 
-    services["resource_capability_commands"].add_resource_skill(resource.id, "PY", "Python")
+    services["resource_capability_commands"].add_resource_skill(ResourceAddSkillCommand(resource_id=resource.id, skill_code="PY", skill_name="Python"))
     QApplication.processEvents()
 
     for name in controllers:
@@ -496,7 +491,7 @@ def test_control_workspace_no_longer_reacts_to_resource_events(services):
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    services["resource_master_commands"].create_resource(name=_unique("ControlNoReact"))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("ControlNoReact")))
 
     assert refresh_calls == []
 
@@ -509,9 +504,7 @@ def test_control_workspace_no_longer_reacts_to_resource_events(services):
 def test_employee_update_produces_exactly_one_resource_list_hint_when_resource_linked(services):
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=_unique("DEPT"), name="Engineering"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique("EMP"), full_name="Original Name", title="Engineer", department_id=department.id))
-    resource = services["resource_master_commands"].create_resource(
-        name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
     hints = _spy_hints(services)
 
     services["employee_commands"].update_employee(EmployeeUpdateCommand(employee_id=employee.id, full_name="Updated Name"))
@@ -537,9 +530,7 @@ def test_resources_workspace_refreshes_once_from_employee_driven_resource_sync(s
     controller = pm_catalog.resourcesWorkspace
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=_unique("DEPT"), name="Engineering"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique("EMP"), full_name="Sync Name", title="Engineer", department_id=department.id))
-    services["resource_master_commands"].create_resource(
-        name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
-    )
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 

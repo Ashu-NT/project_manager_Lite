@@ -13,6 +13,9 @@ from src.core.modules.project_management.application.financials.forecasts.dto.co
     ManualEtcEstimate,
     RiskContingencyEstimate,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitmentLineState,
 )
@@ -37,9 +40,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, ValidationErr
 
 
 def _project(services, name: str = "Forecast Project"):
-    return services["project_create"].create_project(
-        name, financial_currency_code="USD"
-    )
+    return services["project_create"].create_project(ProjectCreateCommand(name=name, financial_currency_code="USD"))
 
 
 def _cost_code(services, code: str = "FC-001"):

@@ -24,6 +24,12 @@ from src.core.modules.project_management.application.financials.budgets.dto.comm
     FinancialDeleteBudgetLineCommand,
     FinancialUpdateBudgetLineCommand,
 )
+from src.core.modules.project_management.application.financials.budgets.dto.responses.mutations import (
+    FinancialBudgetLineMutationDto,
+)
+from src.core.modules.project_management.application.financials.budgets.mappers.responses import (
+    map_budget_line,
+)
 from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
 )
@@ -101,16 +107,10 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
         self._record_event = record_event
 
 
-    def add_line(self, command: FinancialAddBudgetLineCommand) -> BudgetLine:
-        budget_id = command.budget_id
-        cost_code_id = command.cost_code_id
-        task_id = command.task_id
-        description = command.description
+    def add_line(self, command: FinancialAddBudgetLineCommand) -> FinancialBudgetLineMutationDto:
         amount = _command_amount(command.amount)
-        currency_code = command.currency_code
-        expected_budget_version = command.expected_parent_version
         require_permission(self._user_session, "budget.manage", operation_label="add project budget line")
-        budget = self._require_budget(budget_id)
+        budget = self._require_budget(command.budget_id)
         require_project_permission(
             self._user_session,
             budget.project_id,
@@ -118,33 +118,33 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
             operation_label="add project budget line",
         )
         budget.ensure_mutable()
-        if budget.row_version != expected_budget_version:
+        if budget.row_version != command.expected_parent_version:
             raise ConcurrencyError("Budget changed since you opened it.", code="STALE_WRITE")
-        resolved_currency = currency_code or budget.currency_code
+        resolved_currency = command.currency_code or budget.currency_code
         if resolved_currency != budget.currency_code:
             raise BusinessRuleError(
                 "Budget line currency must match the budget's currency.",
                 code="PROJECT_BUDGET_LINE_CURRENCY_MISMATCH",
             )
-        self._require_eligible_cost_code(budget.project_id, cost_code_id)
-        if task_id is not None:
-            self._require_task_in_project(task_id, budget.project_id)
+        self._require_eligible_cost_code(budget.project_id, command.cost_code_id)
+        if command.task_id is not None:
+            self._require_task_in_project(command.task_id, budget.project_id)
         now = self._clock.now()
         line = BudgetLine.create(
             tenant_id=budget.tenant_id,
             organization_id=budget.organization_id,
             budget_id=budget.id,
             project_id=budget.project_id,
-            cost_code_id=cost_code_id,
-            task_id=task_id,
-            description=description,
+            cost_code_id=command.cost_code_id,
+            task_id=command.task_id,
+            description=command.description,
             amount=amount,
             currency_code=resolved_currency,
             created_at=now,
         )
         self._budget_repo.add_line(line)
         budget.touch(updated_at=now)
-        self._budget_repo.update(budget, expected_row_version=expected_budget_version)
+        self._budget_repo.update(budget, expected_row_version=command.expected_parent_version)
         self._record_line_audit(operation="add_line", line=line, budget=budget)
         event = BudgetLineChanged(
             tenant_id=budget.tenant_id,
@@ -158,22 +158,15 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return line
+        return map_budget_line(line)
 
 
-    def update_line(self, command: FinancialUpdateBudgetLineCommand) -> BudgetLine:
-        line_id = command.budget_line_id
-        expected_line_version = command.expected_version
-        expected_budget_version = command.expected_parent_version
-        cost_code_id = command.cost_code_id
-        task_id = command.task_id
-        description = command.description
+    def update_line(self, command: FinancialUpdateBudgetLineCommand) -> FinancialBudgetLineMutationDto:
         amount = _command_amount(command.amount)
-        currency_code = command.currency_code
         require_permission(
             self._user_session, "budget.manage", operation_label="update project budget line"
         )
-        line = self._require_line(line_id)
+        line = self._require_line(command.budget_line_id)
         budget = self._require_budget(line.budget_id)
         require_project_permission(
             self._user_session,
@@ -182,14 +175,14 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
             operation_label="update project budget line",
         )
         budget.ensure_mutable()
-        if budget.row_version != expected_budget_version:
+        if budget.row_version != command.expected_parent_version:
             raise ConcurrencyError("Budget changed since you opened it.", code="STALE_WRITE")
-        if line.row_version != expected_line_version:
+        if line.row_version != command.expected_version:
             raise ConcurrencyError("Budget line changed since you opened it.", code="STALE_WRITE")
 
-        resolved_cost_code_id = line.cost_code_id if cost_code_id is None else cost_code_id
-        resolved_task_id = line.task_id if task_id is _UNSET else task_id
-        resolved_currency = line.currency_code if currency_code is None else currency_code
+        resolved_cost_code_id = line.cost_code_id if command.cost_code_id is None else command.cost_code_id
+        resolved_task_id = line.task_id if command.task_id is _UNSET else command.task_id
+        resolved_currency = line.currency_code if command.currency_code is None else command.currency_code
 
         if resolved_currency != budget.currency_code:
             raise BusinessRuleError(
@@ -204,16 +197,16 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
         now = self._clock.now()
         line.cost_code_id = resolved_cost_code_id
         line.task_id = resolved_task_id
-        if description is not None:
-            line.description = description
+        if command.description is not None:
+            line.description = command.description
         if amount is not None:
             line.amount = amount
         line.currency_code = resolved_currency
         line.updated_at = now
 
-        self._budget_repo.update_line(line, expected_row_version=expected_line_version)
+        self._budget_repo.update_line(line, expected_row_version=command.expected_version)
         budget.touch(updated_at=now)
-        self._budget_repo.update(budget, expected_row_version=expected_budget_version)
+        self._budget_repo.update(budget, expected_row_version=command.expected_parent_version)
         self._record_line_audit(operation="update_line", line=line, budget=budget)
         event = BudgetLineChanged(
             tenant_id=budget.tenant_id,
@@ -227,17 +220,14 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
         if self._record_event is not None:
             self._record_event(event)
         self._session.flush()
-        return line
+        return map_budget_line(line)
 
 
     def delete_line(self, command: FinancialDeleteBudgetLineCommand) -> ProjectBudget:
-        line_id = command.budget_line_id
-        expected_line_version = command.expected_version
-        expected_budget_version = command.expected_parent_version
         require_permission(
             self._user_session, "budget.manage", operation_label="delete project budget line"
         )
-        line = self._require_line(line_id)
+        line = self._require_line(command.budget_line_id)
         budget = self._require_budget(line.budget_id)
         require_project_permission(
             self._user_session,
@@ -246,13 +236,13 @@ class BudgetLineCommands(ProjectManagementModuleGuardMixin):
             operation_label="delete project budget line",
         )
         budget.ensure_mutable()
-        if budget.row_version != expected_budget_version:
+        if budget.row_version != command.expected_parent_version:
             raise ConcurrencyError("Budget changed since you opened it.", code="STALE_WRITE")
-        # Atomic delete-if-version-matches — see delete_budget's note.
-        self._budget_repo.delete_line(line_id, expected_row_version=expected_line_version)
+        # Atomic delete-if-version-matches â€” see delete_budget's note.
+        self._budget_repo.delete_line(command.budget_line_id, expected_row_version=command.expected_version)
         now = self._clock.now()
         budget.touch(updated_at=now)
-        self._budget_repo.update(budget, expected_row_version=expected_budget_version)
+        self._budget_repo.update(budget, expected_row_version=command.expected_parent_version)
         self._record_line_audit(operation="delete_line", line=line, budget=budget)
         event = BudgetLineChanged(
             tenant_id=budget.tenant_id,

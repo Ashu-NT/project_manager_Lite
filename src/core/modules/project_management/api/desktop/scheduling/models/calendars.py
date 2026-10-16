@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 
 _DAY_LABELS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
+from src.core.platform.application.time_management.calendar.dto.responses.working_calendar import (
+    WorkingCalendarHolidayDto,
+)
 
 
 @dataclass(frozen=True)
@@ -20,35 +24,17 @@ class SchedulingDayDescriptor:
     checked: bool
 
 
-@dataclass(frozen=True)
-class SchedulingHolidayDto:
-    id: str
-    date: date
-    name: str
 
 
 @dataclass(frozen=True)
 class SchedulingCalendarSnapshotDto:
     working_days: tuple[SchedulingDayDescriptor, ...]
     hours_per_day: float
-    holidays: tuple[SchedulingHolidayDto, ...]
+    holidays: tuple[WorkingCalendarHolidayDto, ...]
     calendar_id: str = ""
     calendar_name: str = ""
 
 
-@dataclass(frozen=True)
-class SchedulingWorkingDayCalculationDto:
-    start_date: date
-    working_days: int
-    result_date: date
-    skipped_non_working_days: int
 
 
-__all__ = [
-    "_DAY_LABELS",
-    "SchedulingCalendarOptionDescriptor",
-    "SchedulingCalendarSnapshotDto",
-    "SchedulingDayDescriptor",
-    "SchedulingHolidayDto",
-    "SchedulingWorkingDayCalculationDto",
-]
+__all__ = ['_DAY_LABELS', 'SchedulingCalendarOptionDescriptor', 'SchedulingCalendarSnapshotDto', 'SchedulingDayDescriptor']

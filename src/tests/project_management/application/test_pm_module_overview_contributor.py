@@ -6,6 +6,9 @@ from src.core.global_overview.contract.action_center import (
 from src.core.modules.project_management.application.global_overview.pm_module_overview_contributor import (
     ProjectManagementModuleOverviewContributor,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
@@ -71,9 +74,7 @@ def test_visible_when_enabled_and_accessible(services):
 
 def test_summary_text_reuses_the_dashboards_own_active_projects_metric(services):
     organization = services["tenant_context_service"].get_active_organization()
-    services['project_create'].create_project(
-        "Active PM Module Card Project", financial_currency_code=organization.base_currency
-    )
+    services['project_create'].create_project(ProjectCreateCommand(name="Active PM Module Card Project", financial_currency_code=organization.base_currency))
 
     summary = _contributor(services).get_summary(_context(services))
 

@@ -15,6 +15,9 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastVersionChanged,
     ForecastVersionChangeType,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
     ForecastLineSourceKind,
@@ -41,9 +44,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _submitted_forecast(services, session):
-    project = services["project_create"].create_project(
-        "Forecast approval project", financial_currency_code="USD"
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Forecast approval project", financial_currency_code="USD"))
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             code="FORECAST-APPROVAL", name="Forecast approval"
@@ -238,9 +239,7 @@ def test_platform_approval_request_enforces_separation_of_duties(
 
 def test_generation_is_denied_without_forecast_manage_permission(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project = services["project_create"].create_project(
-        "Forecast authorization project", financial_currency_code="USD"
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Forecast authorization project", financial_currency_code="USD"))
     user_session = services["user_session"]
     original = user_session.principal
     user_session.set_principal(

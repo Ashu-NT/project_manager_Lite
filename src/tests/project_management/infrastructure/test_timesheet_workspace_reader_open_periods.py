@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceIdentityReader,
 )
@@ -25,16 +31,13 @@ def _reader(session) -> SqlAlchemyTimesheetWorkspaceReader:
 
 def _setup_resource_with_open_periods(services, *, month_count: int):
     tenant_id, organization_id = _tenant_org(services)
-    project = services['project_create'].create_project(
-        "Open Period Parity Project",
-        financial_currency_code=services["tenant_context_service"]
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Open Period Parity Project", financial_currency_code=services["tenant_context_service"]
         .get_active_organization()
-        .base_currency,
-    )
+        .base_currency))
     task = services['task_lifecycle_commands'].create_task(
         project.id, "Parity task", start_date=date(2026, 1, 1), duration_days=2
     )
-    resource = services["resource_master_commands"].create_resource("Parity Resource")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Parity Resource"))
     assignment = services['task_assignment_commands'].assign_resource(
         task.id, resource.id, allocation_percent=50.0
     )
@@ -91,7 +94,7 @@ def test_open_period_count_is_unaffected_by_a_smaller_preview_limit(services, se
 
 def test_open_period_count_and_list_agree_on_zero_when_none_are_open(services, session):
     tenant_id, organization_id = _tenant_org(services)
-    resource = services["resource_master_commands"].create_resource("No Entries Resource")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="No Entries Resource"))
     reader = _reader(session)
     resource_fact = _resource_fact(reader, resource, tenant_id, organization_id)
 

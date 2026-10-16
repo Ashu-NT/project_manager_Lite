@@ -7,6 +7,12 @@ from datetime import date, timedelta
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineCreateCommand,
 )
@@ -87,23 +93,12 @@ def _timed(metrics: dict[str, float], key: str, fn):
 
 def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
     project_end = config.start_date + timedelta(days=max(365, config.tasks // 2))
-    project = services['project_create'].create_project(
-        f"Large Perf Project ({config.tasks} tasks)",
-        "Synthetic large-scale performance workload",
-        start_date=config.start_date,
-        end_date=project_end,
-        currency="USD",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=f"Large Perf Project ({config.tasks} tasks)", description="Synthetic large-scale performance workload", start_date=config.start_date, end_date=project_end, currency="USD"))
     project_id = project.id
 
     resources = []
     for idx in range(config.resources):
-        resource = services["resource_master_commands"].create_resource(
-            name=f"Perf Resource {idx + 1:04d}",
-            role="Developer",
-            hourly_rate=95.0 + float(idx % 7) * 5.0,
-            currency_code="USD",
-        )
+        resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=f"Perf Resource {idx + 1:04d}", role="Developer", hourly_rate=95.0 + float(idx % 7) * 5.0, currency_code="USD"))
         resources.append(resource)
 
     tasks = []

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
-from typing import Any, cast
+from typing import Any, Self, cast
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 
 from src.core.modules.project_management.domain.enums import (
     CostType,
@@ -55,11 +55,7 @@ class _ResourceMasterCommandValidation:
     @field_validator("name", mode="before")
     @classmethod
     def _name(cls, value: object) -> str:
-        return normalize_required_text(
-            value,
-            message="Resource name is required.",
-            code="RESOURCE_NAME_EMPTY",
-        )
+        return normalize_optional_text(value)
 
     @field_validator("code", mode="before")
     @classmethod
@@ -143,6 +139,13 @@ class ResourceCreateCommand(_ResourceMasterCommandValidation):
     employee_id: str | None = None
     department_id: str | None = None
     site_id: str | None = None
+    is_active: bool = True
+
+    @model_validator(mode="after")
+    def _identity_name(self) -> Self:
+        if not (self.worker_type == WorkerType.EMPLOYEE.value and self.employee_id):
+            normalize_required_text(self.name, message="Resource name is required.", code="RESOURCE_NAME_EMPTY")
+        return self
 
 
 @validated_dataclass
@@ -163,6 +166,12 @@ class ResourceUpdateCommand(_ResourceMasterCommandValidation):
     employee_id: str | None
     department_id: str | None
     site_id: str | None
+
+    @model_validator(mode="after")
+    def _identity_name(self) -> Self:
+        if not (self.worker_type == WorkerType.EMPLOYEE.value and self.employee_id):
+            normalize_required_text(self.name, message="Resource name is required.", code="RESOURCE_NAME_EMPTY")
+        return self
 
     @field_validator("resource_id", mode="before")
     @classmethod

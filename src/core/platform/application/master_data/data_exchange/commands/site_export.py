@@ -23,7 +23,7 @@ class SiteExportHandler:
     def __init__(self, *, query: SiteQueryHandler) -> None:
         self._site_query = query
 
-    def export(self, request: object) -> Path:
+    def export(self, request: MasterDataExportRequest) -> Path:
         if not isinstance(request, MasterDataExportRequest):
             raise TypeError("MasterDataExportRequest is required.")
         rows = self._site_query.list_sites(active_only=request.active_only)

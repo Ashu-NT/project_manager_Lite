@@ -13,6 +13,10 @@ from src.core.modules.project_management.application.projects.commands.status im
 from src.core.modules.project_management.application.projects.commands.update import (
     ProjectUpdateHandler,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
 )
@@ -91,21 +95,12 @@ def import_projects(
             end_date = optional_date(row.get("end_date"))
             status = optional_project_status(row.get("status"))
             if project is None:
-                created = project_create.create_project(
-                    name=name, description=description, client_name=client_name,
-                    client_contact=client_contact, start_date=start_date, end_date=end_date,
-                )
+                created = project_create.create_project(ProjectCreateCommand(name=name, description=description, client_name=client_name, client_contact=client_contact, start_date=start_date, end_date=end_date))
                 if status is not None and status != ProjectStatus.PLANNED:
                     project_status.set_status(created.id, status)
                 summary.created_count += 1
             else:
-                project_update.update_project(
-                    project.id,
-                    expected_version=project.version,
-                    status=status,
-                    name=name, description=description, client_name=client_name,
-                    client_contact=client_contact, start_date=start_date, end_date=end_date,
-                )
+                project_update.update_project(ProjectUpdateCommand(project_id=project.id, expected_version=project.version, status=status, name=name, description=description, client_name=client_name, client_contact=client_contact, start_date=start_date, end_date=end_date))
                 summary.updated_count += 1
             existing = build_project_lookup(project_query)
         except Exception as exc:  # noqa: BLE001

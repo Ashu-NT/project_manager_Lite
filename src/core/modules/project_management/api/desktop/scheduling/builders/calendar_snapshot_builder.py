@@ -5,13 +5,15 @@ from src.core.modules.project_management.api.desktop.scheduling.models.calendars
     SchedulingCalendarOptionDescriptor,
     SchedulingCalendarSnapshotDto,
     SchedulingDayDescriptor,
-    SchedulingHolidayDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
     get_legacy_calendar,
     get_platform_calendar_snapshot,
     list_legacy_holidays,
     list_platform_calendar_options,
+)
+from src.core.platform.application.time_management.calendar.dto.responses.working_calendar import (
+    WorkingCalendarHolidayDto,
 )
 
 
@@ -55,7 +57,7 @@ def build_calendar_snapshot(
         ),
         hours_per_day=float(calendar.hours_per_day or 8.0),
         holidays=tuple(
-            SchedulingHolidayDto(id=h.id, date=h.date, name=h.name or "")
+            WorkingCalendarHolidayDto(id=h.id, date=h.date, name=h.name or "")
             for h in sorted(holidays, key=lambda item: item.date)
         ),
     )

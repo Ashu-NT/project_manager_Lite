@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -14,8 +14,20 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.configuration.events import (
     ProjectFinancialProfileCreated,
 )
+from src.core.modules.project_management.application.projects.command_values import (
+    project_status,
+)
 from src.core.modules.project_management.application.projects.commands.support import (
     ProjectSupportMixin,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
+)
+from src.core.modules.project_management.application.projects.mappers.project import (
+    map_project_response,
 )
 from src.core.modules.project_management.application.projects.project_events import (
     ProjectCreated,
@@ -29,7 +41,6 @@ from src.core.modules.project_management.contracts.repositories.projects.project
 from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
     ProjectUnitOfWorkFactory,
 )
-from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.financials.configuration import (
     ProjectFinancialProfile,
 )
@@ -80,49 +91,34 @@ class ProjectCreateHandler(ProjectManagementModuleGuardMixin, ProjectSupportMixi
     def _new_context() -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id())
 
-    def create_project(
-        self,
-        name: str,
-        description: str = "",
-        client_name: str | None = None,
-        client_contact: str | None = None,
-        financial_currency_code: str | None = None,
-        status: ProjectStatus = ProjectStatus.PLANNED,
-        start_date: date | None = None,
-        end_date: date | None = None,
-        organization_id: str | None = None,
-        site_id: str | None = None,
-        department_id: str | None = None,
-        client_party_id: str | None = None,
-        manager_user_id: str | None = None,
-        code: str = "",
-    ) -> Project:
+    def create_project(self, command: ProjectCreateCommand) -> ProjectResponse:
         require_permission(self._user_session, "project.manage", operation_label="create project")
+        status = project_status(command.status)
         resolved_organization_id = self._resolve_project_organization_id(
-            organization_id,
+            command.organization_id,
             operation_label="create project",
         )
-        self._validate_client_party(client_party_id, resolved_organization_id)
-        self._validate_department_reference(department_id, resolved_organization_id)
-        self._validate_manager_user_id(manager_user_id, resolved_organization_id)
+        self._validate_client_party(command.client_party_id, resolved_organization_id)
+        self._validate_department_reference(command.department_id, resolved_organization_id)
+        self._validate_manager_user_id(command.manager_user_id, resolved_organization_id)
         resolved_currency = resolve_pm_currency(
             tenant_context_service=getattr(self, "_tenant_context_service", None),
             operation_label="create project",
-            explicit=financial_currency_code,
+            explicit=command.financial_currency_code,
         )
         project = Project.create(
-            name=name,
-            description=description,
-            client_name=client_name,
-            client_contact=client_contact,
+            name=command.name,
+            description=command.description,
+            client_name=command.client_name,
+            client_contact=command.client_contact,
             status=status,
-            start_date=start_date,
-            end_date=end_date,
+            start_date=command.start_date,
+            end_date=command.end_date,
             organization_id=resolved_organization_id,
-            site_id=site_id,
-            department_id=department_id,
-            client_party_id=client_party_id,
-            manager_user_id=manager_user_id,
+            site_id=command.site_id,
+            department_id=command.department_id,
+            client_party_id=command.client_party_id,
+            manager_user_id=command.manager_user_id,
         )
         scope = self._require_project_scope_ids(operation_label="create project")
 
@@ -132,7 +128,7 @@ class ProjectCreateHandler(ProjectManagementModuleGuardMixin, ProjectSupportMixi
                     project.name, organization_id=resolved_organization_id, project_repo=uow.projects
                 )
                 project.code = self._resolve_project_code(
-                    code,
+                    command.code,
                     project.name,
                     organization_id=resolved_organization_id,
                     project_repo=uow.projects,
@@ -197,4 +193,4 @@ class ProjectCreateHandler(ProjectManagementModuleGuardMixin, ProjectSupportMixi
             logger.error("Error creating project: %s", exc)
             raise
         logger.info("Created project %s - %s", project.id, project.name)
-        return project
+        return map_project_response(project, financial_currency_code=resolved_currency)

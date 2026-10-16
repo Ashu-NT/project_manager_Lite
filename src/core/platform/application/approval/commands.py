@@ -6,6 +6,12 @@ from src.core.platform.application.approval.approval_mutation_participant import
     build_request_audit_details,
     request_approval_using,
 )
+from src.core.platform.application.approval.dto.responses.requests import (
+    ApprovalRequestResponse,
+)
+from src.core.platform.application.approval.mappers.requests import (
+    approval_request_response,
+)
 from src.core.platform.application.approval.participants import (
     ApprovalParticipantRegistry,
 )
@@ -121,9 +127,8 @@ class ApprovalCommandHandler:
             uow.commit()
         return request
 
-    def reject(self, command: ApprovalDecisionInput) -> ApprovalRequest:
+    def reject(self, command: ApprovalDecisionInput) -> ApprovalRequestResponse:
         request_id = command.request_id
-        note = command.note
         require_permission(
             self._user_session,
             "approval.decide",
@@ -139,7 +144,7 @@ class ApprovalCommandHandler:
             request.decided_at = clock.now()
             request.decided_by_user_id = principal.user_id if principal else None
             request.decided_by_username = principal.username if principal else None
-            request.decision_note = note
+            request.decision_note = command.note
             handler_result = ApprovalHandlerResult()
             registration = self._participants.reject_handlers.get(request.request_type)
             if registration is not None:
@@ -176,11 +181,10 @@ class ApprovalCommandHandler:
                 uow.record_event(domain_event)
             uow.commit()
 
-        return request
+        return approval_request_response(request)
 
-    def approve_and_apply(self, command: ApprovalDecisionInput) -> ApprovalRequest:
+    def approve_and_apply(self, command: ApprovalDecisionInput) -> ApprovalRequestResponse:
         request_id = command.request_id
-        note = command.note
         require_permission(
             self._user_session,
             "approval.decide",
@@ -205,7 +209,7 @@ class ApprovalCommandHandler:
             request.decided_at = clock.now()
             request.decided_by_user_id = principal.user_id if principal else None
             request.decided_by_username = principal.username if principal else None
-            request.decision_note = note
+            request.decision_note = command.note
             uow.approvals.update(request)
             uow.record_event(
                 ApprovalApproved(
@@ -234,7 +238,7 @@ class ApprovalCommandHandler:
             for domain_event in handler_result.domain_events:
                 uow.record_event(domain_event)
             uow.commit()
-        return request
+        return approval_request_response(request)
 
     def _require_pending_using(self, approval_repo: ApprovalRepository, request_id: str) -> ApprovalRequest:
         request = approval_repo.get_for_update(request_id)

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import src.core.platform.application.tenant.tenancy.mappers.tenant as response_mapper
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.platform.application.tenant.tenancy.dto.responses.tenant import TenantDto
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     TenantRepository,
@@ -59,7 +61,7 @@ class TenantAdminQueryHandler:
         )
         return self._tenant_repo.list_all(active_only=active_only)
 
-    def list_accessible_tenants(self) -> list[Tenant]:
+    def list_accessible_tenants(self) -> list[TenantDto]:
         """Return tenants the current user can switch to.
 
         No permission guard â€” listing one's own memberships is always allowed.
@@ -77,14 +79,14 @@ class TenantAdminQueryHandler:
                 principal, "permissions", frozenset()
             )
             if is_admin or is_platform_admin:
-                return self._tenant_repo.list_all(active_only=None)
+                return [response_mapper.serialize_tenant(row) for row in (self._tenant_repo.list_all(active_only=None))]
         tenant_ids = self._user_tenant_repo.list_tenant_ids_for_user(user_id)
         tenants: list[Tenant] = []
         for tid in tenant_ids:
             tenant = self._tenant_repo.get(tid)
             if tenant is not None and tenant.is_active:
                 tenants.append(tenant)
-        return tenants
+        return [response_mapper.serialize_tenant(row) for row in (tenants)]
 
     # ------------------------------------------------------------------
     # Create

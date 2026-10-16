@@ -13,6 +13,9 @@ from src.core.modules.project_management.application.financials.cost.entries.com
     ProjectCostEntryPostingCommandHandler,
     ProjectCostEntryReviewCommandHandler,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
     FinancialSourceModule,
@@ -31,9 +34,7 @@ from src.core.platform.domain.finance import Money
 
 def _setup(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "R6D-C Actual governance", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6D-C Actual governance", financial_currency_code=organization.base_currency))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6DC-ACTUAL", name="R6D-C Actual"
     ))

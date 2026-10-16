@@ -1,6 +1,8 @@
 # ERP Application Boundary Modernization: Audit and Plan
 
-Status: A0-A3 complete; A4 current (2026-10-10). A5-A6 not started.
+Status: A0-A3 complete; A4 application DTO boundary cutover current (2026-10-16).
+A5-A6 are not yet certified. Earlier closure counts below describe their
+recorded worktrees, not final evidence for this subsequent DTO cutover.
 
 ## Executive Decision
 
@@ -35,6 +37,48 @@ create duplicate types solely to rename the same data. A neutral cross-module
 port must not depend outward on application or adapter implementation packages.
 The **neutral API is the application use-case contract**, not a renamed desktop
 API or a shared transport schema.
+
+**Output boundary clarification (2026-10-16):** outward application handlers
+and queries return immutable transport-neutral DTOs, not mutable domain
+aggregates. A Reader already returning a suitable immutable DTO does not need
+an identical application response class. Return that canonical Reader DTO
+unchanged. Application feature mappers convert domain entities into DTOs, or
+assemble a genuinely different use-case projection; do not create mappers or
+response types solely to satisfy a folder layout. An API importing an
+application mapper to convert a returned domain aggregate is not a completed
+cutover. Superseded API domain-to-response serializers must be deleted, not
+retained as forwarding wrappers. Desktop-only presentation may remain outside
+application, but it consumes DTOs rather than domain aggregates. Keep
+normalized/derived local values when useful;
+read unchanged command fields directly instead of mechanically unpacking
+whole DTOs into local aliases. New boundaries require explicit typing.
+
+**Redundant-model audit (2026-10-16):** removed the parallel Project catalog
+and detail response copies and the Resource catalog/item/summary/inspector,
+capability-item/page, activity, usage and sort copies. Readers retain their
+canonical immutable records. Also consolidated equivalent Platform overview
+rollups, employee breakdown rows, runtime module/capability records and shared
+working-calendar result records. Removed identity-only conversion helpers.
+Different business meanings are not merged merely because fields coincide
+(for example Department and Party summaries, or distinct Finance metrics).
+Domain aggregates and immutable DTOs remain legitimately separate types.
+
+`mappers/` is this repository's organizational convention, not a mandatory
+enterprise standard. Pure mapping/assembly functions need no handler facade,
+registry or injected mapper service. Fowler's DTO pattern calls this role an
+assembler; the separate Data Mapper persistence pattern is not what these
+application DTO functions implement. The CQRS read path may return a typed
+SQL projection directly without rebuilding domain objects or duplicate DTOs.
+
+Redundancy-cleanup verification: 229 architecture/composition tests and 32
+focused Project/Resource/Platform runtime/headcount tests passed. Mypy passed
+for 1,297 application/API files; repository Ruff F/I, compilation and
+`git diff --check` passed. The final PM/Platform response-schema scan (including
+two-field rollups and field-order-independent comparisons) found no remaining
+exact Reader/API-versus-application response copies. This is evidence for the
+redundancy cleanup, not certification of the entire command/output migration
+or a replacement for its broader behavioral/RLS gates. The workspace `.tmp`
+directory was removed. No commit was made.
 
 Pre-release permits coordinated interface cutovers and deletion of obsolete
 internal paths, but does not justify changing RBAC, tenant isolation,

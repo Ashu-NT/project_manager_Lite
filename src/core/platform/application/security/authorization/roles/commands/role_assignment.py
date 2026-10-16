@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import src.core.platform.application.security.auth.mappers.user as response_mapper
+from src.core.platform.application.security.auth.dto.responses.user import UserDto
 from src.core.platform.application.security.auth.queries.auth_queries import (
     AuthQueryHandler,
 )
@@ -206,7 +208,7 @@ class RoleAssignmentHandler:
             )
         return normalized
 
-    def assign_customer_role(self, user_id: str, role_name: str) -> UserAccount:
+    def assign_customer_role(self, user_id: str, role_name: str) -> UserDto:
         require_permission(
             self._user_session,
             "auth.manage",
@@ -217,9 +219,10 @@ class RoleAssignmentHandler:
             operation_label="assign a tenant role",
             denial_code="ROLE_CROSS_TENANT_DENIED",
         )
-        return self.assign_role(user_id, self._require_customer_assignable_role(role_name))
+        response_user = self.assign_role(user_id, self._require_customer_assignable_role(role_name))
+        return response_mapper.serialize_user(response_user, role_names=tuple(sorted(self._auth_queries.get_user_role_names(response_user.id))))
 
-    def revoke_customer_role(self, user_id: str, role_name: str) -> UserAccount:
+    def revoke_customer_role(self, user_id: str, role_name: str) -> UserDto:
         require_permission(
             self._user_session,
             "auth.manage",
@@ -230,7 +233,8 @@ class RoleAssignmentHandler:
             operation_label="revoke a tenant role",
             denial_code="ROLE_CROSS_TENANT_DENIED",
         )
-        return self.revoke_role(user_id, self._require_customer_assignable_role(role_name))
+        response_user = self.revoke_role(user_id, self._require_customer_assignable_role(role_name))
+        return response_mapper.serialize_user(response_user, role_names=tuple(sorted(self._auth_queries.get_user_role_names(response_user.id))))
 
 
 __all__ = ["RoleAssignmentHandler"]

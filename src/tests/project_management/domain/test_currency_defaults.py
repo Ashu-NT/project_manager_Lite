@@ -1,3 +1,13 @@
+
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationUpdateCommand,
 )
@@ -11,14 +21,14 @@ def _set_active_organization_currency(services, currency_code: str) -> None:
 def test_project_defaults_currency_to_active_organization(services):
     _set_active_organization_currency(services, "USD")
     services['project_query']
-    project = services['project_create'].create_project("Currency Default Project", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Currency Default Project", description=""))
     profile = services['financial_configuration_query'].get_profile(project.id)
     assert profile.currency_code == "USD"
 
 
 def test_resource_defaults_currency_to_active_organization(services):
     _set_active_organization_currency(services, "USD")
-    resource = services["resource_master_commands"].create_resource("Currency Default Resource", role="Engineer")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Currency Default Resource", role="Engineer"))
     assert resource.currency_code == "USD"
 
 
@@ -27,17 +37,10 @@ def test_project_resource_defaults_currency_to_project(services):
     services['project_query']
     services["project_resource_query"]
 
-    project = services['project_create'].create_project(
-        "Currency Default PR Project", "", financial_currency_code="GBP"
-    )
-    resource = services["resource_master_commands"].create_resource("Currency Default PR Resource")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Currency Default PR Project", description="", financial_currency_code="GBP"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Currency Default PR Resource"))
 
-    pr = services["project_resource_commands"].add_to_project(
-        project_id=project.id,
-        resource_id=resource.id,
-        hourly_rate=80.0,
-        planned_hours=20.0,
-    )
+    pr = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, hourly_rate=80.0, planned_hours=20.0))
     assert pr.currency_code == "GBP"
 
 

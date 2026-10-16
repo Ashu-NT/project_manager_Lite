@@ -11,6 +11,9 @@ from src.core.modules.project_management.application.financials.configuration.dt
 from src.core.modules.project_management.application.financials.configuration.dto.commands.financial_profile import (
     FinancialUpdateProfileCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
     TaskCreateCommand,
 )
@@ -22,9 +25,7 @@ from src.core.modules.project_management.contracts.reads.financials.lookups.mode
 def test_project_lookup_is_bounded_searchable_and_visibility_filtered(services) -> None:
     prefix = "R6B-LKP-PROJECT"
     projects = [
-        services['project_create'].create_project(
-            f"{prefix} {index:02d}", financial_currency_code="XAF"
-        )
+        services['project_create'].create_project(ProjectCreateCommand(name=f"{prefix} {index:02d}", financial_currency_code="XAF"))
         for index in range(6)
     ]
     desktop = ProjectManagementFinancialsDesktopApi(
@@ -68,12 +69,8 @@ def test_project_lookup_is_bounded_searchable_and_visibility_filtered(services) 
 
 
 def test_task_lookup_is_project_dependent_paged_and_resolvable(services) -> None:
-    project = services['project_create'].create_project(
-        "R6B Lookup Tasks", financial_currency_code="XAF"
-    )
-    other = services['project_create'].create_project(
-        "R6B Lookup Other Tasks", financial_currency_code="XAF"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Lookup Tasks", financial_currency_code="XAF"))
+    other = services['project_create'].create_project(ProjectCreateCommand(name="R6B Lookup Other Tasks", financial_currency_code="XAF"))
     tasks = [
         services['task_lifecycle_commands'].create_task(
             TaskCreateCommand(project.id, f"Lookup Task {index:02d}")
@@ -100,9 +97,7 @@ def test_task_lookup_is_project_dependent_paged_and_resolvable(services) -> None
 
 
 def test_cost_code_lookup_preserves_restriction_and_effective_date_policy(services) -> None:
-    project = services['project_create'].create_project(
-        "R6B Lookup Cost Codes", financial_currency_code="XAF"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Lookup Cost Codes", financial_currency_code="XAF"))
     services['financial_configuration_query']
     profile = services['financial_configuration_query'].get_profile(project.id)
     services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(FinancialUpdateProfileCommand(
@@ -147,9 +142,7 @@ def test_cost_code_lookup_preserves_restriction_and_effective_date_policy(servic
 
 
 def test_manual_actual_defaults_and_selected_ids_do_not_require_full_lists(services) -> None:
-    project = services['project_create'].create_project(
-        "R6B Lookup Defaults", financial_currency_code="XAF"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Lookup Defaults", financial_currency_code="XAF"))
     desktop = ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"]
     )

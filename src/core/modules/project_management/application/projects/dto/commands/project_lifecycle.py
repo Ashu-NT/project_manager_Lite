@@ -27,10 +27,10 @@ class ProjectCreateCommand:
 @dataclass(frozen=True)
 class ProjectUpdateCommand:
     project_id: str
-    name: str
-    code: str = ""
-    description: str = ""
-    status: str = ProjectStatus.PLANNED.value
+    name: str | None = None
+    code: str | None = None
+    description: str | None = None
+    status: str | None = None
     client_name: str | None = None
     client_contact: str | None = None
     start_date: date | None = None

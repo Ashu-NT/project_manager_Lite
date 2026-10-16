@@ -6,7 +6,6 @@ from typing import TypeVar
 
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
     CollaborationCommentPageDto,
-    CollaborationContextOptionsDto,
     CollaborationInboxDesktopDto,
     CollaborationPresenceDesktopDto,
     TaskCollaborationCommentDesktopDto,
@@ -27,6 +26,9 @@ from src.core.modules.project_management.application.collaboration.commands impo
     CollaborationCommentEngagementHandler,
     CollaborationPresenceCommandHandler,
 )
+from src.core.modules.project_management.application.collaboration.dto.responses.collaboration import (
+    CollaborationContextOptionsDto,
+)
 from src.core.modules.project_management.application.collaboration.queries import (
     CollaborationCommentQueryHandler,
     CollaborationDocumentQueryHandler,
@@ -38,12 +40,6 @@ from src.core.platform.common.exceptions import ConfigurationError, ValidationEr
 _HandlerT = TypeVar("_HandlerT")
 
 
-def _require(handler: _HandlerT | None) -> _HandlerT:
-    if handler is None:
-        raise ConfigurationError(
-            "Project management collaboration desktop API is not connected."
-        )
-    return handler
 from src.core.modules.project_management.application.collaboration.dto.commands.comment_reactions import (
     TaskCollaborationReactionCommand,
 )
@@ -52,6 +48,14 @@ from src.core.modules.project_management.application.collaboration.dto.commands.
     TaskCollaborationEditCommand,
     TaskCollaborationPostCommand,
 )
+
+
+def _require(handler: _HandlerT | None) -> _HandlerT:
+    if handler is None:
+        raise ConfigurationError(
+            "Project management collaboration desktop API is not connected."
+        )
+    return handler
 
 
 class ProjectManagementCollaborationDesktopApi:
@@ -164,10 +168,7 @@ class ProjectManagementCollaborationDesktopApi:
         if self._inbox_query is None:
             return CollaborationContextOptionsDto((), ())
         context = self._inbox_query.list_workspace_context()
-        return CollaborationContextOptionsDto(
-            projects=context.projects,
-            people=context.people,
-        )
+        return context
 
     def mark_task_mentions_read(self, task_id: str) -> None:
         normalized_task_id = (task_id or "").strip()

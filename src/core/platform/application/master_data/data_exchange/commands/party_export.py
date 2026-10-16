@@ -23,7 +23,7 @@ class PartyExportHandler:
     def __init__(self, *, query: PartyQueryHandler) -> None:
         self._party_query = query
 
-    def export(self, request: object) -> Path:
+    def export(self, request: MasterDataExportRequest) -> Path:
         if not isinstance(request, MasterDataExportRequest):
             raise TypeError("MasterDataExportRequest is required.")
         rows = self._party_query.list_parties(active_only=request.active_only)
@@ -51,7 +51,7 @@ class PartyExportHandler:
                         "registration_number": party.registration_number,
                         "tax_identifier": party.tax_identifier,
                         "external_reference": party.external_reference,
-                        "status": party.status.value,
+                        "status": party.status,
                         "notes": party.notes,
                     }
                 )

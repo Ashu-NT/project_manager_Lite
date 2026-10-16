@@ -1,14 +1,21 @@
+
 from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.tasks.commands import (
     assignment as assignment_commands,
 )
 
 
 def test_resource_assignment_and_overload(services):
-    project = services['project_create'].create_project("Res Test", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Res Test", description=""))
     pid = project.id
 
     # Create tasks with overlapping periods
@@ -16,7 +23,7 @@ def test_resource_assignment_and_overload(services):
     t2 = services['task_lifecycle_commands'].create_task(pid, "Task 2", start_date=date(2023, 11, 7), duration_days=3)
 
     # Create resource
-    r = services["resource_master_commands"].create_resource("Dev 1", "Developer", hourly_rate=100.0)
+    r = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Dev 1", role="Developer", hourly_rate=100.0))
 
     # Assign 50% to t1
     a1 = services['task_assignment_commands'].assign_resource(t1.id, r.id, allocation_percent=50.0)
@@ -46,9 +53,9 @@ def test_auto_provisioned_project_resource_rolls_back_with_assignment_failure(
     services, monkeypatch
 ):
     tasks = services['task_lookup_query']
-    project = services['project_create'].create_project("Assignment rollback", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Assignment rollback", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Work")
-    resource = services["resource_master_commands"].create_resource("Rollback resource", "Developer")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Rollback resource", role="Developer"))
 
     def fail_assignment(**_kwargs):
         raise RuntimeError("assignment rejected")
@@ -65,9 +72,9 @@ def test_auto_provisioned_envelope_and_assignment_roll_back_after_staging(
     services, monkeypatch
 ):
     tasks = services['task_lookup_query']
-    project = services['project_create'].create_project("Assignment staged rollback", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Assignment staged rollback", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Work")
-    resource = services["resource_master_commands"].create_resource("Staged rollback resource", "Developer")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Staged rollback resource", role="Developer"))
 
     def fail_activity(*_args, **_kwargs):
         raise RuntimeError("activity staging rejected")

@@ -8,6 +8,9 @@ from datetime import date
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskDependencyChanged,
     TaskDependencyChangeType,
@@ -35,7 +38,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _make_two_tasks(services, name: str = "Task Approval Participant"):
-    project = services['project_create'].create_project(name, "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name=name, description=""))
     a = services['task_lifecycle_commands'].create_task(
         project.id, "Task A", "", start_date=date(2026, 9, 1), duration_days=2
     )
@@ -44,7 +47,7 @@ def _make_two_tasks(services, name: str = "Task Approval Participant"):
 
 
 def _make_task(services, name: str = "Task Approval Participant Constraint"):
-    project = services['project_create'].create_project(name, "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name=name, description=""))
     task = services['task_lifecycle_commands'].create_task(
         project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3
     )

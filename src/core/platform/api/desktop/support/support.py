@@ -22,13 +22,16 @@ from src.core.platform.api.desktop.support.models.support import (
     SupportEventDto,
     SupportInstallLaunchDto,
     SupportPathsDto,
-    SupportSettingsDto,
     SupportUpdateStatusDto,
 )
 from src.core.platform.application.support.contracts import SupportSettingsCommands
 from src.core.platform.application.support.dto.commands.settings import (
     SupportSettingsUpdateCommand,
 )
+from src.core.platform.application.support.dto.responses.settings import (
+    SupportSettingsDto,
+)
+from src.core.platform.application.support.mappers.settings import settings_response
 from src.core.platform.common.exceptions import DomainError
 from src.infra.platform.diagnostics import build_diagnostics_bundle
 from src.infra.platform.operational_support import (
@@ -372,7 +375,7 @@ class PlatformSupportDesktopApi:
             )
 
     def _build_settings_dto(self) -> SupportSettingsDto:
-        return SupportSettingsDto(
+        return settings_response(
             update_channel=self._settings_store.load_update_channel(default_channel="stable"),
             update_auto_check=self._settings_store.load_update_auto_check(default_enabled=False),
             update_manifest_source=self._settings_store.load_update_manifest_source(

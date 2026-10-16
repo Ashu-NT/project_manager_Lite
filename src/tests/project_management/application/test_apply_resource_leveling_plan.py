@@ -11,6 +11,12 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
     ResourceLevelingPlanner,
 )
@@ -30,10 +36,10 @@ def _build_overload_proposal(services):
     ts = services['task_lookup_query']
     calendar = services["work_calendar_engine"]
 
-    project = services['project_create'].create_project("Apply Leveling Plan", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Apply Leveling Plan", description=""))
     task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-    resource = services["resource_master_commands"].create_resource("Apply Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Apply Dev", role="Developer", hourly_rate=100.0))
     services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
     services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
@@ -105,7 +111,7 @@ class TestApplyHappyPath:
         ts = services['task_lookup_query']
         calendar = services["work_calendar_engine"]
 
-        project = services['project_create'].create_project("Apply Leveling No Conflicts", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Apply Leveling No Conflicts", description=""))
         task = services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
         before_version = services['task_detail_query'].get_task(task.id).version
 

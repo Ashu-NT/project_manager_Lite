@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
@@ -31,7 +34,7 @@ def _impact_service(services):
 
 
 def _make_chain_with_milestone(services):
-    project = services['project_create'].create_project("Schedule Impact Extensions", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Extensions", description=""))
     a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
     milestone = services['task_lifecycle_commands'].create_task(project.id, "Handover", "", duration_days=0, is_milestone=True)
@@ -81,7 +84,7 @@ class TestGetTaskScheduleOverview:
 
     def test_reports_unavailable_for_unknown_task(self, services):
         impact = _impact_service(services)
-        project = services['project_create'].create_project("Schedule Impact Unknown Task", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Unknown Task", description=""))
 
         overview = impact.get_task_schedule_overview(project.id, "does-not-exist")
 
@@ -90,7 +93,7 @@ class TestGetTaskScheduleOverview:
     def test_reports_actual_variance_when_actual_start_violates_dependency(self, services):
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
-        project = services['project_create'].create_project("Schedule Impact Actual Variance", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Actual Variance", description=""))
         a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
         services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
@@ -159,7 +162,7 @@ class TestBaselineComparison:
         services['baseline_query']
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
-        project = services['project_create'].create_project("Schedule Impact Baseline", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Baseline", description=""))
         task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         sched.recalculate_project_schedule(project.id)
         baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
@@ -180,7 +183,7 @@ class TestBaselineComparison:
     def test_get_task_schedule_overview_omits_baseline_facts_when_no_approved_baseline_exists(self, services):
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
-        project = services['project_create'].create_project("Schedule Impact No Baseline", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact No Baseline", description=""))
         task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         sched.recalculate_project_schedule(project.id)
 
@@ -191,7 +194,7 @@ class TestBaselineComparison:
 
     def test_baseline_service_get_baseline_task_returns_the_snapshot(self, services):
         services['baseline_query']
-        project = services['project_create'].create_project("Baseline Task Snapshot", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Baseline Task Snapshot", description=""))
         task = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
 
@@ -203,7 +206,7 @@ class TestBaselineComparison:
 
     def test_baseline_service_get_baseline_task_returns_none_for_unknown_task(self, services):
         services['baseline_query']
-        project = services['project_create'].create_project("Baseline Task Snapshot Missing", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Baseline Task Snapshot Missing", description=""))
         services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(project.id, "BL1", rate_as_of=date.today()))
 
@@ -213,7 +216,7 @@ class TestBaselineComparison:
 class TestAnalyseWorkingDayDelay:
     def test_delay_by_working_days_skips_weekends(self, services):
         impact = _impact_service(services)
-        project = services['project_create'].create_project("Schedule Impact Working Day Delay", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Working Day Delay", description=""))
         # Friday 2024-01-05
         a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 5), duration_days=1)
 
@@ -232,7 +235,7 @@ class TestAnalyseExtendedFields:
     def test_critical_path_changed_flag_reflects_newly_critical_tasks(self, services):
         sched = services["scheduling_engine"]
         impact = _impact_service(services)
-        project = services['project_create'].create_project("Schedule Impact Critical Change", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Impact Critical Change", description=""))
         a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
         b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
         services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)

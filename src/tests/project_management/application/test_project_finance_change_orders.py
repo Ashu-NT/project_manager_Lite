@@ -8,6 +8,9 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
     FinanceLookupQuery,
 )
@@ -49,9 +52,7 @@ def _login_eligible_reviewer(services) -> None:
 
 
 def _seed_approved_finance(services):
-    project = services['project_create'].create_project(
-        "Controlled Change Project", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Controlled Change Project", financial_currency_code="USD"))
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="CHG-001", name="Change control"
     ))
@@ -671,9 +672,7 @@ def test_contract_placeholder_is_not_part_of_canonical_change_control() -> None:
 
 def test_approved_schedule_change_uses_task_owner_command(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project = services['project_create'].create_project(
-        "Schedule Change Project", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Change Project", financial_currency_code="USD"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Scheduled Delivery",
@@ -723,9 +722,7 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
     services,
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project = services['project_create'].create_project(
-        "Stale Schedule Project", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Stale Schedule Project", financial_currency_code="USD"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Schedule Target",
@@ -759,9 +756,7 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
 
 def test_schedule_impact_rejects_summary_task_at_draft_entry(services) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project = services['project_create'].create_project(
-        "Summary Schedule Project", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Summary Schedule Project", financial_currency_code="USD"))
     summary = services['task_lifecycle_commands'].create_task(
         project.id, "Summary Delivery"
     )

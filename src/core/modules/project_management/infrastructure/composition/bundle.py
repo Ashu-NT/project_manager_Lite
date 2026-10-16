@@ -347,6 +347,7 @@ class ProjectManagementServiceBundle:
             'finance_performance_query': self.finance_performance_query,
             'finance_snapshot_query': self.finance_snapshot_query,
             'work_calendar_engine': self.work_calendar_engine,
+            'project_calendar_adapter': self.project_calendar_adapter,
             'scheduling_engine': self.scheduling_engine,
             'project_kpi_report': self.project_kpi_report,
             'earned_value_report': self.earned_value_report,

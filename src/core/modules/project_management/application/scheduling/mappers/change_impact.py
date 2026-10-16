@@ -1,0 +1,99 @@
+"""Map application facts to neutral responses."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from src.core.modules.project_management.application.scheduling.dto.responses.change_impact import (
+    ScheduleImpactAffectedTaskDto,
+    ScheduleImpactReportDto,
+    SchedulingChangeImpactAffectedTaskDto,
+    SchedulingChangeImpactDto,
+)
+
+if TYPE_CHECKING:
+    from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
+        ScheduleChangeImpactReport,
+    )
+
+
+def serialize_change_impact(
+    task_id: str, report: ScheduleChangeImpactReport
+) -> SchedulingChangeImpactDto:
+    return SchedulingChangeImpactDto(
+        task_id=task_id,
+        affected_count=int(report.max_project_finish_shift_days != 0)
+        + len(report.affected_tasks),
+        max_project_finish_shift_days=int(report.max_project_finish_shift_days or 0),
+        requires_approval=bool(report.requires_approval),
+        newly_critical_count=len(report.newly_critical_task_ids or []),
+        no_longer_critical_count=len(report.no_longer_critical_task_ids or []),
+        affected_tasks=tuple(
+            SchedulingChangeImpactAffectedTaskDto(
+                task_id=str(t.task_id or ""),
+                task_name=str(
+                    getattr(t, "task_name", t.task_id) or t.task_id or "Task"
+                ),
+                start_shift_days=int(getattr(t, "start_shift_days", 0) or 0),
+                finish_shift_days=int(getattr(t, "finish_shift_days", 0) or 0),
+                is_critical=bool(getattr(t, "is_critical", False)),
+            )
+            for t in (report.affected_tasks or [])[:20]
+        ),
+    )
+
+
+def serialize_schedule_impact_report(
+    *,
+    task_id: str,
+    project_id: str,
+    simulated_delay_days: int,
+    report: ScheduleChangeImpactReport | None = None,
+) -> ScheduleImpactReportDto:
+    if report is None:
+        return ScheduleImpactReportDto(
+            task_id=task_id,
+            project_id=project_id,
+            is_available=False,
+            simulated_delay_days=simulated_delay_days,
+            affected_count=0,
+            max_project_finish_shift_days=0,
+            requires_approval=False,
+            affected_tasks=(),
+            newly_critical_task_ids=(),
+            no_longer_critical_task_ids=(),
+        )
+    return ScheduleImpactReportDto(
+        task_id=task_id,
+        project_id=project_id,
+        is_available=True,
+        simulated_delay_days=simulated_delay_days,
+        affected_count=len(report.affected_tasks),
+        max_project_finish_shift_days=int(report.max_project_finish_shift_days or 0),
+        requires_approval=bool(report.requires_approval),
+        affected_tasks=tuple(
+            ScheduleImpactAffectedTaskDto(
+                task_id=str(impact.task_id or ""),
+                task_name=str(impact.task_name or ""),
+                original_start=impact.original_start,
+                original_finish=impact.original_finish,
+                proposed_start=impact.proposed_start,
+                proposed_finish=impact.proposed_finish,
+                start_shift_days=int(impact.start_shift_days or 0),
+                finish_shift_days=int(impact.finish_shift_days or 0),
+                is_critical=bool(impact.is_critical),
+                is_milestone=bool(getattr(impact, "is_milestone", False)),
+            )
+            for impact in report.affected_tasks
+        ),
+        newly_critical_task_ids=tuple(
+            str(task_id) for task_id in report.newly_critical_task_ids
+        ),
+        no_longer_critical_task_ids=tuple(
+            str(task_id) for task_id in report.no_longer_critical_task_ids
+        ),
+        critical_path_changed=bool(getattr(report, "critical_path_changed", False)),
+        conflict_count=len(getattr(report, "dependency_conflicts", None) or []),
+        blocked_by_deadline=bool(getattr(report, "blocked_by_deadline", False)),
+        blocked_reason=str(getattr(report, "blocked_reason", "") or ""),
+    )

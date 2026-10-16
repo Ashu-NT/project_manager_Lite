@@ -28,6 +28,9 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastVersionChanged,
     ForecastVersionChangeType,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
     FinancialChangeStatus,
@@ -93,9 +96,7 @@ def _fake_channel():
 
 
 def _seed_project_and_cost_code(services):
-    project = services["project_create"].create_project(
-        _unique("P19 Forecast Project"), financial_currency_code="USD"
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name=_unique("P19 Forecast Project"), financial_currency_code="USD"))
     code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             code=_unique("P19-CC"), name="P19 cost code"

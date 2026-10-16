@@ -10,6 +10,9 @@ from datetime import date, timedelta
 from PySide6.QtGui import QGuiApplication
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskORM,
@@ -32,12 +35,7 @@ def _ensure_qgui_application() -> QGuiApplication:
 
 def _seed_project_with_overdue_tasks(services, count: int):
     today = date.today()
-    project = services['project_create'].create_project(
-        "Overview Live Tab Project",
-        start_date=today - timedelta(days=60),
-        end_date=today + timedelta(days=60),
-        financial_currency_code="EUR",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Overview Live Tab Project", start_date=today - timedelta(days=60), end_date=today + timedelta(days=60), financial_currency_code="EUR"))
     rows = [
         TaskORM(
             id=f"live-task-{index:04d}",

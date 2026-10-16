@@ -283,13 +283,11 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
         )
 
     def set_assignment_hours(self, command: TaskAssignmentHoursCommand) -> TaskAssignment:
-        assignment_id = command.assignment_id
-        hours_logged = command.hours_logged
-        assignment = self._assignment_repo.get(assignment_id)
+        assignment = self._assignment_repo.get(command.assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
         time_entry_repo = self._time_entry_repo
-        if time_entry_repo is not None and time_entry_repo.list_by_assignment(assignment_id):
+        if time_entry_repo is not None and time_entry_repo.list_by_assignment(command.assignment_id):
             raise ValidationError(
                 "This assignment already uses timesheet entries. Edit the timesheet instead of the aggregate hours."
             )
@@ -297,7 +295,7 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         self._require_manage("log assignment hours", project_id=task.project_id)
-        candidate = replace(assignment, hours_logged=hours_logged)
+        candidate = replace(assignment, hours_logged=command.hours_logged)
         resource = self._resource_repo.get(assignment.resource_id)
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="log assignment hours"
@@ -334,10 +332,7 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
         return updated
 
     def set_assignment_allocation(self, command: TaskAssignmentAllocationCommand) -> TaskAssignment:
-        assignment_id = command.assignment_id
-        allocation_percent = command.allocation_percent
-        expected_version = command.expected_version
-        assignment = self._assignment_repo.get(assignment_id)
+        assignment = self._assignment_repo.get(command.assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
 
@@ -345,7 +340,7 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         self._require_manage("set assignment allocation", project_id=task.project_id)
-        candidate = replace(assignment, allocation_percent=allocation_percent)
+        candidate = replace(assignment, allocation_percent=command.allocation_percent)
 
         self._check_resource_overallocation(
             project_id=task.project_id,
@@ -361,7 +356,7 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
         )
         with self._uow_scope.create() as uow:
             updated = uow.assignments.update_allocation_with_version_check(
-                candidate, expected_version=expected_version
+                candidate, expected_version=command.expected_version
             )
             record_assignment_action(
                 uow,
@@ -392,17 +387,13 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
         return updated
 
     def update_assignment_planned_hours(self, command: TaskAssignmentPlannedHoursCommand) -> TaskAssignment:
-        assignment_id = command.assignment_id
-        allocated_planned_hours = command.allocated_planned_hours
-        expected_assignment_version = command.expected_assignment_version
-        expected_project_resource_version = command.expected_project_resource_version
         """Distributes a ProjectResource.planned_hours envelope across task assignments."""
         if not self._project_resource_repo:
             raise BusinessRuleError(
                 "Project resource repository is not configured.",
                 code="PROJECT_RESOURCE_REPO_MISSING",
             )
-        assignment = self._assignment_repo.get(assignment_id)
+        assignment = self._assignment_repo.get(command.assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
         task = self._task_repo.get(assignment.task_id)
@@ -432,7 +423,7 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
         proposed_hours, proposed_total = self._check_planned_hours_envelope(
             project_resource=project_resource,
             resource_id=assignment.resource_id,
-            allocated_planned_hours=allocated_planned_hours,
+            allocated_planned_hours=command.allocated_planned_hours,
             exclude_assignment_id=assignment.id,
         )
 
@@ -443,11 +434,11 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
         )
         with self._uow_scope.create() as uow:
             updated = uow.assignments.update_planned_hours_with_version_check(
-                candidate, expected_version=expected_assignment_version
+                candidate, expected_version=command.expected_assignment_version
             )
             self._project_resource_repo.touch_version_with_check(
                 project_resource.id,
-                expected_version=expected_project_resource_version,
+                expected_version=command.expected_project_resource_version,
             )
             record_assignment_action(
                 uow,
@@ -570,21 +561,17 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
             )
 
     def assign_project_resource(self, command: TaskAssignmentCreateCommand) -> TaskAssignment:
-        task_id = command.task_id
-        project_resource_id = command.project_resource_id
-        allocation_percent = command.allocation_percent
-        allocated_planned_hours = command.allocated_planned_hours
         with self._uow_scope.create() as uow:
-            project_resource = uow.project_resources.get(project_resource_id)
+            project_resource = uow.project_resources.get(command.project_resource_id)
             if not project_resource:
                 raise NotFoundError(
                     "Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND"
                 )
             return self._assign_project_resource_in_uow(
-                task_id=task_id,
-                project_resource_id=project_resource_id,
-                allocation_percent=allocation_percent,
-                allocated_planned_hours=allocated_planned_hours,
+                task_id=command.task_id,
+                project_resource_id=command.project_resource_id,
+                allocation_percent=command.allocation_percent,
+                allocated_planned_hours=command.allocated_planned_hours,
                 project_resource=project_resource,
                 uow=uow,
             )

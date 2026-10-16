@@ -5,9 +5,13 @@ from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from sqlalchemy.orm import Session
 
+import src.core.platform.access.application.mappers.scoped_access as response_mapper
 from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
+)
+from src.core.platform.access.application.dto.responses.scoped_access import (
+    ScopedAccessGrantDto,
 )
 from src.core.platform.access.domain import (
     ScopedAccessGrant,
@@ -110,7 +114,7 @@ class AccessControlService:
     def list_scope_role_choices(self, scope_type: str) -> tuple[str, ...]:
         return self._require_scope_policy(scope_type).role_choices
 
-    def list_scope_grants(self, scope_type: str, scope_id: str) -> list[ScopedAccessGrant]:
+    def list_scope_grants(self, scope_type: str, scope_id: str) -> list[ScopedAccessGrantDto]:
         require_permission(self._user_session, "access.manage", operation_label="list scoped access grants")
         tenant_id = self._require_active_tenant_id(
             operation_label="list scoped access grants"
@@ -125,11 +129,11 @@ class AccessControlService:
         )
         if normalized_scope_type not in _CANONICAL_SCOPE_TYPES:
             self._raise_unsupported_scope_type(normalized_scope_type)
-        return self._list_canonical_scope_grants_for_scope(
+        return [response_mapper.serialize_grant(row) for row in (self._list_canonical_scope_grants_for_scope(
             normalized_scope_type,
             normalized_scope_id,
             tenant_id=tenant_id,
-        )
+        ))]
 
     def list_user_scope_grants(
         self,
@@ -169,7 +173,7 @@ class AccessControlService:
             )
         return grants
 
-    def assign_scope_grant(self, command: ScopedAccessGrantAssignCommand) -> ScopedAccessGrant:
+    def assign_scope_grant(self, command: ScopedAccessGrantAssignCommand) -> ScopedAccessGrantDto:
         scope_type = command.scope_type
         scope_id = command.scope_id
         user_id = command.user_id
@@ -211,7 +215,7 @@ class AccessControlService:
         )
 
         self._refresh_current_session_if_needed(normalized_user_id)
-        return grant
+        return response_mapper.serialize_grant(grant)
 
     def remove_scope_grant(self, command: ScopedAccessGrantRemoveCommand) -> None:
         scope_type = command.scope_type

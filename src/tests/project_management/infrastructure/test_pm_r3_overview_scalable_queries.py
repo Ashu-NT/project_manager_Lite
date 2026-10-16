@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskORM,
@@ -11,12 +14,7 @@ from src.tests.project_management._sql_measurement_helpers import measure_sql
 
 def _seed_project(services, *, name: str = "Overview Scale Project"):
     today = date.today()
-    return services['project_create'].create_project(
-        name,
-        start_date=today - timedelta(days=60),
-        end_date=today + timedelta(days=60),
-        financial_currency_code="EUR",
-    )
+    return services['project_create'].create_project(ProjectCreateCommand(name=name, start_date=today - timedelta(days=60), end_date=today + timedelta(days=60), financial_currency_code="EUR"))
 
 
 def _seed_overdue_tasks(services, project_id: str, count: int, *, id_prefix: str = "task") -> None:

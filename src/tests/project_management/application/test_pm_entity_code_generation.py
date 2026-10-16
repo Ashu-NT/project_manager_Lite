@@ -6,6 +6,12 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
     RegisterEntryCreateCommand,
 )
@@ -14,7 +20,7 @@ from src.core.platform.common.exceptions import ValidationError
 
 
 def _project(services):
-    return services['project_create'].create_project("Plant Upgrade", "")
+    return services['project_create'].create_project(ProjectCreateCommand(name="Plant Upgrade", description=""))
 
 
 # ── Task (TSK, per-project) ──────────────────────────────────────────────────
@@ -25,8 +31,8 @@ def test_task_autogenerates_code(services):
 
 
 def test_task_code_is_per_project_scoped(services):
-    p1 = services['project_create'].create_project("Project One", "").id
-    p2 = services['project_create'].create_project("Project Two", "").id
+    p1 = services['project_create'].create_project(ProjectCreateCommand(name="Project One", description="")).id
+    p2 = services['project_create'].create_project(ProjectCreateCommand(name="Project Two", description="")).id
     a = services['task_lifecycle_commands'].create_task(p1, "Cabling Run", duration_days=1)
     b = services['task_lifecycle_commands'].create_task(p2, "Cabling Run", duration_days=1)
     # same token in two projects -> both 0001 (per-project uniqueness)
@@ -44,7 +50,7 @@ def test_task_manual_duplicate_blocked_within_project(services):
 
 # ── Resource (RES, global) ───────────────────────────────────────────────────
 def test_resource_autogenerates_code(services):
-    resource = services["resource_master_commands"].create_resource("Electrical Crew", "Lead")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Electrical Crew", role="Lead"))
     assert resource.code == "RES-ELEC-0001"
 
 

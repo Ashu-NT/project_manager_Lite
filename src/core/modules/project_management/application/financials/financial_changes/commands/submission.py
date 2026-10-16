@@ -7,8 +7,17 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_submission import (
+    FinancialSubmitChangeCommand,
+)
+from src.core.modules.project_management.application.financials.financial_changes.dto.responses.mutations import (
+    FinancialChangeMutationDto,
+)
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeEventType,
+)
+from src.core.modules.project_management.application.financials.financial_changes.mappers.responses import (
+    map_change,
 )
 from src.core.modules.project_management.application.financials.financial_changes.policy import (
     FinancialChangeAuditPolicy,
@@ -31,7 +40,6 @@ from src.core.modules.project_management.contracts.repositories.finance.forecast
 )
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
-    FinancialChangeRequest,
 )
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
@@ -86,25 +94,19 @@ class FinancialChangeSubmissionCommandHandler(
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
 
-    def submit_change(
-        self,
-        change_id: str,
-        *,
-        submitted_by: str,
-        expected_version: int,
-    ) -> FinancialChangeRequest:
-
+    def submit_change(self, command: FinancialSubmitChangeCommand) -> FinancialChangeMutationDto:
+        submitted_by = self._command_actor_id()
         if self._approval_repo is None or self._record_event is None:
             raise BusinessRuleError(
                 "Financial change submission requires the Finance governance command boundary.",
                 code="FINANCIAL_CHANGE_COMMAND_BOUNDARY_REQUIRED",
             )
-        change = self._require_change(change_id)
+        change = self._require_change(command.change_id)
         self._require_project_permission(
             change.project_id, "financial_change.manage", "submit financial change"
         )
         change.ensure_draft()
-        if change.row_version != expected_version:
+        if change.row_version != command.expected_version:
             raise ConcurrencyError(
                 "Financial change was updated since you opened it.", code="STALE_WRITE"
             )
@@ -188,11 +190,11 @@ class FinancialChangeSubmissionCommandHandler(
             submitted_by=submitted_by,
             submitted_at=self._clock.now(),
         )
-        self._change_repo.update(change, expected_row_version=expected_version)
+        self._change_repo.update(change, expected_row_version=command.expected_version)
         self._audit_change("submit", change)
         self._session.flush()
         self._emit_change_event(change, FinancialChangeEventType.SUBMITTED)
-        return change
+        return map_change(change)
 
 
 __all__ = ["FinancialChangeSubmissionCommandHandler"]

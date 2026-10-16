@@ -12,6 +12,12 @@ from src.core.modules.project_management.application.common import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.resources.dto.responses.project_resources import (
+    ProjectResourceResponse,
+)
+from src.core.modules.project_management.application.resources.mappers.project_resources import (
+    map_project_resource,
+)
 from src.core.modules.project_management.contracts.reads.projects.models import (
     ProjectResourceUsageFact,
 )
@@ -22,7 +28,6 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -46,7 +51,7 @@ class ProjectResourceQueryHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def list_by_project(self, project_id: str) -> list[ProjectResource]:
+    def list_by_project(self, project_id: str) -> list[ProjectResourceResponse]:
         require_permission(
             self._user_session,
             "project.read",
@@ -58,27 +63,27 @@ class ProjectResourceQueryHandler(ProjectManagementModuleGuardMixin):
             "project.read",
             operation_label="list project resources",
         )
-        return self._project_resource_repo.list_by_project(project_id)
+        return [map_project_resource(item) for item in self._project_resource_repo.list_by_project(project_id)]
 
-    def list_for_project_workspace(self, project_id: str) -> list[ProjectResource]:
+    def list_for_project_workspace(self, project_id: str) -> list[ProjectResourceResponse]:
         require_any_project_permission(
             self._user_session,
             project_id,
             ("project.read", "project.manage"),
             operation_label="list project resources",
         )
-        return self._project_resource_repo.list_by_project(project_id)
+        return [map_project_resource(item) for item in self._project_resource_repo.list_by_project(project_id)]
 
-    def list_for_task_workspace(self, project_id: str) -> list[ProjectResource]:
+    def list_for_task_workspace(self, project_id: str) -> list[ProjectResourceResponse]:
         require_any_project_permission(
             self._user_session,
             project_id,
             ("project.read", "task.read", "task.manage"),
             operation_label="list task project resources",
         )
-        return self._project_resource_repo.list_by_project(project_id)
+        return [map_project_resource(item) for item in self._project_resource_repo.list_by_project(project_id)]
 
-    def get(self, project_resource_id: str) -> ProjectResource | None:
+    def get(self, project_resource_id: str) -> ProjectResourceResponse | None:
         require_permission(
             self._user_session,
             "project.read",
@@ -93,7 +98,7 @@ class ProjectResourceQueryHandler(ProjectManagementModuleGuardMixin):
             "project.read",
             operation_label="view project resource",
         )
-        return row
+        return map_project_resource(row)
 
     def get_usage(self, project_resource_id: str) -> ProjectResourceUsageFact:
         """Authoritative planned/allocated/unallocated/actual/remaining reconciliation for one
@@ -160,7 +165,7 @@ class ProjectResourceQueryHandler(ProjectManagementModuleGuardMixin):
             version=project_resource.version,
         )
 
-    def get_for_project(self, project_id: str, resource_id: str) -> ProjectResource | None:
+    def get_for_project(self, project_id: str, resource_id: str) -> ProjectResourceResponse | None:
         require_permission(
             self._user_session,
             "project.read",
@@ -172,7 +177,8 @@ class ProjectResourceQueryHandler(ProjectManagementModuleGuardMixin):
             "project.read",
             operation_label="view project resource membership",
         )
-        return self._project_resource_repo.get_for_project(project_id, resource_id)
+        row = self._project_resource_repo.get_for_project(project_id, resource_id)
+        return map_project_resource(row) if row is not None else None
 
 
 __all__ = ["ProjectResourceQueryHandler"]

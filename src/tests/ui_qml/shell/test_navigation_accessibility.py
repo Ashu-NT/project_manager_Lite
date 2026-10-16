@@ -9,7 +9,9 @@ from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
     DesktopApiResult,
 )
-from src.core.platform.api.desktop.platform_runtime.models.runtime import ModuleDto
+from src.core.platform.application.platform_runtime.dto.responses.module_runtime import (
+    RuntimeModuleFact,
+)
 from src.ui_qml.shell.context import ShellContext
 from src.ui_qml.shell.navigation import (
     NavigationItemViewModel,
@@ -44,13 +46,13 @@ class _FakePlatformRuntimeApi:
         self._accessible_codes = accessible_codes
         self._ok = ok
 
-    def list_accessible_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
+    def list_accessible_modules(self) -> DesktopApiResult[tuple[RuntimeModuleFact, ...]]:
         if not self._ok:
             return DesktopApiResult(
                 ok=False, error=DesktopApiError(code="X", message="boom", category="domain")
             )
         modules = tuple(
-            ModuleDto(
+            RuntimeModuleFact(
                 code=code,
                 label=code,
                 description="",

@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
-    GanttBaselineOverlayDto,
     ProjectManagementSchedulingDesktopApi,
     build_project_management_scheduling_desktop_api,
+)
+from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
+    GanttBaselineOverlayDto,
 )
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingCollectionViewModel,

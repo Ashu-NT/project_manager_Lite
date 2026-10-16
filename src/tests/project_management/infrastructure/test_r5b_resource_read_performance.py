@@ -6,6 +6,9 @@ from time import perf_counter
 import pytest
 from sqlalchemy import event, text
 
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
     ResourceORM,
@@ -81,10 +84,7 @@ def test_r5b_resource_catalog_scale_measurement(services, resource_count: int) -
 
 
 def test_r5b_resource_inspector_scale_measurement(services) -> None:
-    resource = services["resource_master_commands"].create_resource(
-        name="Inspector Performance Resource",
-        role="Planner",
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Inspector Performance Resource", role="Planner"))
     cold_started = perf_counter()
     services["resource_query"].get_resource_inspector(resource.id)
     cold_ms = (perf_counter() - cold_started) * 1_000.0
@@ -119,10 +119,7 @@ def test_r5b_resource_inspector_scale_measurement(services) -> None:
 
 
 def test_r5b_resource_summary_scale_measurement(services) -> None:
-    resource = services["resource_master_commands"].create_resource(
-        name="Summary Performance Resource",
-        role="Planner",
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Summary Performance Resource", role="Planner"))
     services["resource_query"].get_resource_summary(resource.id)
     elapsed_ms: list[float] = []
     session = services['project_deletion']._session

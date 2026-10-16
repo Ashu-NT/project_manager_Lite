@@ -8,6 +8,12 @@ from src.core.global_overview.contract.action_center import (
 from src.core.modules.project_management.application.global_overview.pm_action_center_contributor import (
     ProjectManagementActionCenterContributor,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineCreateCommand,
     SchedulingBaselineSubmitCommand,
@@ -77,11 +83,7 @@ def _setup_user_employee_resource(services, *, suffix: str):
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code=f"AC-DEPT-{suffix}", name=f"Action Center Department {suffix}"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=f"EMP-AC-{suffix}", full_name=f"Action Center {suffix}", department_id=department.id))
     services["employee_commands"].link_employee_user_account(employee.id, user.id)
-    resource = services["resource_master_commands"].create_resource(
-        f"Action Center Resource {suffix}",
-        worker_type=WorkerType.EMPLOYEE,
-        employee_id=employee.id,
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=f"Action Center Resource {suffix}", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
     return organization, user, resource
 
 
@@ -90,10 +92,8 @@ def _setup_user_employee_resource(services, *, suffix: str):
 
 def test_tasks_resolve_through_resource_identity_and_include_only_open_states(services):
     organization, user, resource = _setup_user_employee_resource(services, suffix="tasks")
-    project = services['project_create'].create_project(
-        "Action Center Tasks Project", financial_currency_code=organization.base_currency
-    )
-    other_resource = services["resource_master_commands"].create_resource("Unrelated Resource")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Action Center Tasks Project", financial_currency_code=organization.base_currency))
+    other_resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Unrelated Resource"))
 
     todo = services['task_lifecycle_commands'].create_task(
         project.id, "Todo task", start_date=date(2026, 6, 1), duration_days=2, deadline=date(2026, 9, 20)
@@ -148,12 +148,8 @@ def test_baselines_include_only_submitted_across_accessible_projects_regardless_
     services,
 ):
     organization, user, resource = _setup_user_employee_resource(services, suffix="baselines")
-    active_project = services['project_create'].create_project(
-        "Active Baseline Project", financial_currency_code=organization.base_currency
-    )
-    on_hold_project = services['project_create'].create_project(
-        "On Hold Baseline Project", financial_currency_code=organization.base_currency
-    )
+    active_project = services['project_create'].create_project(ProjectCreateCommand(name="Active Baseline Project", financial_currency_code=organization.base_currency))
+    on_hold_project = services['project_create'].create_project(ProjectCreateCommand(name="On Hold Baseline Project", financial_currency_code=organization.base_currency))
     services['task_lifecycle_commands'].create_task(
         active_project.id, "Seed task A", start_date=date(2026, 6, 1), duration_days=2
     )
@@ -214,9 +210,7 @@ def _reviewer_context_and_contributor(services, *, project_id: str, permissions:
 
 def test_submitted_baseline_with_authorized_reviewer_is_included(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Authorized Reviewer Project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Authorized Reviewer Project", financial_currency_code=organization.base_currency))
     services['task_lifecycle_commands'].create_task(
         project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
     )
@@ -240,9 +234,7 @@ def test_submitted_baseline_with_unauthorized_user_is_excluded(services):
     """Project read/list visibility alone (project.read) must not be
     treated as authorization to review -- baseline.approve is required."""
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Unauthorized Reviewer Project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Unauthorized Reviewer Project", financial_currency_code=organization.base_currency))
     services['task_lifecycle_commands'].create_task(
         project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
     )
@@ -262,10 +254,7 @@ def test_submitted_baseline_with_unauthorized_user_is_excluded(services):
 
 def test_non_submitted_baseline_with_authorized_reviewer_is_excluded(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Draft With Authorized Reviewer Project",
-        financial_currency_code=organization.base_currency,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Draft With Authorized Reviewer Project", financial_currency_code=organization.base_currency))
     services['task_lifecycle_commands'].create_task(
         project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
     )
@@ -290,9 +279,7 @@ def test_non_submitted_baseline_with_authorized_reviewer_is_excluded(services):
 
 def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(services):
     organization, user, resource = _setup_user_employee_resource(services, suffix="timesheets")
-    project = services['project_create'].create_project(
-        "Action Center Timesheet Project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Action Center Timesheet Project", financial_currency_code=organization.base_currency))
     task = services['task_lifecycle_commands'].create_task(
         project.id, "Timesheet task", start_date=date(2026, 6, 1), duration_days=10
     )
@@ -343,9 +330,7 @@ def test_timesheets_include_open_and_rejected_but_not_approved_or_locked(service
 
 def test_all_action_items_equals_the_sum_of_the_three_pm_categories(services):
     organization, user, resource = _setup_user_employee_resource(services, suffix="parity")
-    project = services['project_create'].create_project(
-        "Action Center Parity Project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Action Center Parity Project", financial_currency_code=organization.base_currency))
     task = services['task_lifecycle_commands'].create_task(
         project.id, "Parity task", start_date=date(2026, 6, 1), duration_days=2
     )

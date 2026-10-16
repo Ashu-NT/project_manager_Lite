@@ -10,6 +10,9 @@ from sqlalchemy import event
 from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_estimates import (
     ManualEtcEstimate,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
 )
@@ -50,9 +53,7 @@ def _measure(engine, operation: Callable[[], object]) -> tuple[object, int]:
 
 
 def _seed_approved_bases(services, *, suffix: str):
-    project = services['project_create'].create_project(
-        f"R6C-F SQL Change {suffix}", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=f"R6C-F SQL Change {suffix}", financial_currency_code="USD"))
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"R6CF-CHG-{suffix}", name="Change authority"
     ))
@@ -107,9 +108,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
     engine = session.get_bind()
     counts: dict[str, int] = {}
 
-    setup_project = services['project_create'].create_project(
-        "R6C-F SQL Setup", financial_currency_code="USD"
-    )
+    setup_project = services['project_create'].create_project(ProjectCreateCommand(name="R6C-F SQL Setup", financial_currency_code="USD"))
     services['financial_configuration_query']
     profile = services['financial_configuration_query'].get_profile(setup_project.id)
     profile, counts["setup.profile_update"] = _measure(
@@ -145,9 +144,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
         )),
     )
 
-    budget_project = services['project_create'].create_project(
-        "R6C-F SQL Budget", financial_currency_code="USD"
-    )
+    budget_project = services['project_create'].create_project(ProjectCreateCommand(name="R6C-F SQL Budget", financial_currency_code="USD"))
     budget_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(code="R6CF-BUD", name="Budget code"))
     services['budget_query']
     budget, counts["budget.create"] = _measure(
@@ -201,9 +198,7 @@ def test_r6c_f_records_representative_write_statement_counts(services, session) 
         lambda: services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_successor(budget.id, name="Measured successor")),
     )
 
-    forecast_project = services['project_create'].create_project(
-        "R6C-F SQL Forecast", financial_currency_code="USD"
-    )
+    forecast_project = services['project_create'].create_project(ProjectCreateCommand(name="R6C-F SQL Forecast", financial_currency_code="USD"))
     forecast_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(code="R6CF-FC", name="Forecast code"))
     extra_forecast_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6CF-FC-2", name="Forecast adjustment"

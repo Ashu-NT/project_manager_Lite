@@ -4,6 +4,16 @@ from decimal import Decimal
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+    ProjectResourceUpdateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.planned_cost import (
     PLANNED_HOURS_FULLY_ALLOCATED,
     PLANNED_HOURS_PARTIALLY_ALLOCATED,
@@ -18,9 +28,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
 def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float = 50.0):
-    project = services['project_create'].create_project(
-        "Planned Cost Project", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Planned Cost Project", financial_currency_code="USD"))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="LABOR-DEFAULT", name="Default Labor"
     ))
@@ -30,9 +38,7 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
         expected_version=profile.version,
         default_cost_code_id=cost_code.id,
     ))
-    resource = services["resource_master_commands"].create_resource(
-        "Engineer One", hourly_rate=hourly_rate, currency_code="USD"
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Engineer One", hourly_rate=hourly_rate, currency_code="USD"))
     rate_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="Planned Cost Project Rates",
         project_id=project.id,
@@ -45,10 +51,7 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
         rate_currency="USD",
         resource_id=resource.id,
     ))
-    project_resource = services["project_resource_commands"].add_to_project(
-        project.id, resource.id, hourly_rate=hourly_rate, currency_code="USD",
-        planned_hours=planned_hours,
-    )
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, hourly_rate=hourly_rate, currency_code="USD", planned_hours=planned_hours))
     task = services['task_lifecycle_commands'].create_task(project.id, "Design Task")
     assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
@@ -123,22 +126,10 @@ def test_shrinking_envelope_below_allocated_total_is_rejected(services) -> None:
     ctx = _setup_project(services, planned_hours=40.0)
     _allocate(services, ctx, Decimal(30))
     with pytest.raises(BusinessRuleError) as exc:
-        services["project_resource_commands"].update(
-            ctx["project_resource"].id,
-            hourly_rate=ctx["project_resource"].hourly_rate,
-            currency_code=ctx["project_resource"].currency_code,
-            planned_hours=20.0,
-            is_active=True,
-        )
+        services["project_resource_commands"].update(ProjectResourceUpdateCommand(project_resource_id=ctx["project_resource"].id, hourly_rate=ctx["project_resource"].hourly_rate, currency_code=ctx["project_resource"].currency_code, planned_hours=20.0, is_active=True))
     assert exc.value.code == "PROJECT_RESOURCE_ENVELOPE_BELOW_ALLOCATIONS"
     # Shrinking to exactly the allocated total is allowed.
-    services["project_resource_commands"].update(
-        ctx["project_resource"].id,
-        hourly_rate=ctx["project_resource"].hourly_rate,
-        currency_code=ctx["project_resource"].currency_code,
-        planned_hours=30.0,
-        is_active=True,
-    )
+    services["project_resource_commands"].update(ProjectResourceUpdateCommand(project_resource_id=ctx["project_resource"].id, hourly_rate=ctx["project_resource"].hourly_rate, currency_code=ctx["project_resource"].currency_code, planned_hours=30.0, is_active=True))
 
 
 def test_stale_assignment_version_raises_concurrency_error(services) -> None:
@@ -217,9 +208,7 @@ def test_empty_project_produces_valid_empty_snapshot(services) -> None:
 
 
 def test_missing_default_cost_code_fails_closed(services) -> None:
-    project = services['project_create'].create_project(
-        "No Cost Code Project", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="No Cost Code Project", financial_currency_code="USD"))
     with pytest.raises(BusinessRuleError) as exc:
         services['finance_governance_commands'].planned_cost(lambda handler: handler.calculate_snapshot(project.id, calculated_by="admin"))
     assert exc.value.code == "PLANNED_COST_NO_DEFAULT_COST_CODE"

@@ -98,45 +98,36 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
             self._record_event(event)
 
     def create_cost_code(self, command: FinancialCreateCostCodeCommand) -> ProjectCostCode:
-        code = command.code
-        name = command.name
-        available_to_project_id = command.project_id
-        description = command.description
-        parent_id = command.parent_id
-        external_system = command.external_system
-        external_reference = command.external_reference
-        effective_from = command.effective_from
-        effective_to = command.effective_to
         require_permission(
             self._user_session,
             "finance.manage",
             operation_label="create project cost code",
         )
         project_profile = None
-        if available_to_project_id:
+        if command.project_id:
             self._require_project(
-                available_to_project_id,
+                command.project_id,
                 "finance.manage",
                 "make a new cost code available to the project",
             )
-            project_profile = self._require_profile(available_to_project_id)
+            project_profile = self._require_profile(command.project_id)
         context = self._require_context("create project cost code")
         cost_code = ProjectCostCode.create(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
-            code=code,
-            name=name,
-            description=description,
-            parent_id=parent_id,
-            external_system=external_system,
-            external_reference=external_reference,
-            effective_from=effective_from,
-            effective_to=effective_to,
+            code=command.code,
+            name=command.name,
+            description=command.description,
+            parent_id=command.parent_id,
+            external_system=command.external_system,
+            external_reference=command.external_reference,
+            effective_from=command.effective_from,
+            effective_to=command.effective_to,
         )
         self._ensure_parent_is_acyclic(cost_code.id, cost_code.parent_id)
         self._cost_code_repo.add(cost_code)
         duplicate_message = f"Cost code '{cost_code.code}' already exists."
-        if available_to_project_id and project_profile:
+        if command.project_id and project_profile:
             self._flush(duplicate_message=duplicate_message)
         self._record_cost_code_audit("create", cost_code)
         now = datetime.now(UTC)
@@ -149,14 +140,14 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
             )
         )
         if (
-            available_to_project_id
+            command.project_id
             and project_profile
             and project_profile.cost_code_policy == CostCodePolicy.RESTRICTED
         ):
             restriction = ProjectCostCodeRestriction.create(
                 tenant_id=context.tenant_id,
                 organization_id=context.organization_id,
-                project_id=available_to_project_id,
+                project_id=command.project_id,
                 cost_code_id=cost_code.id,
             )
             self._cost_code_repo.add_restriction(restriction)
@@ -174,41 +165,31 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         return cost_code
 
     def update_cost_code(self, command: FinancialUpdateCostCodeCommand) -> ProjectCostCode:
-        cost_code_id = command.cost_code_id
-        expected_version = command.expected_version
-        code = command.code
-        name = command.name
-        description = command.description
-        parent_id = command.parent_id
-        external_system = command.external_system
-        external_reference = command.external_reference
-        effective_from = command.effective_from
-        effective_to = command.effective_to
         require_permission(
             self._user_session,
             "finance.manage",
             operation_label="update project cost code",
         )
-        current = self._require_cost_code(cost_code_id)
-        self._require_expected_version(current.version, expected_version, "Cost code")
+        current = self._require_cost_code(command.cost_code_id)
+        self._require_expected_version(current.version, command.expected_version, "Cost code")
         candidate = replace(
             current,
-            code=current.code if code is _UNSET else code,
-            name=current.name if name is _UNSET else name,
-            description=current.description if description is _UNSET else description,
-            parent_id=current.parent_id if parent_id is _UNSET else parent_id,
+            code=current.code if command.code is _UNSET else command.code,
+            name=current.name if command.name is _UNSET else command.name,
+            description=current.description if command.description is _UNSET else command.description,
+            parent_id=current.parent_id if command.parent_id is _UNSET else command.parent_id,
             external_system=(
-                current.external_system if external_system is _UNSET else external_system
+                current.external_system if command.external_system is _UNSET else command.external_system
             ),
             external_reference=(
                 current.external_reference
-                if external_reference is _UNSET
-                else external_reference
+                if command.external_reference is _UNSET
+                else command.external_reference
             ),
             effective_from=(
-                current.effective_from if effective_from is _UNSET else effective_from
+                current.effective_from if command.effective_from is _UNSET else command.effective_from
             ),
-            effective_to=current.effective_to if effective_to is _UNSET else effective_to,
+            effective_to=current.effective_to if command.effective_to is _UNSET else command.effective_to,
         )
         if candidate == current:
             # True no-op: no write, audit, event, or version bump.
@@ -234,15 +215,13 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         return candidate
 
     def deactivate_cost_code(self, command: FinancialChangeCostCodeStatusCommand) -> ProjectCostCode:
-        cost_code_id = command.cost_code_id
-        expected_version = command.expected_version
         require_permission(
             self._user_session,
             "finance.manage",
             operation_label="deactivate project cost code",
         )
-        current = self._require_cost_code(cost_code_id)
-        self._require_expected_version(current.version, expected_version, "Cost code")
+        current = self._require_cost_code(command.cost_code_id)
+        self._require_expected_version(current.version, command.expected_version, "Cost code")
         if not current.is_active:
             return current
         if any(
@@ -278,15 +257,13 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         return candidate
 
     def activate_cost_code(self, command: FinancialChangeCostCodeStatusCommand) -> ProjectCostCode:
-        cost_code_id = command.cost_code_id
-        expected_version = command.expected_version
         require_permission(
             self._user_session,
             "finance.manage",
             operation_label="activate project cost code",
         )
-        current = self._require_cost_code(cost_code_id)
-        self._require_expected_version(current.version, expected_version, "Cost code")
+        current = self._require_cost_code(command.cost_code_id)
+        self._require_expected_version(current.version, command.expected_version, "Cost code")
         if current.is_active:
             return current
         self._ensure_parent_is_acyclic(current.id, current.parent_id)
@@ -310,14 +287,12 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         return candidate
 
     def add_project_cost_code(self, command: FinancialCostCodeRestrictionCommand) -> ProjectCostCodeRestriction:
-        project_id = command.project_id
-        cost_code_id = command.cost_code_id
-        self._require_project(project_id, "finance.manage", "restrict project cost codes")
+        self._require_project(command.project_id, "finance.manage", "restrict project cost codes")
         existing = {
             row.cost_code_id: row
-            for row in self._cost_code_repo.list_restrictions(project_id)
+            for row in self._cost_code_repo.list_restrictions(command.project_id)
         }
-        if cost_code_id in existing:
+        if command.cost_code_id in existing:
             raise BusinessRuleError(
                 "Cost code is already assigned to this project.",
                 code="PROJECT_COST_CODE_RESTRICTION_DUPLICATE",
@@ -326,8 +301,8 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         restriction = ProjectCostCodeRestriction.create(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
-            project_id=project_id,
-            cost_code_id=cost_code_id,
+            project_id=command.project_id,
+            cost_code_id=command.cost_code_id,
         )
         self._cost_code_repo.add_restriction(restriction)
         self._record_restriction_audit("create", restriction)
@@ -344,26 +319,24 @@ class CostCodeCommandHandler(ProjectManagementModuleGuardMixin):
         return restriction
 
     def remove_project_cost_code(self, command: FinancialCostCodeRestrictionCommand) -> bool:
-        project_id = command.project_id
-        cost_code_id = command.cost_code_id
         self._require_project(
-            project_id,
+            command.project_id,
             "finance.manage",
             "remove project cost-code restriction",
         )
-        restrictions = self._cost_code_repo.list_restrictions(project_id)
-        current = next((row for row in restrictions if row.cost_code_id == cost_code_id), None)
+        restrictions = self._cost_code_repo.list_restrictions(command.project_id)
+        current = next((row for row in restrictions if row.cost_code_id == command.cost_code_id), None)
         if current is None:
             return False
-        profile = self._require_profile(project_id)
-        if profile.default_cost_code_id == cost_code_id:
+        profile = self._require_profile(command.project_id)
+        if profile.default_cost_code_id == command.cost_code_id:
             raise BusinessRuleError(
                 "The project default cost code cannot be removed.",
                 code="PROJECT_COST_CODE_IS_DEFAULT",
             )
         self._cost_code_repo.remove_restriction(
-            project_id=project_id,
-            cost_code_id=cost_code_id,
+            project_id=command.project_id,
+            cost_code_id=command.cost_code_id,
         )
         self._record_restriction_audit("delete", current)
         self._flush()

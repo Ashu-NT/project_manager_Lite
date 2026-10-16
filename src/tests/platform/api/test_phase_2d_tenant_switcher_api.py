@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantDto
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
     TenantCreateCommand,
 )
+from src.core.platform.application.tenant.tenancy.dto.responses.tenant import TenantDto
 
 
 def _build_api(services) -> PlatformTenantDesktopApi:

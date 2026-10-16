@@ -14,6 +14,12 @@ from unittest.mock import MagicMock
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.ui_qml.modules.project_management.controllers.scheduling.scheduling_workspace_controller import (
     ProjectManagementSchedulingWorkspaceController,
 )
@@ -37,10 +43,10 @@ def _controller(qapp, services):
 
 
 def _make_overload(services, name: str):
-    project = services['project_create'].create_project(name, "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name=name, description=""))
     task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-    resource = services["resource_master_commands"].create_resource("Controller Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Controller Dev", role="Developer", hourly_rate=100.0))
     services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
     services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
     return project, task_b, task_c
@@ -85,7 +91,7 @@ def test_apply_resource_leveling_persists_and_resets_the_pending_proposal(qapp, 
 
 def test_apply_without_a_prior_preview_reports_an_error_not_a_crash(qapp, services):
     ctrl = _controller(qapp, services)
-    project = services['project_create'].create_project("Controller Leveling No Preview", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Controller Leveling No Preview", description=""))
     ctrl.selectProject(project.id)
 
     result = ctrl.applyResourceLeveling()

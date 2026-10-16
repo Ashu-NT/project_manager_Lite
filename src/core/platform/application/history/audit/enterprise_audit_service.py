@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
-)
-from src.core.platform.application.tenant.tenancy.tenant_context import (
-    TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.repositories.history.audit.contracts import (
@@ -18,6 +15,11 @@ from src.core.platform.contract.repositories.history.audit.contracts import (
 )
 from src.core.platform.domain.history.audit.audit_entry import AuditEntry
 from src.core.platform.domain.security.auth.session import UserSessionContext
+
+if TYPE_CHECKING:
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        TenantContextService,
+    )
 
 
 class EnterpriseAuditService:

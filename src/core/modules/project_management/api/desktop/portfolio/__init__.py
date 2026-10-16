@@ -7,7 +7,6 @@ from src.core.modules.project_management.api.desktop.portfolio.factories.portfol
     build_project_management_portfolio_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.portfolio.models import (
-    PortfolioCapacityResourceDto,
     PortfolioDependencyDesktopDto,
     PortfolioExecutiveDesktopSnapshot,
     PortfolioHeatmapDesktopDto,
@@ -21,19 +20,4 @@ from src.core.modules.project_management.api.desktop.portfolio.models import (
     PortfolioTemplateDesktopDto,
 )
 
-__all__ = [
-    "PortfolioCapacityResourceDto",
-    "PortfolioDependencyDesktopDto",
-    "PortfolioExecutiveDesktopSnapshot",
-    "PortfolioHeatmapDesktopDto",
-    "PortfolioIntakeDesktopDto",
-    "PortfolioOptionDescriptor",
-    "PortfolioProjectOptionDescriptor",
-    "PortfolioRecentActionDesktopDto",
-    "PortfolioScenarioComparisonDesktopDto",
-    "PortfolioScenarioDesktopDto",
-    "PortfolioScenarioEvaluationDesktopDto",
-    "PortfolioTemplateDesktopDto",
-    "ProjectManagementPortfolioDesktopApi",
-    "build_project_management_portfolio_desktop_api",
-]
+__all__ = ['PortfolioDependencyDesktopDto', 'PortfolioExecutiveDesktopSnapshot', 'PortfolioHeatmapDesktopDto', 'PortfolioIntakeDesktopDto', 'PortfolioOptionDescriptor', 'PortfolioProjectOptionDescriptor', 'PortfolioRecentActionDesktopDto', 'PortfolioScenarioComparisonDesktopDto', 'PortfolioScenarioDesktopDto', 'PortfolioScenarioEvaluationDesktopDto', 'PortfolioTemplateDesktopDto', 'ProjectManagementPortfolioDesktopApi', 'build_project_management_portfolio_desktop_api']

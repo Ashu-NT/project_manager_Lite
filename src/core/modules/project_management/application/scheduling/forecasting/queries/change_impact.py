@@ -18,12 +18,26 @@ from src.core.modules.project_management.application.scheduling.cpm.pure_cpm imp
     CPMResult,
     run_cpm,
 )
+from src.core.modules.project_management.application.scheduling.dto.responses.change_impact import (
+    ScheduleImpactReportDto,
+    SchedulingChangeImpactDto,
+)
+from src.core.modules.project_management.application.scheduling.dto.responses.overview import (
+    TaskScheduleOverviewResponseDto,
+)
 from src.core.modules.project_management.application.scheduling.forecasting.task_schedule_overview import (
     TaskScheduleOverview,
     build_schedule_drivers,
     build_successors_by_task_id,
     compute_downstream_exposure,
     compute_free_float_days,
+)
+from src.core.modules.project_management.application.scheduling.mappers.change_impact import (
+    serialize_change_impact,
+    serialize_schedule_impact_report,
+)
+from src.core.modules.project_management.application.scheduling.mappers.overview import (
+    map_schedule_overview,
 )
 from src.core.modules.project_management.contracts.ports.scheduling.approved_baseline_lookup import (
     ApprovedBaselineLookup,
@@ -113,6 +127,14 @@ class ScheduleChangeImpactQueryHandler:
         self._run_cpm = run_cpm
 
     def analyse(
+        self, project_id: str, changed_task_id: str,
+        proposed_start: date | None = None, proposed_finish: date | None = None,
+        proposed_duration_days: int | None = None,
+    ) -> SchedulingChangeImpactDto:
+        report = self._analyse(project_id, changed_task_id, proposed_start, proposed_finish, proposed_duration_days)
+        return serialize_change_impact(changed_task_id, report)
+
+    def _analyse(
         self,
         project_id: str,
         changed_task_id: str,
@@ -284,7 +306,7 @@ class ScheduleChangeImpactQueryHandler:
         current_start: date,
         delay_days: int = 1,
     ) -> ScheduleChangeImpactReport:
-        return self.analyse(
+        return self._analyse(
             project_id=project_id,
             changed_task_id=changed_task_id,
             proposed_start=current_start + timedelta(days=max(1, delay_days)),
@@ -297,7 +319,7 @@ class ScheduleChangeImpactQueryHandler:
         changed_task_id: str,
         current_start: date,
         delay_working_days: int = 1,
-    ) -> ScheduleChangeImpactReport:
+    ) -> ScheduleImpactReportDto:
         """Task Detail -> Schedule Impact's "Delay by N working days" input
         (§12). Unlike ``analyse_delay`` (calendar-day ``timedelta``, kept
         unchanged for its existing caller), this uses the same
@@ -309,13 +331,13 @@ class ScheduleChangeImpactQueryHandler:
         proposed_start = shift_working_days(
             self._calendar, normalized_start, max(1, delay_working_days)
         )
-        return self.analyse(
+        return serialize_schedule_impact_report(task_id=changed_task_id, project_id=project_id, simulated_delay_days=delay_working_days, report=self._analyse(
             project_id=project_id,
             changed_task_id=changed_task_id,
             proposed_start=proposed_start,
-        )
+        ))
 
-    def get_task_schedule_overview(self, project_id: str, task_id: str) -> TaskScheduleOverview:
+    def get_task_schedule_overview(self, project_id: str, task_id: str) -> TaskScheduleOverviewResponseDto:
         """Task Detail -> Schedule Impact's always-visible current-state
         facts (§6-§11) -- ONE canonical CPM pass, no hypothetical change,
         no persistence. Reuses the exact same in-memory task/dependency
@@ -340,14 +362,14 @@ class ScheduleChangeImpactQueryHandler:
                 if any(t.id == task_id for t in all_tasks)
                 else "not_found"
             )
-            return TaskScheduleOverview(task_id=task_id, is_available=False, unavailable_reason=reason)
+            return map_schedule_overview(TaskScheduleOverview(task_id=task_id, is_available=False, unavailable_reason=reason))
 
         result: CPMResult = self._run_cpm(self._calendar, tasks_by_id, deps)
         info = result.schedule.get(task_id)
         if info is None:
-            return TaskScheduleOverview(
+            return map_schedule_overview(TaskScheduleOverview(
                 task_id=task_id, is_available=False, unavailable_reason="no_computed_date"
-            )
+            ))
 
         critical_ids = set(result.critical_path_task_ids)
         successors = build_successors_by_task_id(deps)
@@ -374,7 +396,7 @@ class ScheduleChangeImpactQueryHandler:
             project_id, task_id, info.earliest_finish
         )
 
-        return TaskScheduleOverview(
+        return map_schedule_overview(TaskScheduleOverview(
             task_id=task_id,
             is_available=True,
             current_start=info.earliest_start,
@@ -389,7 +411,7 @@ class ScheduleChangeImpactQueryHandler:
             dependency_conflicts=conflicts,
             actual_variances=variances,
             downstream=downstream,
-        )
+        ))
 
     def _baseline_comparison(
         self, project_id: str, task_id: str, current_finish: date | None

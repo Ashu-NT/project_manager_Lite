@@ -14,6 +14,15 @@ from src.core.modules.project_management.application.financials.invoicing.billin
     BillingPreparationStatusChanged,
     BillingPreparationStatusChangeType,
 )
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_preparation import (
+    FinancialVersionedBillingPreparationCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.responses.billing import (
+    FinancialBillingPreparationResponse,
+)
+from src.core.modules.project_management.application.financials.invoicing.mappers.billing import (
+    map_billing_preparation,
+)
 from src.core.modules.project_management.contracts.approval import (
     pm_reviewer_permission,
 )
@@ -67,17 +76,15 @@ class BillingPreparationSubmissionCommandHandler(ProjectManagementModuleGuardMix
         self._module_catalog_service = module_catalog_service
         self._record_event = record_event
 
-    def submit_preparation(
-        self, preparation_id: str, *, expected_row_version: int
-    ) -> ProjectBillingPreparation:
+    def submit_preparation(self, command: FinancialVersionedBillingPreparationCommand) -> FinancialBillingPreparationResponse:
         if self._approval_repo is None or self._record_event is None:
             raise BusinessRuleError(
                 "Billing preparation submission requires the Finance governance command boundary.",
                 code="BILLING_PREPARATION_COMMAND_BOUNDARY_REQUIRED",
             )
-        preparation = self._require_preparation(preparation_id)
+        preparation = self._require_preparation(command.preparation_id)
         self._require(preparation.project_id, "finance.manage", "submit billing preparation")
-        if preparation.row_version != expected_row_version:
+        if preparation.row_version != command.expected_version:
             raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
         now = self._clock.now()
         principal = self._user_session.principal if self._user_session else None
@@ -93,14 +100,14 @@ class BillingPreparationSubmissionCommandHandler(ProjectManagementModuleGuardMix
             tenant_id=preparation.tenant_id,
             organization_id=preparation.organization_id,
             project_id=preparation.project_id,
-            payload={"preparation_id": preparation.id, "expected_version": expected_row_version},
+            payload={"preparation_id": preparation.id, "expected_version": command.expected_version},
             requested_by_user_id=principal.user_id if principal else None,
             requested_by_username=principal.username if principal else None,
         )
         preparation.submit(
             submitted_by=self._actor_id(), submitted_at=now, approval_request_id=request.id
         )
-        self._billing_repo.update_preparation(preparation, expected_row_version=expected_row_version)
+        self._billing_repo.update_preparation(preparation, expected_row_version=command.expected_version)
         self._audit("submit", preparation)
         event = BillingPreparationStatusChanged(
             tenant_id=preparation.tenant_id,
@@ -112,7 +119,7 @@ class BillingPreparationSubmissionCommandHandler(ProjectManagementModuleGuardMix
         )
         self._record_event(event)
         self._session.flush()
-        return preparation
+        return map_billing_preparation(preparation)
 
     def _require_preparation(self, preparation_id: str) -> ProjectBillingPreparation:
         preparation = self._billing_repo.get_preparation(preparation_id)

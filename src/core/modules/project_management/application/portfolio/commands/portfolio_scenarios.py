@@ -56,23 +56,19 @@ class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
 
     def create_scenario(self, command: PortfolioScenarioCreateCommand) -> PortfolioScenario:
-        name = command.name
-        budget_limit = command.budget_limit
-        capacity_limit_percent = command.capacity_limit_percent
         project_ids = list(command.project_ids)
         intake_item_ids = list(command.intake_item_ids)
-        notes = command.notes
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio scenario")
         organization_id = self._policy.organization_id(operation_label="create portfolio scenario")
         scope = self._policy.scope(operation_label="create portfolio scenario")
         scenario = PortfolioScenario.create(
             organization_id=organization_id,
-            name=name,
-            budget_limit=budget_limit,
-            capacity_limit_percent=capacity_limit_percent,
+            name=command.name,
+            budget_limit=command.budget_limit,
+            capacity_limit_percent=command.capacity_limit_percent,
             project_ids=project_ids or [],
             intake_item_ids=intake_item_ids or [],
-            notes=notes,
+            notes=command.notes,
         )
         scenario = replace(
             scenario,
@@ -118,31 +114,26 @@ class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
         return scenario
 
     def update_scenario(self, command: PortfolioScenarioUpdateCommand) -> PortfolioScenario:
-        scenario_id = command.scenario_id
-        name = command.name
-        budget_limit = command.budget_limit
-        capacity_limit_percent = command.capacity_limit_percent
         project_ids = None if command.project_ids is None else list(command.project_ids)
         intake_item_ids = None if command.intake_item_ids is None else list(command.intake_item_ids)
-        notes = command.notes
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio scenario")
         self._policy.organization_id(operation_label="update portfolio scenario")
         scope = self._policy.scope(operation_label="update portfolio scenario")
-        scenario = self._scenario_repo.get(scenario_id)
+        scenario = self._scenario_repo.get(command.scenario_id)
         if scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
         candidate = replace(
             scenario,
-            name=scenario.name if name is None else name,
+            name=scenario.name if command.name is None else command.name,
             budget_limit=(
                 scenario.budget_limit
-                if budget_limit is _SCENARIO_UNSET
-                else cast(Any, budget_limit)
+                if command.budget_limit is _SCENARIO_UNSET
+                else cast(Any, command.budget_limit)
             ),
             capacity_limit_percent=(
                 scenario.capacity_limit_percent
-                if capacity_limit_percent is _SCENARIO_UNSET
-                else cast(Any, capacity_limit_percent)
+                if command.capacity_limit_percent is _SCENARIO_UNSET
+                else cast(Any, command.capacity_limit_percent)
             ),
             project_ids=(
                 scenario.project_ids
@@ -154,7 +145,7 @@ class PortfolioScenarioCommandHandler(ProjectManagementModuleGuardMixin):
                 if intake_item_ids is None
                 else intake_item_ids
             ),
-            notes=scenario.notes if notes is None else notes,
+            notes=scenario.notes if command.notes is None else command.notes,
             updated_at=utc_now(),
         )
         if project_ids is not None:

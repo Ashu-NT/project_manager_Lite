@@ -14,10 +14,17 @@ from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
 )
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
+)
+from src.core.modules.project_management.application.projects.mappers.project import (
+    map_project_response,
+)
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.projects import (
     ProjectActivityPage,
     ProjectCatalogReader,
+    ProjectCatalogReadItem,
     ProjectCatalogReadPage,
     ProjectManagerCandidateFact,
     ProjectResourceDetailPage,
@@ -26,7 +33,6 @@ from src.core.modules.project_management.contracts.repositories.projects.project
     ProjectRepository,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_any_permission,
     require_permission,
@@ -67,15 +73,16 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
             tenant_id=scope.tenant_id, organization_id=scope.organization_id
         )
 
-    def list_projects(self) -> list[Project]:
+    def list_projects(self) -> list[ProjectResponse]:
         require_permission(self._user_session, "project.read", operation_label="list projects")
         project_rows = self._project_repo.list()
-        return filter_project_rows(
+        visible = filter_project_rows(
             project_rows,
             self._user_session,
             permission_code="project.read",
             project_id_getter=lambda project: project.id,
         )
+        return [map_project_response(project) for project in visible]
 
     def query_catalog_page(
         self,
@@ -165,7 +172,7 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
             approved_budget_visible=self._can_read_any_project_finance(),
         )
 
-    def query_project_detail(self, project_id: str):
+    def query_project_detail(self, project_id: str) -> ProjectCatalogReadItem | None:
         require_permission(self._user_session, "project.read", operation_label="view project")
         normalized_project_id = str(project_id or "").strip()
         if not normalized_project_id:
@@ -187,12 +194,13 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
                 normalized_project_id, "finance.read"
             )
         )
-        return self._project_catalog_reader.read_one(
+        result = self._project_catalog_reader.read_one(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             project_id=normalized_project_id,
             include_approved_budget=can_read_finance,
         )
+        return result
 
     def query_project_resources_page(
         self, project_id: str, *, search_text: str = "", active: bool | None = None,
@@ -272,7 +280,7 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
             and self._user_session.has_any_project_access("finance.read")
         )
 
-    def list_for_task_workspace(self) -> list[Project]:
+    def list_for_task_workspace(self) -> list[ProjectResponse]:
         permission_codes = ("project.read", "task.read", "task.manage")
         require_any_permission(
             self._user_session,
@@ -290,9 +298,9 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
                 project_id_getter=lambda row: row.id,
             )
         }
-        return [project for project in projects if project.id in visible_project_ids]
+        return [map_project_response(project) for project in projects if project.id in visible_project_ids]
 
-    def get_project(self, project_id: str) -> Project | None:
+    def get_project(self, project_id: str) -> ProjectResponse | None:
         require_permission(self._user_session, "project.read", operation_label="view project")
         project = self._project_repo.get(project_id)
         if project is None:
@@ -303,13 +311,13 @@ class ProjectQueryHandler(ProjectManagementModuleGuardMixin):
             "project.read",
             operation_label="view project",
         )
-        return project
+        return map_project_response(project)
 
-    def list_projects_by_status(self, status: ProjectStatus) -> list[Project]:
+    def list_projects_by_status(self, status: ProjectStatus) -> list[ProjectResponse]:
         require_permission(self._user_session, "project.read", operation_label="list projects by status")
         return [project for project in self.list_projects() if project.status == status]
 
-    def search_projects_by_name(self, query: str) -> list[Project]:
+    def search_projects_by_name(self, query: str) -> list[ProjectResponse]:
         require_permission(self._user_session, "project.read", operation_label="search projects")
         normalized = query.strip().lower()
         return [project for project in self.list_projects() if normalized in project.name.lower()]

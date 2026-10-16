@@ -9,8 +9,6 @@ from src.core.modules.project_management.api.desktop.financials.models.performan
     FinancialCostPhasingDto,
     FinancialEvmDto,
     FinancialPerformanceMetricDto,
-    FinancialReportDefinitionDto,
-    FinancialReportsDto,
     FinancialVarianceWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
@@ -157,26 +155,4 @@ def serialize_cost_phasing(facts) -> FinancialCostPhasingDto:
     )
 
 
-def serialize_performance_reports(facts) -> FinancialReportsDto:
-    return FinancialReportsDto(
-        project_id=facts.project_id,
-        as_of_date=facts.as_of_date,
-        currency_code=facts.currency_code,
-        budget_revision=facts.budget_revision,
-        forecast_revision=facts.forecast_revision,
-        forecast_as_of=facts.forecast_as_of,
-        definitions=tuple(
-            FinancialReportDefinitionDto(
-                report_code=item.report_code,
-                display_name=item.display_name,
-                formats=item.formats,
-                authority_label=item.authority_label,
-                requires_sensitive_finance=item.requires_sensitive_finance,
-                requires_profitability=item.requires_profitability,
-            )
-            for item in facts.definitions
-        ),
-    )
-
-
-__all__ = ["serialize_cost_phasing", "serialize_performance_evm", "serialize_performance_reports", "serialize_performance_variance"]
+__all__ = ["serialize_cost_phasing", "serialize_performance_evm", "serialize_performance_variance"]

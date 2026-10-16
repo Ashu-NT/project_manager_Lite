@@ -39,6 +39,9 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastVersionChanged,
     ForecastVersionChangeType,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpactType,
     FinancialChangeStatus,
@@ -66,9 +69,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _seed_approved_budget(services):
-    project = services["project_create"].create_project(
-        "FC Approval Test Project", financial_currency_code="USD"
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="FC Approval Test Project", financial_currency_code="USD"))
     boundary = services["finance_governance_commands"]
     code = boundary.cost_code(
         lambda commands: commands.create_cost_code(

@@ -6,10 +6,12 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.master_data.site.mappers.site as response_mapper
 from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )
+from src.core.platform.application.master_data.site.dto.responses.site import SiteDto
 from src.core.platform.application.master_data.site.site_context import (
     active_organization,
 )
@@ -111,7 +113,7 @@ class SiteCommandHandler:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
-    def create_site(self, command: SiteCreateCommand) -> Site:
+    def create_site(self, command: SiteCreateCommand) -> SiteDto:
         """Lifecycle is never settable through Create -- every new site starts
         ACTIVE. Use activate_site/deactivate_site/archive_site afterward for any
         non-active initial state a test or import needs."""
@@ -188,9 +190,9 @@ class SiteCommandHandler:
                 raise ValidationError(
                     "Site code already exists in the active organization.", code="SITE_CODE_EXISTS"
                 ) from exc
-        return site
+        return response_mapper.serialize_site(site)
 
-    def update_site(self, command: SiteUpdateCommand) -> Site:
+    def update_site(self, command: SiteUpdateCommand) -> SiteDto:
         """Pure profile update -- lifecycle (status/is_active) is never accepted
         here; it can only change through activate_site/deactivate_site/
         archive_site below, each with its own guarded transition, audit entry,
@@ -251,7 +253,7 @@ class SiteCommandHandler:
                 or candidate.closed_at != site.closed_at
             )
             if not profile_changed:
-                return site
+                return response_mapper.serialize_site(site)
             candidate = replace(candidate, updated_at=now)
             existing = uow.sites.get_by_code(organization.id, candidate.site_code)
             if existing is not None and existing.id != site.id:
@@ -295,7 +297,7 @@ class SiteCommandHandler:
                 raise ValidationError(
                     "Site code already exists in the active organization.", code="SITE_CODE_EXISTS"
                 ) from exc
-        return candidate
+        return response_mapper.serialize_site(candidate)
 
     def _transition_site_status(
         self, site_id: str, *, new_status: str, action: str
@@ -361,14 +363,14 @@ class SiteCommandHandler:
             uow.commit()
         return candidate
 
-    def activate_site(self, site_id: str) -> Site:
-        return self._transition_site_status(site_id, new_status=SITE_STATUS_ACTIVE, action="site.activate")
+    def activate_site(self, site_id: str) -> SiteDto:
+        return response_mapper.serialize_site(self._transition_site_status(site_id, new_status=SITE_STATUS_ACTIVE, action="site.activate"))
 
-    def deactivate_site(self, site_id: str) -> Site:
-        return self._transition_site_status(site_id, new_status=SITE_STATUS_INACTIVE, action="site.deactivate")
+    def deactivate_site(self, site_id: str) -> SiteDto:
+        return response_mapper.serialize_site(self._transition_site_status(site_id, new_status=SITE_STATUS_INACTIVE, action="site.deactivate"))
 
-    def archive_site(self, site_id: str) -> Site:
-        return self._transition_site_status(site_id, new_status=SITE_STATUS_ARCHIVED, action="site.archive")
+    def archive_site(self, site_id: str) -> SiteDto:
+        return response_mapper.serialize_site(self._transition_site_status(site_id, new_status=SITE_STATUS_ARCHIVED, action="site.archive"))
 
 
 __all__ = ["SiteCommandHandler"]

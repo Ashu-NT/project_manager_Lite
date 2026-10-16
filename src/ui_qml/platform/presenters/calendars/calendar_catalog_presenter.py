@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.api.desktop.time_management.calendar.models.calendar import (
+from src.core.platform.application.time_management.calendar.dto.responses.working_calendar import (
     WorkingDayCalculationDto,
 )
 from src.ui_qml.platform.presenters.common.calendar_summary_support import (

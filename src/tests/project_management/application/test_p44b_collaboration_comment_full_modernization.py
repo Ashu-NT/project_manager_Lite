@@ -19,6 +19,9 @@ from src.core.modules.project_management.application.collaboration.event_handler
     TASK_COMMENT_SCOPE_CODE,
     build_task_comment_view_invalidation_handler,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
@@ -136,7 +139,7 @@ def _audit_rows_for(services, entity_id: str):
 
 
 def _setup(services):
-    project = services['project_create'].create_project("P44B collaboration project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P44B collaboration project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "P44B collaboration task")
     return project, task
 

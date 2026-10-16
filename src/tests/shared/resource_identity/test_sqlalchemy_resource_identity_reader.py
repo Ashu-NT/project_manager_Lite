@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceIdentityReader,
@@ -26,11 +29,7 @@ def test_resolves_the_resource_linked_to_a_users_employee_record(services, sessi
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEP-IDN-1", name="Identity"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-IDN-1", full_name="Identity Owner", department_id=department.id))
     services["employee_commands"].link_employee_user_account(employee.id, user.id)
-    resource = services["resource_master_commands"].create_resource(
-        "Identity Owner Resource",
-        worker_type=WorkerType.EMPLOYEE,
-        employee_id=employee.id,
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Identity Owner Resource", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
 
     reader = SqlAlchemyResourceIdentityReader(session=session)
     fact = reader.resolve_resource_for_user(
@@ -66,12 +65,7 @@ def test_resolves_a_resource_that_is_not_time_reporting_eligible(services, sessi
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="DEP-IDN-2", name="Equipment"))
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-IDN-2", full_name="Equipment Owner", department_id=department.id))
     services["employee_commands"].link_employee_user_account(employee.id, user.id)
-    resource = services["resource_master_commands"].create_resource(
-        "Owned Equipment",
-        worker_type=WorkerType.EMPLOYEE,
-        cost_type=CostType.EQUIPMENT,  # not in TimeReportingEligibilityPolicy.ELIGIBLE_COST_TYPES
-        employee_id=employee.id,
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Owned Equipment", worker_type=WorkerType.EMPLOYEE, cost_type=CostType.EQUIPMENT, employee_id=employee.id))
 
     reader = SqlAlchemyResourceIdentityReader(session=session)
     fact = reader.resolve_resource_for_user(

@@ -2,8 +2,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import src.core.platform.application.master_data.employee.mappers.employee as response_mapper
+from src.core.platform.application.master_data.documents.dto.responses.document import (
+    DocumentPageDto,
+)
 from src.core.platform.application.master_data.documents.queries.document_queries import (
     DocumentQueryHandler,
+)
+from src.core.platform.application.master_data.employee.dto.responses.employee import (
+    EmployeeDto,
+    EmployeePageDto,
 )
 from src.core.platform.application.master_data.employee.employee_context import (
     active_organization_id,
@@ -20,15 +28,20 @@ from src.core.platform.application.master_data.employee.employee_document_access
 from src.core.platform.application.master_data.employee.employee_document_access import (
     require_employee_in_context,
 )
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
 from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
+    EmployeeDepartmentBreakdownRow,
+    EmployeeHeadcountSummary,
+    EmployeeSiteBreakdownRow,
+)
 
 if TYPE_CHECKING:
-    from src.core.platform.application.master_data.documents.queries.document_queries import (
-        EntityDocumentPage,
-    )
     from src.core.platform.application.tenant.tenancy.tenant_context import (
         TenantContextService,
     )
@@ -46,10 +59,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
-    EmployeeDepartmentBreakdownRow,
     EmployeeHeadcountReader,
-    EmployeeHeadcountSummary,
-    EmployeeSiteBreakdownRow,
 )
 from src.core.platform.contract.repositories.master_data.employee.contracts import (
     EmployeeRepository,
@@ -58,7 +68,6 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
     OrganizationRepository,
 )
 from src.core.platform.domain.master_data.employee import Employee
-from src.core.platform.domain.master_data.org import Organization
 
 if TYPE_CHECKING:
     from src.core.platform.domain.security.auth.session import UserSessionContext
@@ -104,15 +113,15 @@ class EmployeeQueryHandler:
         active_only: bool | None = None,
         department_id: str | None = None,
         site_id: str | None = None,
-    ) -> list[Employee]:
+    ) -> list[EmployeeDto]:
         require_permission(self._user_session, "employee.read", operation_label="list employees")
         organization_id = active_organization_id(self._tenant_context_service, operation_label="list employees")
-        return self._employee_repo.list_for_organization(
+        return [response_mapper.serialize_employee(row) for row in (self._employee_repo.list_for_organization(
             organization_id,
             active_only=active_only,
             department_id=department_id,
             site_id=site_id,
-        )
+        ))]
 
     def list_employees_page_for_organization(
         self,
@@ -124,7 +133,7 @@ class EmployeeQueryHandler:
         active_only: bool | None = None,
         department_id: str | None = None,
         site_id: str | None = None,
-    ) -> EmployeePage:
+    ) -> EmployeePageDto:
         """Tenant-scoped read for ANY organization in the caller's tenant --
         unlike list_employees(), not limited to the session's active
         organization. For Organization Detail's Employees tab, where an
@@ -171,13 +180,13 @@ class EmployeeQueryHandler:
             department_id=department_id,
             site_id=site_id,
         )
-        return EmployeePage(
+        return response_mapper.serialize_employee_page(EmployeePage(
             items=items,
             total=total,
             filtered_total=filtered_total,
             page=normalized_page,
             page_size=normalized_page_size,
-        )
+        ))
 
     def get_headcount_summary(self) -> EmployeeHeadcountSummary:
         require_permission(
@@ -217,9 +226,9 @@ class EmployeeQueryHandler:
         organization_id = active_organization_id(self._tenant_context_service, 
             operation_label="view employee department breakdown"
         )
-        return self._headcount_reader.get_department_breakdown(
+        return tuple(row for row in (self._headcount_reader.get_department_breakdown(
             tenant_id=tenant_id, organization_id=organization_id
-        )
+        )))
 
     def get_site_breakdown(self) -> tuple[EmployeeSiteBreakdownRow, ...]:
         require_permission(
@@ -238,9 +247,9 @@ class EmployeeQueryHandler:
         organization_id = active_organization_id(self._tenant_context_service, 
             operation_label="view employee site breakdown"
         )
-        return self._headcount_reader.get_site_breakdown(
+        return tuple(row for row in (self._headcount_reader.get_site_breakdown(
             tenant_id=tenant_id, organization_id=organization_id
-        )
+        )))
 
     def get_employee(self, employee_id: str) -> Employee:
         require_permission(self._user_session, "employee.read", operation_label="view employee")
@@ -250,7 +259,7 @@ class EmployeeQueryHandler:
             raise NotFoundError("Employee not found.", code="EMPLOYEE_NOT_FOUND")
         return employee
 
-    def get_context_organization(self) -> Organization:
+    def get_context_organization(self) -> OrganizationDto:
         """The caller's active Organization, for the standalone Employees
         workspace's breadcrumb/subtitle -- mirrors DepartmentQueryHandler's own
         get_context_organization() exactly."""
@@ -277,7 +286,7 @@ class EmployeeQueryHandler:
         search: str = "",
         active_only: bool | None = None,
         document_type: str | None = None,
-    ) -> EntityDocumentPage:
+    ) -> DocumentPageDto:
         require_permission(self._user_session, "employee.read", operation_label="list employee documents")
         require_permission(self._user_session, _DOCUMENT_VIEW_PERMISSION, operation_label="list employee documents")
         require_employee_in_context(self._employee_repo, self._tenant_context_service, employee_id)

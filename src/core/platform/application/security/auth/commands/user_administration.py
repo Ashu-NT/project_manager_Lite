@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.security.auth.mappers.user as response_mapper
 from src.core.platform.application.security.auth.audit.security_audit import (
     SecurityAuditRecorder,
 )
@@ -13,6 +14,7 @@ from src.core.platform.application.security.auth.auth_transaction_scope import (
 from src.core.platform.application.security.auth.dto.commands.users import (
     UserUpdateCommand,
 )
+from src.core.platform.application.security.auth.dto.responses.user import UserDto
 from src.core.platform.application.security.auth.queries.auth_queries import (
     AuthQueryHandler,
 )
@@ -29,7 +31,6 @@ from src.core.platform.application.security.authorization.enforcement.target_use
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.platform.domain.security.auth import (
-    UserAccount,
     normalize_auth_username,
 )
 from src.core.platform.domain.security.auth.events import (
@@ -68,7 +69,7 @@ class UserAdministrationCommandHandler:
             operation_label=operation,
         )
 
-    def set_user_active(self, user_id: str, is_active: bool) -> UserAccount:
+    def set_user_active(self, user_id: str, is_active: bool) -> UserDto:
         require_permission(self._user_session, "auth.manage", operation_label="set user active")
         self._enforce_user_tenant_boundary(user_id, "set active status")
         user = self._auth_queries.require_user(user_id)
@@ -98,9 +99,10 @@ class UserAdministrationCommandHandler:
                 )
             uow.commit()
         self._lifecycle.refresh_current_session_if_user(user.id)
-        return user
+        response_user = user
+        return response_mapper.serialize_user(response_user, role_names=tuple(sorted(self._auth_queries.get_user_role_names(response_user.id))))
 
-    def update_user_profile(self, command: UserUpdateCommand) -> UserAccount:
+    def update_user_profile(self, command: UserUpdateCommand) -> UserDto:
         user_id = command.user_id
         username = command.username
         display_name = command.display_name
@@ -155,9 +157,10 @@ class UserAdministrationCommandHandler:
                 code="USER_UPDATE_CONFLICT",
             ) from exc
         self._lifecycle.refresh_current_session_if_user(user.id)
-        return user
+        response_user = user
+        return response_mapper.serialize_user(response_user, role_names=tuple(sorted(self._auth_queries.get_user_role_names(response_user.id))))
 
-    def unlock_user_account(self, user_id: str) -> UserAccount:
+    def unlock_user_account(self, user_id: str) -> UserDto:
         require_any_permission(
             self._user_session,
             ("auth.manage", "security.manage"),
@@ -193,7 +196,8 @@ class UserAdministrationCommandHandler:
                 )
             uow.commit()
         self._lifecycle.refresh_current_session_if_user(user.id)
-        return user
+        response_user = user
+        return response_mapper.serialize_user(response_user, role_names=tuple(sorted(self._auth_queries.get_user_role_names(response_user.id))))
 
 
 __all__ = ["UserAdministrationCommandHandler"]

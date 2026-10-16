@@ -1,49 +1,18 @@
 from __future__ import annotations
 
-from datetime import date
-
 from src.core.modules.project_management.api.desktop.register.formatters.enum_formatter import (
     format_enum_label,
 )
 from src.core.modules.project_management.api.desktop.register.models.entries import (
     RegisterEntryDesktopDto,
 )
-from src.core.modules.project_management.domain.risk.register import (
-    as_register_entry_severity,
-    as_register_entry_status,
-    as_register_entry_type,
+from src.core.modules.project_management.application.risk.dto.responses.entries import (
+    RegisterEntryResponseDto,
 )
 
 
-def serialize_entry(
-    entry,
-    *,
-    project_name_by_id: dict[str, str],
-) -> RegisterEntryDesktopDto:
-    entry_type = as_register_entry_type(entry.entry_type)
-    severity = as_register_entry_severity(entry.severity)
-    status = as_register_entry_status(entry.status)
-    return RegisterEntryDesktopDto(
-        id=entry.id,
-        project_id=entry.project_id,
-        project_name=project_name_by_id.get(entry.project_id, entry.project_id),
-        code=str(getattr(entry, "code", "") or ""),
-        entry_type=entry_type.value,
-        entry_type_label=format_enum_label(entry_type.value),
-        title=entry.title,
-        description=entry.description or "",
-        severity=severity.value,
-        severity_label=format_enum_label(severity.value),
-        status=status.value,
-        status_label=format_enum_label(status.value),
-        owner_name=entry.owner_name,
-        due_date=entry.due_date,
-        due_date_label=entry.due_date.isoformat() if entry.due_date else "No due date",
-        impact_summary=entry.impact_summary or "",
-        response_plan=entry.response_plan or "",
-        is_overdue=entry.is_overdue_on(date.today()),  # noqa: DTZ011
-        version=int(entry.version or 1),
-    )
+def serialize_entry(response: RegisterEntryResponseDto, *, project_name_by_id: dict[str, str]) -> RegisterEntryDesktopDto:
+    return RegisterEntryDesktopDto(id=response.id, project_id=response.project_id, project_name=project_name_by_id.get(response.project_id, response.project_name or response.project_id), code=response.code, entry_type=response.entry_type, entry_type_label=format_enum_label(response.entry_type), title=response.title, description=response.description, severity=response.severity, severity_label=format_enum_label(response.severity), status=response.status, status_label=format_enum_label(response.status), owner_name=response.owner_name, due_date=response.due_date, due_date_label=response.due_date.isoformat() if response.due_date else 'No due date', impact_summary=response.impact_summary, response_plan=response.response_plan, is_overdue=response.is_overdue, version=response.version)
 
 
 __all__ = ["serialize_entry"]

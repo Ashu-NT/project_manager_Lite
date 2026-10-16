@@ -3,9 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TypeVar
 
-from src.core.platform.api.desktop.master_data.org.models.organization import (
-    OrganizationDto,
-)
 from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
     DesktopApiResult,
@@ -17,7 +14,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.domain.master_data.org import Organization
 
 _ResultT = TypeVar("_ResultT")
 
@@ -42,16 +38,4 @@ def serialize_domain_error(exc: DomainError) -> DesktopApiError:
         code=getattr(exc, "code", exc.__class__.__name__),
         message=str(exc),
         category=category,
-    )
-
-
-def serialize_organization(organization: Organization) -> OrganizationDto:
-    return OrganizationDto(
-        id=organization.id,
-        organization_code=organization.organization_code,
-        display_name=organization.display_name,
-        timezone_name=organization.timezone_name,
-        base_currency=organization.base_currency,
-        status=organization.status,
-        version=organization.version,
     )

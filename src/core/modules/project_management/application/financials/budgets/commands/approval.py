@@ -27,6 +27,12 @@ from src.core.modules.project_management.application.financials.budgets.dto.resp
     BudgetApprovalOutcome,
     BudgetApprovalResult,
 )
+from src.core.modules.project_management.application.financials.budgets.dto.responses.mutations import (
+    FinancialBudgetMutationDto,
+)
+from src.core.modules.project_management.application.financials.budgets.mappers.responses import (
+    map_budget_approval,
+)
 from src.core.modules.project_management.application.financials.governance.successors.dto.responses.financial_successors import (
     ApprovedFinancialLineAdjustment,
     ApprovedFinancialSuccessorResult,
@@ -161,7 +167,7 @@ class BudgetApprovalCommands(ProjectManagementModuleGuardMixin):
         )
 
 
-    def request_budget_approval(self, command: FinancialVersionedBudgetCommand) -> BudgetApprovalResult:
+    def request_budget_approval(self, command: FinancialVersionedBudgetCommand) -> FinancialBudgetMutationDto:
         """Create a Platform Approval request for a submitted Budget.
 
         This command is intentionally independent of the optional governance
@@ -206,14 +212,14 @@ class BudgetApprovalCommands(ProjectManagementModuleGuardMixin):
                 "notes": notes,
             },
         )
-        return BudgetApprovalResult(
+        return map_budget_approval(BudgetApprovalResult(
             outcome=BudgetApprovalOutcome.PENDING_APPROVAL,
             budget_id=budget.id,
             project_id=budget.project_id,
             budget_status=budget.status,
             row_version=budget.row_version,
             approval_request_id=request.id,
-        )
+        ))
 
 
     def reject_budget(

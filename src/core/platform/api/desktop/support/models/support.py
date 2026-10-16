@@ -4,17 +4,6 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class SupportSettingsDto:
-    update_channel: str
-    update_auto_check: bool
-    update_manifest_source: str
-    theme_mode: str
-    governance_mode: str
-    app_version: str
-    support_email: str
-
-
-@dataclass(frozen=True)
 class SupportUpdateStatusDto:
     status_label: str
     summary: str
@@ -73,6 +62,5 @@ __all__ = [
     "SupportEventDto",
     "SupportInstallLaunchDto",
     "SupportPathsDto",
-    "SupportSettingsDto",
     "SupportUpdateStatusDto",
 ]

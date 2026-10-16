@@ -6,6 +6,9 @@ import re
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
@@ -140,9 +143,7 @@ def test_pm_resources_narrow_refresh_after_committed_employee_create_with_no_lin
 
 def test_no_duplicate_pm_refresh_when_employee_update_touches_a_linked_resource(services):
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code=_unique_code("P12B-LINKED"), full_name="Linked Employee", title="Planner", department_id=_dept(services).id))
-    services["resource_master_commands"].create_resource(
-        "", hourly_rate=100.0, worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
-    )
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name="", hourly_rate=100.0, worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
 
     catalog = _pm_catalog(services)
     resources_workspace = catalog.resourcesWorkspace

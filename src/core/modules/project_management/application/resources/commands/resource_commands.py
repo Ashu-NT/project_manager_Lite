@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from decimal import Decimal
-from typing import cast
 
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
@@ -11,10 +9,23 @@ from src.core.modules.project_management.application.resources.catalog.resource_
     ResourceMasterChanged,
     ResourceMasterChangeType,
 )
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+    ResourceLifecycleCommand,
+    ResourcePurgeCommand,
+    ResourceUpdateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.responses.catalog import (
+    ResourceResponse,
+)
+from src.core.modules.project_management.application.resources.mappers.catalog import (
+    map_resource,
+)
 from src.core.modules.project_management.contracts.repositories.resources.resource import (
     ResourceRepository,
 )
 from src.core.modules.project_management.contracts.uow.resources.resource_unit_of_work import (
+    ResourceUnitOfWork,
     ResourceUnitOfWorkFactory,
 )
 from src.core.modules.project_management.domain.enums import (
@@ -51,7 +62,7 @@ from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 
 
-def _employee_contact(employee) -> str:
+def _employee_contact(employee: Employee) -> str:
     return (getattr(employee, "email", None) or getattr(employee, "phone", None) or "").strip()
 
 
@@ -94,7 +105,7 @@ class ResourceMasterCommandHandler:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     def _resolve_resource_code(
-        self, code: str, name: str, *, resource_repo, exclude_id: str | None = None
+        self, code: str, name: str, *, resource_repo: ResourceRepository, exclude_id: str | None = None
     ) -> str:
         """Normalize or generate a code unique in the active tenant/org scope. `resource_repo`
         is always the UoW-scoped repository doing the mutation itself, so the uniqueness check
@@ -238,7 +249,7 @@ class ResourceMasterCommandHandler:
                 code="STALE_WRITE",
             )
 
-    def _stage_audit(self, uow, resource: Resource, *, operation: str, action: str) -> None:
+    def _stage_audit(self, uow: ResourceUnitOfWork, resource: Resource, *, operation: str, action: str) -> None:
         record_audit_entry(
             uow,
             operation=operation,
@@ -252,7 +263,7 @@ class ResourceMasterCommandHandler:
             fail_closed=True,
         )
 
-    def _stage_activity(self, uow, resource: Resource, *, action: str) -> None:
+    def _stage_activity(self, uow: ResourceUnitOfWork, resource: Resource, *, action: str) -> None:
         record_activity(
             uow,
             action=action,
@@ -271,7 +282,7 @@ class ResourceMasterCommandHandler:
         )
 
     def _record_resource_master_event(
-        self, uow, resource: Resource, *, change_type: ResourceMasterChangeType
+        self, uow: ResourceUnitOfWork, resource: Resource, *, change_type: ResourceMasterChangeType
     ) -> None:
         if self._tenant_context_service is None:
             raise ConfigurationError("Resource tenant scope is not configured.")
@@ -288,55 +299,36 @@ class ResourceMasterCommandHandler:
             )
         )
 
-    def create_resource(
-        self,
-        name: str,
-        role: str = "",
-        *,
-        code: str = "",
-        kind: ResourceKind | str = ResourceKind.PERSON,
-        hourly_rate: Decimal | int | str = Decimal(0),
-        cost_type: CostType = CostType.LABOR,
-        currency_code: str | None = None,
-        capacity_percent: float = 100.0,
-        is_active: bool = True,
-        address: str = "",
-        contact: str = "",
-        worker_type: WorkerType | str = WorkerType.EXTERNAL,
-        employee_id: str | None = None,
-        department_id: str | None = None,
-        site_id: str | None = None,
-    ) -> Resource:
+    def create_resource(self, command: ResourceCreateCommand) -> ResourceResponse:
         require_permission(self._user_session, "resource.manage", operation_label="create resource")
         organization_id = self._active_organization_id(operation_label="create resource")
         kind, worker_type, employee, department_id, site_id = self._resolve_master_scope(
-            kind=kind,
-            worker_type=worker_type,
-            employee_id=employee_id,
-            department_id=department_id,
-            site_id=site_id,
+            kind=command.kind,
+            worker_type=command.worker_type,
+            employee_id=command.employee_id,
+            department_id=command.department_id,
+            site_id=command.site_id,
         )
-        if employee is not None:
-            name = employee.full_name
-            role = role.strip() or employee.title
-            contact = _employee_contact(employee) or contact
-            employee_id = employee.id
+        name = employee.full_name if employee is not None else command.name
+        role = command.role.strip() or employee.title if employee is not None else command.role
+        contact = _employee_contact(employee) or command.contact if employee is not None else command.contact
+        employee_id = employee.id if employee is not None else command.employee_id
 
         resource = Resource.create(
             name=name,
             code="",
             kind=kind,
             role=role,
-            hourly_rate=hourly_rate,
-            is_active=bool(is_active),
-            cost_type=cost_type,
+            hourly_rate=command.hourly_rate,
+            is_active=bool(command.is_active),
+            cost_type=CostType(command.cost_type),
             currency_code=resolve_pm_currency(
                 tenant_context_service=getattr(self, "_tenant_context_service", None),
                 operation_label="create resource",
-                explicit=currency_code,
+                explicit=command.currency_code,
             ),
-            capacity_percent=capacity_percent,
-            address=address,
+            capacity_percent=command.capacity_percent,
+            address=command.address,
             contact=contact,
             worker_type=worker_type,
             employee_id=employee_id,
@@ -346,45 +338,26 @@ class ResourceMasterCommandHandler:
         )
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
-            resource.code = self._resolve_resource_code(code, resource.name, resource_repo=uow.resources)
+            resource.code = self._resolve_resource_code(command.code, resource.name, resource_repo=uow.resources)
             uow.resources.add(resource)
             self._stage_audit(uow, resource, operation="create", action="resource.created")
             self._stage_activity(uow, resource, action="resource.created")
             self._record_resource_master_event(uow, resource, change_type=ResourceMasterChangeType.CREATED)
             uow.commit()
-        return resource
+        return map_resource(resource)
 
-    def update_resource(
-        self,
-        *,
-        resource_id: str,
-        expected_version: int,
-        name: str,
-        code: str,
-        kind: ResourceKind | str,
-        role: str,
-        hourly_rate: Decimal | int | str,
-        cost_type: CostType,
-        currency_code: str | None,
-        capacity_percent: float,
-        address: str,
-        contact: str,
-        worker_type: WorkerType | str,
-        employee_id: str | None,
-        department_id: str | None,
-        site_id: str | None,
-    ) -> Resource:
+    def update_resource(self, command: ResourceUpdateCommand) -> ResourceResponse:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
-        resource = self._resource_repo.get(resource_id)
+        resource = self._resource_repo.get(command.resource_id)
         if resource is None:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-        self._require_expected_version(resource, expected_version)
+        self._require_expected_version(resource, command.expected_version)
         kind, worker_type, employee, department_id, site_id = self._resolve_master_scope(
-            kind=kind,
-            worker_type=worker_type,
-            employee_id=employee_id,
-            department_id=department_id,
-            site_id=site_id,
+            kind=command.kind,
+            worker_type=command.worker_type,
+            employee_id=command.employee_id,
+            department_id=command.department_id,
+            site_id=command.site_id,
             exclude_resource_id=resource.id,
         )
         if kind != resource.kind and self._resource_repo.reference_summary(
@@ -394,30 +367,29 @@ class ResourceMasterCommandHandler:
                 "Resource kind cannot change after the resource is used by project work.",
                 code="RESOURCE_KIND_CHANGE_REFERENCED",
             )
-        if employee is not None:
-            name = employee.full_name
-            role = role.strip() or resource.role
-            contact = _employee_contact(employee) or contact
-            employee_id = employee.id
+        name = employee.full_name if employee is not None else command.name
+        role = command.role.strip() or resource.role if employee is not None else command.role
+        contact = _employee_contact(employee) or command.contact if employee is not None else command.contact
+        employee_id = employee.id if employee is not None else command.employee_id
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             candidate = replace(
                 resource,
                 name=name,
                 code=self._resolve_resource_code(
-                    code, name, resource_repo=uow.resources, exclude_id=resource.id
+                    command.code, name, resource_repo=uow.resources, exclude_id=resource.id
                 ),
                 kind=kind,
                 role=role,
-                hourly_rate=cast(Decimal, hourly_rate),
-                cost_type=cost_type,
+                hourly_rate=command.hourly_rate,
+                cost_type=CostType(command.cost_type),
                 currency_code=resolve_pm_currency(
                     tenant_context_service=getattr(self, "_tenant_context_service", None),
                     operation_label="update resource currency",
-                    explicit=currency_code,
+                    explicit=command.currency_code,
                 ),
-                capacity_percent=capacity_percent,
-                address=address,
+                capacity_percent=command.capacity_percent,
+                address=command.address,
                 contact=contact,
                 worker_type=worker_type,
                 employee_id=employee_id,
@@ -426,13 +398,13 @@ class ResourceMasterCommandHandler:
             )
             if candidate == resource:
                 # True no-op: no write, audit, event, or version bump.
-                return resource
+                return map_resource(resource)
             uow.resources.update(candidate)
             self._stage_audit(uow, candidate, operation="update", action="resource.updated")
             self._stage_activity(uow, candidate, action="resource.updated")
             self._record_resource_master_event(uow, candidate, change_type=ResourceMasterChangeType.UPDATED)
             uow.commit()
-        return candidate
+        return map_resource(candidate)
 
     def _change_resource_lifecycle(
         self,
@@ -470,26 +442,26 @@ class ResourceMasterCommandHandler:
             uow.commit()
         return candidate
 
-    def deactivate_resource(self, *, resource_id: str, expected_version: int) -> Resource:
-        return self._change_resource_lifecycle(
-            resource_id=resource_id,
-            expected_version=expected_version,
+    def deactivate_resource(self, command: ResourceLifecycleCommand) -> ResourceResponse:
+        return map_resource(self._change_resource_lifecycle(
+            resource_id=command.resource_id,
+            expected_version=command.expected_version,
             active=False,
-        )
+        ))
 
-    def reactivate_resource(self, *, resource_id: str, expected_version: int) -> Resource:
-        return self._change_resource_lifecycle(
-            resource_id=resource_id,
-            expected_version=expected_version,
+    def reactivate_resource(self, command: ResourceLifecycleCommand) -> ResourceResponse:
+        return map_resource(self._change_resource_lifecycle(
+            resource_id=command.resource_id,
+            expected_version=command.expected_version,
             active=True,
-        )
+        ))
 
-    def purge_resource(self, *, resource_id: str, expected_version: int) -> Resource:
+    def purge_resource(self, command: ResourcePurgeCommand) -> ResourceResponse:
         require_permission(self._user_session, "resource.manage", operation_label="purge resource")
-        resource = self._resource_repo.get(resource_id)
+        resource = self._resource_repo.get(command.resource_id)
         if resource is None:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-        self._require_expected_version(resource, expected_version)
+        self._require_expected_version(resource, command.expected_version)
         references = self._resource_repo.reference_summary(resource.id)
         if references.has_any_references:
             raise BusinessRuleError(
@@ -503,7 +475,7 @@ class ResourceMasterCommandHandler:
             self._stage_activity(uow, resource, action="resource.purged")
             self._record_resource_master_event(uow, resource, change_type=ResourceMasterChangeType.PURGED)
             uow.commit()
-        return resource
+        return map_resource(resource)
 
 
 __all__ = ["ResourceMasterCommandHandler"]

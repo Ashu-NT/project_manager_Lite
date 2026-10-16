@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -14,6 +13,16 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingProfileActivated,
     BillingProfileCreated,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_profile import (
+    FinancialActivateBillingProfileCommand,
+    FinancialCreateBillingProfileCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.responses.billing import (
+    FinancialBillingProfileDto,
+)
+from src.core.modules.project_management.application.financials.invoicing.mappers.billing import (
+    serialize_billing_profile,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectFinancialProfileRepository,
@@ -70,28 +79,16 @@ class ProjectBillingProfileCommandHandler(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
         self._record_event = record_event
 
-    def create_profile(
-        self,
-        project_id: str,
-        *,
-        contract_reference: str,
-        contract_value: Decimal,
-        customer_party_id: str | None = None,
-        external_customer_reference: str | None = None,
-        purchase_order_reference: str | None = None,
-        cost_plus_markup_percent: Decimal = Decimal(0),
-        payment_terms_days: int = 30,
-        retention_years: int = 7,
-    ) -> ProjectBillingProfile:
-        self._require(project_id, "finance.manage", "create project billing profile")
-        if self._project_repo.get(project_id) is None:
+    def create_profile(self, command: FinancialCreateBillingProfileCommand) -> FinancialBillingProfileDto:
+        self._require(command.project_id, "finance.manage", "create project billing profile")
+        if self._project_repo.get(command.project_id) is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        if self._billing_repo.get_profile(project_id) is not None:
+        if self._billing_repo.get_profile(command.project_id) is not None:
             raise BusinessRuleError(
                 "A billing profile already exists for this Project.",
                 code="BILLING_PROFILE_ALREADY_EXISTS",
             )
-        financial_profile = self._require_billable_financial_profile(project_id)
+        financial_profile = self._require_billable_financial_profile(command.project_id)
         context = self._tenant_context_service.require_active_scope_ids(
             operation_label="create project billing profile"
         )
@@ -99,16 +96,16 @@ class ProjectBillingProfileCommandHandler(ProjectManagementModuleGuardMixin):
         profile = ProjectBillingProfile.create(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
-            project_id=project_id,
+            project_id=command.project_id,
             currency_code=financial_profile.currency_code,
-            contract_reference=contract_reference,
-            contract_value=contract_value,
-            customer_party_id=customer_party_id,
-            external_customer_reference=external_customer_reference,
-            purchase_order_reference=purchase_order_reference,
-            cost_plus_markup_percent=cost_plus_markup_percent,
-            payment_terms_days=payment_terms_days,
-            retention_years=retention_years,
+            contract_reference=command.contract_reference,
+            contract_value=command.contract_value,
+            customer_party_id=command.customer_party_id,
+            external_customer_reference=command.external_customer_reference,
+            purchase_order_reference=command.purchase_order_reference,
+            cost_plus_markup_percent=command.cost_plus_markup_percent,
+            payment_terms_days=command.payment_terms_days,
+            retention_years=command.retention_years,
             created_by=actor_id,
             created_at=self._clock.now(),
         )
@@ -119,16 +116,14 @@ class ProjectBillingProfileCommandHandler(ProjectManagementModuleGuardMixin):
             billing_profile_id=profile.id,
             occurred_at=profile.created_at,
         )
-        return self._persist(
+        return serialize_billing_profile(self._persist(
             "create", profile, lambda: self._billing_repo.add_profile(profile), event
-        )
+        ))
 
-    def activate_profile(
-        self, project_id: str, *, expected_row_version: int
-    ) -> ProjectBillingProfile:
-        self._require(project_id, "finance.manage", "activate project billing profile")
-        profile = self._require_profile(project_id)
-        financial_profile = self._require_billable_financial_profile(project_id)
+    def activate_profile(self, command: FinancialActivateBillingProfileCommand) -> FinancialBillingProfileDto:
+        self._require(command.project_id, "finance.manage", "activate project billing profile")
+        profile = self._require_profile(command.project_id)
+        financial_profile = self._require_billable_financial_profile(command.project_id)
         if profile.currency_code != financial_profile.currency_code:
             raise BusinessRuleError(
                 "Billing and Project financial currencies must match.",
@@ -143,14 +138,14 @@ class ProjectBillingProfileCommandHandler(ProjectManagementModuleGuardMixin):
             billing_profile_id=profile.id,
             occurred_at=now,
         )
-        return self._persist(
+        return serialize_billing_profile(self._persist(
             "activate",
             profile,
             lambda: self._billing_repo.update_profile(
-                profile, expected_row_version=expected_row_version
+                profile, expected_row_version=command.expected_version
             ),
             event,
-        )
+        ))
 
     def _require_billable_financial_profile(self, project_id: str):
         profile = self._financial_profile_repo.get_by_project(project_id)

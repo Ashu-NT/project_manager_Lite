@@ -6,6 +6,9 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
@@ -32,7 +35,7 @@ def _login_eligible_reviewer(services):
 
 
 def _make_two_tasks(services):
-    project = services['project_create'].create_project("Dependency Concurrency", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Concurrency", description=""))
     a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2023, 11, 6), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
     return project, a, b

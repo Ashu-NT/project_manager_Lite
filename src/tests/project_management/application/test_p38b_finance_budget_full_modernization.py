@@ -21,6 +21,9 @@ from src.core.modules.project_management.application.financials.budgets.event_ha
     BUDGET_PROJECT_SUMMARY_SCOPE_CODE,
     build_budget_view_invalidation_handler,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
@@ -70,9 +73,7 @@ def _unique(prefix: str) -> str:
 
 
 def _setup(services):
-    project = services["project_create"].create_project(
-        _unique("P38B Budget project"), financial_currency_code="USD"
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name=_unique("P38B Budget project"), financial_currency_code="USD"))
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             code=_unique("P38B-CC"), name="P38B Cost Code"

@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from src.core.modules.project_management.api.desktop.resources.models.availability import (
     ResourceAvailabilityDayDto,
     ResourceAvailabilityDto,
 )
+from src.core.modules.project_management.application.resources.dto.responses.availability import (
+    ResourceWorkloadDayResponse,
+    ResourceWorkloadResponse,
+)
 
 
-def _utilization_label(value) -> str:
+def _utilization_label(value: Decimal | None) -> str:
     return "N/A" if value is None else f"{float(value):.1f}%"
 
 
-def serialize_resource_availability_day(day) -> ResourceAvailabilityDayDto:
+def serialize_resource_availability_day(day: ResourceWorkloadDayResponse) -> ResourceAvailabilityDayDto:
     return ResourceAvailabilityDayDto(
         work_date=day.work_date.isoformat(),
         date_label=day.work_date.strftime("%d %b"),
@@ -29,7 +35,7 @@ def serialize_resource_availability_day(day) -> ResourceAvailabilityDayDto:
 
 def serialize_resource_availability(
     resource_id: str,
-    fact,
+    fact: ResourceWorkloadResponse,
 ) -> ResourceAvailabilityDto:
     return ResourceAvailabilityDto(
         resource_id=resource_id,

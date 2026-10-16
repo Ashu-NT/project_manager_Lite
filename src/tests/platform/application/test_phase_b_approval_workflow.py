@@ -5,6 +5,9 @@ from decimal import Decimal
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
@@ -24,7 +27,7 @@ def _become_independent_admin_decider(services) -> None:
 
 def _submitted_cost_entry(services, name: str):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(name)
+    project = services['project_create'].create_project(ProjectCreateCommand(name=name))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="MANUAL-ACTUAL",
         name="Manual actual",
@@ -80,7 +83,7 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
 
     approvals = services["approval_commands"]
 
-    project = services['project_create'].create_project("Governed Dependency Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Governed Dependency Project"))
     a = services['task_lifecycle_commands'].create_task(project.id, "Task Alpha", start_date=date(2026, 2, 24), duration_days=1)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task Beta", start_date=date(2026, 2, 25), duration_days=1)
     services["user_registration"].register_user("planner-dep", "StrongPass123", role_names=["planner"])

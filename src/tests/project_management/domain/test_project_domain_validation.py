@@ -5,6 +5,10 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
 from src.core.modules.project_management.domain.projects.project import (
     Project,
     ProjectResource,
@@ -102,18 +106,9 @@ def test_project_resource_dto_validates_planned_hours():
 
 def test_project_service_updates_date_pair_with_final_state_validation(services):
     services['project_query']
-    project = services['project_create'].create_project(
-        "Service Date Move",
-        start_date=date(2026, 7, 1),
-        end_date=date(2026, 7, 5),
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Service Date Move", start_date=date(2026, 7, 1), end_date=date(2026, 7, 5)))
 
-    updated = services['project_update'].update_project(
-        project.id,
-        expected_version=project.version,
-        start_date=date(2026, 7, 10),
-        end_date=date(2026, 7, 15),
-    )
+    updated = services['project_update'].update_project(ProjectUpdateCommand(project_id=project.id, expected_version=project.version, start_date=date(2026, 7, 10), end_date=date(2026, 7, 15)))
 
     assert updated.start_date == date(2026, 7, 10)
     assert updated.end_date == date(2026, 7, 15)

@@ -24,6 +24,9 @@ from src.core.modules.project_management.application.financials.invoicing.dto.co
     FinancialAddApprovedTimeBillingSourceCommand,
     FinancialAddFixedPriceBillingSourceCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.configuration import (
     BillingMethod,
 )
@@ -53,9 +56,7 @@ def _register_and_login(services, username: str, *, role_names: list[str]) -> No
 
 def _setup_billable_project(services, *, name: str = "Billing Command Surface", create_period: bool = True):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        name, financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=name, financial_currency_code=organization.base_currency))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"BILL-{project.id[-4:].upper()}", name="Billing cost code"
     ))

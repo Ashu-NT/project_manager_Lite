@@ -24,6 +24,15 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
     CostEntryStatusChanged,
     CostEntryStatusChangeType,
 )
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_review import (
+    FinancialDecideActualCommand,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.approval import (
+    FinancialCostEntryApprovalDto,
+)
+from src.core.modules.project_management.application.financials.cost.entries.mappers.responses import (
+    map_cost_entry_approval,
+)
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
 )
@@ -69,14 +78,8 @@ class ProjectCostEntryReviewCommandHandler(ProjectManagementModuleGuardMixin):
         self._approval_commands = approval_commands
         self._record_event = record_event
 
-    def approve(
-        self,
-        entry_id: str,
-        *,
-        expected_version: int,
-        notes: str = "",
-    ) -> CostEntryApprovalResult:
-        entry = self._require_entry(entry_id)
+    def approve(self, command: FinancialDecideActualCommand) -> FinancialCostEntryApprovalDto:
+        entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="approve")
         governed = self._approval_commands is not None and is_governance_required(
             "project_cost.approve"
@@ -88,7 +91,7 @@ class ProjectCostEntryReviewCommandHandler(ProjectManagementModuleGuardMixin):
             else "approve project cost entry"
         )
         self._require_command_permission(entry.project_id, permission, operation)
-        self._require_expected_version(entry, expected_version)
+        self._require_expected_version(entry, command.expected_version)
         if entry.status != ProjectCostEntryStatus.SUBMITTED:
             raise BusinessRuleError(
                 "Only a submitted project cost entry can be approved.",
@@ -102,39 +105,33 @@ class ProjectCostEntryReviewCommandHandler(ProjectManagementModuleGuardMixin):
                 project_id=entry.project_id,
                 payload={
                     "entry_id": entry.id,
-                    "expected_version": expected_version,
-                    "notes": notes,
+                    "expected_version": command.expected_version,
+                    "notes": command.notes,
                 },
             )
-            return CostEntryApprovalResult(
+            return map_cost_entry_approval(CostEntryApprovalResult(
                 outcome=CostEntryApprovalOutcome.PENDING_APPROVAL,
                 entry_id=entry.id,
                 project_id=entry.project_id,
                 status=entry.status,
                 row_version=entry.row_version,
                 approval_request_id=request.id,
-            )
+            ))
         approved, _event = self._apply_approval_decision(
             entry_id=entry.id,
-            expected_version=expected_version,
+            expected_version=command.expected_version,
             actor_id=self._actor_id(),
         )
-        return CostEntryApprovalResult(
+        return map_cost_entry_approval(CostEntryApprovalResult(
             outcome=CostEntryApprovalOutcome.APPLIED,
             entry_id=approved.id,
             project_id=approved.project_id,
             status=approved.status,
             row_version=approved.row_version,
-        )
+        ))
 
-    def reject(
-        self,
-        entry_id: str,
-        *,
-        expected_version: int,
-        notes: str = "",
-    ) -> ProjectCostEntry:
-        entry = self._require_entry(entry_id)
+    def reject(self, command: FinancialDecideActualCommand) -> ProjectCostEntry:
+        entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="reject")
         if self._approval_commands is not None and is_governance_required(
             "project_cost.approve"
@@ -148,9 +145,9 @@ class ProjectCostEntryReviewCommandHandler(ProjectManagementModuleGuardMixin):
         )
         rejected, _event = self._apply_rejection_decision(
             entry_id=entry.id,
-            expected_version=expected_version,
+            expected_version=command.expected_version,
             actor_id=self._actor_id(),
-            notes=notes,
+            notes=command.notes,
         )
         return rejected
 

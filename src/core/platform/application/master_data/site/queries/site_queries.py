@@ -3,9 +3,18 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+import src.core.platform.application.master_data.org.mappers.organization as organization_mapper
+import src.core.platform.application.master_data.site.mappers.site as response_mapper
 from src.core.platform.access.authorization import (
     filter_scope_rows,
     require_scope_permission,
+)
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
+)
+from src.core.platform.application.master_data.site.dto.responses.site import (
+    SiteDto,
+    SitePageDto,
 )
 from src.core.platform.application.master_data.site.site_context import (
     active_organization,
@@ -72,24 +81,24 @@ class SiteQueryHandler:
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader
 
-    def list_sites(self, *, active_only: bool | None = None) -> list[Site]:
+    def list_sites(self, *, active_only: bool | None = None) -> list[SiteDto]:
         self._require_site_read_access("list sites")
         organization = self._active_organization()
         rows = self._site_repo.list_for_organization(organization.id, active_only=active_only)
-        return filter_scope_rows(
+        return [response_mapper.serialize_site(row) for row in (filter_scope_rows(
             rows,
             self._user_session,
             scope_type="site",
             permission_code="site.read",
             scope_id_getter=lambda row: getattr(row, "id", ""),
-        )
+        ))]
 
     def search_sites(
         self,
         *,
         search_text: str = "",
         active_only: bool | None = True,
-    ) -> list[Site]:
+    ) -> list[SiteDto]:
         self._require_site_read_access("search sites")
         normalized_search = normalize_optional_text(search_text).lower()
         rows = self.list_sites(active_only=active_only)
@@ -121,7 +130,7 @@ class SiteQueryHandler:
         page_size: int = _DEFAULT_SITE_PAGE_SIZE,
         search: str = "",
         active_only: bool | None = None,
-    ) -> SitePage:
+    ) -> SitePageDto:
         """Tenant-scoped read for ANY organization in the caller's tenant --
         unlike list_sites()/search_sites(), not limited to the session's
         active organization. For Organization Detail's Sites tab, where an
@@ -164,13 +173,13 @@ class SiteQueryHandler:
             permission_code="site.read",
             scope_id_getter=lambda row: getattr(row, "id", ""),
         )
-        return SitePage(
+        return response_mapper.serialize_site_page(SitePage(
             items=items,
             total=total,
             filtered_total=filtered_total,
             page=normalized_page,
             page_size=normalized_page_size,
-        )
+        ))
 
     def get_site(self, site_id: str) -> Site:
         self._require_site_read_access("view site")
@@ -192,9 +201,9 @@ class SiteQueryHandler:
         normalized_code = normalize_code(site_code, label="Site code")
         return self._site_repo.get_by_code(self._active_organization().id, normalized_code)
 
-    def get_context_organization(self) -> Organization:
+    def get_context_organization(self) -> OrganizationDto:
         require_permission(self._user_session, "settings.manage", operation_label="view site context")
-        return self._active_organization()
+        return organization_mapper.serialize_organization_context(self._active_organization())
 
     def get_site_rollup_summary(self) -> SiteRollupSummary:
         self._require_site_read_access("view site rollup summary")

@@ -10,12 +10,12 @@ import pytest
 from PySide6.QtCore import qInstallMessageHandler
 from PySide6.QtTest import QTest
 
-from src.core.platform.api.desktop.master_data.org.models.organization import (
-    OrganizationDto,
-)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.notifications.models.notification import (
     NotificationDto,
+)
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
 )
 from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.ui_qml.modules.project_management.context import (

@@ -8,10 +8,21 @@ from src.core.modules.project_management.api.desktop.projects.models.resources i
     ProjectResourceDesktopDto,
     ProjectResourceUsageDesktopDto,
 )
+from src.core.modules.project_management.application.resources.dto.responses.catalog import (
+    ResourceResponse,
+)
+from src.core.modules.project_management.application.resources.dto.responses.project_resources import (
+    ProjectResourceResponse,
+)
+from src.core.modules.project_management.contracts.reads.projects.models import (
+    ProjectResourceUsageFact,
+)
 from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
-def serialize_project_resource(project_resource, *, resource_by_id) -> ProjectResourceDesktopDto:
+def serialize_project_resource(
+    project_resource: ProjectResourceResponse, *, resource_by_id: ResourceResponse | None
+) -> ProjectResourceDesktopDto:
     resolved_currency = (
         str(
             getattr(project_resource, "currency_code", None)
@@ -53,7 +64,7 @@ def serialize_project_resource(project_resource, *, resource_by_id) -> ProjectRe
     )
 
 
-def serialize_project_resource_usage(fact) -> ProjectResourceUsageDesktopDto:
+def serialize_project_resource_usage(fact: ProjectResourceUsageFact) -> ProjectResourceUsageDesktopDto:
     return ProjectResourceUsageDesktopDto(
         project_resource_id=fact.project_resource_id,
         project_id=fact.project_id,
@@ -73,7 +84,7 @@ def serialize_project_resource_usage(fact) -> ProjectResourceUsageDesktopDto:
     )
 
 
-def assignable_resource_label(resource) -> str:
+def assignable_resource_label(resource: ResourceResponse) -> str:
     name = str(getattr(resource, "name", "") or "Unnamed resource")
     role = str(getattr(resource, "role", "") or "")
     hourly_rate = getattr(resource, "hourly_rate", None)

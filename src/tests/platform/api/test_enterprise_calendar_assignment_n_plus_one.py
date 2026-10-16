@@ -12,6 +12,12 @@ from __future__ import annotations
 
 from sqlalchemy import event
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.platform.api.desktop.time_management.calendar.platform_calendar import (
     PlatformCalendarDesktopApi,
 )
@@ -218,12 +224,8 @@ def test_list_calendar_assignments_serializes_all_five_entity_types_correctly(se
             employment_type="FULL_TIME",
         )
     )
-    project = services["project_create"].create_project(
-        "P5 Project", financial_currency_code=organization.base_currency
-    )
-    resource = services["resource_master_commands"].create_resource(
-        "P5 Resource", hourly_rate=0, currency_code=organization.base_currency
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="P5 Project", financial_currency_code=organization.base_currency))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="P5 Resource", hourly_rate=0, currency_code=organization.base_currency))
 
     assignment_commands.assign_site_calendar(
         SiteCalendarAssignCommand(site_id=site.id, calendar_id=calendar.id)

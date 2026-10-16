@@ -253,7 +253,13 @@ def test_resource_rate_and_certification_policy_stays_out_of_adapters() -> None:
             "effective_on=date.today",
         ):
             assert policy_token not in source
-    assert "status_on(today)" in certification_source
+    from inspect import getsource
+
+    from src.core.modules.project_management.application.resources.mappers.capabilities import (
+        map_resource_certification,
+    )
+    assert ".status_on(" in getsource(map_resource_certification)
+    assert ".status_on(" not in certification_source
     assert "expiry < today" not in certification_source
     assert "(expiry - today).days" not in certification_source
 
@@ -307,7 +313,13 @@ def test_register_triage_policy_stays_out_of_desktop_adapters() -> None:
     assert "sorted(" not in builder_source
     assert "severity_rank" not in builder_source
     assert "is_overdue(" not in builder_source
-    assert "entry.is_overdue_on(date.today())" in serializer_source
+    from inspect import getsource
+
+    from src.core.modules.project_management.application.risk.mappers.entries import (
+        map_register_entry,
+    )
+    assert "entry.is_overdue_on(as_of)" in getsource(map_register_entry)
+    assert ".is_overdue_on(" not in serializer_source
     assert ".triage_key(" in query_source
     assert not (register_root / "utils/register_status_utils.py").exists()
     assert "register_service" not in dashboard_source

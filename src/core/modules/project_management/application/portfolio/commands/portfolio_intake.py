@@ -62,17 +62,6 @@ class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
 
     def create_intake_item(self, command: PortfolioIntakeCreateCommand) -> PortfolioIntakeItem:
-        title = command.title
-        sponsor_name = command.sponsor_name
-        summary = command.summary
-        requested_budget = command.requested_budget
-        requested_capacity_percent = command.requested_capacity_percent
-        target_start_date = command.target_start_date
-        strategic_score = command.strategic_score
-        value_score = command.value_score
-        urgency_score = command.urgency_score
-        risk_score = command.risk_score
-        scoring_template_id = command.scoring_template_id
         status = command.status if isinstance(command.status, PortfolioIntakeStatus) else PortfolioIntakeStatus(str(command.status or PortfolioIntakeStatus.PROPOSED.value).strip().upper())
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio intake")
         organization_id = self._policy.organization_id(operation_label="create portfolio intake")
@@ -81,20 +70,20 @@ class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
             with self._uow_factory.create(context=new_portfolio_context()) as uow:
                 events: list = []
                 scoring_template = self._policy.resolve_scoring_template(
-                    scoring_template_id, uow=uow, events=events
+                    command.scoring_template_id, uow=uow, events=events
                 )
                 item = PortfolioIntakeItem.create(
                     organization_id=organization_id,
-                    title=title,
-                    sponsor_name=sponsor_name,
-                    summary=summary,
-                    requested_budget=requested_budget,
-                    requested_capacity_percent=requested_capacity_percent,
-                    target_start_date=target_start_date,
-                    strategic_score=strategic_score,
-                    value_score=value_score,
-                    urgency_score=urgency_score,
-                    risk_score=risk_score,
+                    title=command.title,
+                    sponsor_name=command.sponsor_name,
+                    summary=command.summary,
+                    requested_budget=command.requested_budget,
+                    requested_capacity_percent=command.requested_capacity_percent,
+                    target_start_date=command.target_start_date,
+                    strategic_score=command.strategic_score,
+                    value_score=command.value_score,
+                    urgency_score=command.urgency_score,
+                    risk_score=command.risk_score,
                     scoring_template_id=scoring_template.id,
                     scoring_template_name=scoring_template.name,
                     strategic_weight=scoring_template.strategic_weight,
@@ -148,72 +137,59 @@ class PortfolioIntakeCommandHandler(ProjectManagementModuleGuardMixin):
         return item
 
     def update_intake_item(self, command: PortfolioIntakeUpdateCommand) -> PortfolioIntakeItem:
-        item_id = command.item_id
-        title = command.title
-        sponsor_name = command.sponsor_name
-        summary = command.summary
-        requested_budget = command.requested_budget
-        requested_capacity_percent = command.requested_capacity_percent
-        target_start_date = command.target_start_date
-        strategic_score = command.strategic_score
-        value_score = command.value_score
-        urgency_score = command.urgency_score
-        risk_score = command.risk_score
-        status = command.status
-        scoring_template_id = command.scoring_template_id
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio intake")
         self._policy.organization_id(operation_label="update portfolio intake")
         scope = self._policy.scope(operation_label="update portfolio intake")
-        item = self._intake_repo.get(item_id)
+        item = self._intake_repo.get(command.item_id)
         if item is None:
             raise NotFoundError("Portfolio intake item not found.", code="PORTFOLIO_INTAKE_NOT_FOUND")
         candidate = replace(
             item,
-            title=item.title if title is None else title,
-            sponsor_name=item.sponsor_name if sponsor_name is None else sponsor_name,
-            summary=item.summary if summary is None else summary,
+            title=item.title if command.title is None else command.title,
+            sponsor_name=item.sponsor_name if command.sponsor_name is None else command.sponsor_name,
+            summary=item.summary if command.summary is None else command.summary,
             requested_budget=(
                 item.requested_budget
-                if requested_budget is None
-                else cast(Any, requested_budget)
+                if command.requested_budget is None
+                else cast(Any, command.requested_budget)
             ),
             requested_capacity_percent=(
                 item.requested_capacity_percent
-                if requested_capacity_percent is None
-                else cast(Any, requested_capacity_percent)
+                if command.requested_capacity_percent is None
+                else cast(Any, command.requested_capacity_percent)
             ),
             target_start_date=(
                 item.target_start_date
-                if target_start_date is _INTAKE_UNSET
-                else cast(date | None, target_start_date)
+                if command.target_start_date is _INTAKE_UNSET
+                else cast(date | None, command.target_start_date)
             ),
             strategic_score=(
                 item.strategic_score
-                if strategic_score is None
-                else cast(Any, strategic_score)
+                if command.strategic_score is None
+                else cast(Any, command.strategic_score)
             ),
             value_score=(
                 item.value_score
-                if value_score is None
-                else cast(Any, value_score)
+                if command.value_score is None
+                else cast(Any, command.value_score)
             ),
             urgency_score=(
                 item.urgency_score
-                if urgency_score is None
-                else cast(Any, urgency_score)
+                if command.urgency_score is None
+                else cast(Any, command.urgency_score)
             ),
             risk_score=(
                 item.risk_score
-                if risk_score is None
-                else cast(Any, risk_score)
+                if command.risk_score is None
+                else cast(Any, command.risk_score)
             ),
-            status=item.status if status is None else cast(Any, status),
+            status=item.status if command.status is None else cast(Any, command.status),
             updated_at=utc_now(),
         )
         with self._uow_factory.create(context=new_portfolio_context()) as uow:
             events: list = []
-            if scoring_template_id is not None:
-                scoring_template = uow.scoring_templates.get(scoring_template_id)
+            if command.scoring_template_id is not None:
+                scoring_template = uow.scoring_templates.get(command.scoring_template_id)
                 if scoring_template is None:
                     raise NotFoundError(
                         "Portfolio scoring template not found.",

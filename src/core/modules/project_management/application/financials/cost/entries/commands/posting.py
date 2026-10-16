@@ -24,6 +24,10 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
     CostEntryStatusChanged,
     CostEntryStatusChangeType,
 )
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_posting import (
+    FinancialPostActualCommand,
+    FinancialReverseActualCommand,
+)
 from src.core.modules.project_management.application.financials.cost.entries.manual_source import (
     build_manual_source,
 )
@@ -92,44 +96,34 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
         self._tenant_context_service = tenant_context_service
         self._record_event = record_event
 
-    def post(
-        self,
-        entry_id: str,
-        *,
-        expected_version: int,
-        posting_date: date,
-        exchange_rate: Decimal | None = None,
-        exchange_rate_date: date | None = None,
-        exchange_rate_source: str | None = None,
-        exchange_rate_captured_at: datetime | None = None,
-    ) -> ProjectCostEntry:
-        entry = self._require_entry(entry_id)
+    def post(self, command: FinancialPostActualCommand) -> ProjectCostEntry:
+        entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="post")
         self._require_command_permission(
             entry.project_id, "project_cost.post", "post project cost entry"
         )
-        self._require_expected_version(entry, expected_version)
+        self._require_expected_version(entry, command.expected_version)
         profile = self._require_active_profile(entry.project_id)
         del profile
         period = self._financial_period_queries.require_open_period_for_date(
-            posting_date
+            command.posting_date
         )
         context = self._require_full_context("post project cost entry")
         base_currency = context.organization.base_currency
         rate, rate_date, rate_source, captured_at = self._resolve_fx_snapshot(
             entry=entry,
             base_currency=base_currency,
-            posting_date=posting_date,
-            exchange_rate=exchange_rate,
-            exchange_rate_date=exchange_rate_date,
-            exchange_rate_source=exchange_rate_source,
-            exchange_rate_captured_at=exchange_rate_captured_at,
+            posting_date=command.posting_date,
+            exchange_rate=command.exchange_rate,
+            exchange_rate_date=command.exchange_rate_date,
+            exchange_rate_source=command.exchange_rate_source,
+            exchange_rate_captured_at=command.exchange_rate_captured_at,
         )
         base_money = Money.of(entry.amount * rate, base_currency).rounded()
         entry.post(
             actor_id=self._actor_id(),
             occurred_at=self._clock.now(),
-            posting_date=posting_date,
+            posting_date=command.posting_date,
             financial_period_id=period.id,
             base_money=base_money,
             exchange_rate=rate,
@@ -137,7 +131,7 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
             exchange_rate_source=rate_source,
             exchange_rate_captured_at=captured_at,
         )
-        self._entry_repo.update(entry, expected_row_version=expected_version)
+        self._entry_repo.update(entry, expected_row_version=command.expected_version)
         self._record_audit("post", entry)
         event = CostEntryStatusChanged(
             tenant_id=entry.tenant_id,
@@ -152,16 +146,8 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
         self._session.flush()
         return entry
 
-    def reverse(
-        self,
-        entry_id: str,
-        *,
-        expected_version: int,
-        command_id: str,
-        posting_date: date,
-        reason: str,
-    ) -> ProjectCostEntry:
-        entry = self._require_entry(entry_id, for_update=True)
+    def reverse(self, command: FinancialReverseActualCommand) -> ProjectCostEntry:
+        entry = self._require_entry(command.entry_id, for_update=True)
         self._require_manual_interactive_entry(entry, operation="reverse")
         self._require_command_permission(
             entry.project_id, "project_cost.reverse", "reverse project cost entry"
@@ -170,21 +156,21 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
             tenant_id=entry.tenant_id,
             organization_id=entry.organization_id,
             project_id=entry.project_id,
-            command_id=command_id,
+            command_id=command.command_id,
             content={
                 "operation": "reverse",
                 "entry_id": entry.id,
-                "expected_version": expected_version,
-                "posting_date": posting_date.isoformat(),
-                "reason": str(reason or "").strip(),
+                "expected_version": command.expected_version,
+                "posting_date": command.posting_date.isoformat(),
+                "reason": str(command.reason or "").strip(),
             },
         )
         existing = self._entry_repo.get_by_idempotency_key(source.idempotency_key)
         if existing is not None:
             return self._resolve_replay(existing, source)
-        self._require_expected_version(entry, expected_version)
+        self._require_expected_version(entry, command.expected_version)
         period = self._financial_period_queries.require_open_period_for_date(
-            posting_date
+            command.posting_date
         )
         actor_id = self._actor_id()
         now = self._clock.now()
@@ -192,9 +178,9 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
         reversal = ProjectCostEntry.create_posted_reversal(
             original=entry,
             reversal_id=reversal_id,
-            description=str(reason or "").strip() or f"Reversal of {entry.description}",
+            description=str(command.reason or "").strip() or f"Reversal of {entry.description}",
             source=source,
-            posting_date=posting_date,
+            posting_date=command.posting_date,
             financial_period_id=period.id,
             actor_id=actor_id,
             occurred_at=now,
@@ -208,7 +194,7 @@ class ProjectCostEntryPostingCommandHandler(ProjectManagementModuleGuardMixin):
                     actor_id=actor_id,
                     occurred_at=now,
                 )
-                self._entry_repo.update(entry, expected_row_version=expected_version)
+                self._entry_repo.update(entry, expected_row_version=command.expected_version)
                 self._entry_repo.flush()
         except IntegrityError as exc:
             raise BusinessRuleError(

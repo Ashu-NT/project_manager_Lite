@@ -1,5 +1,9 @@
+
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -9,7 +13,7 @@ def test_cpm_forward_backward_basic(services):
     wc = services["work_calendar_engine"]
 
     # 1) Create project
-    project = services['project_create'].create_project("CPM Test", "Testing CPM")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="CPM Test", description="Testing CPM"))
     pid = project.id
 
     # 2) Create three tasks
@@ -49,7 +53,7 @@ def test_cpm_forward_backward_basic(services):
 def test_cpm_cycle_detection(services):
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("Cycle Test", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Cycle Test", description=""))
     pid = project.id
 
     # Give at least one task a start_date so scheduling would work if there were no cycle

@@ -7,8 +7,12 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.master_data.org.mappers.organization as response_mapper
 from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationUpdateCommand,
+)
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
 )
 from src.core.platform.application.master_data.org.organization_context import (
     require_current_tenant_id,
@@ -143,7 +147,7 @@ class OrganizationCommandHandler:
         email: str = "",
         phone: str = "",
         website: str = "",
-    ) -> Organization:
+    ) -> OrganizationDto:
         require_permission(self._user_session, "settings.manage", operation_label="create organization")
         tenant_id = require_current_tenant_id(self._user_session, operation_label="create organization")
         with self._uow_factory.create(context=_new_context()) as uow:
@@ -175,9 +179,9 @@ class OrganizationCommandHandler:
                 raise ValidationError(
                     "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
                 ) from exc
-        return organization
+        return response_mapper.serialize_organization(organization)
 
-    def update_organization(self, command: OrganizationUpdateCommand) -> Organization:
+    def update_organization(self, command: OrganizationUpdateCommand) -> OrganizationDto:
         require_permission(self._user_session, "settings.manage", operation_label="update organization")
         tenant_id = require_current_tenant_id(self._user_session, operation_label="update organization")
         with self._uow_factory.create(context=_new_context()) as uow:
@@ -236,7 +240,7 @@ class OrganizationCommandHandler:
             )
             if not profile_changed:
                 # No-op: a state-transition event must represent an actual transition.
-                return organization
+                return response_mapper.serialize_organization(organization)
 
             existing = uow.organizations.get_by_code_for_tenant(
                 candidate.organization_code,
@@ -297,21 +301,21 @@ class OrganizationCommandHandler:
                 raise ValidationError(
                     "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
                 ) from exc
-        return candidate
+        return response_mapper.serialize_organization(candidate)
 
     def bulk_update_organization_currency(
         self, organization_ids: Sequence[str], base_currency: str
-    ) -> list[Organization]:
-        return self._bulk_update_organization_field(
+    ) -> list[OrganizationDto]:
+        return [response_mapper.serialize_organization(row) for row in (self._bulk_update_organization_field(
             organization_ids, field_name="base_currency", value=base_currency.strip().upper()
-        )
+        ))]
 
     def bulk_update_organization_timezone(
         self, organization_ids: Sequence[str], timezone_name: str
-    ) -> list[Organization]:
-        return self._bulk_update_organization_field(
+    ) -> list[OrganizationDto]:
+        return [response_mapper.serialize_organization(row) for row in (self._bulk_update_organization_field(
             organization_ids, field_name="timezone_name", value=timezone_name.strip()
-        )
+        ))]
 
     def _bulk_update_organization_field(
         self, organization_ids: Sequence[str], *, field_name: str, value: str

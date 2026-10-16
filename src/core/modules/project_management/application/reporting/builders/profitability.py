@@ -10,8 +10,11 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.revenue.commercial_projection_query import (
     CommercialProjectionQuery,
 )
-from src.core.modules.project_management.application.financials.revenue.dto.responses.commercial_projection import (
-    ProjectCommercialProjection,
+from src.core.modules.project_management.application.financials.revenue.dto.responses.commercial_response import (
+    FinancialCommercialProjectionDto,
+)
+from src.core.modules.project_management.application.financials.revenue.mappers.commercial_response import (
+    serialize_commercial_projection,
 )
 from src.core.modules.project_management.application.reporting.builders.access import (
     ReportingAccessPolicy,
@@ -21,6 +24,9 @@ from src.core.modules.project_management.application.reporting.builders.cost_pol
 )
 from src.core.modules.project_management.contracts.reads.financials.invoicing.reader import (
     FinanceBillingReader,
+)
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
+    ProjectFinancialProfileRepository,
 )
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
     ProjectBillingRepository,
@@ -43,7 +49,7 @@ class ProfitabilityReportBuilder(ProjectManagementModuleGuardMixin):
         project_repo: ProjectRepository,
         tenant_context_service: TenantContextService,
         billing_repo: ProjectBillingRepository,
-        financial_profile_repo,
+        financial_profile_repo: ProjectFinancialProfileRepository,
         billing_reader: FinanceBillingReader,
         module_catalog_service=None,
     ) -> None:
@@ -62,7 +68,7 @@ class ProfitabilityReportBuilder(ProjectManagementModuleGuardMixin):
         project_id: str,
         *,
         as_of_date: date | None = None,
-    ) -> ProjectCommercialProjection:
+    ) -> FinancialCommercialProjectionDto:
         self._access.require_finance_view(
             "view project commercial projection", project_id=project_id
         )
@@ -71,7 +77,7 @@ class ProfitabilityReportBuilder(ProjectManagementModuleGuardMixin):
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view commercial projection"
         )
-        return CommercialProjectionQuery(
+        return serialize_commercial_projection(CommercialProjectionQuery(
             billing_repo=self._billing_repo,
             financial_profile_repo=self._financial_profile_repo,
             billing_reader=self._billing_reader,
@@ -84,7 +90,7 @@ class ProfitabilityReportBuilder(ProjectManagementModuleGuardMixin):
             project_id=project_id,
             as_of_date=as_of_date or datetime.now(UTC).astimezone().date(),
             include_profitability=self._access.has_profitability_view(project_id),
-        )
+        ))
 
 
 __all__ = ["ProfitabilityReportBuilder"]

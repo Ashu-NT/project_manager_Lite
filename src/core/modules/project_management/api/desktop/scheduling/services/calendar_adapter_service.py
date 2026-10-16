@@ -10,7 +10,9 @@ from src.core.modules.project_management.api.desktop.scheduling.models.calendars
     SchedulingCalendarOptionDescriptor,
     SchedulingCalendarSnapshotDto,
     SchedulingDayDescriptor,
-    SchedulingHolidayDto,
+)
+from src.core.platform.application.time_management.calendar.dto.responses.working_calendar import (
+    WorkingCalendarHolidayDto,
 )
 
 
@@ -104,7 +106,7 @@ def get_platform_calendar_snapshot(
     holidays = tuple(
         sorted(
             (
-                SchedulingHolidayDto(
+                WorkingCalendarHolidayDto(
                     id=exc.id,
                     date=date.fromisoformat(exc.exception_date),
                     name=exc.name or "",

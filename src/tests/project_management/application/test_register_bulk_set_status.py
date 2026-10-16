@@ -10,6 +10,9 @@ bulk status change was silently broken before this."""
 
 from __future__ import annotations
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
     RegisterEntryBulkStatusCommand,
     RegisterEntryCreateCommand,
@@ -41,9 +44,7 @@ def _count_uow_creations(factory_cls):
 
 def test_bulk_set_entry_status_updates_every_entry_in_one_transaction(services) -> None:
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Bulk register project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Bulk register project", financial_currency_code=organization.base_currency))
     register_query = services["register_query"]
     register_commands = services["register_lifecycle_commands"]
     entries = [

@@ -5,14 +5,14 @@ from typing import Any
 from src.core.platform.api.desktop.master_data.documents.document import (
     PlatformDocumentDesktopApi,
 )
-from src.core.platform.api.desktop.master_data.documents.models.document import (
-    DocumentDto,
-    DocumentStructureDto,
-)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.application.master_data.documents.dto.commands.documents import (
     DocumentCreateCommand,
     DocumentUpdateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.responses.document import (
+    DocumentDto,
+    DocumentStructureDto,
 )
 from src.core.platform.domain.master_data.documents import (
     DocumentClassification,

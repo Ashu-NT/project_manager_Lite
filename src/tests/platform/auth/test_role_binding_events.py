@@ -8,6 +8,9 @@ from datetime import UTC, datetime
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.application.master_data.site.dto.commands.site import (
     SiteCreateCommand,
 )
@@ -446,7 +449,7 @@ def test_project_scope_event_carries_the_authoritative_organization_from_the_cor
     services, monkeypatch
 ):
     tenant_context_service = services["tenant_context_service"]
-    project_a1 = services['project_create'].create_project("P5C-2 Non-Active Org Project")
+    project_a1 = services['project_create'].create_project(ProjectCreateCommand(name="P5C-2 Non-Active Org Project"))
     org_a1_id = project_a1.organization_id
     org_a2 = services["organization_commands"].create_organization(
         organization_code=_unique_code("P5C2-PROJ-A2"), display_name="P5C-2 Project Org A2"

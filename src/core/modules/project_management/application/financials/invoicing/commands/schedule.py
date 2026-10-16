@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date
-from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -15,6 +13,16 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingScheduleLineAdded,
     BillingScheduleLineMarkedReady,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_schedule import (
+    FinancialAddBillingScheduleLineCommand,
+    FinancialMarkBillingScheduleLineReadyCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.responses.billing import (
+    FinancialBillingScheduleLineDto,
+)
+from src.core.modules.project_management.application.financials.invoicing.mappers.billing import (
+    serialize_billing_schedule_line,
 )
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
     ProjectBillingRepository,
@@ -60,18 +68,9 @@ class ProjectBillingScheduleCommandHandler(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
         self._record_event = record_event
 
-    def add_schedule_line(
-        self,
-        project_id: str,
-        *,
-        name: str,
-        amount: Decimal,
-        due_date: date,
-        task_id: str | None = None,
-        acceptance_reference: str | None = None,
-    ) -> ProjectBillingScheduleLine:
-        self._require(project_id, "finance.manage", "add billing schedule line")
-        profile = self._require_profile(project_id)
+    def add_schedule_line(self, command: FinancialAddBillingScheduleLineCommand) -> FinancialBillingScheduleLineDto:
+        self._require(command.project_id, "finance.manage", "add billing schedule line")
+        profile = self._require_profile(command.project_id)
         if profile.status is BillingProfileStatus.CLOSED:
             raise BusinessRuleError(
                 "A closed billing profile cannot accept schedule lines.",
@@ -81,14 +80,14 @@ class ProjectBillingScheduleCommandHandler(ProjectManagementModuleGuardMixin):
         line = ProjectBillingScheduleLine.create(
             tenant_id=profile.tenant_id,
             organization_id=profile.organization_id,
-            project_id=project_id,
+            project_id=command.project_id,
             billing_profile_id=profile.id,
-            name=name,
-            amount=amount,
+            name=command.name,
+            amount=command.amount,
             currency_code=profile.currency_code,
-            due_date=due_date,
-            task_id=task_id,
-            acceptance_reference=acceptance_reference,
+            due_date=command.due_date,
+            task_id=command.task_id,
+            acceptance_reference=command.acceptance_reference,
             created_by=actor_id,
             created_at=self._clock.now(),
         )
@@ -100,14 +99,12 @@ class ProjectBillingScheduleCommandHandler(ProjectManagementModuleGuardMixin):
             schedule_line_id=line.id,
             occurred_at=line.created_at,
         )
-        return self._persist(
+        return serialize_billing_schedule_line(self._persist(
             "schedule_line.create", line, lambda: self._billing_repo.add_schedule_line(line), event
-        )
+        ))
 
-    def mark_schedule_line_ready(
-        self, line_id: str, *, expected_row_version: int
-    ) -> ProjectBillingScheduleLine:
-        line = self._require_schedule_line(line_id)
+    def mark_schedule_line_ready(self, command: FinancialMarkBillingScheduleLineReadyCommand) -> FinancialBillingScheduleLineDto:
+        line = self._require_schedule_line(command.line_id)
         self._require(line.project_id, "finance.manage", "mark billing schedule line ready")
         now = self._clock.now()
         line.mark_ready(actor_id=self._actor_id(), occurred_at=now)
@@ -119,14 +116,14 @@ class ProjectBillingScheduleCommandHandler(ProjectManagementModuleGuardMixin):
             schedule_line_id=line.id,
             occurred_at=now,
         )
-        return self._persist(
+        return serialize_billing_schedule_line(self._persist(
             "schedule_line.ready",
             line,
             lambda: self._billing_repo.update_schedule_line(
-                line, expected_row_version=expected_row_version
+                line, expected_row_version=command.expected_version
             ),
             event,
-        )
+        ))
 
     def _require_profile(self, project_id: str) -> ProjectBillingProfile:
         profile = self._billing_repo.get_profile(project_id)

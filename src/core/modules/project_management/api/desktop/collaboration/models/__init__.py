@@ -2,7 +2,6 @@
 
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
     CollaborationCommentPageDto,
-    CollaborationContextOptionsDto,
     CollaborationInboxDesktopDto,
     CollaborationPresenceDesktopDto,
     TaskCollaborationCommentDesktopDto,
@@ -11,13 +10,4 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
     TaskCollaborationSnapshotDto,
 )
 
-__all__ = [
-    "CollaborationCommentPageDto",
-    "CollaborationContextOptionsDto",
-    "CollaborationInboxDesktopDto",
-    "CollaborationPresenceDesktopDto",
-    "TaskCollaborationCommentDesktopDto",
-    "TaskCollaborationDocumentOptionDescriptor",
-    "TaskCollaborationMentionOptionDescriptor",
-    "TaskCollaborationSnapshotDto",
-]
+__all__ = ['CollaborationCommentPageDto', 'CollaborationInboxDesktopDto', 'CollaborationPresenceDesktopDto', 'TaskCollaborationCommentDesktopDto', 'TaskCollaborationDocumentOptionDescriptor', 'TaskCollaborationMentionOptionDescriptor', 'TaskCollaborationSnapshotDto']

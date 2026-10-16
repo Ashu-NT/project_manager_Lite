@@ -20,6 +20,9 @@ from src.core.modules.project_management.application.financials.cost.entries.eve
     COST_ENTRY_LIST_SCOPE_CODE,
     build_cost_entry_view_invalidation_handler,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryStatus,
 )
@@ -58,9 +61,7 @@ def _cost_entry_hints(hints):
 
 def _setup(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "P37 Cost Entry project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P37 Cost Entry project", financial_currency_code=organization.base_currency))
     cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(
         code="P37-LABOR", name="P37 Labor"
     ))

@@ -8,15 +8,15 @@ from src.core.platform.api.desktop.master_data.department.department import (
 from src.core.platform.api.desktop.master_data.employee.employee import (
     PlatformEmployeeDesktopApi,
 )
-from src.core.platform.api.desktop.master_data.employee.models.employee import (
-    EmployeeDto,
-)
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
+)
+from src.core.platform.application.master_data.employee.dto.responses.employee import (
+    EmployeeDto,
 )
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     int_value,

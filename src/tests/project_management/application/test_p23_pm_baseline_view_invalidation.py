@@ -4,6 +4,9 @@ from datetime import UTC, date, datetime
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
     ProjectBaselineApproved,
     ProjectBaselineCreated,
@@ -66,7 +69,7 @@ def _baseline_hints(hints):
 
 
 def _project_with_tasks(services, name: str | None = None):
-    project = services['project_create'].create_project(name or _unique("P23 Baseline Project"), "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name=name or _unique("P23 Baseline Project"), description=""))
     services['task_lifecycle_commands'].create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
     services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2)
     return project

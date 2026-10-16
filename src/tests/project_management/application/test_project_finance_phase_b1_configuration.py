@@ -5,6 +5,9 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.configuration import (
     BillingMethod,
     CostCodePolicy,
@@ -58,12 +61,7 @@ def test_financial_configuration_domain_enforces_currency_billing_and_hierarchy(
 
 
 def test_project_creation_atomically_initializes_financial_profile_and_audit(services) -> None:
-    project = services['project_create'].create_project(
-        "Canonical financial profile",
-        financial_currency_code="usd",
-        start_date=date(2026, 2, 1),
-        end_date=date(2026, 11, 30),
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Canonical financial profile", financial_currency_code="usd", start_date=date(2026, 2, 1), end_date=date(2026, 11, 30)))
 
     profile = services['financial_configuration_query'].get_profile(project.id)
 
@@ -80,10 +78,7 @@ def test_project_creation_atomically_initializes_financial_profile_and_audit(ser
 
 
 def test_profile_configuration_requires_version_and_is_the_only_currency_authority(services) -> None:
-    project = services['project_create'].create_project(
-        "Profile concurrency",
-        financial_currency_code="EUR",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Profile concurrency", financial_currency_code="EUR"))
     services['financial_configuration_query']
     profile = services['financial_configuration_query'].get_profile(project.id)
 
@@ -111,7 +106,7 @@ def test_profile_configuration_requires_version_and_is_the_only_currency_authori
 
 
 def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> None:
-    project = services['project_create'].create_project("Restricted cost catalog")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Restricted cost catalog"))
     services['financial_configuration_query']
     parent = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(code="LAB", name="Labor"))
     child = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
@@ -197,7 +192,7 @@ def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> Non
 
 
 def test_create_cost_code_for_restricted_project_is_immediately_available(services) -> None:
-    project = services['project_create'].create_project("Restricted cost-code creation")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Restricted cost-code creation"))
     services['financial_configuration_query']
     profile = services['financial_configuration_query'].get_profile(project.id)
     services['finance_governance_commands'].financial_profile(lambda handler: handler.configure_profile(
@@ -218,7 +213,7 @@ def test_create_cost_code_for_restricted_project_is_immediately_available(servic
 def test_financial_configuration_repositories_isolate_active_organization(services) -> None:
     configuration_service = services['financial_configuration_query']
     original_organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project("Organization A finance")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Organization A finance"))
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(code="ORG-A", name="Organization A"))
     other_organization = services["organization_commands"].create_organization(
         organization_code="PF-B1-OTHER",
@@ -238,7 +233,7 @@ def test_financial_configuration_repositories_isolate_active_organization(servic
 
 
 def test_financial_configuration_requires_global_and_project_manage_permissions(services) -> None:
-    project = services['project_create'].create_project("Finance scope guard")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Finance scope guard"))
     user = services["user_registration"].register_user(
         "phase-b1-project-manager",
         "StrongPass123",

@@ -1,11 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
+)
+from src.core.modules.project_management.application.resources.dto.responses.availability import (
+    ResourceWorkloadDayResponse,
+    ResourceWorkloadResponse,
+)
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceWorkloadDemandReader,
+)
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
+    ResourceRepository,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -14,6 +23,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 MAX_RESOURCE_WORKLOAD_DAYS = 366
 
@@ -22,49 +32,16 @@ def _decimal(value: object) -> Decimal:
     return Decimal(str(value if value not in (None, "") else "0"))
 
 
-@dataclass(frozen=True, slots=True)
-class ResourceWorkloadDayFact:
-    work_date: date
-    base_capacity_hours: Decimal
-    effective_capacity_hours: Decimal
-    planned_commitment_hours: Decimal
-    remaining_capacity_hours: Decimal
-    utilization_percent: Decimal | None
-    overallocated: bool
-    assignment_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class ResourceWorkloadFact:
-    resource_id: str
-    start_date: date
-    end_date: date
-    calendar_source_chain: tuple[str, ...]
-    capacity_percent: Decimal
-    base_capacity_hours: Decimal
-    effective_capacity_hours: Decimal
-    planned_commitment_hours: Decimal
-    allocated_planned_hours: Decimal
-    remaining_capacity_hours: Decimal
-    utilization_percent: Decimal | None
-    overallocated: bool
-    conflict_dates: tuple[date, ...]
-    project_count: int
-    assignment_count: int
-    resource_version: int
-    days: tuple[ResourceWorkloadDayFact, ...]
-
-
 class ResourceWorkloadQueryHandler:
     """Canonical calendar-backed, multi-project Resource capacity query."""
 
     def __init__(
         self,
         *,
-        resource_repo,
+        resource_repo: ResourceRepository,
         demand_reader: ResourceWorkloadDemandReader,
-        availability_service,
-        user_session,
+        availability_service: ResourceAvailabilityQueryHandler,
+        user_session: UserSessionContext | None,
         tenant_context_service: TenantContextService,
     ) -> None:
         self._resources = resource_repo
@@ -79,7 +56,7 @@ class ResourceWorkloadQueryHandler:
         *,
         start_date: date,
         end_date: date,
-    ) -> ResourceWorkloadFact:
+    ) -> ResourceWorkloadResponse:
         require_permission(
             self._user_session,
             "resource.read",
@@ -149,7 +126,7 @@ class ResourceWorkloadQueryHandler:
                     )
                 current += timedelta(days=1)
 
-        daily_facts: list[ResourceWorkloadDayFact] = []
+        daily_facts: list[ResourceWorkloadDayResponse] = []
         source_chain: tuple[str, ...] = ()
         current = start_date
         while current <= end_date:
@@ -164,7 +141,7 @@ class ResourceWorkloadQueryHandler:
             if calendar_day is not None and not source_chain and calendar_day.source_chain:
                 source_chain = tuple(str(item) for item in calendar_day.source_chain)
             daily_facts.append(
-                ResourceWorkloadDayFact(
+                ResourceWorkloadDayResponse(
                     work_date=current,
                     base_capacity_hours=base,
                     effective_capacity_hours=effective,
@@ -184,7 +161,7 @@ class ResourceWorkloadQueryHandler:
         planned_total = sum(
             (day.planned_commitment_hours for day in daily_facts), Decimal(0)
         )
-        return ResourceWorkloadFact(
+        return ResourceWorkloadResponse(
             resource_id=resource.id,
             start_date=start_date,
             end_date=end_date,
@@ -213,7 +190,5 @@ class ResourceWorkloadQueryHandler:
 
 __all__ = [
     "MAX_RESOURCE_WORKLOAD_DAYS",
-    "ResourceWorkloadDayFact",
-    "ResourceWorkloadFact",
     "ResourceWorkloadQueryHandler",
 ]

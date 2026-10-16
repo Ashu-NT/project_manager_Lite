@@ -5,6 +5,12 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetScope,
 )
@@ -29,13 +35,8 @@ def _build_resource_timesheet(services):
     services["employee_commands"].link_employee_user_account(
         employee.id, principal.user_id
     )
-    resource = services["resource_master_commands"].create_resource(
-        name="Timesheet Owner",
-        role="Engineer",
-        worker_type=WorkerType.EMPLOYEE,
-        employee_id=employee.id,
-    )
-    project = services['project_create'].create_project("R5F1 Delivery")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Timesheet Owner", role="Engineer", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R5F1 Delivery"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Owner Workflow",
@@ -98,11 +99,8 @@ def test_resource_timesheet_read_is_scoped_paged_sorted_and_backend_aggregated(s
 
 def test_resource_mutations_deny_another_resource_and_enforce_selected_period(services) -> None:
     _, owner_resource, _, _, owner_assignment = _build_resource_timesheet(services)
-    other = services["resource_master_commands"].create_resource(
-        name="Another Resource",
-        role="Engineer",
-    )
-    project = services['project_create'].create_project("Other Work")
+    other = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Another Resource", role="Engineer"))
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Other Work"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Other Task")
     other_assignment = services['task_assignment_commands'].assign_resource(task.id, other.id)
 
@@ -198,18 +196,8 @@ def test_r5f1_navigation_keeps_timesheets_and_review_queue_distinct() -> None:
 
 def test_resource_timesheet_scopes_enforce_target_and_eligibility(services) -> None:
     _, owner, _, _, _ = _build_resource_timesheet(services)
-    external = services["resource_master_commands"].create_resource(
-        name="External Without Login",
-        role="Consultant",
-        kind=ResourceKind.PERSON,
-        worker_type=WorkerType.EXTERNAL,
-    )
-    crew = services["resource_master_commands"].create_resource(
-        name="Field Crew",
-        role="Crew",
-        kind=ResourceKind.CREW,
-        worker_type=WorkerType.EXTERNAL,
-    )
+    external = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="External Without Login", role="Consultant", kind=ResourceKind.PERSON, worker_type=WorkerType.EXTERNAL))
+    crew = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Field Crew", role="Crew", kind=ResourceKind.CREW, worker_type=WorkerType.EXTERNAL))
 
     access = services["timesheet_workspace_query"].get_timesheet_workspace_access()
     all_page = services["timesheet_workspace_query"].query_timesheet_resources(
@@ -271,13 +259,8 @@ def test_reviewer_permission_does_not_grant_timesheet_edit_other(services) -> No
 
 
 def test_external_without_login_supports_governed_delegated_lifecycle(services) -> None:
-    external = services["resource_master_commands"].create_resource(
-        name="Delegated Contractor",
-        role="Consultant",
-        kind=ResourceKind.PERSON,
-        worker_type=WorkerType.EXTERNAL,
-    )
-    project = services['project_create'].create_project("Delegated Delivery")
+    external = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Delegated Contractor", role="Consultant", kind=ResourceKind.PERSON, worker_type=WorkerType.EXTERNAL))
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Delegated Delivery"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Consulting")
     assignment = services['task_assignment_commands'].assign_resource(task.id, external.id)
 
@@ -310,14 +293,10 @@ def test_external_without_login_supports_governed_delegated_lifecycle(services) 
 
 
 def test_team_selector_uses_explicit_project_scope(services) -> None:
-    in_team = services["resource_master_commands"].create_resource(
-        name="In Team", role="Engineer", kind=ResourceKind.PERSON
-    )
-    out_team = services["resource_master_commands"].create_resource(
-        name="Out Team", role="Engineer", kind=ResourceKind.PERSON
-    )
-    team_project = services['project_create'].create_project("Team Project")
-    other_project = services['project_create'].create_project("Other Project")
+    in_team = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="In Team", role="Engineer", kind=ResourceKind.PERSON))
+    out_team = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Out Team", role="Engineer", kind=ResourceKind.PERSON))
+    team_project = services['project_create'].create_project(ProjectCreateCommand(name="Team Project"))
+    other_project = services['project_create'].create_project(ProjectCreateCommand(name="Other Project"))
     team_task = services['task_lifecycle_commands'].create_task(team_project.id, "Team Task")
     other_task = services['task_lifecycle_commands'].create_task(other_project.id, "Other Task")
     services['task_assignment_commands'].assign_resource(team_task.id, in_team.id)

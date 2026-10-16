@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.contracts.reads.collaboration import (
     CollaborationCommentCriteria,
 )
@@ -21,7 +24,7 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 
 
 def test_purpose_queries_preserve_mentions_recent_activity_and_presence(services) -> None:
-    project = services['project_create'].create_project("Collaboration projection")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Collaboration projection"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Review package")
     mentioned = services["collaboration_comment_commands"].post_comment(
         task_id=task.id,
@@ -83,7 +86,7 @@ def test_concrete_collaboration_reader_rejects_cross_organization_ids(services) 
 
 
 def test_active_presence_returns_complete_current_scoped_set_beyond_legacy_cap(services) -> None:
-    project = services['project_create'].create_project("Large active team")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Large active team"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Presence hub")
     now = datetime.now(UTC)
     services["session"].add_all(
@@ -124,8 +127,8 @@ def test_active_presence_returns_complete_current_scoped_set_beyond_legacy_cap(s
 
 def test_workspace_queries_keep_scoped_project_names(services) -> None:
     access = services["access_service"]
-    alpha = services['project_create'].create_project("Visible collaboration")
-    beta = services['project_create'].create_project("Hidden collaboration")
+    alpha = services['project_create'].create_project(ProjectCreateCommand(name="Visible collaboration"))
+    beta = services['project_create'].create_project(ProjectCreateCommand(name="Hidden collaboration"))
     alpha_task = services['task_lifecycle_commands'].create_task(alpha.id, "Visible task")
     beta_task = services['task_lifecycle_commands'].create_task(beta.id, "Hidden task")
     viewer = services["user_registration"].register_user("phase3d-viewer", "StrongPass123", role_names=["viewer"])

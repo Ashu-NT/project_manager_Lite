@@ -4,6 +4,10 @@ from __future__ import annotations
 import glob
 import inspect
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+
 
 def _strip_strings_and_comments(source: str) -> str:
     import re
@@ -138,9 +142,7 @@ def test_real_budget_approval_still_emits_its_own_real_view_invalidation(service
     )
 
     _login(services, "admin", "ChangeMe123!")
-    project = services['project_create'].create_project(
-        name=_unique("P7C Budget Project"), code=_unique("P7C-BUD"), financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=_unique("P7C Budget Project"), code=_unique("P7C-BUD"), financial_currency_code="USD"))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("P7C-CC"), name="P7C cost code"
     ))

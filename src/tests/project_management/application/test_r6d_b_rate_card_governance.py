@@ -19,6 +19,12 @@ from src.core.modules.project_management.application.financials.rate_cards.dto.c
 from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_lines import (
     FinancialAddRateLineCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.ui_qml.modules.project_management.presenters.financials.rate_cards.commands import (
@@ -50,12 +56,8 @@ def _measure_statements(session, operation):
 
 
 def _project_resource(services):
-    project = services["project_create"].create_project(
-        "R6D-B governed rates", financial_currency_code="XAF"
-    )
-    resource = services["resource_master_commands"].create_resource(
-        "R6D-B resource", role="engineer", hourly_rate=Decimal(999)
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="R6D-B governed rates", financial_currency_code="XAF"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="R6D-B resource", role="engineer", hourly_rate=Decimal(999)))
     return project, resource
 
 

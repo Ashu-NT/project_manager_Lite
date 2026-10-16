@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.api.desktop.resources.models.availability import (
+    ResourceAvailabilityDto,
+)
 from src.core.modules.project_management.api.desktop.resources.serializers.availability_serializer import (
     serialize_resource_availability,
+)
+from src.core.modules.project_management.application.resources.capacity.queries.workload import (
+    ResourceWorkloadQueryHandler,
 )
 from src.core.platform.common.exceptions import ConfigurationError, ValidationError
 
@@ -11,10 +17,10 @@ from src.core.platform.common.exceptions import ConfigurationError, ValidationEr
 def build_resource_availability(
     resource_id: str,
     *,
-    workload_service,
+    workload_service: ResourceWorkloadQueryHandler | None,
     start_date: date | None,
     end_date: date | None,
-):
+) -> ResourceAvailabilityDto:
     normalized_id = str(resource_id or "").strip()
     if not normalized_id:
         raise ValidationError(

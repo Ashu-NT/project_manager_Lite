@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.master_data.documents.mappers.document as response_mapper
 from src.core.platform.application.master_data.documents.document_access import (
     DOCUMENT_STRUCTURE_MANAGE_PERMISSION,
 )
@@ -15,6 +16,9 @@ from src.core.platform.application.master_data.documents.document_context import
 from src.core.platform.application.master_data.documents.dto.commands.structures import (
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.responses.document import (
+    DocumentStructureDto,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -76,7 +80,7 @@ class DocumentStructureCommandHandler:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
-    def create_document_structure(self, command: DocumentStructureCreateCommand) -> DocumentStructure:
+    def create_document_structure(self, command: DocumentStructureCreateCommand) -> DocumentStructureDto:
         require_permission(self._user_session, DOCUMENT_STRUCTURE_MANAGE_PERMISSION, operation_label="create document structure")
         organization = active_organization(self._tenant_context_service)
         tenant_id = _event_tenant_id(organization)
@@ -142,9 +146,9 @@ class DocumentStructureCommandHandler:
                     "Document structure code already exists in the active organization.",
                     code="DOCUMENT_STRUCTURE_CODE_EXISTS",
                 ) from exc
-        return structure
+        return response_mapper.serialize_document_structure(structure)
 
-    def update_document_structure(self, command: DocumentStructureUpdateCommand) -> DocumentStructure:
+    def update_document_structure(self, command: DocumentStructureUpdateCommand) -> DocumentStructureDto:
         require_permission(self._user_session, DOCUMENT_STRUCTURE_MANAGE_PERMISSION, operation_label="update document structure")
         organization = active_organization(self._tenant_context_service)
         tenant_id = _event_tenant_id(organization)
@@ -200,7 +204,7 @@ class DocumentStructureCommandHandler:
                 or updated.notes != structure.notes
             )
             if not profile_changed:
-                return structure
+                return response_mapper.serialize_document_structure(structure)
             if command.structure_code is not None:
                 existing = uow.structures.get_by_code(organization.id, updated.structure_code)
                 if existing is not None and existing.id != structure.id:
@@ -235,7 +239,7 @@ class DocumentStructureCommandHandler:
                     "Document structure code already exists in the active organization.",
                     code="DOCUMENT_STRUCTURE_CODE_EXISTS",
                 ) from exc
-        return updated
+        return response_mapper.serialize_document_structure(updated)
 
 
 __all__ = ["DocumentStructureCommandHandler"]

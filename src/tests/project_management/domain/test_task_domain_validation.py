@@ -4,6 +4,9 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import (
     Task,
@@ -225,7 +228,7 @@ def test_task_dependency_dto_rejects_self_dependency():
 
 def test_task_service_update_validates_final_state_and_persists_code(services):
 
-    project = services['project_create'].create_project("Task DTO Service", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Task DTO Service", description=""))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Task Validation",
@@ -252,7 +255,7 @@ def test_task_service_update_validates_final_state_and_persists_code(services):
 
 def test_task_service_progress_update_uses_final_state_validation(services):
 
-    project = services['project_create'].create_project("Task Progress DTO", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Task Progress DTO", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Progress Task", duration_days=1)
 
     with pytest.raises(ValidationError) as exc:

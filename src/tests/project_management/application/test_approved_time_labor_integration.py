@@ -1,3 +1,4 @@
+
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
@@ -10,6 +11,12 @@ from sqlalchemy import select
 
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
 )
 from src.core.modules.project_management.contracts.reads.financials.integration.models.integration_facts import (
     ApprovedTimePostingFailureQuery,
@@ -59,9 +66,7 @@ def _setup(services):
         services["service_principal_commands"].create_service_principal(
             ServicePrincipalCreateCommand(name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME, description="Posts approved Time facts into PM Finance labor actuals.", initial_role_name="viewer"))
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Approved Time Finance", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Approved Time Finance", financial_currency_code=organization.base_currency))
     cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(
         code="LABOR-ACTUAL", name="Labor actual"
     ))
@@ -73,9 +78,7 @@ def _setup(services):
     ))
     services["financial_period_commands"].create_period(
         FinancialPeriodCreateCommand(code="LABOR-2026-05", name="May 2026", fiscal_year=2026, period_number=5, start_date=date(2026, 5, 1).isoformat(), end_date=date(2026, 5, 31).isoformat()))
-    resource = services["resource_master_commands"].create_resource(
-        "Approved Time Engineer", hourly_rate=0, currency_code=organization.base_currency
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Approved Time Engineer", hourly_rate=0, currency_code=organization.base_currency))
     card = services["finance_governance_commands"].rate_card(lambda commands: commands.create_rate_card(
         name="Approved Time rates", project_id=project.id
     ))
@@ -614,9 +617,7 @@ def test_posting_failure_read_is_bounded_scoped_and_sensitive_by_permission(
     assert page.items[0].failure_code == "RATE_CARD_NO_APPLICABLE_RATE"
     assert "No applicable rate" in page.items[0].failure_message
 
-    unrelated_project = services['project_create'].create_project(
-        "Unrelated Finance Project"
-    )
+    unrelated_project = services['project_create'].create_project(ProjectCreateCommand(name="Unrelated Finance Project"))
     unrelated = services[
         "finance_workspace_query"
     ].list_approved_time_posting_failures(

@@ -6,6 +6,9 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
@@ -32,7 +35,7 @@ def _login_eligible_reviewer(services):
 
 
 def _make_task(services, *, start_date=date(2026, 9, 1), duration_days=3):
-    project = services['project_create'].create_project("Constraint Governance", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Constraint Governance", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Constrained Task", "", start_date=start_date, duration_days=duration_days)
     return project, task
 

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
@@ -19,12 +22,7 @@ def test_employee_profile_remains_platform_owned_and_pm_reads_live_identity(serv
 
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-001", full_name="Alice Admin", department_id=department.id, department="PMO", site_id=site.id, site_name="Lagos HQ", title="Planner", email="alice@example.com"))
 
-    resource = services["resource_master_commands"].create_resource(
-        "",
-        hourly_rate=125.0,
-        worker_type=WorkerType.EMPLOYEE,
-        employee_id=employee.id,
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="", hourly_rate=125.0, worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
 
     assert resource.worker_type == WorkerType.EMPLOYEE
     assert resource.employee_id == employee.id

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.master_data.documents.mappers.document as response_mapper
 from src.core.platform.application.master_data.documents.document_access import (
     DOCUMENT_MANAGE_PERMISSION,
     is_document_visible,
@@ -20,6 +21,10 @@ from src.core.platform.application.master_data.documents.dto.commands.documents 
 )
 from src.core.platform.application.master_data.documents.dto.commands.links import (
     DocumentLinkCreateCommand,
+)
+from src.core.platform.application.master_data.documents.dto.responses.document import (
+    DocumentDto,
+    DocumentLinkDto,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -103,7 +108,7 @@ class DocumentCommandHandler:
         self._tenant_context_service = tenant_context_service
         self._access_policy = access_policy
 
-    def create_document(self, command: DocumentCreateCommand) -> Document:
+    def create_document(self, command: DocumentCreateCommand) -> DocumentDto:
         require_permission(self._user_session, DOCUMENT_MANAGE_PERMISSION, operation_label="create document")
         organization = active_organization(self._tenant_context_service)
         tenant_id = _event_tenant_id(organization)
@@ -177,9 +182,9 @@ class DocumentCommandHandler:
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS") from exc
-        return document
+        return response_mapper.serialize_document(document)
 
-    def update_document(self, command: DocumentUpdateCommand) -> Document:
+    def update_document(self, command: DocumentUpdateCommand) -> DocumentDto:
         require_permission(self._user_session, DOCUMENT_MANAGE_PERMISSION, operation_label="update document")
         organization = active_organization(self._tenant_context_service)
         tenant_id = _event_tenant_id(organization)
@@ -263,7 +268,7 @@ class DocumentCommandHandler:
             active_state_changed = updated.is_active != document.is_active
             profile_changed = other_fields_changed or active_state_changed
             if not profile_changed:
-                return document
+                return response_mapper.serialize_document(document)
             if command.document_code is not None:
                 existing = uow.documents.get_by_code(organization.id, updated.document_code)
                 if existing is not None and existing.id != document.id:
@@ -309,9 +314,9 @@ class DocumentCommandHandler:
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS") from exc
-        return updated
+        return response_mapper.serialize_document(updated)
 
-    def add_link(self, command: DocumentLinkCreateCommand) -> DocumentLink:
+    def add_link(self, command: DocumentLinkCreateCommand) -> DocumentLinkDto:
         require_permission(self._user_session, DOCUMENT_MANAGE_PERMISSION, operation_label="link document")
         organization = active_organization(self._tenant_context_service)
         tenant_id = _event_tenant_id(organization)
@@ -387,7 +392,7 @@ class DocumentCommandHandler:
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("This document link already exists.", code="DOCUMENT_LINK_EXISTS") from exc
-        return link
+        return response_mapper.serialize_document_link(link)
 
     def remove_link(self, link_id: str) -> None:
         require_permission(self._user_session, DOCUMENT_MANAGE_PERMISSION, operation_label="unlink document")

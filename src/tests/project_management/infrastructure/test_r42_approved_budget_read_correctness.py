@@ -57,6 +57,7 @@ def _approve_budget(services, project_id: str, *amounts: str, currency: str = "G
             )
         )
     )
+    budget = budget_query.get_budget(budget.budget_id)
     for index, amount in enumerate(amounts, start=1):
         services["finance_governance_commands"].budget_lines(
             lambda handler, budget=budget, index=index, amount=amount: handler.add_line(
@@ -78,6 +79,7 @@ def _approve_budget(services, project_id: str, *amounts: str, currency: str = "G
             )
         )
     )
+    budget = budget_query.get_budget(budget.budget_id)
     services["finance_governance_commands"].budget_approval(
         lambda handler: handler.approve_budget(
             budget.id,
@@ -122,10 +124,7 @@ def _desktop_api(services):
 def test_approved_budget_projection_sums_lines_and_uses_budget_currency(
     services,
 ) -> None:
-    project = services["project_create"].create_project(
-        "Currency Authority",
-        financial_currency_code="EUR",
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Currency Authority", financial_currency_code="EUR"))
     _approve_budget(services, project.id, "90", "10", currency="GBP")
 
     catalog_item = services["project_query"].query_catalog_page().items[0]
@@ -161,10 +160,7 @@ def test_approved_budget_projection_sums_lines_and_uses_budget_currency(
 
 
 def test_project_read_without_finance_read_redacts_catalog_and_detail(services) -> None:
-    project = services["project_create"].create_project(
-        "Redacted Budget",
-        financial_currency_code="EUR",
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Redacted Budget", financial_currency_code="EUR"))
     _approve_budget(services, project.id, "777", currency="GBP")
     _set_principal(services, permissions={"project.read"})
 
@@ -207,8 +203,8 @@ def test_project_read_without_finance_read_redacts_catalog_and_detail(services) 
 def test_project_scoped_finance_access_redacts_only_unauthorized_project(
     services,
 ) -> None:
-    project_a = services["project_create"].create_project("Scoped Finance A")
-    project_b = services["project_create"].create_project("Scoped Finance B")
+    project_a = services["project_create"].create_project(ProjectCreateCommand(name="Scoped Finance A"))
+    project_b = services["project_create"].create_project(ProjectCreateCommand(name="Scoped Finance B"))
     _approve_budget(services, project_a.id, "100", currency="USD")
     _approve_budget(services, project_b.id, "900", currency="CAD")
     _set_principal(
@@ -240,7 +236,7 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
     values = ("9", "100", "1000", None, "100")
     projects = []
     for index, amount in enumerate(values):
-        project = services["project_create"].create_project(f"Budget Sort {index}")
+        project = services["project_create"].create_project(ProjectCreateCommand(name=f"Budget Sort {index}"))
         projects.append(project)
         if amount is not None:
             _approve_budget(services, project.id, amount, currency="USD")
@@ -297,7 +293,7 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
 
 
 def test_only_currently_approved_budget_is_projected(services) -> None:
-    project = services["project_create"].create_project("Budget Lifecycle")
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Budget Lifecycle"))
     assert (
         services["project_query"].query_project_detail(project.id).approved_budget
         is None
@@ -333,7 +329,7 @@ def test_only_currently_approved_budget_is_projected(services) -> None:
 def test_single_project_reader_enforces_tenant_and_organization_scope(
     services, session
 ) -> None:
-    project = services["project_create"].create_project("Scoped Detail")
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Scoped Detail"))
     _approve_budget(services, project.id, "333", currency="USD")
     user_session = services["user_session"]
     reader = SqlAlchemyProjectCatalogReader(session=session)

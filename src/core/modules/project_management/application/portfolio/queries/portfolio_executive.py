@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import cast
 
 from src.core.modules.project_management.application.common.module_guard import (
@@ -10,11 +10,20 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.common.pagination import (
     PaginatedResult,
 )
+from src.core.modules.project_management.application.portfolio.dto.responses.capacity import (
+    PortfolioCapacityResourceDto,
+)
+from src.core.modules.project_management.application.portfolio.mappers.capacity import (
+    map_capacity_pool,
+)
 from src.core.modules.project_management.application.portfolio.utils.portfolio_heatmap import (
     PortfolioHeatmapCalculator,
 )
 from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
     PortfolioPolicy,
+)
+from src.core.modules.project_management.application.resources.portfolio.queries.resource_pool import (
+    PortfolioResourcePoolQueryHandler,
 )
 from src.core.modules.project_management.contracts.reads.portfolio.heatmap_reader import (
     PortfolioHeatmapReader,
@@ -82,6 +91,7 @@ class PortfolioExecutiveQueryHandler(ProjectManagementModuleGuardMixin):
         policy: PortfolioPolicy,
         tenant_context_service: TenantContextService,
         project_catalog_reader: ProjectCatalogReader | None = None,
+        resource_pool_query: PortfolioResourcePoolQueryHandler | None = None,
         user_session=None,
         module_catalog_service=None,
     ) -> None:
@@ -91,8 +101,18 @@ class PortfolioExecutiveQueryHandler(ProjectManagementModuleGuardMixin):
         self._policy = policy
         self._tenant_context_service = tenant_context_service
         self._project_catalog_reader = project_catalog_reader
+        self._resource_pool_query = resource_pool_query
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+
+    def query_capacity_pool(self) -> tuple[PortfolioCapacityResourceDto, ...]:
+        if self._resource_pool_query is None:
+            return ()
+        today = date.today()  # noqa: DTZ011
+        report = self._resource_pool_query.get_pool_report(
+            from_date=today, to_date=today + timedelta(days=90)
+        )
+        return map_capacity_pool(report)
 
     def list_portfolio_heatmap(self, *, limit: int | None = None) -> list[PortfolioExecutiveRow]:
         """Authoritative heatmap ranking over the COMPLETE accessible project

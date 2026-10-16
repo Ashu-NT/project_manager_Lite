@@ -5,9 +5,13 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.master_data.employee.mappers.employee as response_mapper
 from src.core.platform.application.master_data.employee.dto.commands.employee import (
     EmployeeCreateCommand,
     EmployeeUpdateCommand,
+)
+from src.core.platform.application.master_data.employee.dto.responses.employee import (
+    EmployeeDto,
 )
 from src.core.platform.application.master_data.employee.employee_context import (
     active_organization_id,
@@ -105,7 +109,7 @@ class EmployeeCommandHandler:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
-    def create_employee(self, command: EmployeeCreateCommand) -> Employee:
+    def create_employee(self, command: EmployeeCreateCommand) -> EmployeeDto:
         # No `is_active`/`status` parameter -- every new Employee starts
         # ACTIVE (see EmployeeLifecycleStatus). Use activate_employee/
         # deactivate_employee afterward to change it. No `user_id` parameter
@@ -205,9 +209,9 @@ class EmployeeCommandHandler:
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
-        return employee
+        return response_mapper.serialize_employee(employee)
 
-    def update_employee(self, command: EmployeeUpdateCommand) -> Employee:
+    def update_employee(self, command: EmployeeUpdateCommand) -> EmployeeDto:
         # No `is_active`/`status` parameter -- lifecycle is command-only
         # (activate_employee/deactivate_employee in employee_commands.py).
         # No `user_id` parameter either -- see link_employee_user_account/
@@ -311,7 +315,7 @@ class EmployeeCommandHandler:
                 or candidate.phone != employee.phone
             )
             if not profile_changed:
-                return employee
+                return response_mapper.serialize_employee(employee)
             if command.employee_code is not None:
                 existing = uow.employees.get_by_code_for_organization(
                     candidate.employee_code,
@@ -359,7 +363,7 @@ class EmployeeCommandHandler:
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
-        return candidate
+        return response_mapper.serialize_employee(candidate)
 
     def _transition_employee_status(
         self, employee_id: str, *, new_status: EmployeeLifecycleStatus, action: str
@@ -426,17 +430,17 @@ class EmployeeCommandHandler:
             uow.commit()
         return candidate
 
-    def activate_employee(self, employee_id: str) -> Employee:
-        return self._transition_employee_status(
+    def activate_employee(self, employee_id: str) -> EmployeeDto:
+        return response_mapper.serialize_employee(self._transition_employee_status(
             employee_id, new_status=EmployeeLifecycleStatus.ACTIVE, action="employee.activate"
-        )
+        ))
 
-    def deactivate_employee(self, employee_id: str) -> Employee:
-        return self._transition_employee_status(
+    def deactivate_employee(self, employee_id: str) -> EmployeeDto:
+        return response_mapper.serialize_employee(self._transition_employee_status(
             employee_id, new_status=EmployeeLifecycleStatus.INACTIVE, action="employee.deactivate"
-        )
+        ))
 
-    def link_employee_user_account(self, employee_id: str, user_id: str) -> Employee:
+    def link_employee_user_account(self, employee_id: str, user_id: str) -> EmployeeDto:
         """System Access is a relationship operation, not ordinary Employee
         profile editing -- gated on BOTH employee.manage (authority over this
         Employee) AND auth.manage (authority to link login identities), since
@@ -482,7 +486,7 @@ class EmployeeCommandHandler:
                     code="EMPLOYEE_USER_LINK_ALREADY_LINKED",
                 )
             if employee.user_id == normalized_user_id:
-                return employee
+                return response_mapper.serialize_employee(employee)
             candidate = replace(employee, user_id=normalized_user_id)
             uow.employees.update(candidate)
             record_audit_entry(
@@ -500,9 +504,9 @@ class EmployeeCommandHandler:
                 fail_closed=True,
             )
             uow.commit()
-        return candidate
+        return response_mapper.serialize_employee(candidate)
 
-    def unlink_employee_user_account(self, employee_id: str) -> Employee:
+    def unlink_employee_user_account(self, employee_id: str) -> EmployeeDto:
         """The reverse of link_employee_user_account -- same permission gate,
         never touches User/RBAC state, never fires automatically from Employee
         lifecycle changes (see employee_commands.deactivate_employee, which
@@ -515,7 +519,7 @@ class EmployeeCommandHandler:
             if employee is None:
                 raise NotFoundError("Employee not found.", code="EMPLOYEE_NOT_FOUND")
             if employee.user_id is None:
-                return employee
+                return response_mapper.serialize_employee(employee)
             candidate = replace(employee, user_id=None)
             uow.employees.update(candidate)
             record_audit_entry(
@@ -533,7 +537,7 @@ class EmployeeCommandHandler:
                 fail_closed=True,
             )
             uow.commit()
-        return candidate
+        return response_mapper.serialize_employee(candidate)
 
 
 

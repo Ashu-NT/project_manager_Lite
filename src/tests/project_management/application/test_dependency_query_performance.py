@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.tests.project_management._sql_measurement_helpers import count_calls
 
@@ -11,7 +14,7 @@ from src.tests.project_management._sql_measurement_helpers import count_calls
 def test_list_project_dependencies_is_one_query_not_per_task_loop(services):
     dependency_query = services['task_dependency_query']
 
-    project = services['project_create'].create_project("Query Perf", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Query Perf", description=""))
     tasks = [
         services['task_lifecycle_commands'].create_task(project.id, f"Task {i:02d}", "", start_date=date(2023, 11, 6), duration_days=1)
         for i in range(10)
@@ -36,7 +39,7 @@ def test_list_project_dependencies_is_one_query_not_per_task_loop(services):
 def test_application_layer_method_is_permission_checked(services):
     """list_dependencies_for_project must not bypass the same
     read-permission checks list_dependencies_for_task already has."""
-    project = services['project_create'].create_project("Query Perf Permissions", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Query Perf Permissions", description=""))
     result = services['task_dependency_query'].list_dependencies_for_project(project.id)
     assert result == []
 
@@ -46,7 +49,7 @@ def test_recalculation_only_persists_tasks_whose_dates_actually_changed(services
     task must not re-issue a repository update for any of them."""
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("Persist Only Changed", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Persist Only Changed", description=""))
     tasks = [
         services['task_lifecycle_commands'].create_task(
             project.id,
@@ -77,7 +80,7 @@ def test_recalculation_persists_only_the_tasks_whose_dates_shift(services):
     real date deltas rather than being an unconditional no-op."""
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("Persist Partial Shift", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Persist Partial Shift", description=""))
     tasks = [
         services['task_lifecycle_commands'].create_task(
             project.id,

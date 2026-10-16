@@ -21,6 +21,9 @@ from src.core.modules.project_management.application.financials.cost.entries.dto
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.application.finance.dto.commands.financial_periods import (
     FinancialPeriodCreateCommand,
 )
@@ -42,10 +45,7 @@ def _become_independent_decider(services) -> None:
 
 def _setup_project(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Desktop actual cutover",
-        financial_currency_code=organization.base_currency,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Desktop actual cutover", financial_currency_code=organization.base_currency))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Commission equipment",

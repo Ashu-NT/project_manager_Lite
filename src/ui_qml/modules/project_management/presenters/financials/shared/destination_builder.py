@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.models.billing import (
+from src.core.modules.project_management.application.financials.revenue.dto.responses.commercial_projection import (
     CommercialMetricAvailability,
 )
 from src.core.platform.api.desktop.history.audit.audit_enterprise import (

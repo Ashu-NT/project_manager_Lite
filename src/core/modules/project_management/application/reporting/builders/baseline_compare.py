@@ -12,6 +12,12 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
 from src.core.modules.project_management.application.reporting.builders.access import (
     ReportingAccessPolicy,
 )
+from src.core.modules.project_management.application.scheduling.dto.responses.baselines import (
+    SchedulingBaselineComparisonRowDto,
+)
+from src.core.modules.project_management.application.scheduling.mappers.baselines import (
+    map_baseline_comparison,
+)
 from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
     BaselineRepository,
 )
@@ -107,6 +113,13 @@ class BaselineCompareReportBuilder(ProjectManagementModuleGuardMixin):
             rows=rows,
             financial_detail_included=financial_detail_included,
         )
+
+    def compare_baseline_responses(
+        self, *, project_id: str, baseline_a_id: str, baseline_b_id: str,
+        include_unchanged: bool = False,
+    ) -> tuple[SchedulingBaselineComparisonRowDto, ...]:
+        report = self.compare_baselines(project_id, baseline_a_id, baseline_b_id, include_unchanged)
+        return tuple(map_baseline_comparison(row) for row in report.rows)
 
     def _build_baseline_comparison_rows(
         self,

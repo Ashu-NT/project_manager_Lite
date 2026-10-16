@@ -53,16 +53,8 @@ class FinancialRateWorkspaceDto:
     can_create_rate_card: bool = False
 
 
-@dataclass(frozen=True, slots=True)
-class FinancialRateMutationDto:
-    rate_card_id: str
-    rate_line_id: str = ""
-    version: int = 1
-
-
 __all__ = [
     "FinancialRateCardDetailDto",
-    "FinancialRateMutationDto",
     "FinancialRateTableRecordDto",
     "FinancialRateWorkspaceDto",
 ]

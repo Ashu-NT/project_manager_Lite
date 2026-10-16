@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import date
-from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -25,6 +24,11 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
     CostEntryStatusChanged,
     CostEntryStatusChangeType,
     CostEntryUpdated,
+)
+from src.core.modules.project_management.application.financials.cost.entries.dto.commands.manual_actuals import (
+    FinancialCreateManualActualCommand,
+    FinancialUpdateActualDraftCommand,
+    FinancialVersionedActualCommand,
 )
 from src.core.modules.project_management.application.financials.cost.entries.manual_source import (
     build_manual_content,
@@ -110,50 +114,37 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         self._tenant_context_service = tenant_context_service
         self._record_event = record_event
 
-    def create_manual_entry(
-        self,
-        *,
-        project_id: str,
-        command_id: str,
-        description: str,
-        amount: Decimal,
-        currency_code: str,
-        transaction_date: date,
-        cost_code_id: str,
-        entry_kind: ProjectCostEntryKind | str = ProjectCostEntryKind.ACTUAL,
-        task_id: str | None = None,
-        resource_id: str | None = None,
-    ) -> ProjectCostEntry:
+    def create_manual_entry(self, command: FinancialCreateManualActualCommand) -> ProjectCostEntry:
         self._require_command_permission(
-            project_id, "project_cost.create", "create project cost entry"
+            command.project_id, "project_cost.create", "create project cost entry"
         )
         context = self._require_scope("create project cost entry")
-        self._require_project(project_id)
-        profile = self._require_active_profile(project_id)
+        self._require_project(command.project_id)
+        profile = self._require_active_profile(command.project_id)
         del profile
-        kind = self._resolve_draft_kind(entry_kind)
-        money = Money.of(amount, currency_code)
+        kind = self._resolve_draft_kind(command.entry_kind)
+        money = Money.of(command.amount, command.currency_code)
         self._require_dimensions(
-            project_id=project_id,
-            cost_code_id=cost_code_id,
-            transaction_date=transaction_date,
-            task_id=task_id,
-            resource_id=resource_id,
+            project_id=command.project_id,
+            cost_code_id=command.cost_code_id,
+            transaction_date=command.transaction_date,
+            task_id=command.task_id,
+            resource_id=command.resource_id,
             organization_id=context.organization_id,
         )
         source = build_manual_source(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
-            project_id=project_id,
-            command_id=command_id,
+            project_id=command.project_id,
+            command_id=command.command_id,
             content=build_manual_content(
-                description=description,
+                description=command.description,
                 kind=kind,
                 money=money,
-                transaction_date=transaction_date,
-                cost_code_id=cost_code_id,
-                task_id=task_id,
-                resource_id=resource_id,
+                transaction_date=command.transaction_date,
+                cost_code_id=command.cost_code_id,
+                task_id=command.task_id,
+                resource_id=command.resource_id,
             ),
         )
         existing = self._entry_repo.get_by_idempotency_key(source.idempotency_key)
@@ -164,14 +155,14 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         entry = ProjectCostEntry.create_draft(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
-            project_id=project_id,
-            description=description,
+            project_id=command.project_id,
+            description=command.description,
             kind=kind,
             money=money,
-            transaction_date=transaction_date,
-            cost_code_id=cost_code_id,
-            task_id=task_id,
-            resource_id=resource_id,
+            transaction_date=command.transaction_date,
+            cost_code_id=command.cost_code_id,
+            task_id=command.task_id,
+            resource_id=command.resource_id,
             source=source,
             actor_id=actor_id,
             occurred_at=now,
@@ -204,62 +195,50 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         self._session.flush()
         return entry
 
-    def update_draft(
-        self,
-        entry_id: str,
-        *,
-        expected_version: int,
-        description: str,
-        amount: Decimal,
-        currency_code: str,
-        transaction_date: date,
-        cost_code_id: str,
-        task_id: str | None = None,
-        resource_id: str | None = None,
-    ) -> ProjectCostEntry:
-        entry = self._require_entry(entry_id)
+    def update_draft(self, command: FinancialUpdateActualDraftCommand) -> ProjectCostEntry:
+        entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="edit")
         self._require_command_permission(
             entry.project_id,
             "project_cost.update_draft",
             "update project cost entry draft",
         )
-        self._require_expected_version(entry, expected_version)
+        self._require_expected_version(entry, command.expected_version)
         context = self._require_scope("update project cost entry draft")
-        money = Money.of(amount, currency_code)
+        money = Money.of(command.amount, command.currency_code)
         self._require_dimensions(
             project_id=entry.project_id,
-            cost_code_id=cost_code_id,
-            transaction_date=transaction_date,
-            task_id=task_id,
-            resource_id=resource_id,
+            cost_code_id=command.cost_code_id,
+            transaction_date=command.transaction_date,
+            task_id=command.task_id,
+            resource_id=command.resource_id,
             organization_id=context.organization_id,
         )
         content_hash = financial_source_content_hash(
             build_manual_content(
-                description=description,
+                description=command.description,
                 kind=entry.entry_kind,
                 money=money,
-                transaction_date=transaction_date,
-                cost_code_id=cost_code_id,
-                task_id=task_id,
-                resource_id=resource_id,
+                transaction_date=command.transaction_date,
+                cost_code_id=command.cost_code_id,
+                task_id=command.task_id,
+                resource_id=command.resource_id,
             )
         )
         actor_id = self._actor_id()
         entry.update_draft(
-            description=description,
+            description=command.description,
             amount=money.amount,
             currency_code=money.currency.code,
-            transaction_date=transaction_date,
-            cost_code_id=cost_code_id,
-            task_id=task_id,
-            resource_id=resource_id,
+            transaction_date=command.transaction_date,
+            cost_code_id=command.cost_code_id,
+            task_id=command.task_id,
+            resource_id=command.resource_id,
             source_content_hash=content_hash,
             updated_by=actor_id,
             updated_at=self._clock.now(),
         )
-        self._entry_repo.update(entry, expected_row_version=expected_version)
+        self._entry_repo.update(entry, expected_row_version=command.expected_version)
         self._record_audit("update_draft", entry)
         event = CostEntryUpdated(
             tenant_id=entry.tenant_id,
@@ -273,21 +252,21 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
         self._session.flush()
         return entry
 
-    def delete_draft(self, entry_id: str, *, expected_version: int) -> None:
-        entry = self._require_entry(entry_id)
+    def delete_draft(self, command: FinancialVersionedActualCommand) -> None:
+        entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="delete")
         self._require_command_permission(
             entry.project_id,
             "project_cost.update_draft",
             "delete project cost entry draft",
         )
-        self._require_expected_version(entry, expected_version)
+        self._require_expected_version(entry, command.expected_version)
         if not entry.is_draft:
             raise BusinessRuleError(
                 "Only a draft project cost entry can be deleted.",
                 code="PROJECT_COST_ENTRY_DELETE_FORBIDDEN",
             )
-        self._entry_repo.delete_draft(entry.id, expected_row_version=expected_version)
+        self._entry_repo.delete_draft(entry.id, expected_row_version=command.expected_version)
         self._record_audit("delete_draft", entry)
         event = CostEntryRemoved(
             tenant_id=entry.tenant_id,
@@ -300,15 +279,15 @@ class ProjectCostEntryLifecycleCommandHandler(ProjectManagementModuleGuardMixin)
             self._record_event(event)
         self._session.flush()
 
-    def submit(self, entry_id: str, *, expected_version: int) -> ProjectCostEntry:
-        entry = self._require_entry(entry_id)
+    def submit(self, command: FinancialVersionedActualCommand) -> ProjectCostEntry:
+        entry = self._require_entry(command.entry_id)
         self._require_manual_interactive_entry(entry, operation="submit")
         self._require_command_permission(
             entry.project_id, "project_cost.submit", "submit project cost entry"
         )
-        self._require_expected_version(entry, expected_version)
+        self._require_expected_version(entry, command.expected_version)
         entry.submit(actor_id=self._actor_id(), occurred_at=self._clock.now())
-        self._entry_repo.update(entry, expected_row_version=expected_version)
+        self._entry_repo.update(entry, expected_row_version=command.expected_version)
         self._record_audit("submit", entry)
         event = CostEntryStatusChanged(
             tenant_id=entry.tenant_id,

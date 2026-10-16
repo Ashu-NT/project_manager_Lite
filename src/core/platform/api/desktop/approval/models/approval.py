@@ -1,29 +1,12 @@
-from __future__ import annotations
+from dataclasses import dataclass
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any
-
-from src.core.platform.domain.approval import ApprovalStatus
+from src.core.platform.application.approval.dto.responses.requests import (
+    ApprovalRequestResponse,
+)
 
 
 @dataclass(frozen=True)
-class ApprovalRequestDto:
-    id: str
-    request_type: str
-    entity_type: str
-    entity_id: str
-    project_id: str | None
-    payload: dict[str, Any] = field(default_factory=dict)
-    status: ApprovalStatus = ApprovalStatus.PENDING
-    requested_by_user_id: str | None = None
-    requested_by_username: str | None = None
-    requested_at: datetime | None = None
-    decided_by_user_id: str | None = None
-    decided_by_username: str | None = None
-    decided_at: datetime | None = None
-    decision_note: str | None = None
+class ApprovalRequestDto(ApprovalRequestResponse):
     module_label: str = ""
     context_label: str = ""
     display_label: str = ""
-    can_decide: bool = False

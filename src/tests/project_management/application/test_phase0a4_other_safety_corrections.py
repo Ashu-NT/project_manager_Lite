@@ -18,6 +18,9 @@ import pytest
 from src.core.modules.project_management.application.portfolio.dto.commands.project_dependencies import (
     PortfolioDependencyCreateCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
@@ -27,8 +30,8 @@ from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def test_create_project_dependency_succeeds_for_authorized_caller(services):
-    project_a = services['project_create'].create_project("Dependency Auth Project A")
-    project_b = services['project_create'].create_project("Dependency Auth Project B")
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Auth Project A"))
+    project_b = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Auth Project B"))
 
     dependency = services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=project_a.id, successor_project_id=project_b.id))
 
@@ -37,8 +40,8 @@ def test_create_project_dependency_succeeds_for_authorized_caller(services):
 
 
 def test_create_project_dependency_denies_caller_without_project_scope(services):
-    project_a = services['project_create'].create_project("Dependency Scope Project A")
-    project_b = services['project_create'].create_project("Dependency Scope Project B")
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Scope Project A"))
+    project_b = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Scope Project B"))
     principal = services["user_session"].principal
     services["user_session"].set_principal(
         UserSessionPrincipal(
@@ -70,7 +73,7 @@ def test_create_project_dependency_denies_caller_without_project_scope(services)
 
 
 def _seed_diagnostics_tasks(services):
-    project = services['project_create'].create_project("Diagnostics Auth Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Diagnostics Auth Project"))
     predecessor = services['task_lifecycle_commands'].create_task(
         project.id, "Predecessor", start_date=date(2026, 3, 2), duration_days=3
     )

@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import src.core.platform.application.security.identity.mappers.identity as response_mapper
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.security.identity.dto.responses.identity import (
+    ApiKeyCredentialDto,
+    ServicePrincipalDto,
 )
 from src.core.platform.application.security.identity.execution_principal import (
     resolve_execution_principal,
@@ -21,7 +26,6 @@ from src.core.platform.domain.security.auth import (
     UserSessionContext,
 )
 from src.core.platform.domain.security.identity.service_principal import (
-    ApiKeyCredential,
     ServicePrincipal,
 )
 
@@ -41,14 +45,14 @@ class ServicePrincipalQueryHandler:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
-    def list_service_principals(self) -> list[ServicePrincipal]:
+    def list_service_principals(self) -> list[ServicePrincipalDto]:
         require_permission(self._user_session, "auth.manage", operation_label="list service principals")
-        return self._principal_repo.list_all()
+        return [response_mapper.serialize_principal(row) for row in (self._principal_repo.list_all())]
 
-    def list_api_keys(self, principal_id: str) -> list[ApiKeyCredential]:
+    def list_api_keys(self, principal_id: str) -> list[ApiKeyCredentialDto]:
         require_permission(self._user_session, "auth.manage", operation_label="list service-principal API keys")
         self._require_principal(principal_id)
-        return self._api_key_repo.list_for_principal(principal_id)
+        return [response_mapper.serialize_credential(row) for row in (self._api_key_repo.list_for_principal(principal_id))]
 
     def resolve_execution_principal(self, *, name: str) -> ServicePrincipal:
         """Resolve a configured non-human principal without interactive RBAC.

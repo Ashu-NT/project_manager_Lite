@@ -10,6 +10,14 @@ from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
 )
+from src.core.modules.project_management.application.timesheets.dto.responses.workspace import (
+    TimesheetResourcePageResponseDto,
+    TimesheetWorkspaceAccessResponseDto,
+)
+from src.core.modules.project_management.application.timesheets.mappers.workspace import (
+    map_resource_page,
+    serialize_workspace_access,
+)
 from src.core.modules.project_management.application.timesheets.timesheet_workspace_scope import (
     TimesheetWorkspaceScope,
 )
@@ -53,7 +61,7 @@ class TimesheetWorkspaceQueryHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def get_timesheet_workspace_access(self) -> TimesheetWorkspaceAccessFact:
+    def get_timesheet_workspace_access(self) -> TimesheetWorkspaceAccessResponseDto:
         context = self._scope.base_context(operation_label="open Timesheets")
         available = self._scope.available_scopes()
         if not available:
@@ -70,12 +78,12 @@ class TimesheetWorkspaceQueryHandler(ProjectManagementModuleGuardMixin):
                 organization_id=context.organization_id,
             )
         default_scope = TimesheetScope.MINE if TimesheetScope.MINE in available else available[0]
-        return TimesheetWorkspaceAccessFact(
+        return serialize_workspace_access(TimesheetWorkspaceAccessFact(
             actor_user_id=context.actor_user_id,
             available_scopes=available,
             default_scope=default_scope,
             mine_resource=mine,
-        )
+        ))
 
     def query_timesheet_resources(
         self,
@@ -86,7 +94,7 @@ class TimesheetWorkspaceQueryHandler(ProjectManagementModuleGuardMixin):
         page_size: int = 20,
         sort_key: str = "resource",
         sort_direction: str = "asc",
-    ) -> TimesheetResourceReadPage:
+    ) -> TimesheetResourcePageResponseDto:
         operation_label = "search Timesheet resources"
         resolved_scope = self._scope.require_read_scope(scope, operation_label=operation_label)
         context = self._scope.base_context(operation_label=operation_label)
@@ -121,7 +129,7 @@ class TimesheetWorkspaceQueryHandler(ProjectManagementModuleGuardMixin):
         )
         if normalized_page != result.page:
             result = read(normalized_page)
-        return result
+        return map_resource_page(result)
 
     def get_timesheet_period(
         self,

@@ -114,7 +114,6 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
         predecessor_id = command.linked_task_id if dependency_direction(command.relationship_direction) == "PREDECESSOR" else command.task_id
         successor_id = command.task_id if dependency_direction(command.relationship_direction) == "PREDECESSOR" else command.linked_task_id
         dependency_type = normalize_dependency_type(command.dependency_type)
-        lag_days = command.lag_days
         predecessor = self._task_repo.get(predecessor_id)
         if not predecessor:
             raise NotFoundError("Predecessor task not found", code="TASK_NOT_FOUND")
@@ -160,7 +159,7 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
             predecessor_id=predecessor_id,
             successor_id=successor_id,
             dependency_type=dependency_type,
-            lag_days=lag_days,
+            lag_days=command.lag_days,
             include_impact=False,
         )
         if not diagnostic.is_valid:
@@ -177,7 +176,7 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
                     "successor_id": successor_id,
                     "successor_name": successor.name,
                     "dependency_type": dependency_type.value,
-                    "lag_days": lag_days,
+                    "lag_days": command.lag_days,
                 },
             )
             raise BusinessRuleError(
@@ -188,7 +187,7 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
             predecessor_id=predecessor_id,
             successor_id=successor_id,
             dependency_type=dependency_type,
-            lag_days=lag_days,
+            lag_days=command.lag_days,
         )
 
     def _apply_dependency_add_decision(
@@ -398,8 +397,6 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
     def update_dependency(self, command: TaskDependencyUpdateCommand) -> TaskDependency:
         dep_id = command.dependency_id.strip()
         dependency_type = normalize_dependency_type(command.dependency_type)
-        lag_days = command.lag_days
-        expected_version = command.expected_version
         dependency = self._dependency_repo.get(dep_id)
         if not dependency:
             raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
@@ -407,7 +404,7 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
         # dialog was opened -- checked before governance/diagnostics so a
         # stale dialog never files an approval request against data it
         # never actually saw.
-        if expected_version is not None and dependency.version != expected_version:
+        if command.expected_version is not None and dependency.version != command.expected_version:
             raise ConcurrencyError("Dependency was updated by another user.", code="STALE_WRITE")
 
         predecessor = self._task_repo.get(dependency.predecessor_task_id)
@@ -432,7 +429,7 @@ class TaskDependencyCommandHandler(ProjectManagementModuleGuardMixin):
             )
 
         resolved_type = dependency.dependency_type if dependency_type is None else dependency_type
-        resolved_lag = dependency.lag_days if lag_days is None else lag_days
+        resolved_lag = dependency.lag_days if command.lag_days is None else command.lag_days
 
         # Validate the CANDIDATE relationship, excluding this dependency's
         # own existing row from the duplicate check -- otherwise the

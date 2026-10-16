@@ -4,6 +4,10 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.master_data.org.mappers.organization as response_mapper
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -29,7 +33,6 @@ if TYPE_CHECKING:
     from src.core.platform.contract.uow.provisioning.platform_provisioning_unit_of_work import (
         PlatformProvisioningUnitOfWorkFactory,
     )
-    from src.core.platform.domain.master_data.org import Organization
     from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
@@ -55,7 +58,7 @@ class OrganizationProvisioningCommandHandler:
         self._user_session = user_session
         self._provisioning_uow_factory = provisioning_uow_factory
 
-    def provision_organization(self, command: OrganizationProvisionCommand) -> Organization:
+    def provision_organization(self, command: OrganizationProvisionCommand) -> OrganizationDto:
         if self._organization_commands is None or self._organization_query is None:
             raise RuntimeError("Organization service is not configured.")
         if self._provisioning_uow_factory is None:
@@ -122,4 +125,4 @@ class OrganizationProvisioningCommandHandler:
             raise RuntimeError("Tenant context service is not configured.")
         self._tenant_context_service.set_active_organization(organization.id)
         module_entitlement_provisioning.notify_module_entitlements_stale(organization.id)
-        return organization
+        return response_mapper.serialize_organization(organization)

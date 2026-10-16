@@ -5,6 +5,9 @@ the Organization handlers.bulk_activate_organizations())."""
 
 from __future__ import annotations
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.infrastructure.persistence.uow.projects.project_unit_of_work import (
     SqlAlchemyProjectUnitOfWorkFactory,
@@ -30,7 +33,7 @@ def _count_uow_creations(factory_cls):
 def test_bulk_set_status_updates_every_project_in_one_transaction(services) -> None:
     services['project_query']
     projects = [
-        services['project_create'].create_project(f"Bulk status project {i}", "")
+        services['project_create'].create_project(ProjectCreateCommand(name=f"Bulk status project {i}", description=""))
         for i in range(3)
     ]
     project_ids = [p.id for p in projects]

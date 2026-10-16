@@ -4,6 +4,9 @@ import ast
 import inspect
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.risk.dto.commands.register_entries import (
     RegisterEntryCreateCommand,
     RegisterEntryDeleteCommand,
@@ -27,9 +30,7 @@ def _wire_catalogs(services) -> tuple[PlatformWorkspaceCatalog, ProjectManagemen
 
 def _setup(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "P41-FIX Register project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P41-FIX Register project", financial_currency_code=organization.base_currency))
     return organization, project
 
 
@@ -124,9 +125,7 @@ def test_control_does_not_refresh_from_an_unrelated_view_invalidation_category(s
     pm_catalog.registerWorkspaceStale.connect(lambda project_id: stale_calls.append(project_id))
 
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "P41-FIX unrelated budget project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P41-FIX unrelated budget project", financial_currency_code=organization.base_currency))
     services['finance_governance_commands'].budget_lifecycle(lambda handler: handler.create_budget(project.id, "P41-FIX unrelated budget"))
 
     assert stale_calls == [], (

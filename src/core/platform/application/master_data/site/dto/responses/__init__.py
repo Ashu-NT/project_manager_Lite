@@ -1,1 +1,1 @@
-"""Application responses contracts."""
+

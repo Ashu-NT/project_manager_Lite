@@ -14,6 +14,9 @@ from src.core.modules.project_management.api.desktop.financials.api import (
 from src.core.modules.project_management.application.financials.cost.entries import (
     CostEntryApprovalOutcome,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
     FinancialSourceModule,
@@ -66,10 +69,7 @@ def _source(*, command_id: str = "command-1", content_hash: str = "a" * 64):
 
 def _create_project_finance_setup(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Canonical actuals",
-        financial_currency_code=organization.base_currency,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Canonical actuals", financial_currency_code=organization.base_currency))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="ACTUAL-LABOR",
         name="Actual labor",
@@ -250,10 +250,7 @@ def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
             cost_code_id=cost_code.id,
         ))
 
-    foreign_project = services['project_create'].create_project(
-        "Other scoped actuals",
-        financial_currency_code=organization.base_currency,
-    )
+    foreign_project = services['project_create'].create_project(ProjectCreateCommand(name="Other scoped actuals", financial_currency_code=organization.base_currency))
     services['finance_governance_commands'].cost_entry(lambda handler: handler.create_manual_entry(
         project_id=foreign_project.id,
         command_id="r17-foreign-actual",

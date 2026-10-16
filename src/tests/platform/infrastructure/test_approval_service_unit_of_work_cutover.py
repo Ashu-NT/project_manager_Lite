@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
@@ -35,9 +38,7 @@ def _login_as_fresh_requester(services) -> None:
 
 def _make_project(services):
     _REQUESTER_COUNTER["n"] += 1
-    return services['project_create'].create_project(
-        f"UoW Cutover Project {_REQUESTER_COUNTER['n']}", financial_currency_code="USD"
-    )
+    return services['project_create'].create_project(ProjectCreateCommand(name=f"UoW Cutover Project {_REQUESTER_COUNTER['n']}", financial_currency_code="USD"))
 
 
 def _submitted_budget(services, session):

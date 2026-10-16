@@ -21,9 +21,15 @@ from src.core.modules.project_management.application.financials.forecasts.dto.co
 from src.core.modules.project_management.application.financials.forecasts.dto.responses.forecast_approval import (
     ForecastApprovalRequestResult,
 )
+from src.core.modules.project_management.application.financials.forecasts.dto.responses.mutations import (
+    FinancialForecastMutationDto,
+)
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastVersionChanged,
     ForecastVersionChangeType,
+)
+from src.core.modules.project_management.application.financials.forecasts.mappers.responses import (
+    map_forecast_approval,
 )
 from src.core.modules.project_management.application.financials.governance.successors.dto.responses.financial_successors import (
     ApprovedFinancialLineAdjustment,
@@ -136,7 +142,7 @@ class ForecastApprovalCommands(ProjectManagementModuleGuardMixin):
         )
 
 
-    def request_forecast_approval(self, command: FinancialVersionedForecastCommand) -> ForecastApprovalRequestResult:
+    def request_forecast_approval(self, command: FinancialVersionedForecastCommand) -> FinancialForecastMutationDto:
         forecast_id = command.forecast_id
         expected_version = command.expected_version
         notes = command.notes
@@ -167,13 +173,13 @@ class ForecastApprovalCommands(ProjectManagementModuleGuardMixin):
                 "notes": notes,
             },
         )
-        return ForecastApprovalRequestResult(
+        return map_forecast_approval(ForecastApprovalRequestResult(
             forecast_id=forecast.id,
             project_id=forecast.project_id,
             forecast_status=forecast.status,
             row_version=forecast.row_version,
             approval_request_id=request.id,
-        )
+        ))
 
 
     def reject_forecast(

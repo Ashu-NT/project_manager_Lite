@@ -1,14 +1,18 @@
+
 from datetime import UTC, datetime
 
 from sqlalchemy import event
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import (
     DocumentORM,
 )
 
 
 def test_task_document_selector_is_bounded_and_scoped(services) -> None:
-    project = services['project_create'].create_project("Document selector")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Document selector"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Evidence")
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="seed document selector"

@@ -1,8 +1,15 @@
+
 from datetime import date
 from decimal import Decimal
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
 )
 from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
     TaskAssignmentAllocationCommand,
@@ -31,10 +38,7 @@ from src.tests.project_management.api._project_resource_fakes import (
 
 def test_project_management_tasks_desktop_api_supports_bulk_status_and_delete() -> None:
     project_service = _FakeProjectService()
-    project = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-    )
+    project = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line."))
     task_service = _FakeTaskService()
     task_a = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Cable Pull", description="Primary feeder cable installation.", start_date=date(2026, 5, 3), duration_days=4, priority=80, deadline=date(2026, 5, 8)))
     task_b = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Punchlist Closeout", description="Commissioning closeout walkdown.", start_date=date(2026, 5, 8), duration_days=2, priority=60, deadline=date(2026, 5, 10)))
@@ -65,21 +69,13 @@ def test_project_management_tasks_desktop_api_supports_bulk_status_and_delete() 
 
 def test_project_management_tasks_desktop_api_supports_assignments_and_dependencies() -> None:
     project_service = _FakeProjectService()
-    project = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-    )
+    project = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line."))
     resource_service = _FakeResourceService()
     project_resource_query = _FakeProjectResourceQueryHandler()
     task_service = _FakeTaskService()
     task_a = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Cable Pull", description="Primary feeder cable installation.", start_date=date(2026, 5, 3), duration_days=4, priority=80, deadline=date(2026, 5, 8)))
     task_b = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Punchlist Closeout", description="Commissioning closeout walkdown.", start_date=date(2026, 5, 8), duration_days=2, priority=60, deadline=date(2026, 5, 10)))
-    resource = resource_service.create_resource(
-        name="Alex Taylor",
-        role="Planner",
-        hourly_rate=85.0,
-        currency_code="EUR",
-    )
+    resource = resource_service.create_resource(ResourceCreateCommand(name="Alex Taylor", role="Planner", hourly_rate=85.0, currency_code="EUR"))
     project_resource = project_resource_query.create(
         project_id=project.id,
         resource_id=resource.id,
@@ -163,20 +159,12 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
             return [resource for resource in self._resources if resource.id in selected]
 
     project_service = _FakeProjectService()
-    project = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-    )
+    project = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line."))
     resource_service = _FakeResourceService()
     project_resource_query = _FakeProjectResourceQueryHandler()
     task_service = _FakeTaskService()
     task = task_service.create_task(TaskCreateCommand(project_id=project.id, name="Cable Pull", description="Primary feeder cable installation.", start_date=date(2026, 5, 3), duration_days=4, priority=80, deadline=date(2026, 5, 8)))
-    resource = resource_service.create_resource(
-        name="Alex Taylor",
-        role="Planner",
-        hourly_rate=85.0,
-        currency_code="EUR",
-    )
+    resource = resource_service.create_resource(ResourceCreateCommand(name="Alex Taylor", role="Planner", hourly_rate=85.0, currency_code="EUR"))
     project_resource = project_resource_query.create(
         project_id=project.id,
         resource_id=resource.id,

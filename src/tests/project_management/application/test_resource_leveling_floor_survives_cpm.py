@@ -16,6 +16,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     run_cpm,
 )
@@ -142,7 +145,7 @@ def test_leveling_floor_survives_the_live_persisting_scheduling_engine_too(servi
     ts = services['task_lookup_query']
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("Leveling Floor Survives Live Engine", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Leveling Floor Survives Live Engine", description=""))
     task_a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2026, 9, 7), duration_days=2)
     task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
     services['task_dependency_commands'].add_dependency(

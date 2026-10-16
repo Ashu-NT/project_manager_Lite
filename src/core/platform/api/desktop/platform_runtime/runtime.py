@@ -3,23 +3,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TypeVar
 
-from src.core.platform.api.desktop.master_data.org.models.organization import (
-    OrganizationCalendarSummaryDto,
-    OrganizationCatalogPageDto,
-    OrganizationDto,
-    OrganizationStatisticsDto,
-)
 from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
     DesktopApiResult,
 )
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
-    CountryDto,
-    ModuleDto,
     ModuleEntitlementDto,
-    PlatformCapabilityDto,
     PlatformRuntimeContextDto,
-    TimezoneDto,
 )
 from src.core.platform.application.master_data.org import (
     OrganizationCommandHandler,
@@ -31,8 +21,22 @@ from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationCalendarSummaryDto,
+    OrganizationCatalogPageDto,
+    OrganizationDto,
+    OrganizationStatisticsDto,
+)
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeQueryHandler,
+)
+from src.core.platform.application.platform_runtime.dto.responses.catalog import (
+    CountryDto,
+    TimezoneDto,
+)
+from src.core.platform.application.platform_runtime.dto.responses.module_runtime import (
+    RuntimeModuleFact,
+    RuntimePlatformCapabilityFact,
 )
 from src.core.platform.application.tenant.modules import (
     ModuleCatalogQueryHandler,
@@ -46,7 +50,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.shared.reference_data import COUNTRY_OPTIONS, TIMEZONE_OPTIONS
 
 _ResultT = TypeVar("_ResultT")
 
@@ -87,7 +90,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return self._execute(
             lambda: tuple(
-                self._serialize_organization(row)
+                row
                 for row in self._organization_query.list_organizations(
                     status=status
                 )
@@ -110,32 +113,28 @@ class PlatformRuntimeDesktopApi:
 
     def get_organization_statistics(self, organization_id: str) -> DesktopApiResult[OrganizationStatisticsDto]:
         return self._execute(
-            lambda: self._serialize_organization_statistics(
-                self._organization_query.get_organization_statistics(organization_id)
-            )
+            lambda: self._organization_query.get_organization_statistics(organization_id)
         )
 
     def get_organization_calendar_summary(
         self, organization_id: str
     ) -> DesktopApiResult[OrganizationCalendarSummaryDto]:
         return self._execute(
-            lambda: self._serialize_organization_calendar_summary(
-                self._organization_query.get_organization_calendar_summary(organization_id)
-            )
+            lambda: self._organization_query.get_organization_calendar_summary(organization_id)
         )
 
     def list_countries(self) -> DesktopApiResult[tuple[CountryDto, ...]]:
         """Static ISO 3166-1 reference data for the Organization registered-address
         country picker -- no session/tenant scoping needed, never persisted."""
         return self._execute(
-            lambda: tuple(CountryDto(code=code, name=name) for code, name in COUNTRY_OPTIONS)
+            self._platform_runtime_query.list_countries
         )
 
     def list_timezones(self) -> DesktopApiResult[tuple[TimezoneDto, ...]]:
         """Static IANA time zone reference data for the Organization timezone
         picker -- no session/tenant scoping needed, never persisted."""
         return self._execute(
-            lambda: tuple(TimezoneDto(name=name) for name, _label in TIMEZONE_OPTIONS)
+            self._platform_runtime_query.list_timezones
         )
 
     def get_organization_count(self) -> DesktopApiResult[int]:
@@ -148,7 +147,7 @@ class PlatformRuntimeDesktopApi:
             lambda: tuple(sorted(self._platform_runtime_query.get_current_permissions()))
         )
 
-    def list_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
+    def list_modules(self) -> DesktopApiResult[tuple[RuntimeModuleFact, ...]]:
         return self._execute(
             lambda: tuple(
                 self._serialize_module(module)
@@ -156,7 +155,7 @@ class PlatformRuntimeDesktopApi:
             )
         )
 
-    def list_accessible_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
+    def list_accessible_modules(self) -> DesktopApiResult[tuple[RuntimeModuleFact, ...]]:
         """Enabled modules the current user also has permission to use -- the
         same single authoritative definition Global Overview's module cards
         and Quick Actions already read (see module_access_policy.py). Shell
@@ -262,9 +261,7 @@ class PlatformRuntimeDesktopApi:
         command: OrganizationProvisionCommand,
     ) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
-            lambda: self._serialize_organization(
-                self._organization_provisioning_commands.provision_organization(command)
-            )
+            lambda: self._organization_provisioning_commands.provision_organization(command)
         )
 
     def update_organization(
@@ -272,30 +269,22 @@ class PlatformRuntimeDesktopApi:
         command: OrganizationUpdateCommand,
     ) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
-            lambda: self._serialize_organization(
-                self._organization_commands.update_organization(command)
-            )
+            lambda: self._organization_commands.update_organization(command)
         )
 
     def activate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
-            lambda: self._serialize_organization(
-                self._organization_lifecycle.activate_organization(organization_id)
-            )
+            lambda: self._organization_lifecycle.activate_organization(organization_id)
         )
 
     def deactivate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
-            lambda: self._serialize_organization(
-                self._organization_lifecycle.deactivate_organization(organization_id)
-            )
+            lambda: self._organization_lifecycle.deactivate_organization(organization_id)
         )
 
     def archive_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
-            lambda: self._serialize_organization(
-                self._organization_lifecycle.archive_organization(organization_id)
-            )
+            lambda: self._organization_lifecycle.archive_organization(organization_id)
         )
 
     def bulk_activate_organizations(
@@ -303,7 +292,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return self._execute(
             lambda: tuple(
-                self._serialize_organization(row)
+                row
                 for row in self._organization_lifecycle.bulk_activate_organizations(
                     organization_ids
                 )
@@ -315,7 +304,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return self._execute(
             lambda: tuple(
-                self._serialize_organization(row)
+                row
                 for row in self._organization_lifecycle.bulk_deactivate_organizations(
                     organization_ids
                 )
@@ -327,7 +316,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return self._execute(
             lambda: tuple(
-                self._serialize_organization(row)
+                row
                 for row in self._organization_lifecycle.bulk_archive_organizations(
                     organization_ids
                 )
@@ -339,7 +328,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return self._execute(
             lambda: tuple(
-                self._serialize_organization(row)
+                row
                 for row in self._organization_commands.bulk_update_organization_currency(
                     organization_ids, base_currency
                 )
@@ -351,7 +340,7 @@ class PlatformRuntimeDesktopApi:
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return self._execute(
             lambda: tuple(
-                self._serialize_organization(row)
+                row
                 for row in self._organization_commands.bulk_update_organization_timezone(
                     organization_ids, timezone_name
                 )
@@ -369,34 +358,7 @@ class PlatformRuntimeDesktopApi:
         organization_page = self._organization_query.list_organizations_page(
             page=page, page_size=page_size, search=search, status=status
         )
-        return OrganizationCatalogPageDto(
-            items=tuple(self._serialize_organization(row) for row in organization_page.items),
-            total=organization_page.total,
-            filtered_total=organization_page.filtered_total,
-            page=organization_page.page,
-            page_size=organization_page.page_size,
-        )
-
-    @staticmethod
-    def _serialize_organization_statistics(statistics) -> OrganizationStatisticsDto:
-        return OrganizationStatisticsDto(
-            site_count=statistics.site_count,
-            department_count=statistics.department_count,
-            employee_count=statistics.employee_count,
-            document_count=statistics.document_count,
-        )
-
-    @staticmethod
-    def _serialize_organization_calendar_summary(summary) -> OrganizationCalendarSummaryDto:
-        return OrganizationCalendarSummaryDto(
-            has_calendar=summary.has_calendar,
-            calendar_id=summary.calendar_id,
-            calendar_name=summary.calendar_name,
-            timezone=summary.timezone,
-            locale=summary.locale or "",
-            working_weekdays=summary.working_weekdays,
-            holiday_count=summary.holiday_count,
-        )
+        return organization_page
 
     def _build_runtime_context(self) -> PlatformRuntimeContextDto:
         snapshot = self._platform_runtime_query.snapshot()
@@ -404,7 +366,7 @@ class PlatformRuntimeDesktopApi:
         return PlatformRuntimeContextDto(
             context_label=snapshot.context_label,
             shell_summary=snapshot.module_snapshot.shell_summary,
-            active_organization=self._serialize_organization(active_organization)
+            active_organization=active_organization
             if active_organization is not None
             else None,
             platform_capabilities=tuple(
@@ -456,8 +418,8 @@ class PlatformRuntimeDesktopApi:
         )
 
     @staticmethod
-    def _serialize_platform_capability(capability) -> PlatformCapabilityDto:
-        return PlatformCapabilityDto(
+    def _serialize_platform_capability(capability) -> RuntimePlatformCapabilityFact:
+        return RuntimePlatformCapabilityFact(
             code=capability.code,
             label=capability.label,
             description=capability.description,
@@ -465,8 +427,8 @@ class PlatformRuntimeDesktopApi:
         )
 
     @staticmethod
-    def _serialize_module(module) -> ModuleDto:
-        return ModuleDto(
+    def _serialize_module(module) -> RuntimeModuleFact:
+        return RuntimeModuleFact(
             code=module.code,
             label=module.label,
             description=module.description,
@@ -491,29 +453,6 @@ class PlatformRuntimeDesktopApi:
             module=self._serialize_module(entitlement.module),
         )
 
-    @staticmethod
-    def _serialize_organization(organization) -> OrganizationDto:
-        return OrganizationDto(
-            id=organization.id,
-            organization_code=organization.organization_code,
-            display_name=organization.display_name,
-            timezone_name=organization.timezone_name,
-            base_currency=organization.base_currency,
-            status=organization.status,
-            version=organization.version,
-            legal_name=organization.legal_name,
-            registration_number=organization.registration_number,
-            tax_id=organization.tax_id,
-            address_line_1=organization.address_line_1,
-            address_line_2=organization.address_line_2,
-            postal_code=organization.postal_code,
-            city=organization.city,
-            state_region=organization.state_region,
-            country_code=organization.country_code,
-            email=organization.email,
-            phone=organization.phone,
-            website=organization.website,
-        )
 
 
 __all__ = ["PlatformRuntimeDesktopApi"]

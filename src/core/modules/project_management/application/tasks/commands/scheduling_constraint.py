@@ -20,6 +20,10 @@ from src.core.modules.project_management.application.tasks.commands.schedule_syn
 from src.core.modules.project_management.application.tasks.dto.commands.task_constraints import (
     TaskConstraintUpdateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.responses.task import (
+    TaskResponseDto,
+)
+from src.core.modules.project_management.application.tasks.mappers.task import map_task
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskScheduleChanged,
     TaskScheduleChangeType,
@@ -89,19 +93,16 @@ class TaskSchedulingConstraintHandler(ProjectManagementModuleGuardMixin):
         self._schedule_synchronizer = schedule_synchronizer
         self._uow_scope = uow_scope
 
-    def update_task_scheduling_constraint(self, command: TaskConstraintUpdateCommand) -> Task:
-        task_id = command.task_id
+    def update_task_scheduling_constraint(self, command: TaskConstraintUpdateCommand) -> TaskResponseDto:
         constraint_type = normalize_constraint_type(command.constraint_type)
-        constraint_date = command.constraint_date
-        expected_version = command.expected_version
-        task = self._task_repo.get(task_id)
+        task = self._task_repo.get(command.task_id)
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
 
-        if expected_version is not None and task.version != expected_version:
+        if command.expected_version is not None and task.version != command.expected_version:
             raise ConcurrencyError("Task was updated by another user.", code="STALE_WRITE")
 
-        candidate = replace(task, constraint_type=constraint_type, constraint_date=constraint_date)
+        candidate = replace(task, constraint_type=constraint_type, constraint_date=command.constraint_date)
         self._validate_constraint_date_is_working_day(candidate)
 
         governed = (
@@ -138,7 +139,7 @@ class TaskSchedulingConstraintHandler(ProjectManagementModuleGuardMixin):
                     "task_id": task.id,
                     "task_name": task.name,
                     "constraint_type": constraint_type.value if constraint_type is not None else None,
-                    "constraint_date": constraint_date.isoformat() if constraint_date is not None else None,
+                    "constraint_date": command.constraint_date.isoformat() if command.constraint_date is not None else None,
                     # Version AT REQUEST TIME -- re-checked against
                     # whatever is current when this is finally applied,
                     # since approval can land long after the request.
@@ -150,12 +151,12 @@ class TaskSchedulingConstraintHandler(ProjectManagementModuleGuardMixin):
                 code="APPROVAL_REQUIRED",
             )
 
-        return self._apply_task_scheduling_constraint_decision(
-            task_id=task_id,
+        return map_task(self._apply_task_scheduling_constraint_decision(
+            task_id=command.task_id,
             constraint_type=constraint_type,
-            constraint_date=constraint_date,
+            constraint_date=command.constraint_date,
             expected_version=task.version,
-        )
+        ), project_name="")
 
     def _apply_task_scheduling_constraint_decision(
         self,

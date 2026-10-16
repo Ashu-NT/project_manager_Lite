@@ -18,6 +18,9 @@ from src.core.modules.project_management.api.desktop.financials.models.performan
 from src.core.modules.project_management.application.financials.analytics.performance.query import (
     ProjectFinancePerformanceQuery,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineCreateCommand,
 )
@@ -249,9 +252,7 @@ def test_cost_phasing_quarter_boundaries_are_calendar_quarters() -> None:
 
 
 def test_cost_phasing_approved_baseline_calendar_allocation_is_exact(services, session) -> None:
-    project = services['project_create'].create_project(
-        "R6E baseline lifecycle", financial_currency_code="XAF"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6E baseline lifecycle", financial_currency_code="XAF"))
     approved_id = str(uuid4())
     for status in ("draft", "submitted", "rejected", "superseded", "approved"):
         baseline_id = approved_id if status == "approved" else str(uuid4())
@@ -299,9 +300,7 @@ def test_cost_phasing_approved_baseline_calendar_allocation_is_exact(services, s
 def test_sql_cost_phasing_reader_is_bounded_and_rejects_wrong_scope(
     services, session
 ) -> None:
-    project = services['project_create'].create_project(
-        "R6B Performance reader", financial_currency_code="XAF"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Performance reader", financial_currency_code="XAF"))
     query = services["finance_performance_query"]
 
     with _statement_count(session) as statements:
@@ -335,9 +334,7 @@ def test_sql_cost_phasing_reader_is_bounded_and_rejects_wrong_scope(
 
 
 def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) -> None:
-    project = services['project_create'].create_project(
-        "R6E Decimal EVM reader", financial_currency_code="XAF"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6E Decimal EVM reader", financial_currency_code="XAF"))
     services['task_lifecycle_commands'].create_task(
         TaskCreateCommand(project.id, "Draft baseline task", start_date=date(2026, 1, 1), duration_days=2)
     )
@@ -354,9 +351,7 @@ def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) ->
 
 
 def test_variance_reader_is_bounded_without_per_task_queries(services, session) -> None:
-    project = services['project_create'].create_project(
-        "R6E Variance reader", financial_currency_code="XAF"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6E Variance reader", financial_currency_code="XAF"))
     for number in range(8):
         services['task_lifecycle_commands'].create_task(
             TaskCreateCommand(

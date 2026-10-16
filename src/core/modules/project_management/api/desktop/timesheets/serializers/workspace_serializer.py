@@ -9,14 +9,10 @@ from src.core.modules.project_management.api.desktop.timesheets.formatters.time_
 from src.core.modules.project_management.api.desktop.timesheets.models.workspace import (
     ResourceTimesheetEntryDesktopDto,
     ResourceTimesheetPeriodDesktopDto,
-    TimesheetResourceDesktopDto,
-    TimesheetWorkspaceAccessDesktopDto,
 )
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetEntryFact,
     TimesheetPeriodFact,
-    TimesheetResourceFact,
-    TimesheetWorkspaceAccessFact,
 )
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
@@ -29,24 +25,8 @@ _STATUS_LABELS = {
 }
 
 
-def serialize_workspace_access(fact: TimesheetWorkspaceAccessFact) -> TimesheetWorkspaceAccessDesktopDto:
-    mine = fact.mine_resource
-    return TimesheetWorkspaceAccessDesktopDto(
-        available_scopes=tuple(scope.value for scope in fact.available_scopes),
-        default_scope=fact.default_scope.value,
-        mine_resource_id=mine.resource_id if mine else "",
-        mine_resource_name=mine.resource_name if mine else "",
-    )
 
 
-def serialize_timesheet_resource(fact: TimesheetResourceFact) -> TimesheetResourceDesktopDto:
-    return TimesheetResourceDesktopDto(
-        resource_id=fact.resource_id,
-        resource_name=fact.resource_name,
-        resource_code=fact.resource_code,
-        kind=fact.kind,
-        worker_type=fact.worker_type,
-    )
 
 
 def serialize_resource_period(fact: TimesheetPeriodFact) -> ResourceTimesheetPeriodDesktopDto:
@@ -103,9 +83,4 @@ def serialize_resource_entry(fact: TimesheetEntryFact) -> ResourceTimesheetEntry
     )
 
 
-__all__ = [
-    "serialize_resource_entry",
-    "serialize_resource_period",
-    "serialize_timesheet_resource",
-    "serialize_workspace_access",
-]
+__all__ = ['serialize_resource_entry', 'serialize_resource_period']

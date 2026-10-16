@@ -4,68 +4,80 @@ from dataclasses import replace
 from datetime import datetime
 from types import SimpleNamespace
 
-from src.core.platform.api.desktop.access.models.access import (
+from src.core.platform.access.application.dto.responses.scoped_access import (
     ScopedAccessGrantDto,
+)
+from src.core.platform.api.desktop.access.models.access import (
     ScopeTargetDto,
     ScopeTypeChoiceDto,
 )
 from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
 from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
-from src.core.platform.api.desktop.master_data.department.models.department import (
-    DepartmentDto,
-    DepartmentPageDto,
-    DepartmentRollupSummaryDto,
-)
-from src.core.platform.api.desktop.master_data.documents.models.document import (
-    DocumentDto,
-    DocumentLinkDto,
-    DocumentRollupSummaryDto,
-    DocumentStructureDto,
-)
-from src.core.platform.api.desktop.master_data.employee.models.employee import (
-    EmployeeDepartmentBreakdownRowDto,
-    EmployeeDto,
-    EmployeeHeadcountSummaryDto,
-    EmployeePageDto,
-    EmployeeSiteBreakdownRowDto,
-)
-from src.core.platform.api.desktop.master_data.org.models.organization import (
-    OrganizationDto,
-)
-from src.core.platform.api.desktop.master_data.party.models.party import (
-    PartyDto,
-    PartyPageDto,
-    PartyRollupSummaryDto,
-)
-from src.core.platform.api.desktop.master_data.site.models.site import (
-    SiteDto,
-    SitePageDto,
-    SiteRollupSummaryDto,
-)
 from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
     DesktopApiResult,
 )
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
-    CountryDto,
-    ModuleDto,
     ModuleEntitlementDto,
-    PlatformCapabilityDto,
     PlatformRuntimeContextDto,
-    TimezoneDto,
-)
-from src.core.platform.api.desktop.security.auth.models.user import (
-    RoleDto,
-    UserDto,
-    UserRollupSummaryDto,
 )
 from src.core.platform.api.desktop.support.models.support import (
     SupportBundleDto,
     SupportEventDto,
     SupportInstallLaunchDto,
     SupportPathsDto,
-    SupportSettingsDto,
     SupportUpdateStatusDto,
+)
+from src.core.platform.application.master_data.department.dto.responses.department import (
+    DepartmentDto,
+    DepartmentPageDto,
+)
+from src.core.platform.application.master_data.documents.dto.responses.document import (
+    DocumentDto,
+    DocumentLinkDto,
+    DocumentStructureDto,
+)
+from src.core.platform.application.master_data.employee.dto.responses.employee import (
+    EmployeeDto,
+    EmployeePageDto,
+)
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
+)
+from src.core.platform.application.master_data.party.dto.responses.party import (
+    PartyDto,
+    PartyPageDto,
+)
+from src.core.platform.application.master_data.site.dto.responses.site import (
+    SiteDto,
+    SitePageDto,
+)
+from src.core.platform.application.platform_runtime.dto.responses.catalog import (
+    CountryDto,
+    TimezoneDto,
+)
+from src.core.platform.application.platform_runtime.dto.responses.module_runtime import (
+    RuntimeModuleFact,
+    RuntimePlatformCapabilityFact,
+)
+from src.core.platform.application.security.auth.dto.responses.user import (
+    RoleDto,
+    UserDto,
+)
+from src.core.platform.application.support.dto.responses.settings import (
+    SupportSettingsDto,
+)
+from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
+    EmployeeDepartmentBreakdownRow,
+    EmployeeHeadcountSummary,
+    EmployeeSiteBreakdownRow,
+)
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
+    DepartmentRollupSummary,
+    DocumentRollupSummary,
+    PartyRollupSummary,
+    SiteRollupSummary,
+    UserRollupSummary,
 )
 from src.core.platform.domain.approval import ApprovalStatus
 from src.core.platform.domain.master_data.org import (
@@ -91,8 +103,8 @@ def _organization(*, organization_id: str, code: str, display_name: str, is_acti
     )
 
 
-def _module(*, code: str, label: str, description: str, stage: str = "active") -> ModuleDto:
-    return ModuleDto(
+def _module(*, code: str, label: str, description: str, stage: str = "active") -> RuntimeModuleFact:
+    return RuntimeModuleFact(
         code=code,
         label=label,
         description=description,
@@ -168,7 +180,7 @@ class FakePlatformRuntimeApi:
             shell_summary="2 modules licensed",
             active_organization=active_organization,
             platform_capabilities=(
-                PlatformCapabilityDto(
+                RuntimePlatformCapabilityFact(
                     code="approval",
                     label="Approvals",
                     description="Governed approval workflows",
@@ -220,7 +232,7 @@ class FakePlatformRuntimeApi:
         search: str | None = None,
         status: str | None = None,
     ) -> DesktopApiResult[object]:
-        from src.core.platform.api.desktop.master_data.org.models.organization import (
+        from src.core.platform.application.master_data.org.dto.responses.organization import (
             OrganizationCatalogPageDto,
         )
 
@@ -273,7 +285,7 @@ class FakePlatformRuntimeApi:
             ),
         )
 
-    def list_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
+    def list_modules(self) -> DesktopApiResult[tuple[RuntimeModuleFact, ...]]:
         return DesktopApiResult(ok=True, data=self._modules)
 
     def provision_organization(self, command) -> DesktopApiResult[OrganizationDto]:
@@ -487,11 +499,11 @@ class FakePlatformSiteApi:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
-    def get_site_rollup_summary(self) -> DesktopApiResult[SiteRollupSummaryDto]:
+    def get_site_rollup_summary(self) -> DesktopApiResult[SiteRollupSummary]:
         ordered = sorted(self._rows, key=lambda row: row.name)
         return DesktopApiResult(
             ok=True,
-            data=SiteRollupSummaryDto(
+            data=SiteRollupSummary(
                 total=len(self._rows),
                 active=sum(1 for row in self._rows if row.is_active),
                 sample_names=tuple(row.name for row in ordered[:3]),
@@ -619,10 +631,10 @@ class FakePlatformDepartmentApi:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
-    def get_department_rollup_summary(self) -> DesktopApiResult[DepartmentRollupSummaryDto]:
+    def get_department_rollup_summary(self) -> DesktopApiResult[DepartmentRollupSummary]:
         return DesktopApiResult(
             ok=True,
-            data=DepartmentRollupSummaryDto(
+            data=DepartmentRollupSummary(
                 total=len(self._rows),
                 active=sum(1 for row in self._rows if row.is_active),
             ),
@@ -747,10 +759,10 @@ class FakePlatformEmployeeApi:
             rows = [row for row in rows if row.site_id == site_id]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
-    def get_headcount_summary(self) -> DesktopApiResult[EmployeeHeadcountSummaryDto]:
+    def get_headcount_summary(self) -> DesktopApiResult[EmployeeHeadcountSummary]:
         return DesktopApiResult(
             ok=True,
-            data=EmployeeHeadcountSummaryDto(
+            data=EmployeeHeadcountSummary(
                 total=len(self._rows),
                 active=sum(1 for row in self._rows if row.is_active),
             ),
@@ -788,12 +800,12 @@ class FakePlatformEmployeeApi:
             ),
         )
 
-    def get_department_breakdown(self) -> DesktopApiResult[tuple[EmployeeDepartmentBreakdownRowDto, ...]]:
+    def get_department_breakdown(self) -> DesktopApiResult[tuple[EmployeeDepartmentBreakdownRow, ...]]:
         buckets: dict[str | None, list] = {}
         for row in self._rows:
             buckets.setdefault(row.department_id, []).append(row)
         rows = tuple(
-            EmployeeDepartmentBreakdownRowDto(
+            EmployeeDepartmentBreakdownRow(
                 department_id=department_id,
                 department_name=bucket[0].department or "Unassigned",
                 total=len(bucket),
@@ -805,12 +817,12 @@ class FakePlatformEmployeeApi:
         )
         return DesktopApiResult(ok=True, data=rows)
 
-    def get_site_breakdown(self) -> DesktopApiResult[tuple[EmployeeSiteBreakdownRowDto, ...]]:
+    def get_site_breakdown(self) -> DesktopApiResult[tuple[EmployeeSiteBreakdownRow, ...]]:
         buckets: dict[str | None, list] = {}
         for row in self._rows:
             buckets.setdefault(row.site_id, []).append(row)
         rows = tuple(
-            EmployeeSiteBreakdownRowDto(
+            EmployeeSiteBreakdownRow(
                 site_id=site_id,
                 site_name=bucket[0].site_name or "Unassigned",
                 total=len(bucket),
@@ -879,10 +891,10 @@ class FakePlatformUserApi:
     def list_users(self) -> DesktopApiResult[tuple[UserDto, ...]]:
         return DesktopApiResult(ok=True, data=tuple(self._rows))
 
-    def get_user_rollup_summary(self) -> DesktopApiResult[UserRollupSummaryDto]:
+    def get_user_rollup_summary(self) -> DesktopApiResult[UserRollupSummary]:
         return DesktopApiResult(
             ok=True,
-            data=UserRollupSummaryDto(
+            data=UserRollupSummary(
                 total=len(self._rows),
                 active=sum(1 for row in self._rows if row.is_active),
                 locked=sum(1 for row in self._rows if row.locked_until is not None),
@@ -1068,10 +1080,10 @@ class FakePlatformPartyApi:
             filtered_total=len(rows), page=page, page_size=page_size,
         ))
 
-    def get_party_rollup_summary(self) -> DesktopApiResult[PartyRollupSummaryDto]:
+    def get_party_rollup_summary(self) -> DesktopApiResult[PartyRollupSummary]:
         return DesktopApiResult(
             ok=True,
-            data=PartyRollupSummaryDto(
+            data=PartyRollupSummary(
                 total=len(self._rows),
                 active=sum(1 for row in self._rows if row.is_active),
             ),
@@ -1177,10 +1189,10 @@ class FakePlatformDocumentApi:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
-    def get_document_rollup_summary(self) -> DesktopApiResult[DocumentRollupSummaryDto]:
+    def get_document_rollup_summary(self) -> DesktopApiResult[DocumentRollupSummary]:
         return DesktopApiResult(
             ok=True,
-            data=DocumentRollupSummaryDto(
+            data=DocumentRollupSummary(
                 total=len(self._rows),
                 current=sum(1 for row in self._rows if row.is_current),
             ),

@@ -10,6 +10,9 @@ Covers:
 """
 from __future__ import annotations
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.domain.security.authorization.roles import RoleBinding
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
@@ -92,7 +95,7 @@ def test_user_assigned_project_lead_gets_correct_permissions(services):
     services['project_query']
     tenant_id, _ = _active_context_ids(services)
 
-    project = services['project_create'].create_project("Phase 2B Lead Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Phase 2B Lead Project"))
     user = services["user_registration"].register_user(
         "p2b-assign-plead",
         "StrongPass123!",
@@ -113,7 +116,7 @@ def test_user_assigned_project_viewer_gets_read_only_permissions(services):
     services['project_query']
     tenant_id, _ = _active_context_ids(services)
 
-    project = services['project_create'].create_project("Phase 2B Viewer Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Phase 2B Viewer Project"))
     user = services["user_registration"].register_user(
         "p2b-assign-pviewer",
         "StrongPass123!",
@@ -137,8 +140,8 @@ def test_project_role_binding_is_scoped_to_its_own_project(services):
     services['project_query']
     tenant_id, organization_id = _active_context_ids(services)
 
-    project_a = services['project_create'].create_project("Phase 2B Scope A")
-    project_b = services['project_create'].create_project("Phase 2B Scope B")
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="Phase 2B Scope A"))
+    project_b = services['project_create'].create_project(ProjectCreateCommand(name="Phase 2B Scope B"))
     user = services["user_registration"].register_user(
         "p2b-project-scope",
         "StrongPass123!",

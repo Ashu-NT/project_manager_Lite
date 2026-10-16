@@ -18,6 +18,12 @@ from src.core.modules.project_management.application.financials.rate_cards.dto.c
     FinancialUpdateRateCardCommand,
     FinancialVersionedRateCardCommand,
 )
+from src.core.modules.project_management.application.financials.rate_cards.dto.responses.mutations import (
+    FinancialRateMutationDto,
+)
+from src.core.modules.project_management.application.financials.rate_cards.mappers.responses import (
+    map_rate_card,
+)
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardCreated,
     RateCardDeactivated,
@@ -77,7 +83,7 @@ class ProjectRateCardCommandHandler(ProjectManagementModuleGuardMixin):
 
     # -- Rate cards ---------------------------------------------------
 
-    def create_rate_card(self, command: FinancialCreateRateCardCommand) -> ProjectRateCard:
+    def create_rate_card(self, command: FinancialCreateRateCardCommand) -> FinancialRateMutationDto:
         name = command.name
         project_id = command.project_id
         if project_id:
@@ -107,16 +113,16 @@ class ProjectRateCardCommandHandler(ProjectManagementModuleGuardMixin):
                 occurred_at=datetime.now(UTC),
             )
         )
-        return rate_card
+        return map_rate_card(rate_card)
 
-    def deactivate_rate_card(self, command: FinancialVersionedRateCardCommand) -> ProjectRateCard:
+    def deactivate_rate_card(self, command: FinancialVersionedRateCardCommand) -> FinancialRateMutationDto:
         rate_card_id = command.rate_card_id
         expected_version = command.expected_version
         current = self._require_rate_card(rate_card_id)
         self._require_card_manage(current, "deactivate rate card")
         self._require_expected_version(current.version, expected_version, "Rate card")
         if not current.is_active:
-            return current
+            return map_rate_card(current)
         now = datetime.now(UTC)
         candidate = replace(current, is_active=False, updated_at=now)
         self._rate_card_repo.update(candidate)
@@ -131,9 +137,9 @@ class ProjectRateCardCommandHandler(ProjectManagementModuleGuardMixin):
                 occurred_at=now,
             )
         )
-        return candidate
+        return map_rate_card(candidate)
 
-    def update_rate_card(self, command: FinancialUpdateRateCardCommand) -> ProjectRateCard:
+    def update_rate_card(self, command: FinancialUpdateRateCardCommand) -> FinancialRateMutationDto:
         rate_card_id = command.rate_card_id
         expected_version = command.expected_version
         name = command.name
@@ -143,7 +149,7 @@ class ProjectRateCardCommandHandler(ProjectManagementModuleGuardMixin):
         candidate = replace(current)
         candidate.rename(name)
         if candidate.name == current.name:
-            return current
+            return map_rate_card(current)
         self._rate_card_repo.update(candidate)
         self._record_card_audit("update", candidate, old=current)
         self._session.flush()
@@ -156,7 +162,7 @@ class ProjectRateCardCommandHandler(ProjectManagementModuleGuardMixin):
                 occurred_at=candidate.updated_at,
             )
         )
-        return candidate
+        return map_rate_card(candidate)
 
     # -- Rate card lines ------------------------------------------------
 

@@ -12,6 +12,9 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
     AccountingStatusQuery,
     BillingPreparationLineQuery,
@@ -50,9 +53,7 @@ def _statement_count(session):
 
 
 def _seed_billing(services):
-    project = services['project_create'].create_project(
-        "R6B Billing Reader", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Billing Reader", financial_currency_code="USD"))
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="seed billing reader"
     )
@@ -279,7 +280,7 @@ def test_selected_billing_detail_and_lines_are_bounded_and_truthful(services):
 
 def test_billing_reader_denies_wrong_project_parent_scope(services):
     project, scope = _seed_billing(services)
-    other = services['project_create'].create_project("Other Billing Project", financial_currency_code="USD")
+    other = services['project_create'].create_project(ProjectCreateCommand(name="Other Billing Project", financial_currency_code="USD"))
     reader = services["finance_workspace_query"]._billing_reader
     assert reader.get_preparation(
         tenant_id=scope.tenant_id, organization_id=scope.organization_id,

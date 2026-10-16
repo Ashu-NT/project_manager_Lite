@@ -15,6 +15,12 @@ import pytest
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -27,10 +33,10 @@ def _desktop_api(services):
 
 
 def _make_overload(services, name: str):
-    project = services['project_create'].create_project(name, "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name=name, description=""))
     task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
     task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-    resource = services["resource_master_commands"].create_resource("Desktop API Dev", "Developer", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Desktop API Dev", role="Developer", hourly_rate=100.0))
     services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
     services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
     return project, task_b, task_c
@@ -53,7 +59,7 @@ class TestPreview:
 
     def test_preview_of_a_conflict_free_project_returns_no_moves(self, services):
         api = _desktop_api(services)
-        project = services['project_create'].create_project("Desktop API Leveling No Conflicts", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Desktop API Leveling No Conflicts", description=""))
         services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
 
         dto = api.preview_resource_leveling(project.id)
@@ -84,7 +90,7 @@ class TestApply:
 
     def test_apply_without_a_prior_preview_raises(self, services):
         api = _desktop_api(services)
-        project = services['project_create'].create_project("Desktop API Leveling No Preview", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Desktop API Leveling No Preview", description=""))
 
         with pytest.raises(BusinessRuleError, match="Preview resource leveling before applying it") as caught:
             api.apply_resource_leveling(project.id)

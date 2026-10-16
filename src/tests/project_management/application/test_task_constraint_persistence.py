@@ -7,6 +7,9 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.platform.common.exceptions import ConcurrencyError
 
@@ -28,7 +31,7 @@ def _repo(services):
 )
 def test_every_editable_constraint_type_round_trips_through_persistence(services, constraint_type):
     repo = _repo(services)
-    project = services['project_create'].create_project("Constraint Persistence", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Constraint Persistence", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)
 
     from dataclasses import replace
@@ -45,7 +48,7 @@ def test_every_editable_constraint_type_round_trips_through_persistence(services
 
 def test_no_constraint_round_trips_as_none(services):
     repo = _repo(services)
-    project = services['project_create'].create_project("Constraint Persistence No Constraint", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Constraint Persistence No Constraint", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Plain Task", "", start_date=date(2026, 9, 1), duration_days=3)
 
     reloaded = repo.get(task.id)
@@ -55,7 +58,7 @@ def test_no_constraint_round_trips_as_none(services):
 
 def test_clearing_a_constraint_round_trips_as_none(services):
     repo = _repo(services)
-    project = services['project_create'].create_project("Constraint Persistence Clear", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Constraint Persistence Clear", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)
 
     from dataclasses import replace
@@ -82,7 +85,7 @@ def test_is_milestone_update_persists(services):
     silently never persisted. Fixed alongside the constraint columns
     while touching this exact dict."""
     repo = _repo(services)
-    project = services['project_create'].create_project("Milestone Persistence Update", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Milestone Persistence Update", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Regular Task", "", start_date=date(2026, 9, 1), duration_days=3)
     assert repo.get(task.id).is_milestone is False
 
@@ -97,7 +100,7 @@ def test_is_milestone_update_persists(services):
 
 def test_constraint_update_respects_optimistic_concurrency(services):
     repo = _repo(services)
-    project = services['project_create'].create_project("Constraint Persistence Concurrency", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Constraint Persistence Concurrency", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Constrained Task", "", start_date=date(2026, 9, 1), duration_days=3)
 
     from dataclasses import replace

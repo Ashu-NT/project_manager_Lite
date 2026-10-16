@@ -11,6 +11,9 @@ from datetime import date, timedelta
 from PySide6.QtGui import QGuiApplication
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskORM,
@@ -87,12 +90,7 @@ def test_build_attention_items_skips_missing_categories() -> None:
 
 def test_dashboard_route_exposes_attention_items_property(services) -> None:
     today = date.today()
-    project = services['project_create'].create_project(
-        "Attention Panel Project",
-        start_date=today - timedelta(days=30),
-        end_date=today + timedelta(days=30),
-        financial_currency_code="EUR",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Attention Panel Project", start_date=today - timedelta(days=30), end_date=today + timedelta(days=30), financial_currency_code="EUR"))
     services["session"].add(
         TaskORM(
             id="attention-task-1",

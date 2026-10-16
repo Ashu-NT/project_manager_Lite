@@ -5,16 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TypeVar
 
-from src.core.modules.project_management.api.desktop.portfolio.builders.capacity_pool_builder import (
-    build_capacity_pool,
-)
 from src.core.modules.project_management.api.desktop.portfolio.builders.option_builder import (
     build_dependency_type_options,
     build_intake_status_options,
     build_project_options,
-)
-from src.core.modules.project_management.api.desktop.portfolio.models.capacity import (
-    PortfolioCapacityResourceDto,
 )
 from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import (
     PortfolioDependencyDesktopDto,
@@ -90,6 +84,9 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scor
     PortfolioTemplateActivateCommand,
     PortfolioTemplateCreateCommand,
 )
+from src.core.modules.project_management.application.portfolio.dto.responses.capacity import (
+    PortfolioCapacityResourceDto,
+)
 from src.core.modules.project_management.application.portfolio.queries import (
     PortfolioDependencyQueryHandler,
     PortfolioExecutiveQueryHandler,
@@ -102,9 +99,6 @@ from src.core.modules.project_management.application.portfolio.queries.portfolio
 )
 from src.core.modules.project_management.application.projects.queries.project_query import (
     ProjectQueryHandler,
-)
-from src.core.modules.project_management.application.resources import (
-    PortfolioResourcePoolQueryHandler,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.common.exceptions import ConfigurationError
@@ -124,7 +118,6 @@ class ProjectManagementPortfolioDesktopApi:
         portfolio_dependency_query: PortfolioDependencyQueryHandler | None = None,
         portfolio_dependency_commands: PortfolioDependencyCommandHandler | None = None,
         portfolio_executive_query: PortfolioExecutiveQueryHandler | None = None,
-        pool_service: PortfolioResourcePoolQueryHandler | None = None,
     ) -> None:
         self._project_service = project_service
         self._portfolio_intake_query = portfolio_intake_query
@@ -136,7 +129,6 @@ class ProjectManagementPortfolioDesktopApi:
         self._portfolio_dependency_query = portfolio_dependency_query
         self._portfolio_dependency_commands = portfolio_dependency_commands
         self._portfolio_executive_query = portfolio_executive_query
-        self._pool_service = pool_service
 
     def list_projects(self) -> tuple[PortfolioProjectOptionDescriptor, ...]:
         return build_project_options(self._project_service)
@@ -390,7 +382,9 @@ class ProjectManagementPortfolioDesktopApi:
         )
 
     def build_capacity_pool(self) -> tuple[PortfolioCapacityResourceDto, ...]:
-        return build_capacity_pool(self._pool_service)
+        if self._portfolio_executive_query is None:
+            return ()
+        return self._portfolio_executive_query.query_capacity_pool()
 
 
 

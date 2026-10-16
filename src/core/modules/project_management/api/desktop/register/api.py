@@ -133,27 +133,27 @@ class ProjectManagementRegisterDesktopApi:
 
         def serialize_item(item) -> RegisterEntryDesktopDto:
             return serialize_entry(
-                item.entry,
-                project_name_by_id={item.entry.project_id: item.project_name},
+                item,
+                project_name_by_id={item.project_id: item.project_name},
             )
 
         return RegisterCatalogPageDesktopDto(
             items=tuple(serialize_item(item) for item in result.items),
             urgent_items=tuple(serialize_item(item) for item in result.urgent_items),
             filtered_total=result.filtered_total,
-            scope_total=result.summary.scope_total,
-            scope_risk_total=result.summary.scope_risk_total,
-            open_risks=result.summary.open_risks,
-            open_issues=result.summary.open_issues,
-            pending_changes=result.summary.pending_changes,
-            active=result.summary.active,
-            critical=result.summary.critical,
-            overdue=result.summary.overdue,
-            due_soon=result.summary.due_soon,
+            scope_total=result.scope_total,
+            scope_risk_total=result.scope_risk_total,
+            open_risks=result.open_risks,
+            open_issues=result.open_issues,
+            pending_changes=result.pending_changes,
+            active=result.active,
+            critical=result.critical,
+            overdue=result.overdue,
+            due_soon=result.due_soon,
             page=result.page,
             page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
+            sort_key=result.sort_key,
+            sort_direction=result.sort_direction,
         )
 
     def create_entry(

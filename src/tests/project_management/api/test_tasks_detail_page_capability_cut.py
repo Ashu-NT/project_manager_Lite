@@ -1,3 +1,4 @@
+
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -5,6 +6,12 @@ import pytest
 
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
 )
 from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
     TaskAssignmentHoursCommand,
@@ -21,10 +28,10 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def test_task_detail_pages_use_composed_query_handler(services) -> None:
-    project = services['project_create'].create_project("Task Detail Pages")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Task Detail Pages"))
     predecessor = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Predecessor"))
     task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Delivery"))
-    resource = services["resource_master_commands"].create_resource("Planner")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Planner"))
     services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=50)
     services['task_dependency_commands'].add_dependency(TaskDependencyCreateCommand(task_id=task.id, linked_task_id=predecessor.id, relationship_direction="PREDECESSOR", dependency_type=DependencyType.FINISH_TO_START))
     api = build_project_management_tasks_desktop_api(
@@ -84,7 +91,7 @@ def test_assignment_hours_command_checks_module_before_composed_handler() -> Non
 
 
 def test_dependency_previews_use_composed_handler(services) -> None:
-    project = services['project_create'].create_project("Dependency Preview")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Preview"))
     predecessor = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Predecessor"))
     successor = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=project.id, name="Successor"))
     api = build_project_management_tasks_desktop_api(

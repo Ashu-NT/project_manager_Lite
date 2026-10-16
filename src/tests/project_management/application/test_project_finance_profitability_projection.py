@@ -13,6 +13,9 @@ from src.core.modules.project_management.api.desktop.financials.api import (
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_workspace_serializer import (
     serialize_finance_billing_workspace,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillingExternalEventType,
 )
@@ -45,9 +48,7 @@ def _setup_billable_project(
     create_period: bool = True,
 ):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        name, financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=name, financial_currency_code=organization.base_currency))
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=f"PROF-{project.id[-4:].upper()}", name="Profitability cost code"
     ))
@@ -280,9 +281,7 @@ def test_finance_read_profitability_allows_margin_detail(services) -> None:
 
 def test_no_billing_profile_returns_empty_projection_without_error(services) -> None:
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "No Billing Profile", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="No Billing Profile", financial_currency_code=organization.base_currency))
 
     projection = services["profitability_report"].get_project_commercial_projection(project.id)
 

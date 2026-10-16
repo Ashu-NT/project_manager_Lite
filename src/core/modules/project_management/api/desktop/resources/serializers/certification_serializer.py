@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from datetime import date
-
 from src.core.modules.project_management.api.desktop.resources.models.certifications import (
     ResourceCertificationDesktopDto,
 )
+from src.core.modules.project_management.application.resources.dto.responses.capabilities import (
+    ResourceCertificationResponse,
+)
 
 
-def serialize_certification(certification) -> ResourceCertificationDesktopDto:
-    today = date.today()  # noqa: DTZ011
+def serialize_certification(certification: ResourceCertificationResponse) -> ResourceCertificationDesktopDto:
     expiry = getattr(certification, "expiry_date", None)
     issued = getattr(certification, "issued_date", None)
-    status = certification.status_on(today).value
+    status = certification.cert_status
     return ResourceCertificationDesktopDto(
         id=certification.id,
         resource_id=certification.resource_id,

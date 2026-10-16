@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
 )
@@ -34,9 +37,7 @@ def test_pm_projects_workspace_no_longer_shows_org_a_data_after_switching_to_org
     org_b = services["organization_commands"].create_organization(
         organization_code="RESCOPE-PM-B", display_name="Rescope PM Org B"
     )
-    project_a = services['project_create'].create_project(
-        "Rescope PM Project A", financial_currency_code="USD"
-    )
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="Rescope PM Project A", financial_currency_code="USD"))
 
     platform_catalog = _catalog(services)
     pm_catalog = _pm_catalog(services)
@@ -137,9 +138,7 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_access_
 
     login_as(services, "rescope-revoke-user", "StrongPass123")
     services["tenant_context_service"].set_active_organization(org.id)
-    project_a = services['project_create'].create_project(
-        "Rescope Revoke Project A", financial_currency_code="USD"
-    )
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="Rescope Revoke Project A", financial_currency_code="USD"))
 
     pm_catalog = _pm_catalog(services)
     pm_catalog.projectsWorkspace.refresh()
@@ -160,9 +159,7 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_is_disa
         organization_code="RESCOPE-DISABLE-ORG", display_name="Rescope Disable Org"
     )
     tenant_context_service.set_active_organization(org.id)
-    project_a = services['project_create'].create_project(
-        "Rescope Disable Project A", financial_currency_code="USD"
-    )
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="Rescope Disable Project A", financial_currency_code="USD"))
 
     pm_catalog = _pm_catalog(services)
     pm_catalog.projectsWorkspace.refresh()

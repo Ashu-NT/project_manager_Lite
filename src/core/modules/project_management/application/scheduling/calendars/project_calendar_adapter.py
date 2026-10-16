@@ -9,6 +9,9 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
+from src.core.modules.project_management.application.scheduling.dto.commands.working_days import (
+    SchedulingWorkingDayCalculationCommand,
+)
 from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
     ResolveCalendarRangeCommand,
     ResolveContextCommand,
@@ -16,6 +19,9 @@ from src.core.platform.application.time_management.calendar.capacity.dto.queries
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
     ResolvedCalendarContext,
+)
+from src.core.platform.application.time_management.calendar.dto.responses.working_calendar import (
+    WorkingDayCalculationDto,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,6 +73,20 @@ class ProjectCalendarAdapter:
         resolver: PlatformCalendarResolver,
     ) -> None:
         self._resolver = resolver
+
+    def calculate_working_days(
+        self, command: SchedulingWorkingDayCalculationCommand
+    ) -> WorkingDayCalculationDto:
+        result = self._resolver.calculate_working_days(command)
+        return WorkingDayCalculationDto(
+            start_date=command.start_date,
+            working_days=command.working_days,
+            result_date=result.end_date,
+            skipped_non_working_days=max(
+                (result.end_date - command.start_date).days - max(command.working_days - 1, 0),
+                0,
+            ),
+        )
 
     def _get_site_id_for_project(self, project_id: str) -> str | None:
         return None

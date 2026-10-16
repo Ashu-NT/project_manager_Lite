@@ -8,6 +8,12 @@ from typing import TYPE_CHECKING
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.financials.analytics.performance.dto.responses.reports import (
+    FinancialReportsDto,
+)
+from src.core.modules.project_management.application.financials.analytics.performance.mappers.reports import (
+    serialize_performance_reports,
+)
 from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
     PerformanceReportDefinitionFact,
     PerformanceReportsFacts,
@@ -36,7 +42,7 @@ class ReportsQueries:
         project_id: str,
         *,
         as_of_date: date | None = None,
-    ) -> PerformanceReportsFacts:
+    ) -> FinancialReportsDto:
         require_permission(
             self._user_session,
             "report.view",
@@ -51,7 +57,7 @@ class ReportsQueries:
         self._authorize_finance(project_id, "view project finance report basis")
         resolved_as_of = as_of_date or datetime.now(UTC).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
-        return PerformanceReportsFacts(
+        return serialize_performance_reports(PerformanceReportsFacts(
             project_id=project_id,
             as_of_date=resolved_as_of,
             currency_code=basis.currency_code,
@@ -72,4 +78,4 @@ class ReportsQueries:
                     authority_label="Authoritative Finance reads with permission-filtered report sections",
                 ),
             ),
-        )
+        ))

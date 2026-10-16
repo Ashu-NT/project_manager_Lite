@@ -4,6 +4,9 @@ import glob
 import inspect
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.tests.master_data_test_support import organization_source
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
@@ -129,7 +132,7 @@ def test_pm_resources_workspace_still_reacts_to_resources(services):
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    services["resource_master_commands"].create_resource(name=_unique("p7b-resource"))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("p7b-resource")))
 
     assert refresh_calls == ["refresh"]
 
@@ -148,7 +151,7 @@ def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(serv
     pm_catalog._scheduling_task_view_invalidation_adapter.taskScheduleStale.emit(
         scheduling_project_id
     )
-    services["resource_master_commands"].create_resource(name=_unique("p7b-sched-resource"))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name=_unique("p7b-sched-resource")))
 
     assert refresh_calls == ["refresh"] * 3
 

@@ -6,12 +6,17 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
     CollaborationInboxDesktopDto,
     CollaborationPresenceDesktopDto,
     TaskCollaborationCommentDesktopDto,
-    TaskCollaborationReactionSummaryDto,
 )
 from src.core.modules.project_management.api.desktop.collaboration.utils.formatting import (
     format_datetime,
     format_enum_label,
     format_linked_document_label,
+)
+from src.core.modules.project_management.application.collaboration.dto.responses.comments import (
+    TaskCommentResponseDto,
+)
+from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
+    TaskDetailLinkedDocumentFact,
 )
 
 
@@ -64,9 +69,9 @@ def serialize_presence_item(item) -> CollaborationPresenceDesktopDto:
 
 
 def serialize_task_comment(
-    comment,
+    comment: TaskCommentResponseDto,
     *,
-    linked_documents,
+    linked_documents: tuple[TaskDetailLinkedDocumentFact, ...],
     principal_user_id: str = "",
     can_manage: bool = False,
     can_read: bool = False,
@@ -93,21 +98,7 @@ def serialize_task_comment(
         attachments = ()
         linked_document_labels = ()
     updated_at = getattr(comment, "updated_at", None)
-    reactions_map = {} if is_deleted else (getattr(comment, "reactions", None) or {})
-    if isinstance(reactions_map, tuple):
-        reactions_map = dict(reactions_map)
-    reactions = tuple(
-        TaskCollaborationReactionSummaryDto(
-            emoji=emoji,
-            count=len(user_ids),
-            reactor_user_ids=tuple(user_ids),
-            reacted_by_current_user=bool(
-                principal_user_id and principal_user_id in user_ids
-            ),
-        )
-        for emoji, user_ids in sorted(reactions_map.items())
-        if user_ids
-    )
+    reactions = comment.reactions
     reactions_label = (
         "  ".join(f"{reaction.emoji} {reaction.count}" for reaction in reactions)
         if reactions

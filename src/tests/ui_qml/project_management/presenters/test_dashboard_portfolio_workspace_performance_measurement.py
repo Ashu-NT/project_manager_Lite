@@ -21,6 +21,15 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scen
 from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
     PortfolioTemplateCreateCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.tests.project_management._sql_measurement_helpers import (
     count_calls,
     measure_sql,
@@ -59,32 +68,15 @@ def _measure_call_time(targets: list[tuple[object, str, str]]):
 
 def _seed_single_project_workspace(services):
     today = date.today()
-    project = services['project_create'].create_project(
-        "Workspace Performance Project",
-        start_date=today,
-        end_date=today + timedelta(days=30),
-        financial_currency_code="EUR",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Workspace Performance Project", start_date=today, end_date=today + timedelta(days=30), financial_currency_code="EUR"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Workspace Performance Task",
         start_date=today,
         duration_days=10,
     )
-    resource = services["resource_master_commands"].create_resource(
-        "Workspace Performance Resource",
-        "Planner",
-        hourly_rate=80.0,
-        capacity_percent=100.0,
-        currency_code="EUR",
-    )
-    project_resource = services["project_resource_commands"].add_to_project(
-        project_id=project.id,
-        resource_id=resource.id,
-        planned_hours=40.0,
-        hourly_rate=80.0,
-        currency_code="EUR",
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Workspace Performance Resource", role="Planner", hourly_rate=80.0, capacity_percent=100.0, currency_code="EUR"))
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, planned_hours=40.0, hourly_rate=80.0, currency_code="EUR"))
     services['task_assignment_commands'].assign_project_resource(
         task_id=task.id,
         project_resource_id=project_resource.id,
@@ -278,12 +270,7 @@ def test_dashboard_portfolio_scope_batches_shared_lookups_once_per_project(
     project_count = 4
     projects = []
     for index in range(project_count):
-        project = services['project_create'].create_project(
-            f"Portfolio Scale Project {index}",
-            start_date=today,
-            end_date=today + timedelta(days=30),
-            financial_currency_code="EUR",
-        )
+        project = services['project_create'].create_project(ProjectCreateCommand(name=f"Portfolio Scale Project {index}", start_date=today, end_date=today + timedelta(days=30), financial_currency_code="EUR"))
         services['task_lifecycle_commands'].create_task(
             project.id,
             f"Portfolio Scale Task {index}",

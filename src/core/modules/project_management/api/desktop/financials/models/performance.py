@@ -67,32 +67,9 @@ class FinancialCostPhasingDto:
     periods: tuple[FinancialPeriodRowDto, ...] = field(default_factory=tuple)
 
 
-@dataclass(frozen=True, slots=True)
-class FinancialReportDefinitionDto:
-    report_code: str
-    display_name: str
-    formats: tuple[str, ...]
-    authority_label: str
-    requires_sensitive_finance: bool = False
-    requires_profitability: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class FinancialReportsDto:
-    project_id: str = ""
-    as_of_date: date | None = None
-    currency_code: str = ""
-    budget_revision: int | None = None
-    forecast_revision: int | None = None
-    forecast_as_of: date | None = None
-    definitions: tuple[FinancialReportDefinitionDto, ...] = field(default_factory=tuple)
-
-
 __all__ = [
     "FinancialCostPhasingDto",
     "FinancialEvmDto",
     "FinancialPerformanceMetricDto",
-    "FinancialReportDefinitionDto",
-    "FinancialReportsDto",
     "FinancialVarianceWorkspaceDto",
 ]

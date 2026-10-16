@@ -22,6 +22,12 @@ from src.core.modules.project_management.application.financials.earned_value.dto
     EarnedValueMetrics,
     EvmSeriesPoint,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
@@ -55,25 +61,14 @@ def _report_sources(services) -> reporting_api.ProjectReportSources:
 def _setup_report_project(services):
     services['baseline_query']
 
-    project = services['project_create'].create_project(
-        "Export Validation Project",
-        "",
-        start_date=date(2023, 11, 6),
-        end_date=date(2023, 11, 30),
-        financial_currency_code="USD",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Export Validation Project", description="", start_date=date(2023, 11, 6), end_date=date(2023, 11, 30), financial_currency_code="USD"))
     pid = project.id
 
     t1 = services['task_lifecycle_commands'].create_task(pid, "Task Alpha", start_date=date(2023, 11, 6), duration_days=2)
     t2 = services['task_lifecycle_commands'].create_task(pid, "Task Beta", duration_days=2)
     services['task_dependency_commands'].add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    res = services["resource_master_commands"].create_resource(
-        "Exporter Dev",
-        "Developer",
-        hourly_rate=100.0,
-        currency_code="USD",
-    )
+    res = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Exporter Dev", role="Developer", hourly_rate=100.0, currency_code="USD"))
     rate_card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(
         name="Export Project Rates",
         project_id=pid,
@@ -120,7 +115,7 @@ def test_excel_export_contains_expected_sections_when_baseline_is_approved(servi
 
 def test_excel_export_without_baseline_skips_evm_sheet(services, tmp_path):
 
-    project = services['project_create'].create_project("No Baseline Export", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="No Baseline Export", description=""))
     pid = project.id
     services['task_lifecycle_commands'].create_task(pid, "Task No Base", start_date=date(2023, 11, 6), duration_days=2)
 

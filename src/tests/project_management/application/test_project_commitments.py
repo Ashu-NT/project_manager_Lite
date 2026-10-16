@@ -19,6 +19,9 @@ from src.core.modules.project_management.application.financials.integration.proc
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
     ProcurementExecutionContext,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.contracts.financial_sources.procurement import (
     ProcurementCommitmentFinancialSource,
     ProcurementCommitmentState,
@@ -71,9 +74,7 @@ def _setup(services):
         services["service_principal_commands"].create_service_principal(
             ServicePrincipalCreateCommand(name=PROCUREMENT_FINANCE_PRINCIPAL_NAME, description="Projects Procurement facts into PM Finance.", initial_role_name="viewer"))
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Commitment project", financial_currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Commitment project", financial_currency_code=organization.base_currency))
     cost_code = services["finance_governance_commands"].cost_code(lambda commands: commands.create_cost_code(
         code="PROCURE", name="Procurement"
     ))

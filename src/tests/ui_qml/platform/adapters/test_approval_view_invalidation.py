@@ -6,6 +6,9 @@ from datetime import UTC
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.application.approval.dto.commands.decisions import (
     ApprovalDecisionCommand,
 )
@@ -83,11 +86,7 @@ def _login_as_scoped_approver(services) -> None:
 
 def _submitted_budget(services, session):
     _login(services, "admin", "ChangeMe123!")
-    project = services['project_create'].create_project(
-        _unique("View Invalidation Project"),
-        code=_unique("VI-PRJ"),
-        financial_currency_code="USD",
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=_unique("View Invalidation Project"), code=_unique("VI-PRJ"), financial_currency_code="USD"))
     services['budget_query']
     cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("VI-CC"), name="View invalidation cost code"
@@ -271,9 +270,7 @@ def test_host_workflow_submit_change_refreshes_control_workspace_exactly_once(se
     catalog.controlWorkspace.refresh_approvals = lambda: refresh_calls.append("approvals") or None
 
     _login(services, "admin", "ChangeMe123!")
-    project = services['project_create'].create_project(
-        _unique("View Invalidation Finance Project"), financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=_unique("View Invalidation Finance Project"), financial_currency_code="USD"))
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code=_unique("VI-FIN-CC"), name="View invalidation finance cost code"
     ))

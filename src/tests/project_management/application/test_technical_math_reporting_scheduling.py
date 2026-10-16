@@ -1,5 +1,9 @@
+
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import (
     DependencyType,
 )
@@ -21,7 +25,7 @@ def test_cpm_dependency_type_math(services):
     wc = services["work_calendar_engine"]
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("CPM Math", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="CPM Math", description=""))
     pid = project.id
 
     pred = services['task_lifecycle_commands'].create_task(pid, "Pred", start_date=date(2023, 11, 6), duration_days=3)
@@ -73,7 +77,7 @@ def test_ss_lag_zero_and_lag_one_are_now_distinguishable(services):
     predecessor's anchor date falls on a working day."""
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("SS Lag Zero Vs One", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="SS Lag Zero Vs One", description=""))
     pid = project.id
 
     pred = services['task_lifecycle_commands'].create_task(pid, "Pred", start_date=date(2023, 11, 6), duration_days=1)
@@ -93,7 +97,7 @@ def test_fs_negative_lead_is_monotonic(services):
     """FS lag=-1 and lag=-2 must not collapse to the same date."""
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("FS Negative Lead", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="FS Negative Lead", description=""))
     pid = project.id
 
     pred = services['task_lifecycle_commands'].create_task(pid, "Pred", start_date=date(2023, 11, 6), duration_days=3)
@@ -124,7 +128,7 @@ def test_mixed_successor_types_both_constrain_predecessor_late_dates(services):
     """
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("Mixed Successor Types", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Mixed Successor Types", description=""))
     pid = project.id
 
     pred = services['task_lifecycle_commands'].create_task(pid, "Pred", start_date=date(2023, 11, 6), duration_days=2)
@@ -149,7 +153,7 @@ def test_schedule_actual_date_constraints_override_computed_dates(services):
     wc = services["work_calendar_engine"]
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("Actual Dates", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Actual Dates", description=""))
     pid = project.id
     t = services['task_lifecycle_commands'].create_task(pid, "Execution Task", start_date=date(2023, 11, 6), duration_days=3)
 
@@ -167,7 +171,7 @@ def test_schedule_actual_date_constraints_override_computed_dates(services):
 def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
     sched = services["scheduling_engine"]
 
-    project = services['project_create'].create_project("Gantt Math", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Gantt Math", description=""))
     pid = project.id
 
     t1 = services['task_lifecycle_commands'].create_task(pid, "Planned A", start_date=date(2023, 11, 6), duration_days=2)
@@ -194,7 +198,7 @@ def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
 def test_gantt_reacts_to_new_dependency_constraints(services):
     wc = services["work_calendar_engine"]
 
-    project = services['project_create'].create_project("Gantt Dependency Shift", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Gantt Dependency Shift", description=""))
     pid = project.id
 
     pred = services['task_lifecycle_commands'].create_task(pid, "Predecessor", start_date=date(2023, 11, 6), duration_days=3)

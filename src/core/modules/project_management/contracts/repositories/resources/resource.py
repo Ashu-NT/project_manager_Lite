@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -42,7 +43,7 @@ class ResourceRepository(ABC):
     def list(self) -> list[Resource]: ...
 
     @abstractmethod
-    def list_by_ids(self, resource_ids: list[str]) -> list[Resource]:
+    def list_by_ids(self, resource_ids: builtins.list[str]) -> builtins.list[Resource]:
         """Batch fetch by id -- callers needing a subset of resources
         (a name-lookup map, a labor-cost breakdown, a leveling pass) must
         use this instead of a per-id ``get()`` loop or a whole-tenant
@@ -50,7 +51,7 @@ class ResourceRepository(ABC):
         ...
 
     @abstractmethod
-    def list_by_employee(self, employee_id: str) -> list[Resource]: ...
+    def list_by_employee(self, employee_id: str) -> builtins.list[Resource]: ...
 
     @abstractmethod
     def code_exists(self, code: str, *, exclude_id: str | None = None) -> bool: ...

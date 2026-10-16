@@ -7,6 +7,12 @@ import pytest
 from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.tasks.dto.commands.task_hierarchy import (
     TaskWbsMoveCommand,
 )
@@ -24,7 +30,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def _project(services, name: str):
-    return services['project_create'].create_project(name, "")
+    return services['project_create'].create_project(ProjectCreateCommand(name=name, description=""))
 
 
 def test_task_wbs_builds_ordered_hierarchy_and_rolls_up_execution(services) -> None:
@@ -152,7 +158,7 @@ def test_task_wbs_rejects_cross_project_parent_and_summary_execution(services) -
         )
     assert exc.value.code == "TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN"
 
-    resource = services["resource_master_commands"].create_resource("WBS Crew", "Planner")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="WBS Crew", role="Planner"))
     with pytest.raises(BusinessRuleError) as exc:
         services['task_assignment_commands'].assign_resource(summary.id, resource.id)
     assert exc.value.code == "TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN"

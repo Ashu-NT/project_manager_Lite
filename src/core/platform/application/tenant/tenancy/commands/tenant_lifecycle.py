@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+import src.core.platform.application.tenant.tenancy.mappers.tenant as response_mapper
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
 from src.core.platform.application.tenant.tenancy.dto.commands.tenants import (
     TenantCreateCommand,
 )
+from src.core.platform.application.tenant.tenancy.dto.responses.tenant import TenantDto
 from src.core.platform.application.tenant.tenancy.queries.admin import (
     TenantAdminQueryHandler,
 )
@@ -124,7 +126,7 @@ class TenantLifecycleCommandHandler:
     # Read operations
     # ------------------------------------------------------------------
 
-    def create_tenant(self, command: TenantCreateCommand) -> Tenant:
+    def create_tenant(self, command: TenantCreateCommand) -> TenantDto:
         tenant_code = command.tenant_code
         display_name = command.display_name
         require_permission(
@@ -141,7 +143,7 @@ class TenantLifecycleCommandHandler:
         self._tenant_repo.add(tenant)
         self._session.flush()
         self._emit_tenant_event("create_tenant", tenant)
-        return tenant
+        return response_mapper.serialize_tenant(tenant)
 
     # ------------------------------------------------------------------
     # Lifecycle mutations

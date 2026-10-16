@@ -98,7 +98,6 @@ def build_project_management_desktop_runtime_apis(
             portfolio_dependency_query=resolved.portfolio_dependency_query,
             portfolio_dependency_commands=resolved.portfolio_dependency_commands,
             portfolio_executive_query=resolved.portfolio_executive_query,
-            pool_service=resolved.pool_service,
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_create=resolved.project_create,
@@ -138,6 +137,7 @@ def build_project_management_desktop_runtime_apis(
             platform_calendar_api=platform_dependencies.platform_calendar_api,
             work_calendar_service=None,
             work_calendar_engine=resolved.work_calendar_engine,
+            project_calendar_adapter=resolved.project_calendar_adapter,
             baseline_query=resolved.baseline_query,
             baseline_compare_report=resolved.baseline_compare_report,
             baseline_commands=resolved.baseline_commands,

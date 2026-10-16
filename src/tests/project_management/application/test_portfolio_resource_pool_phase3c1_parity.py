@@ -4,6 +4,15 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.tests.project_management._test_repository_tenant_hardening_helpers import (
     _seed_priority_pm_rows,
 )
@@ -13,35 +22,18 @@ def test_capacity_reader_preserves_cross_project_demand_and_utilization(services
     services["project_resource_query"]
     pool_service = services["portfolio_resource_pool_query"]
 
-    resource = services["resource_master_commands"].create_resource(
-        "Shared Capacity",
-        "Engineer",
-        capacity_percent=100.0,
-        hourly_rate=80.0,
-        currency_code="EUR",
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Shared Capacity", role="Engineer", capacity_percent=100.0, hourly_rate=80.0, currency_code="EUR"))
     allocations = (("Alpha", 60.0), ("Beta", 70.0))
     project_ids: list[str] = []
     for project_name, allocation in allocations:
-        project = services['project_create'].create_project(
-            project_name,
-            start_date=date(2024, 1, 8),
-            end_date=date(2024, 1, 12),
-            financial_currency_code="EUR",
-        )
+        project = services['project_create'].create_project(ProjectCreateCommand(name=project_name, start_date=date(2024, 1, 8), end_date=date(2024, 1, 12), financial_currency_code="EUR"))
         task = services['task_lifecycle_commands'].create_task(
             project.id,
             f"{project_name} delivery",
             start_date=date(2024, 1, 8),
             duration_days=5,
         )
-        project_resource = services["project_resource_commands"].add_to_project(
-            project_id=project.id,
-            resource_id=resource.id,
-            planned_hours=40.0,
-            hourly_rate=80.0,
-            currency_code="EUR",
-        )
+        project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, planned_hours=40.0, hourly_rate=80.0, currency_code="EUR"))
         services['task_assignment_commands'].assign_project_resource(
             task_id=task.id,
             project_resource_id=project_resource.id,

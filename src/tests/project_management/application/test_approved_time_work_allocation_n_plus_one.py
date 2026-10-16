@@ -8,6 +8,12 @@ from decimal import Decimal
 
 from sqlalchemy import event
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
     SqlAlchemyAssignmentRepository,
 )
@@ -15,12 +21,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 
 def _setup(services, *, suffix: str):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        f"N+1 Guardrail {suffix}", financial_currency_code=organization.base_currency
-    )
-    resource = services["resource_master_commands"].create_resource(
-        f"N+1 Engineer {suffix}", hourly_rate=0, currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name=f"N+1 Guardrail {suffix}", financial_currency_code=organization.base_currency))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name=f"N+1 Engineer {suffix}", hourly_rate=0, currency_code=organization.base_currency))
     task = services['task_lifecycle_commands'].create_task(
         project.id, f"N+1 Task {suffix}", start_date=date(2026, 5, 1), duration_days=60
     )

@@ -17,6 +17,9 @@ from src.core.modules.project_management.application.collaboration.event_handler
     TASK_COMMENT_CATEGORY,
     TASK_COMMENT_SCOPE_CODE,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
     TaskCommentORM,
 )
@@ -86,7 +89,7 @@ def _count(services, model) -> int:
 
 
 def _setup(services):
-    project = services['project_create'].create_project("P44B-FIX attachment project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P44B-FIX attachment project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "P44B-FIX attachment task")
     return project, task
 

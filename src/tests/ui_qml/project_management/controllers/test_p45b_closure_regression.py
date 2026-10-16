@@ -12,6 +12,12 @@ from datetime import date
 import pytest
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskAssignmentChanged,
 )
@@ -43,7 +49,7 @@ def _task_hints(hints):
 def test_task_mutation_succeeds_with_zero_tasks_changed_and_genuine_consumer_refreshes(services, monkeypatch, qapp):
     """A real, typed Task mutation (`create_task`) reaches the Tasks workspace's genuine
     consumer purely through ViewInvalidation -- no legacy Signal exists to have carried it."""
-    project = services['project_create'].create_project("P45B Closure Producerless Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P45B Closure Producerless Project"))
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.tasksWorkspace
     controller._selected_project_id = project.id
@@ -160,12 +166,8 @@ def test_resources_workspace_ignores_unselected_resource_task_assignment_stale(m
 
 def _setup_time_entry_case(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "P45B Closure TimeEntry Rollback Project", financial_currency_code=organization.base_currency
-    )
-    resource = services["resource_master_commands"].create_resource(
-        "P45B Closure TimeEntry Rollback Engineer", hourly_rate=0, currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P45B Closure TimeEntry Rollback Project", financial_currency_code=organization.base_currency))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="P45B Closure TimeEntry Rollback Engineer", hourly_rate=0, currency_code=organization.base_currency))
     task = services['task_lifecycle_commands'].create_task(
         project.id, "P45B Closure TimeEntry Rollback Task", start_date=date(2026, 9, 1), duration_days=10
     )
@@ -244,15 +246,9 @@ def test_update_time_entry_transactional_handler_failure_rolls_back_the_revision
 
 def test_submit_timesheet_period_stales_only_the_referenced_project_task_list(services):
     organization = services["tenant_context_service"].get_active_organization()
-    referenced_project = services['project_create'].create_project(
-        "P45B Closure Class-B Referenced Project", financial_currency_code=organization.base_currency
-    )
-    unrelated_project = services['project_create'].create_project(
-        "P45B Closure Class-B Unrelated Project", financial_currency_code=organization.base_currency
-    )
-    resource = services["resource_master_commands"].create_resource(
-        "P45B Closure Class-B Engineer", hourly_rate=0, currency_code=organization.base_currency
-    )
+    referenced_project = services['project_create'].create_project(ProjectCreateCommand(name="P45B Closure Class-B Referenced Project", financial_currency_code=organization.base_currency))
+    unrelated_project = services['project_create'].create_project(ProjectCreateCommand(name="P45B Closure Class-B Unrelated Project", financial_currency_code=organization.base_currency))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="P45B Closure Class-B Engineer", hourly_rate=0, currency_code=organization.base_currency))
     task = services['task_lifecycle_commands'].create_task(
         referenced_project.id, "Class-B Task", start_date=date(2026, 9, 1), duration_days=10
     )
@@ -274,12 +270,8 @@ def test_submit_timesheet_period_records_zero_real_task_domain_event(services, m
     from src.core.modules.project_management.application.tasks import task_events
 
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "P45B Closure Class-B No Typed Event Project", financial_currency_code=organization.base_currency
-    )
-    resource = services["resource_master_commands"].create_resource(
-        "P45B Closure Class-B No Typed Event Engineer", hourly_rate=0, currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P45B Closure Class-B No Typed Event Project", financial_currency_code=organization.base_currency))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="P45B Closure Class-B No Typed Event Engineer", hourly_rate=0, currency_code=organization.base_currency))
     task = services['task_lifecycle_commands'].create_task(
         project.id, "Class-B No Typed Event Task", start_date=date(2026, 9, 1), duration_days=10
     )

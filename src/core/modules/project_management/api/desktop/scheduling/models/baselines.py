@@ -25,38 +25,8 @@ class SchedulingBaselineRowDto:
     can_reject: bool
 
 
-@dataclass(frozen=True)
-class SchedulingBaselineComparisonRowDto:
-    task_id: str
-    task_name: str
-    change_type: str
-    baseline_a_start: date | None
-    baseline_a_finish: date | None
-    baseline_b_start: date | None
-    baseline_b_finish: date | None
-    start_shift_days: int | None
-    finish_shift_days: int | None
-    duration_delta_days: int | None
-    planned_cost_delta: str
 
 
-@dataclass(frozen=True)
-class SchedulingBaselineVarianceRowDto:
-    id: str
-    project_id: str
-    new_baseline_id: str
-    superseded_baseline_id: str
-    task_id: str
-    task_name: str
-    start_variance_days: int
-    finish_variance_days: int
-    cost_variance: str
-    created_at: date | None
 
 
-__all__ = [
-    "SchedulingBaselineComparisonRowDto",
-    "SchedulingBaselineOptionDescriptor",
-    "SchedulingBaselineRowDto",
-    "SchedulingBaselineVarianceRowDto",
-]
+__all__ = ['SchedulingBaselineOptionDescriptor', 'SchedulingBaselineRowDto']

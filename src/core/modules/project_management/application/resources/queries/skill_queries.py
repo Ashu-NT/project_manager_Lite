@@ -11,6 +11,8 @@ from src.core.modules.project_management.application.common.pagination import (
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCapabilityReader,
+)
+from src.core.modules.project_management.contracts.reads.resources.models import (
     ResourceCertificationReadPage,
     ResourceSkillReadPage,
 )
@@ -18,6 +20,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_permission,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
     TenantContextService,
 )
 from src.core.platform.common.exceptions import ConfigurationError
@@ -36,7 +39,7 @@ class ResourceCapabilityQueryHandler:
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
 
-    def _capability_scope(self, operation_label: str):
+    def _capability_scope(self, operation_label: str) -> ActiveScopeIds:
         if self._tenant_context_service is None:
             raise ConfigurationError("Resource capability reader scope is not configured.")
         return self._tenant_context_service.require_active_scope_ids(
@@ -72,23 +75,24 @@ class ResourceCapabilityQueryHandler:
         }:
             normalized_proficiency = None
         scope = self._capability_scope("view resource skills")
-        kwargs = {
-            "tenant_id": scope.tenant_id,
-            "organization_id": scope.organization_id,
-            "resource_id": str(resource_id or "").strip(),
-            "search_text": str(search_text or "").strip(),
-            "proficiency": normalized_proficiency,
-            "page": request.page,
-            "page_size": request.page_size,
-            "sort": sort,
-        }
-        result = self._resource_capability_reader.read_skills_page(**kwargs)
+        reader = self._resource_capability_reader
+        def _read_page(page_number: int) -> ResourceSkillReadPage:
+            return reader.read_skills_page(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                resource_id=str(resource_id or "").strip(),
+                search_text=str(search_text or "").strip(),
+                proficiency=normalized_proficiency,
+                page=page_number,
+                page_size=request.page_size,
+                sort=sort,
+            )
+        result = _read_page(request.page)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
         )
         if normalized_page != result.page:
-            kwargs["page"] = normalized_page
-            result = self._resource_capability_reader.read_skills_page(**kwargs)
+            result = _read_page(normalized_page)
         return result
 
     def query_resource_certifications_page(
@@ -125,24 +129,25 @@ class ResourceCapabilityQueryHandler:
         }:
             normalized_status = None
         scope = self._capability_scope("view resource certifications")
-        kwargs = {
-            "tenant_id": scope.tenant_id,
-            "organization_id": scope.organization_id,
-            "resource_id": str(resource_id or "").strip(),
-            "search_text": str(search_text or "").strip(),
-            "status": normalized_status,
-            "as_of": date.today(),  # noqa: DTZ011
-            "page": request.page,
-            "page_size": request.page_size,
-            "sort": sort,
-        }
-        result = self._resource_capability_reader.read_certifications_page(**kwargs)
+        reader = self._resource_capability_reader
+        def _read_page(page_number: int) -> ResourceCertificationReadPage:
+            return reader.read_certifications_page(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                resource_id=str(resource_id or "").strip(),
+                search_text=str(search_text or "").strip(),
+                status=normalized_status,
+                as_of=date.today(),
+                page=page_number,
+                page_size=request.page_size,
+                sort=sort,
+            )
+        result = _read_page(request.page)
         normalized_page = normalize_page_for_total(
             page=result.page, page_size=result.page_size, total=result.filtered_total
         )
         if normalized_page != result.page:
-            kwargs["page"] = normalized_page
-            result = self._resource_capability_reader.read_certifications_page(**kwargs)
+            result = _read_page(normalized_page)
         return result
 
 __all__ = ["ResourceCapabilityQueryHandler"]

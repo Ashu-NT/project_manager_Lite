@@ -17,10 +17,6 @@ from src.core.modules.project_management.api.desktop.resources.models.certificat
 from src.core.modules.project_management.api.desktop.resources.models.context import (
     ResourceActivityDesktopDto,
     ResourceActivityPageDesktopDto,
-    ResourceAssignmentDesktopDto,
-    ResourceAssignmentsPageDesktopDto,
-    ResourceProjectDesktopDto,
-    ResourceProjectsPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
@@ -63,8 +59,6 @@ __all__ = [
     "ResourceActivityPageDesktopDto",
     "ResourceAddCertificationCommand",
     "ResourceAddSkillCommand",
-    "ResourceAssignmentDesktopDto",
-    "ResourceAssignmentsPageDesktopDto",
     "ResourceAvailabilityDayDto",
     "ResourceAvailabilityDto",
     "ResourceCatalogItemDesktopDto",
@@ -78,8 +72,6 @@ __all__ = [
     "ResourceInspectorDesktopDto",
     "ResourceKindDescriptor",
     "ResourceLifecycleCommand",
-    "ResourceProjectDesktopDto",
-    "ResourceProjectsPageDesktopDto",
     "ResourcePurgeCommand",
     "ResourceRemoveCertificationCommand",
     "ResourceRemoveSkillCommand",

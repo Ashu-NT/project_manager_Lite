@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+import src.core.platform.application.security.identity.mappers.identity as response_mapper
 from src.core.platform.application.security.auth import UserRegistrationHandler
 from src.core.platform.application.security.auth.session.principal_builder import (
     PrincipalBuilder,
@@ -20,6 +21,11 @@ from src.core.platform.application.security.identity.credential_policy import (
 from src.core.platform.application.security.identity.dto.commands.service_principals import (
     ApiKeyIssueCommand,
     ServicePrincipalCreateCommand,
+)
+from src.core.platform.application.security.identity.dto.responses.identity import (
+    ApiKeyCredentialDto,
+    IssuedApiKeyDto,
+    ServicePrincipalDto,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
@@ -77,7 +83,7 @@ class ServicePrincipalCommandHandler:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
-    def create_service_principal(self, command: ServicePrincipalCreateCommand) -> ServicePrincipal:
+    def create_service_principal(self, command: ServicePrincipalCreateCommand) -> ServicePrincipalDto:
         name = command.name
         description = command.description
         initial_role_name = command.initial_role_name
@@ -125,13 +131,13 @@ class ServicePrincipalCommandHandler:
         except Exception:
             self._session.rollback()
             raise
-        return principal
+        return response_mapper.serialize_principal(principal)
 
-    def disable_service_principal(self, principal_id: str) -> ServicePrincipal:
+    def disable_service_principal(self, principal_id: str) -> ServicePrincipalDto:
         self._require_admin("disable a service principal")
         principal = self._require_principal(principal_id)
         if principal.status == SERVICE_PRINCIPAL_STATUS_DISABLED:
-            return principal
+            return response_mapper.serialize_principal(principal)
         actor = self._require_actor()
         now = datetime.now(UTC)
         principal.status = SERVICE_PRINCIPAL_STATUS_DISABLED
@@ -163,9 +169,9 @@ class ServicePrincipalCommandHandler:
         except Exception:
             self._session.rollback()
             raise
-        return principal
+        return response_mapper.serialize_principal(principal)
 
-    def issue_api_key(self, command: ApiKeyIssueCommand) -> IssuedApiKey:
+    def issue_api_key(self, command: ApiKeyIssueCommand) -> IssuedApiKeyDto:
         principal_id = command.service_principal_id
         name = command.name
         permission_scopes = command.permission_scopes
@@ -204,14 +210,14 @@ class ServicePrincipalCommandHandler:
         except Exception:
             self._session.rollback()
             raise
-        return issued
+        return response_mapper.serialize_issued(issued)
 
     def rotate_api_key(
         self,
         credential_id: str,
         *,
         expires_in_days: int = 90,
-    ) -> IssuedApiKey:
+    ) -> IssuedApiKeyDto:
         self._require_admin("rotate a service-principal API key")
         current = self._require_credential(credential_id)
         principal = self._require_active_principal(current.service_principal_id)
@@ -247,13 +253,13 @@ class ServicePrincipalCommandHandler:
         except Exception:
             self._session.rollback()
             raise
-        return issued
+        return response_mapper.serialize_issued(issued)
 
-    def revoke_api_key(self, credential_id: str) -> ApiKeyCredential:
+    def revoke_api_key(self, credential_id: str) -> ApiKeyCredentialDto:
         self._require_admin("revoke a service-principal API key")
         credential = self._require_credential(credential_id)
         if credential.revoked_at is not None:
-            return credential
+            return response_mapper.serialize_credential(credential)
         principal = self._require_principal(credential.service_principal_id)
         actor = self._require_actor()
         credential.revoked_at = datetime.now(UTC)
@@ -271,7 +277,7 @@ class ServicePrincipalCommandHandler:
         except Exception:
             self._session.rollback()
             raise
-        return credential
+        return response_mapper.serialize_credential(credential)
 
     def _build_api_key(
         self,

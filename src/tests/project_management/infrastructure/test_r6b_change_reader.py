@@ -12,6 +12,9 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.contracts.reads.financials.financial_changes.models.change_facts import (
     FinancialChangeImpactQuery,
     FinancialChangeRequestQuery,
@@ -45,9 +48,7 @@ def _statement_count(session):
 
 
 def _seed_changes(services):
-    project = services['project_create'].create_project(
-        "R6B Change Reader", financial_currency_code="USD"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Change Reader", financial_currency_code="USD"))
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="R6B-CHANGE", name="Governed change"
     ))
@@ -270,9 +271,7 @@ def test_selected_change_detail_and_typed_impacts_are_bounded(services):
 
 def test_change_reader_denies_wrong_parent_scope_and_serializes_decimal_as_text(services):
     project, _code, _task, alpha, _zulu, budget, *_ = _seed_changes(services)
-    other_project = services['project_create'].create_project(
-        "R6B Other Project", financial_currency_code="USD"
-    )
+    other_project = services['project_create'].create_project(ProjectCreateCommand(name="R6B Other Project", financial_currency_code="USD"))
     query = services["finance_workspace_query"]
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="test change scope"

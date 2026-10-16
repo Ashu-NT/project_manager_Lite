@@ -11,6 +11,9 @@ from src.core.modules.project_management.api.desktop.financials import (
 from src.core.modules.project_management.application.financials.configuration.queries import (
     ConfigurationWorkspaceQueries,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 
 
 @contextmanager
@@ -28,10 +31,7 @@ def _statement_count(session):
 
 
 def test_setup_reader_returns_one_scoped_immutable_projection(services) -> None:
-    project = services["project_create"].create_project(
-        "R6B Finance Setup",
-        financial_currency_code="XAF",
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B Finance Setup", financial_currency_code="XAF"))
     configuration = services["financial_configuration_query"]
     boundary = services["finance_governance_commands"]
     cost_code = boundary.cost_code(
@@ -72,10 +72,7 @@ def test_setup_reader_returns_one_scoped_immutable_projection(services) -> None:
 def test_setup_reader_denies_explicit_wrong_scope_and_desktop_serializes(
     services,
 ) -> None:
-    project = services["project_create"].create_project(
-        "R6B Finance Setup Scope",
-        financial_currency_code="USD",
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B Finance Setup Scope", financial_currency_code="USD"))
     scope = services["tenant_context_service"].require_active_scope_ids(
         operation_label="test Finance Setup scope"
     )

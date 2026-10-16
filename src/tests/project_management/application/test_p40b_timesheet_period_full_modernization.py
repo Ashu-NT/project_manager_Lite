@@ -4,6 +4,12 @@ from datetime import UTC, date, datetime
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.platform.application.time_management.time.event_handlers.view_invalidation import (
     TIMESHEET_CATEGORY,
     TIMESHEET_PROJECT_SCOPE_CODE,
@@ -133,12 +139,8 @@ def _timesheet_hints(hints):
 
 def _setup(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "P40B Timesheet project", financial_currency_code=organization.base_currency
-    )
-    resource = services["resource_master_commands"].create_resource(
-        "P40B Timesheet Engineer", hourly_rate=0, currency_code=organization.base_currency
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P40B Timesheet project", financial_currency_code=organization.base_currency))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="P40B Timesheet Engineer", hourly_rate=0, currency_code=organization.base_currency))
     task = services['task_lifecycle_commands'].create_task(
         project.id, "P40B Timesheet Task", start_date=date(2026, 6, 1), duration_days=10
     )

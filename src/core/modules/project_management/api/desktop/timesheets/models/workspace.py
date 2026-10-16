@@ -5,31 +5,6 @@ from datetime import date
 
 
 @dataclass(frozen=True, slots=True)
-class TimesheetWorkspaceAccessDesktopDto:
-    available_scopes: tuple[str, ...]
-    default_scope: str
-    mine_resource_id: str = ""
-    mine_resource_name: str = ""
-
-
-@dataclass(frozen=True, slots=True)
-class TimesheetResourceDesktopDto:
-    resource_id: str
-    resource_name: str
-    resource_code: str
-    kind: str
-    worker_type: str
-
-
-@dataclass(frozen=True, slots=True)
-class TimesheetResourcePageDesktopDto:
-    items: tuple[TimesheetResourceDesktopDto, ...] = ()
-    total: int = 0
-    page: int = 1
-    page_size: int = 20
-
-
-@dataclass(frozen=True, slots=True)
 class ResourceTimesheetPeriodDesktopDto:
     period_id: str
     resource_id: str
@@ -99,12 +74,4 @@ class ResourceTimesheetHistoryPageDesktopDto:
     page_size: int = 12
 
 
-__all__ = [
-    "ResourceTimesheetEntryDesktopDto",
-    "ResourceTimesheetEntryPageDesktopDto",
-    "ResourceTimesheetHistoryPageDesktopDto",
-    "ResourceTimesheetPeriodDesktopDto",
-    "TimesheetResourceDesktopDto",
-    "TimesheetResourcePageDesktopDto",
-    "TimesheetWorkspaceAccessDesktopDto",
-]
+__all__ = ['ResourceTimesheetEntryDesktopDto', 'ResourceTimesheetEntryPageDesktopDto', 'ResourceTimesheetHistoryPageDesktopDto', 'ResourceTimesheetPeriodDesktopDto']

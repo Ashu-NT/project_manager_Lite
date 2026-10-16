@@ -64,6 +64,7 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
+    ValidationError,
 )
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
@@ -105,6 +106,15 @@ class ApprovedForecastChangeAuthority(Protocol):
 
 
 class FinancialChangeAccessPolicy(ProjectManagementModuleGuardMixin):
+    def _command_actor_id(self) -> str:
+        actor_id = self.current_actor_user_id
+        if not actor_id:
+            raise ValidationError(
+                "An authenticated actor is required for Financial Change commands.",
+                code="FINANCIAL_CHANGE_ACTOR_REQUIRED",
+            )
+        return str(actor_id)
+
     """Authorization and scoped repository access for explicitly injected handlers."""
 
     _change_repo: FinancialChangeRepository

@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import pytest
 
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+    ResourceUpdateCommand,
+)
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.common.exceptions import ValidationError
@@ -64,32 +68,9 @@ def test_resource_dto_rejects_invalid_local_fields():
 
 
 def test_resource_service_update_validates_final_state_and_persists_code(services):
-    resource = services["resource_master_commands"].create_resource(
-        "Electrical Crew",
-        role="Lead",
-        hourly_rate=95.0,
-        currency_code="eur",
-        capacity_percent=110.0,
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Electrical Crew", role="Lead", hourly_rate=95.0, currency_code="eur", capacity_percent=110.0))
 
-    updated = services["resource_master_commands"].update_resource(
-        resource_id=resource.id,
-        expected_version=resource.version,
-        name="  Electrical Crew A  ",
-        role="  Field Supervisor  ",
-        kind=resource.kind,
-        hourly_rate=resource.hourly_rate,
-        cost_type=resource.cost_type,
-        currency_code="usd",
-        capacity_percent=resource.capacity_percent,
-        address=resource.address,
-        contact=resource.contact,
-        worker_type=resource.worker_type,
-        employee_id=resource.employee_id,
-        department_id=resource.department_id,
-        site_id=resource.site_id,
-        code="RES-REN-1",
-    )
+    updated = services["resource_master_commands"].update_resource(ResourceUpdateCommand(resource_id=resource.id, expected_version=resource.version, name="  Electrical Crew A  ", role="  Field Supervisor  ", kind=resource.kind, hourly_rate=resource.hourly_rate, cost_type=resource.cost_type, currency_code="usd", capacity_percent=resource.capacity_percent, address=resource.address, contact=resource.contact, worker_type=resource.worker_type, employee_id=resource.employee_id, department_id=resource.department_id, site_id=resource.site_id, code="RES-REN-1"))
 
     assert updated.name == "Electrical Crew A"
     assert updated.role == "Field Supervisor"

@@ -27,6 +27,9 @@ from src.core.modules.project_management.application.financials.configuration.ev
     ProjectFinancialProfileTransitioned,
     ProjectFinancialProfileUpdated,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.configuration import (
     BudgetControlMode,
     CostCodePolicy,
@@ -88,9 +91,7 @@ def _spy_events(services, *event_types):
 
 
 def _seed_project(services):
-    project = services["project_create"].create_project(
-        _unique("P21 Finance Project"), financial_currency_code="USD"
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name=_unique("P21 Finance Project"), financial_currency_code="USD"))
     return project
 
 

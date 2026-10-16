@@ -52,18 +52,8 @@ class FinancialForecastWorkspaceDto:
     generate_disabled_reason: str = ""
 
 
-@dataclass(frozen=True, slots=True)
-class FinancialForecastMutationDto:
-    forecast_id: str
-    project_id: str
-    status: str
-    row_version: int
-    approval_request_id: str = ""
-
-
 __all__ = [
     "FinancialForecastDetailDto",
-    "FinancialForecastMutationDto",
     "FinancialForecastTableRecordDto",
     "FinancialForecastWorkspaceDto",
 ]

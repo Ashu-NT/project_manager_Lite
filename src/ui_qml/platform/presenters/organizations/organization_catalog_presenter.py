@@ -9,9 +9,6 @@ from src.core.platform.api.desktop.history.activity.activity import (
 from src.core.platform.api.desktop.history.activity.models.activity import (
     ActivityEntryDto,
 )
-from src.core.platform.api.desktop.master_data.org.models.organization import (
-    OrganizationDto,
-)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.platform_runtime.runtime import (
     PlatformRuntimeDesktopApi,
@@ -19,6 +16,9 @@ from src.core.platform.api.desktop.platform_runtime.runtime import (
 from src.core.platform.application.master_data.org.dto.commands.org import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
+)
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
 )
 from src.core.platform.domain.master_data.org import (
     ORGANIZATION_STATUS_ACTIVE,

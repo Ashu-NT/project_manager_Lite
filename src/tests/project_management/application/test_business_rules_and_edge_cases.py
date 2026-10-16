@@ -3,6 +3,12 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineCreateCommand,
 )
@@ -19,7 +25,7 @@ from src.core.platform.common.exceptions import (
 
 def test_task_name_validation_rules(services):
 
-    project = services['project_create'].create_project("Task Name Rules", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Task Name Rules", description=""))
     pid = project.id
 
     with pytest.raises(ValidationError) as exc_short:
@@ -37,12 +43,7 @@ def test_task_name_validation_rules(services):
 
 def test_task_dates_must_fit_project_window(services):
 
-    project = services['project_create'].create_project(
-        "Project Date Window",
-        "",
-        start_date=date(2023, 11, 10),
-        end_date=date(2023, 11, 20),
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Project Date Window", description="", start_date=date(2023, 11, 10), end_date=date(2023, 11, 20)))
     pid = project.id
 
     with pytest.raises(ValidationError) as exc_before:
@@ -61,8 +62,8 @@ def test_task_dates_must_fit_project_window(services):
 
 def test_dependency_cross_project_and_duplicate_rules(services):
 
-    p1 = services['project_create'].create_project("Deps P1", "")
-    p2 = services['project_create'].create_project("Deps P2", "")
+    p1 = services['project_create'].create_project(ProjectCreateCommand(name="Deps P1", description=""))
+    p2 = services['project_create'].create_project(ProjectCreateCommand(name="Deps P2", description=""))
 
     a = services['task_lifecycle_commands'].create_task(p1.id, "Alpha", start_date=date(2023, 11, 6), duration_days=1)
     b = services['task_lifecycle_commands'].create_task(p1.id, "Bravo", duration_days=1)
@@ -80,14 +81,12 @@ def test_dependency_cross_project_and_duplicate_rules(services):
 
 
 def test_assignment_allocation_and_resource_validation(services):
-    project = services['project_create'].create_project("Assign Rules", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Assign Rules", description=""))
     pid = project.id
     task = services['task_lifecycle_commands'].create_task(
         pid, "Assignable Task", start_date=date(2023, 11, 6), duration_days=2
     )
-    resource = services["resource_master_commands"].create_resource(
-        "Assignable Dev", "Developer", hourly_rate=100.0
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Assignable Dev", role="Developer", hourly_rate=100.0))
 
     with pytest.raises(ValidationError):
         services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=0.0)
@@ -122,16 +121,11 @@ def test_work_calendar_next_and_negative_day_math(services):
 
 def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services):
     services['baseline_query']
-    no_task_project = services['project_create'].create_project("No Tasks Baseline", "")
+    no_task_project = services['project_create'].create_project(ProjectCreateCommand(name="No Tasks Baseline", description=""))
     with pytest.raises(ValidationError):
         services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(no_task_project.id, "BL-Empty", rate_as_of=date.today()))
 
-    budget_project = services['project_create'].create_project(
-        "Uncosted Baseline",
-        "",
-        start_date=date(2023, 11, 6),
-        end_date=date(2023, 11, 20),
-    )
+    budget_project = services['project_create'].create_project(ProjectCreateCommand(name="Uncosted Baseline", description="", start_date=date(2023, 11, 6), end_date=date(2023, 11, 20)))
     pid = budget_project.id
     services['task_lifecycle_commands'].create_task(pid, "Budgeted Task", start_date=date(2023, 11, 6), duration_days=3)
     baseline = services['baseline_commands'].create_baseline(SchedulingBaselineCreateCommand(pid, "BL-Budget", rate_as_of=date.today()))
@@ -144,7 +138,7 @@ def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services
 
 
 def test_reporting_earned_value_reports_unavailable_without_baseline(services):
-    project = services['project_create'].create_project("No Baseline EVM", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="No Baseline EVM", description=""))
     pid = project.id
     services['task_lifecycle_commands'].create_task(pid, "Any Task", start_date=date(2023, 11, 6), duration_days=1)
 
@@ -154,7 +148,7 @@ def test_reporting_earned_value_reports_unavailable_without_baseline(services):
 
 
 def test_dashboard_returns_none_evm_without_baseline(services):
-    project = services['project_create'].create_project("Dashboard No Baseline", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Dashboard No Baseline", description=""))
     pid = project.id
     services['task_lifecycle_commands'].create_task(pid, "Dash Task", start_date=date(2023, 11, 6), duration_days=2)
 
@@ -163,17 +157,13 @@ def test_dashboard_returns_none_evm_without_baseline(services):
 
 
 def test_resource_load_summary_sorted_descending(services):
-    project = services['project_create'].create_project("Resource Load Sort", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Resource Load Sort", description=""))
     pid = project.id
     t1 = services['task_lifecycle_commands'].create_task(pid, "Task One", start_date=date(2023, 11, 6), duration_days=2)
     t2 = services['task_lifecycle_commands'].create_task(pid, "Task Two", start_date=date(2023, 11, 6), duration_days=2)
 
-    r1 = services["resource_master_commands"].create_resource(
-        "Res One", "Dev", hourly_rate=100.0
-    )
-    r2 = services["resource_master_commands"].create_resource(
-        "Res Two", "QA", hourly_rate=100.0
-    )
+    r1 = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Res One", role="Dev", hourly_rate=100.0))
+    r2 = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Res Two", role="QA", hourly_rate=100.0))
 
     services['task_assignment_commands'].assign_resource(t1.id, r1.id, allocation_percent=20.0)
     services['task_assignment_commands'].assign_resource(t2.id, r2.id, allocation_percent=80.0)
@@ -185,7 +175,7 @@ def test_resource_load_summary_sorted_descending(services):
 
 def test_dependency_diagnostics_flags_duplicates(services):
 
-    project = services['project_create'].create_project("Dependency Diagnostics", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Diagnostics", description=""))
     t1 = services['task_lifecycle_commands'].create_task(
         project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1
     )
@@ -205,7 +195,7 @@ def test_dependency_diagnostics_flags_duplicates(services):
 
 def test_dependency_diagnostics_cycle_includes_path_names(services):
 
-    project = services['project_create'].create_project("Cycle Detail", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Cycle Detail", description=""))
     task_a = services['task_lifecycle_commands'].create_task(
         project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1
     )
@@ -228,7 +218,7 @@ def test_dependency_diagnostics_cycle_includes_path_names(services):
 
 def test_dependency_diagnostics_reports_schedule_impact(services):
 
-    project = services['project_create'].create_project("Impact Preview", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Impact Preview", description=""))
     task_a = services['task_lifecycle_commands'].create_task(
         project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2
     )
@@ -253,7 +243,7 @@ def test_dependency_diagnostics_reports_schedule_impact(services):
 
 def test_dependency_diagnostics_no_shift_reports_none_risk(services):
 
-    project = services['project_create'].create_project("No Shift Preview", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="No Shift Preview", description=""))
     pred = services['task_lifecycle_commands'].create_task(
         project.id, "Task P", start_date=date(2023, 11, 6), duration_days=2
     )
@@ -274,7 +264,7 @@ def test_dependency_diagnostics_no_shift_reports_none_risk(services):
 
 def test_add_dependency_uses_diagnostics_for_cycle_rule(services):
 
-    project = services['project_create'].create_project("Cycle Enforcement", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Cycle Enforcement", description=""))
     t1 = services['task_lifecycle_commands'].create_task(
         project.id, "Task 1", start_date=date(2023, 11, 6), duration_days=1
     )

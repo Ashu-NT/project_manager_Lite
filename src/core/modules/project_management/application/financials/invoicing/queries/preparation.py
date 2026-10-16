@@ -6,6 +6,12 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.invoicing.dto.responses.billing import (
+    FinancialBillingPreparationResponse,
+)
+from src.core.modules.project_management.application.financials.invoicing.mappers.billing import (
+    map_billing_preparation,
+)
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
     ProjectBillingRepository,
 )
@@ -28,10 +34,10 @@ class ProjectBillingPreparationQueryHandler(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def get_preparation(self, preparation_id: str) -> ProjectBillingPreparation:
+    def get_preparation(self, preparation_id: str) -> FinancialBillingPreparationResponse:
         preparation = self._require_preparation(preparation_id)
         self._require(preparation.project_id, "finance.read", "view billing preparation")
-        return preparation
+        return map_billing_preparation(preparation)
 
     def list_preparations(
         self, project_id: str, *, offset: int = 0, limit: int = 50

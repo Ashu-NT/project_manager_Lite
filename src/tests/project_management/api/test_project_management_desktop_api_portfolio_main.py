@@ -18,6 +18,10 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scen
 from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
     PortfolioTemplateCreateCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
 from src.core.modules.project_management.domain.enums import (
     ProjectStatus,
 )
@@ -31,18 +35,10 @@ from src.tests.project_management.api.test_project_management_desktop_api_portfo
 
 def test_project_management_portfolio_desktop_api_mutates_portfolio_records() -> None:
     project_service = _FakeProjectService()
-    project_alpha = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-        financial_currency_code="eur",
-    )
-    project_beta = project_service.create_project(
-        name="Warehouse Retrofit",
-        description="Upgrade lighting and controls.",
-        financial_currency_code="eur",
-    )
-    project_service.update_project(project_alpha.id, status=ProjectStatus.ACTIVE)
-    project_service.update_project(project_beta.id, status=ProjectStatus.ON_HOLD)
+    project_alpha = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line.", financial_currency_code="eur"))
+    project_beta = project_service.create_project(ProjectCreateCommand(name="Warehouse Retrofit", description="Upgrade lighting and controls.", financial_currency_code="eur"))
+    project_service.update_project(ProjectUpdateCommand(project_id=project_alpha.id, status=ProjectStatus.ACTIVE))
+    project_service.update_project(ProjectUpdateCommand(project_id=project_beta.id, status=ProjectStatus.ON_HOLD))
     portfolio_service = _FakePortfolioService(project_service)
     api = build_project_management_portfolio_desktop_api(
         project_service=project_service,

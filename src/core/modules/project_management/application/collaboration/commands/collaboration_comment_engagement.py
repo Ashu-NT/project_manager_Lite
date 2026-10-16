@@ -13,6 +13,12 @@ from src.core.modules.project_management.application.collaboration.collaboration
 from src.core.modules.project_management.application.collaboration.dto.commands.comment_reactions import (
     TaskCollaborationReactionCommand,
 )
+from src.core.modules.project_management.application.collaboration.dto.responses.comments import (
+    TaskCommentResponseDto,
+)
+from src.core.modules.project_management.application.collaboration.mappers.comments import (
+    map_comment,
+)
 from src.core.modules.project_management.application.collaboration.utils.visibility import (
     CollaborationVisibilityPolicy,
     new_collaboration_context,
@@ -99,12 +105,11 @@ class CollaborationCommentEngagementHandler(ProjectManagementModuleGuardMixin):
             )
         return principal_user_id
 
-    def react_to_comment(self, command: TaskCollaborationReactionCommand) -> TaskComment:
+    def react_to_comment(self, command: TaskCollaborationReactionCommand) -> TaskCommentResponseDto:
         comment_id = command.comment_id.strip()
-        emoji = command.emoji
         comment, task = self._require_comment_for_reaction(comment_id)
         principal_user_id = self._principal_user_id_for_reaction()
-        emoji_key = normalize_optional_text(emoji)
+        emoji_key = normalize_optional_text(command.emoji)
         if not emoji_key:
             raise ValidationError(
                 "Reaction emoji is required.",
@@ -113,7 +118,7 @@ class CollaborationCommentEngagementHandler(ProjectManagementModuleGuardMixin):
         reactions = {key: list(value) for key, value in comment.reactions.items()}
         reactors = set(reactions.get(emoji_key, []))
         if principal_user_id in reactors:
-            return comment
+            return map_comment(comment, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or ""))
         reactors.add(principal_user_id)
         reactions[emoji_key] = sorted(reactors)
         comment.reactions = reactions
@@ -134,14 +139,13 @@ class CollaborationCommentEngagementHandler(ProjectManagementModuleGuardMixin):
                 )
             )
             uow.commit()
-        return comment
+        return map_comment(comment, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or ""))
 
-    def remove_reaction(self, command: TaskCollaborationReactionCommand) -> TaskComment:
+    def remove_reaction(self, command: TaskCollaborationReactionCommand) -> TaskCommentResponseDto:
         comment_id = command.comment_id.strip()
-        emoji = command.emoji
         comment, task = self._require_comment_for_reaction(comment_id)
         principal_user_id = self._principal_user_id_for_reaction()
-        emoji_key = normalize_optional_text(emoji)
+        emoji_key = normalize_optional_text(command.emoji)
         if not emoji_key:
             raise ValidationError(
                 "Reaction emoji is required.",
@@ -150,7 +154,7 @@ class CollaborationCommentEngagementHandler(ProjectManagementModuleGuardMixin):
         reactions = {key: list(value) for key, value in comment.reactions.items()}
         reactors = set(reactions.get(emoji_key, []))
         if principal_user_id not in reactors:
-            return comment
+            return map_comment(comment, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or ""))
         reactors.discard(principal_user_id)
         if reactors:
             reactions[emoji_key] = sorted(reactors)
@@ -174,7 +178,7 @@ class CollaborationCommentEngagementHandler(ProjectManagementModuleGuardMixin):
                 )
             )
             uow.commit()
-        return comment
+        return map_comment(comment, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or ""))
 
     def mark_task_mentions_read(self, task_id: str) -> None:
         task = self._policy.require_task(task_id)

@@ -99,6 +99,9 @@ from src.core.modules.project_management.application.scheduling.baselines.comman
 from src.core.modules.project_management.application.scheduling.baselines.queries.catalog import (
     BaselineQueryHandler,
 )
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    ProjectCalendarAdapter,
+)
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
@@ -217,6 +220,7 @@ class ProjectManagementDesktopRuntimeServices:
     assignment_skill_validator: AssignmentSkillValidator | None
     scheduling_engine: SchedulingEngine | None
     work_calendar_engine: CalendarProtocol | None
+    project_calendar_adapter: ProjectCalendarAdapter | None
     project_dashboard_query: ProjectDashboardQueryHandler | None
     portfolio_dashboard_query: PortfolioDashboardQueryHandler | None
     finance_snapshot_query: FinanceSnapshotQueryHandler | None
@@ -407,6 +411,7 @@ def resolve_project_management_desktop_runtime_services(
             else None
         ),
         work_calendar_engine=cast(CalendarProtocol | None, work_calendar_engine),
+        project_calendar_adapter=_resolve(services, "project_calendar_adapter", ProjectCalendarAdapter),
         project_dashboard_query=_resolve(services, "project_dashboard_query", ProjectDashboardQueryHandler),
         portfolio_dashboard_query=_resolve(
             services, "portfolio_dashboard_query", PortfolioDashboardQueryHandler

@@ -1,7 +1,11 @@
+
 from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
     SqlAlchemyTaskRepository,
@@ -10,7 +14,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 
 def test_task_progress_and_status_transitions(services):
 
-    project = services['project_create'].create_project("Progress Test", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Progress Test", description=""))
     pid = project.id
 
     t = services['task_lifecycle_commands'].create_task(pid, "Task P", start_date=date(2023, 11, 6), duration_days=2)
@@ -28,7 +32,7 @@ def test_task_progress_and_status_transitions(services):
 
 def test_task_progress_accepts_explicit_status_updates(services):
 
-    project = services['project_create'].create_project("Progress Status Override", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Progress Status Override", description=""))
     pid = project.id
     t = services['task_lifecycle_commands'].create_task(pid, "Task S", start_date=date(2023, 11, 6), duration_days=2)
 
@@ -42,7 +46,7 @@ def test_task_progress_accepts_explicit_status_updates(services):
 
 def test_set_status_updates_percent_complete_defaults(services):
 
-    project = services['project_create'].create_project("Status Defaults", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Status Defaults", description=""))
     pid = project.id
     task = services['task_lifecycle_commands'].create_task(pid, "Task Defaults", start_date=date(2023, 11, 6), duration_days=2)
 
@@ -61,7 +65,7 @@ def test_set_status_updates_percent_complete_defaults(services):
 
 
 def test_bulk_status_failure_rolls_back_all_tasks(services, monkeypatch):
-    project = services['project_create'].create_project("Bulk status rollback")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Bulk status rollback"))
     first = services['task_lifecycle_commands'].create_task(project.id, "First")
     second = services['task_lifecycle_commands'].create_task(project.id, "Second")
     original_update = SqlAlchemyTaskRepository.update

@@ -23,7 +23,11 @@ from src.core.modules.project_management.api.desktop.resources.factories.resourc
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
     ProjectResourceUpdateCommand,
 )
 from src.core.modules.project_management.application.resources.capacity.queries.availability import (
@@ -31,6 +35,10 @@ from src.core.modules.project_management.application.resources.capacity.queries.
 )
 from src.core.modules.project_management.application.resources.capacity.queries.workload import (
     ResourceWorkloadQueryHandler,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+    ResourceLifecycleCommand,
 )
 from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
@@ -48,11 +56,9 @@ def _setup_project_resource(services, *, planned_hours: float = 40.0):
     ts = services['task_lookup_query']
     rs = services["resource_query"]
     prs = services["project_resource_query"]
-    project = services['project_create'].create_project("Capacity Upgrade Project")
-    resource = services["resource_master_commands"].create_resource("Capacity Upgrade Resource", hourly_rate=70.0)
-    project_resource = services["project_resource_commands"].add_to_project(
-        project.id, resource.id, hourly_rate=70.0, currency_code="USD", planned_hours=planned_hours
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Capacity Upgrade Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Capacity Upgrade Resource", hourly_rate=70.0))
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, hourly_rate=70.0, currency_code="USD", planned_hours=planned_hours))
     task = services['task_lifecycle_commands'].create_task(project.id, "Capacity Upgrade Task")
     return ps, ts, rs, prs, project, resource, project_resource, task
 
@@ -65,14 +71,7 @@ def _setup_project_resource(services, *, planned_hours: float = 40.0):
 def test_project_resource_update_with_expected_version_succeeds(services):
     _, _, _, prs, project, resource, project_resource, _ = _setup_project_resource(services)
 
-    services["project_resource_commands"].update(
-        project_resource.id,
-        hourly_rate=project_resource.hourly_rate,
-        currency_code=project_resource.currency_code,
-        planned_hours=Decimal(60),
-        is_active=True,
-        expected_version=project_resource.version,
-    )
+    services["project_resource_commands"].update(ProjectResourceUpdateCommand(project_resource_id=project_resource.id, hourly_rate=project_resource.hourly_rate, currency_code=project_resource.currency_code, planned_hours=Decimal(60), is_active=True, expected_version=project_resource.version))
 
     updated = prs.get(project_resource.id)
     assert updated.planned_hours == Decimal(60)
@@ -82,24 +81,10 @@ def test_project_resource_update_with_expected_version_succeeds(services):
 def test_project_resource_update_stale_version_raises_concurrency_error(services):
     _, _, _, prs, project, resource, project_resource, _ = _setup_project_resource(services)
 
-    services["project_resource_commands"].update(
-        project_resource.id,
-        hourly_rate=project_resource.hourly_rate,
-        currency_code=project_resource.currency_code,
-        planned_hours=Decimal(50),
-        is_active=True,
-        expected_version=project_resource.version,
-    )
+    services["project_resource_commands"].update(ProjectResourceUpdateCommand(project_resource_id=project_resource.id, hourly_rate=project_resource.hourly_rate, currency_code=project_resource.currency_code, planned_hours=Decimal(50), is_active=True, expected_version=project_resource.version))
 
     with pytest.raises(ConcurrencyError) as exc:
-        services["project_resource_commands"].update(
-            project_resource.id,
-            hourly_rate=project_resource.hourly_rate,
-            currency_code=project_resource.currency_code,
-            planned_hours=Decimal(55),
-            is_active=True,
-            expected_version=project_resource.version,  # now stale
-        )
+        services["project_resource_commands"].update(ProjectResourceUpdateCommand(project_resource_id=project_resource.id, hourly_rate=project_resource.hourly_rate, currency_code=project_resource.currency_code, planned_hours=Decimal(55), is_active=True, expected_version=project_resource.version))
     assert exc.value.code == "STALE_WRITE"
 
 
@@ -108,13 +93,7 @@ def test_project_resource_update_without_expected_version_still_works(services):
     expected_version keep the plain-update behaviour."""
     _, _, _, prs, project, resource, project_resource, _ = _setup_project_resource(services)
 
-    services["project_resource_commands"].update(
-        project_resource.id,
-        hourly_rate=project_resource.hourly_rate,
-        currency_code=project_resource.currency_code,
-        planned_hours=Decimal(45),
-        is_active=True,
-    )
+    services["project_resource_commands"].update(ProjectResourceUpdateCommand(project_resource_id=project_resource.id, hourly_rate=project_resource.hourly_rate, currency_code=project_resource.currency_code, planned_hours=Decimal(45), is_active=True))
 
     assert prs.get(project_resource.id).planned_hours == Decimal(45)
 
@@ -256,8 +235,8 @@ def _overlapping_overallocation_setup(services):
     ps = services['project_query']
     ts = services['task_lookup_query']
     rs = services["resource_query"]
-    project = services['project_create'].create_project("Overallocation Policy Project")
-    resource = services["resource_master_commands"].create_resource("Overallocation Policy Resource", hourly_rate=60.0)
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Overallocation Policy Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Overallocation Policy Resource", hourly_rate=60.0))
     task_a = services['task_lifecycle_commands'].create_task(
         project.id, "Overallocation Task A", start_date=date(2026, 7, 6), duration_days=5
     )
@@ -312,7 +291,7 @@ def test_overallocation_strict_policy_still_allows_non_conflicting_allocation(se
 
 def test_assign_project_resource_rejects_inactive_resource(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
-    services["resource_master_commands"].deactivate_resource(resource_id=resource.id, expected_version=resource.version)
+    services["resource_master_commands"].deactivate_resource(ResourceLifecycleCommand(resource_id=resource.id, expected_version=resource.version))
 
     with pytest.raises(BusinessRuleError) as exc:
         services['task_assignment_commands'].assign_project_resource(
@@ -357,7 +336,7 @@ def test_delete_project_resource_without_actuals_still_succeeds(services):
 
 def test_assign_resource_requires_project_resource_repository(services, monkeypatch):
     """A missing envelope repository cannot create an orphaned assignment."""
-    project = services['project_create'].create_project("Assignment Repository Guard", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Assignment Repository Guard", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Work")
     monkeypatch.setattr(services['task_assignment_commands'], "_project_resource_repo", None)
 
@@ -374,11 +353,11 @@ def test_assign_resource_requires_project_resource_repository(services, monkeypa
 def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
     access = services["access_service"]
 
-    project_alpha = services['project_create'].create_project("Time Scope Alpha")
-    project_beta = services['project_create'].create_project("Time Scope Beta")
+    project_alpha = services['project_create'].create_project(ProjectCreateCommand(name="Time Scope Alpha"))
+    project_beta = services['project_create'].create_project(ProjectCreateCommand(name="Time Scope Beta"))
     task_alpha = services['task_lifecycle_commands'].create_task(project_alpha.id, "Alpha Task")
     task_beta = services['task_lifecycle_commands'].create_task(project_beta.id, "Beta Task")
-    resource = services["resource_master_commands"].create_resource("Time Scope Resource", hourly_rate=90.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Time Scope Resource", hourly_rate=90.0))
     assignment_alpha = services['task_assignment_commands'].assign_resource(task_alpha.id, resource.id, allocation_percent=50.0)
     assignment_beta = services['task_assignment_commands'].assign_resource(task_beta.id, resource.id, allocation_percent=50.0)
 
@@ -435,9 +414,9 @@ def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_au
     rs = services["resource_query"]
     prs = services["project_resource_query"]
 
-    project = services['project_create'].create_project("Preview Wiring Project")
-    resource = services["resource_master_commands"].create_resource("Preview Wiring Resource", hourly_rate=80.0)
-    project_resource = services["project_resource_commands"].add_to_project(project.id, resource.id, planned_hours=1000.0)
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Preview Wiring Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Preview Wiring Resource", hourly_rate=80.0))
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, planned_hours=1000.0))
     task_a = services['task_lifecycle_commands'].create_task(
         project.id, "Preview Task A", start_date=window_start, duration_days=5
     )
@@ -483,8 +462,8 @@ def test_resource_availability_display_returns_real_data_not_none(services):
     implement the method being called on it."""
     rs = services["resource_query"]
 
-    project = services['project_create'].create_project("Availability Display Project")
-    resource = services["resource_master_commands"].create_resource("Availability Display Resource", hourly_rate=65.0)
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Availability Display Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Availability Display Resource", hourly_rate=65.0))
     window_start = date.today()
     window_end = window_start + timedelta(days=29)
     task = services['task_lifecycle_commands'].create_task(
@@ -548,8 +527,8 @@ def test_resource_workload_uses_bounded_reader_not_repository_wide_task_lookup(s
     )
 
 
-    project = services['project_create'].create_project("Availability Query Count Project")
-    resource = services["resource_master_commands"].create_resource("Availability Query Count Resource", hourly_rate=55.0)
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Availability Query Count Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Availability Query Count Resource", hourly_rate=55.0))
     window_start = date.today() + timedelta(days=1)
     for i in range(4):
         task = services['task_lifecycle_commands'].create_task(

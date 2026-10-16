@@ -7,6 +7,9 @@ import pytest
 from src.core.modules.project_management.application.collaboration.utils.visibility import (
     new_collaboration_context,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.collaboration import TaskPresence
 from src.core.platform.common.exceptions import ValidationError
 
@@ -63,7 +66,7 @@ def test_task_presence_dto_rejects_missing_identity_and_invalid_timestamps():
 
 def test_presence_handlers_use_presence_dto_normalization(services):
 
-    project = services['project_create'].create_project("Presence DTO Service Proof")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Presence DTO Service Proof"))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Presence Task",
@@ -85,7 +88,7 @@ def test_presence_handlers_use_presence_dto_normalization(services):
 
 def test_presence_username_change_keeps_one_user_identity(services):
     principal = services["user_session"].principal
-    project = services['project_create'].create_project("Stable presence identity")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Stable presence identity"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Presence rename")
 
     with services["collaboration_presence_commands"]._uow_factory.create(context=new_collaboration_context()) as uow:

@@ -19,7 +19,10 @@ from src.core.modules.project_management.api.desktop.resources.utils.resource_en
     coerce_cost_type,
     coerce_worker_type,
 )
-from src.core.modules.project_management.contracts.reads.resources import (
+from src.core.modules.project_management.application.resources.dto.responses.catalog import (
+    ResourceResponse,
+)
+from src.core.modules.project_management.contracts.reads.resources.models import (
     ResourceCatalogReadItem,
     ResourceInspectorFact,
     ResourceSummaryFact,
@@ -28,7 +31,7 @@ from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 def serialize_resource(
-    resource,
+    resource: ResourceResponse,
     *,
     employee_lookup: dict[str, ResourceEmployeeOptionDescriptor],
 ) -> ResourceDesktopDto:

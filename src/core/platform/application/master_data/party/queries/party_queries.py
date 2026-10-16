@@ -3,6 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+import src.core.platform.application.master_data.org.mappers.organization as organization_mapper
+import src.core.platform.application.master_data.party.mappers.party as response_mapper
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
+)
+from src.core.platform.application.master_data.party.dto.responses.party import (
+    PartyDto,
+    PartyPageDto,
+)
 from src.core.platform.application.master_data.party.party_context import (
     active_organization,
 )
@@ -24,7 +33,6 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
 from src.core.platform.contract.repositories.master_data.party.contracts import (
     PartyRepository,
 )
-from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.party import (
     Party,
     PartyRole,
@@ -68,10 +76,10 @@ class PartyQueryHandler:
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader
 
-    def list_parties(self, *, active_only: bool | None = None) -> list[Party]:
+    def list_parties(self, *, active_only: bool | None = None) -> list[PartyDto]:
         self._require_party_read_access("list parties")
         organization = active_organization(self._tenant_context_service)
-        return self._party_repo.list_for_organization(organization.id, active_only=active_only)
+        return [response_mapper.serialize_party(row) for row in (self._party_repo.list_for_organization(organization.id, active_only=active_only))]
 
     def get_party_rollup_summary(self) -> PartyRollupSummary:
         self._require_party_read_access("view party rollup summary")
@@ -141,7 +149,7 @@ class PartyQueryHandler:
         active_only: bool | None = None,
         party_type: PartyType | str | None = None,
         role: PartyRole | str | None = None,
-    ) -> PartyPage:
+    ) -> PartyPageDto:
         """Tenant-scoped (not ambient-active-organization-scoped) real
         SQL-level paginated/searchable read -- replaces search_parties()'s
         full-list-then-Python-filter approach for any real standalone
@@ -174,13 +182,13 @@ class PartyQueryHandler:
             party_type=resolved_type,
             role=resolved_role,
         )
-        return PartyPage(
+        return response_mapper.serialize_party_page(PartyPage(
             items=items,
             total=total,
             filtered_total=filtered_total,
             page=normalized_page,
             page_size=normalized_page_size,
-        )
+        ))
 
     def get_party(self, party_id: str) -> Party:
         self._require_party_read_access("view party")
@@ -195,9 +203,9 @@ class PartyQueryHandler:
         normalized_code = normalize_party_code(party_code)
         return self._party_repo.get_by_code(active_organization(self._tenant_context_service).id, normalized_code)
 
-    def get_context_organization(self) -> Organization:
+    def get_context_organization(self) -> OrganizationDto:
         self._require_party_read_access("view party context")
-        return active_organization(self._tenant_context_service)
+        return organization_mapper.serialize_organization_context(active_organization(self._tenant_context_service))
 
     def _require_party_read_access(self, operation_label: str) -> None:
         require_any_permission(

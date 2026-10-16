@@ -24,6 +24,9 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
     RateCardLineDeactivated,
     RateCardLineUpdated,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import (
     RateLineOrigin,
     RateType,
@@ -371,9 +374,7 @@ def _create_card_and_line(services, **card_kwargs):
 
 
 def _seed_project(services):
-    return services['project_create'].create_project(
-        _unique("P22 Rate Card Project"), financial_currency_code="USD"
-    )
+    return services['project_create'].create_project(ProjectCreateCommand(name=_unique("P22 Rate Card Project"), financial_currency_code="USD"))
 
 
 def test_create_rate_card_produces_exactly_one_list_hint(services):

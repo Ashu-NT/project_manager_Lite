@@ -10,6 +10,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryStatus,
 )
@@ -25,7 +28,7 @@ from src.infra.persistence.orm.base import Base
 
 
 def _make_project(services, name: str = "Cost Entry Project"):
-    return services['project_create'].create_project(name)
+    return services['project_create'].create_project(ProjectCreateCommand(name=name))
 
 
 def _login(services, username: str, password: str) -> None:

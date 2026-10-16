@@ -6,10 +6,12 @@ from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.exc import IntegrityError
 
+import src.core.platform.application.master_data.party.mappers.party as response_mapper
 from src.core.platform.application.master_data.party.dto.commands.party import (
     PartyCreateCommand,
     PartyUpdateCommand,
 )
+from src.core.platform.application.master_data.party.dto.responses.party import PartyDto
 from src.core.platform.application.master_data.party.party_context import (
     active_organization,
 )
@@ -78,7 +80,7 @@ class PartyCommandHandler:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
 
-    def create_party(self, command: PartyCreateCommand) -> Party:
+    def create_party(self, command: PartyCreateCommand) -> PartyDto:
         # No `is_active`/`status` parameter -- every new Party starts
         # ACTIVE (PartyLifecycleStatus's own default). Use
         # activate_party/deactivate_party afterward to change it.
@@ -153,9 +155,9 @@ class PartyCommandHandler:
                 raise ValidationError(
                     "Party code already exists in the active organization.", code="PARTY_CODE_EXISTS"
                 ) from exc
-        return party
+        return response_mapper.serialize_party(party)
 
-    def update_party(self, command: PartyUpdateCommand) -> Party:
+    def update_party(self, command: PartyUpdateCommand) -> PartyDto:
         # No `is_active`/`status` parameter here either -- lifecycle changes
         # only ever happen through activate_party/deactivate_party.
         require_permission(self._user_session, "party.manage", operation_label="update party")
@@ -219,7 +221,7 @@ class PartyCommandHandler:
                 or candidate.notes != party.notes
             )
             if not profile_changed:
-                return party
+                return response_mapper.serialize_party(party)
             candidate = replace(candidate, updated_at=datetime.now(UTC))
             if command.party_code is not None:
                 existing = uow.parties.get_by_code(organization.id, candidate.party_code)
@@ -267,7 +269,7 @@ class PartyCommandHandler:
                 raise ValidationError(
                     "Party code already exists in the active organization.", code="PARTY_CODE_EXISTS"
                 ) from exc
-        return candidate
+        return response_mapper.serialize_party(candidate)
 
 
     def _transition_party_status(
@@ -320,21 +322,21 @@ class PartyCommandHandler:
             uow.commit()
         return candidate
 
-    def activate_party(self, party_id: str) -> Party:
-        return self._transition_party_status(
+    def activate_party(self, party_id: str) -> PartyDto:
+        return response_mapper.serialize_party(self._transition_party_status(
             party_id, new_status=PartyLifecycleStatus.ACTIVE, action="party.activate"
-        )
+        ))
 
-    def deactivate_party(self, party_id: str) -> Party:
+    def deactivate_party(self, party_id: str) -> PartyDto:
         """Deactivation makes a Party unselectable for NEW operational links
         (a new Project client, a new Commitment supplier) -- it never cascades
         to existing PM references, Documents, or Activity history, all of
         which remain fully readable. Enforcing "not selectable for new links"
         is PM's own responsibility at the point of creating those new links,
         not something Party itself needs to guard here."""
-        return self._transition_party_status(
+        return response_mapper.serialize_party(self._transition_party_status(
             party_id, new_status=PartyLifecycleStatus.INACTIVE, action="party.deactivate"
-        )
+        ))
 
 
 def _require_valid_party_transition(party: Party, new_status: PartyLifecycleStatus) -> None:

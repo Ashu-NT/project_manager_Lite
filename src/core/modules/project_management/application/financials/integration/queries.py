@@ -7,8 +7,13 @@ from typing import TYPE_CHECKING
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
 )
+from src.core.modules.project_management.application.financials.integration.dto.responses.posting_failures import (
+    FinancialPostingFailurePageDto,
+)
+from src.core.modules.project_management.application.financials.integration.mappers.responses import (
+    map_posting_failures,
+)
 from src.core.modules.project_management.contracts.reads.financials.integration.models.integration_facts import (
-    ApprovedTimePostingFailurePage,
     ApprovedTimePostingFailureQuery,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -38,7 +43,7 @@ class IntegrationWorkspaceQueries:
         project_id: str,
         *,
         request: ApprovedTimePostingFailureQuery,
-    ) -> ApprovedTimePostingFailurePage:
+    ) -> FinancialPostingFailurePageDto:
         require_permission(
             self._user_session,
             "finance.read",
@@ -62,8 +67,8 @@ class IntegrationWorkspaceQueries:
             request=request,
         )
         if self._has_project_permission(project_id, "finance.read_sensitive"):
-            return page
-        return replace(
+            return map_posting_failures(page)
+        return map_posting_failures(replace(
             page,
             items=tuple(
                 replace(
@@ -75,4 +80,4 @@ class IntegrationWorkspaceQueries:
                 )
                 for item in page.items
             ),
-        )
+        ))

@@ -1,13 +1,21 @@
+
 from datetime import date
+
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 
 
 def test_project_delete_cascade(services):
-    project = services['project_create'].create_project("Delete Test", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Delete Test", description=""))
     pid = project.id
 
     # Create task, resource, and assignment.
     t = services['task_lifecycle_commands'].create_task(pid, "Task 1", start_date=date(2023, 11, 6), duration_days=2)
-    r = services["resource_master_commands"].create_resource("Dev", "Developer", hourly_rate=100.0)
+    r = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Dev", role="Developer", hourly_rate=100.0))
     services['task_assignment_commands'].assign_resource(t.id, r.id, allocation_percent=50.0)
 
     # Confirm they exist in DB

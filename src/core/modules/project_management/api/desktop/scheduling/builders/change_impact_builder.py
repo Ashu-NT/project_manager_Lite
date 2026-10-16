@@ -5,11 +5,8 @@ from __future__ import annotations
 import logging
 from datetime import date
 
-from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
+from src.core.modules.project_management.application.scheduling.dto.responses.change_impact import (
     SchedulingChangeImpactDto,
-)
-from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
-    serialize_change_impact,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +24,7 @@ def build_change_impact(
     if not task_id or not project_id or change_impact_service is None:
         return None
     try:
-        report = change_impact_service.analyse(
+        response = change_impact_service.analyse(
             project_id=project_id,
             changed_task_id=task_id,
             proposed_start=proposed_start,
@@ -37,6 +34,6 @@ def build_change_impact(
     except Exception:
         logger.exception("Failed to build change impact for project_id=%s, task_id=%s", project_id, task_id)
         return None
-    return serialize_change_impact(task_id, report)
+    return response
 
 __all__ = ["build_change_impact"]

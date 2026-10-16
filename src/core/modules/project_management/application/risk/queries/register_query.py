@@ -52,6 +52,16 @@ _ACTIVE_STATUSES = {
 }
 
 
+from src.core.modules.project_management.application.risk.dto.responses.entries import (
+    RegisterCatalogResponseDto,
+    RegisterEntryResponseDto,
+)
+from src.core.modules.project_management.application.risk.mappers.entries import (
+    map_register_catalog,
+    map_register_entry,
+)
+
+
 class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
     _project_repo: ProjectRepository
     _register_repo: RegisterEntryRepository
@@ -89,7 +99,7 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
         page_size: int = 25,
         sort_key: str = "triage",
         sort_direction: str = "asc",
-    ) -> RegisterCatalogReadPage:
+    ) -> RegisterCatalogResponseDto:
         require_permission(
             self._user_session,
             "register.read",
@@ -155,9 +165,9 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
         )
         if normalized_page != result.page:
             result = read_page(normalized_page)
-        return result
+        return map_register_catalog(result, as_of=effective_as_of)
 
-    def get_entry(self, entry_id: str) -> RegisterEntry:
+    def get_entry(self, entry_id: str) -> RegisterEntryResponseDto:
         require_permission(self._user_session, "register.read", operation_label="view register entry")
         entry = self._register_repo.get(entry_id)
         if entry is None:
@@ -168,7 +178,7 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
             "register.read",
             operation_label="view register entry",
         )
-        return entry
+        return map_register_entry(entry, project_name_by_id={}, as_of=date.today())
 
     def list_entries(
         self,
@@ -178,7 +188,7 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
         status: RegisterEntryStatus | None = None,
         severity: RegisterEntrySeverity | None = None,
         as_of: date | None = None,
-    ) -> list[RegisterEntry]:
+    ) -> list[RegisterEntryResponseDto]:
         require_permission(self._user_session, "register.read", operation_label="view risk/issue/change register")
         if project_id:
             require_project_permission(
@@ -200,7 +210,7 @@ class RegisterQueryHandler(ProjectManagementModuleGuardMixin):
             project_id_getter=lambda entry: entry.project_id,
         )
         triage_date = as_of or date.today()  # noqa: DTZ011
-        return sorted(scoped_rows, key=lambda entry: entry.triage_key(triage_date))
+        return [map_register_entry(entry, project_name_by_id={}, as_of=date.today()) for entry in sorted(scoped_rows, key=lambda entry: entry.triage_key(triage_date))]
 
     def get_project_summary(self, project_id: str) -> RegisterProjectSummary:
         items = self._project_entries(

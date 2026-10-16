@@ -12,20 +12,27 @@ from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
 )
+from src.core.modules.project_management.application.resources.dto.responses.catalog import (
+    ResourceResponse,
+)
+from src.core.modules.project_management.application.resources.mappers.catalog import (
+    map_resource,
+)
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReader,
+    ResourceInspectorReader,
+    ResourceSummaryReader,
+)
+from src.core.modules.project_management.contracts.reads.resources.models import (
     ResourceCatalogReadPage,
     ResourceInspectorFact,
-    ResourceInspectorReader,
     ResourceSummaryFact,
-    ResourceSummaryReader,
 )
 from src.core.modules.project_management.contracts.repositories.resources.resource import (
     ResourceRepository,
 )
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_any_permission,
     require_permission,
@@ -66,9 +73,9 @@ class ResourceQueryHandler(ProjectManagementModuleGuardMixin):
         self._resource_inspector_reader = resource_inspector_reader
         self._resource_summary_reader = resource_summary_reader
 
-    def list_resources(self) -> list[Resource]:
+    def list_resources(self) -> list[ResourceResponse]:
         require_permission(self._user_session, "resource.read", operation_label="list resources")
-        return self._resource_repo.list()
+        return [map_resource(item) for item in self._resource_repo.list()]
 
     def query_catalog_page(
         self,
@@ -199,7 +206,7 @@ class ResourceQueryHandler(ProjectManagementModuleGuardMixin):
         project_id: str,
         *,
         resource_ids: tuple[str, ...] = (),
-    ) -> list[Resource]:
+    ) -> list[ResourceResponse]:
         require_any_project_permission(
             self._user_session,
             project_id,
@@ -213,14 +220,14 @@ class ResourceQueryHandler(ProjectManagementModuleGuardMixin):
             if str(resource_id or "").strip()
         }
         if not normalized_ids:
-            return self._resource_repo.list()
-        return self._resource_repo.list_by_ids(list(normalized_ids))
+            return [map_resource(item) for item in self._resource_repo.list()]
+        return [map_resource(item) for item in self._resource_repo.list_by_ids(list(normalized_ids))]
 
     def list_for_task_workspace(
         self,
         *,
         resource_ids: tuple[str, ...],
-    ) -> list[Resource]:
+    ) -> list[ResourceResponse]:
         require_any_permission(
             self._user_session,
             ("resource.read", "task.read", "task.manage"),
@@ -234,14 +241,14 @@ class ResourceQueryHandler(ProjectManagementModuleGuardMixin):
         }
         if not normalized_ids:
             return []
-        return self._resource_repo.list_by_ids(list(normalized_ids))
+        return [map_resource(item) for item in self._resource_repo.list_by_ids(list(normalized_ids))]
 
-    def get_resource(self, resource_id: str) -> Resource:
+    def get_resource(self, resource_id: str) -> ResourceResponse:
         require_permission(self._user_session, "resource.read", operation_label="view resource")
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-        return resource
+        return map_resource(resource)
 
     def _active_organization_id(self, *, operation_label: str) -> str:
         tenant_context = self._tenant_context_service

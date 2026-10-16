@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.application.collaboration.dto.responses.collaboration import (
+    CollaborationContextOptionsDto,
+)
 from src.core.modules.project_management.application.collaboration.utils.visibility import (
     CollaborationVisibilityPolicy,
 )
@@ -17,7 +20,6 @@ from src.core.modules.project_management.contracts.reads.collaboration.models.wo
     CollaborationCommentCriteria,
 )
 from src.core.modules.project_management.domain.collaboration import (
-    CollaborationContextOptions,
     CollaborationInboxItem,
     CollaborationInboxPage,
 )
@@ -117,7 +119,7 @@ class CollaborationInboxQueryHandler(ProjectManagementModuleGuardMixin):
         )
         return list(page.items)
 
-    def list_workspace_context(self) -> CollaborationContextOptions:
+    def list_workspace_context(self) -> CollaborationContextOptionsDto:
         require_permission(
             self._user_session,
             "collaboration.read",
@@ -131,7 +133,7 @@ class CollaborationInboxQueryHandler(ProjectManagementModuleGuardMixin):
             organization_id=scope.organization_id,
             accessible_project_ids=tuple(project_names),
         )
-        return CollaborationContextOptions(
+        return CollaborationContextOptionsDto(
             projects=tuple(sorted(project_names.items(), key=lambda item: item[1].casefold())),
             people=people,
         )

@@ -11,6 +11,15 @@ from src.core.modules.project_management.application.portfolio.dto.commands.inta
 from src.core.modules.project_management.application.portfolio.dto.commands.scenarios import (
     PortfolioScenarioCreateCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
     SqlAlchemyPortfolioScenarioReader,
 )
@@ -27,13 +36,7 @@ def _assign(
     resource_id: str,
     allocation: float,
 ) -> None:
-    project_resource = services["project_resource_commands"].add_to_project(
-        project_id=project_id,
-        resource_id=resource_id,
-        planned_hours=40.0,
-        hourly_rate=80.0,
-        currency_code="EUR",
-    )
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project_id, resource_id=resource_id, planned_hours=40.0, hourly_rate=80.0, currency_code="EUR"))
     services['task_assignment_commands'].assign_project_resource(
         task_id=task_id,
         project_resource_id=project_resource.id,
@@ -71,26 +74,11 @@ def _approve_budget(services, project_id: str, amount: str) -> None:
 
 def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(services) -> None:
 
-    shared = services["resource_master_commands"].create_resource(
-        "Shared",
-        capacity_percent=100.0,
-        hourly_rate=80.0,
-        currency_code="EUR",
-    )
-    specialist = services["resource_master_commands"].create_resource(
-        "Specialist",
-        capacity_percent=50.0,
-        hourly_rate=80.0,
-        currency_code="EUR",
-    )
-    services["resource_master_commands"].create_resource(
-        "Inactive capacity",
-        is_active=False,
-        capacity_percent=900.0,
-        currency_code="EUR",
-    )
-    alpha = services['project_create'].create_project("Alpha", financial_currency_code="EUR")
-    beta = services['project_create'].create_project("Beta", financial_currency_code="EUR")
+    shared = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Shared", capacity_percent=100.0, hourly_rate=80.0, currency_code="EUR"))
+    specialist = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Specialist", capacity_percent=50.0, hourly_rate=80.0, currency_code="EUR"))
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Inactive capacity", is_active=False, capacity_percent=900.0, currency_code="EUR"))
+    alpha = services['project_create'].create_project(ProjectCreateCommand(name="Alpha", financial_currency_code="EUR"))
+    beta = services['project_create'].create_project(ProjectCreateCommand(name="Beta", financial_currency_code="EUR"))
     _approve_budget(services, alpha.id, "400")
     _approve_budget(services, beta.id, "700")
 
@@ -157,9 +145,7 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
 
 
 def test_scenario_comparison_reads_one_fact_graph(services, monkeypatch) -> None:
-    project = services['project_create'].create_project(
-        "Single", financial_currency_code="EUR"
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Single", financial_currency_code="EUR"))
     base = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Base", project_ids=[project.id], intake_item_ids=[]))
     candidate = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Candidate", project_ids=[project.id], intake_item_ids=[]))
     calls = 0

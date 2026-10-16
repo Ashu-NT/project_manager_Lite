@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from src.core.modules.project_management.application.collaboration.dto.responses.collaboration import (
+    TaskCollaborationReactionSummaryDto,
+)
+
 
 @dataclass(frozen=True)
 class CollaborationInboxDesktopDto:
@@ -53,12 +57,6 @@ class TaskCollaborationDocumentOptionDescriptor:
     label: str
 
 
-@dataclass(frozen=True)
-class TaskCollaborationReactionSummaryDto:
-    emoji: str
-    count: int
-    reactor_user_ids: tuple[str, ...]
-    reacted_by_current_user: bool = False
 
 
 @dataclass(frozen=True)
@@ -114,20 +112,6 @@ class CollaborationCommentPageDto:
     page_size: int
 
 
-@dataclass(frozen=True)
-class CollaborationContextOptionsDto:
-    projects: tuple[tuple[str, str], ...]
-    people: tuple[str, ...]
 
 
-__all__ = [
-    "CollaborationCommentPageDto",
-    "CollaborationContextOptionsDto",
-    "CollaborationInboxDesktopDto",
-    "CollaborationPresenceDesktopDto",
-    "TaskCollaborationCommentDesktopDto",
-    "TaskCollaborationDocumentOptionDescriptor",
-    "TaskCollaborationMentionOptionDescriptor",
-    "TaskCollaborationReactionSummaryDto",
-    "TaskCollaborationSnapshotDto",
-]
+__all__ = ['CollaborationCommentPageDto', 'CollaborationInboxDesktopDto', 'CollaborationPresenceDesktopDto', 'TaskCollaborationCommentDesktopDto', 'TaskCollaborationDocumentOptionDescriptor', 'TaskCollaborationMentionOptionDescriptor', 'TaskCollaborationSnapshotDto']

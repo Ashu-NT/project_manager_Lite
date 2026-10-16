@@ -35,6 +35,9 @@ from src.core.modules.project_management.application.portfolio.portfolio_events 
     PortfolioScoringTemplateChanged,
     PortfolioScoringTemplateChangeType,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
 
@@ -176,8 +179,8 @@ def test_create_and_update_scenario_produce_hints(services):
 
 def test_create_and_remove_dependency_produce_hints(services):
     services['project_query']
-    project_a = services['project_create'].create_project("P42 dependency A")
-    project_b = services['project_create'].create_project("P42 dependency B")
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="P42 dependency A"))
+    project_b = services['project_create'].create_project(ProjectCreateCommand(name="P42 dependency B"))
     hints = _spy_hints(services)
 
     dependency = services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=project_a.id, successor_project_id=project_b.id))

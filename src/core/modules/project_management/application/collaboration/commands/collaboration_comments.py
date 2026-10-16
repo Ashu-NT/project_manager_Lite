@@ -73,6 +73,14 @@ from src.core.shared.time.clock import Clock
 logger = logging.getLogger(__name__)
 
 
+from src.core.modules.project_management.application.collaboration.dto.responses.comments import (
+    TaskCommentResponseDto,
+)
+from src.core.modules.project_management.application.collaboration.mappers.comments import (
+    map_comment,
+)
+
+
 class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
     """Governed comment lifecycle writes: post (mention resolution, idempotent
     submission replay, attachment storage/compensation, shared-document links),
@@ -128,13 +136,8 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                     logger.exception("Failed to compensate uncommitted task comment attachments")
             raise
 
-    def post_comment(self, command: TaskCollaborationPostCommand) -> TaskComment:
+    def post_comment(self, command: TaskCollaborationPostCommand) -> TaskCommentResponseDto:
         task_id = command.task_id.strip()
-        body = command.body
-        attachments = command.attachments
-        linked_document_ids = command.linked_document_ids
-        parent_comment_id = command.parent_comment_id
-        submission_id = command.submission_id
         task = self._policy.require_task(task_id)
         require_permission(
             self._user_session,
@@ -147,7 +150,7 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
             "collaboration.manage",
             operation_label="post task collaboration update",
         )
-        parent_id = normalize_optional_text(parent_comment_id) or None
+        parent_id = normalize_optional_text(command.parent_comment_id) or None
         if parent_id:
             parent = self._comment_repo.get(parent_id)
             if parent is None or parent.task_id != task_id:
@@ -160,17 +163,17 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                     "Cannot reply to a deleted comment.",
                     code="COLLABORATION_PARENT_COMMENT_DELETED",
                 )
-        text = normalize_task_comment_body(body)
+        text = normalize_task_comment_body(command.body)
         principal = self._policy.principal
         principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
         normalized_linked_document_ids = self._normalize_linked_document_ids(
-            linked_document_ids
+            command.linked_document_ids
         )
-        attachment_paths = [str(path).strip() for path in (attachments or []) if str(path).strip()]
+        attachment_paths = [str(path).strip() for path in (command.attachments or []) if str(path).strip()]
         normalized_submission_id = (
-            normalize_optional_text(submission_id) if submission_id is not None else None
+            normalize_optional_text(command.submission_id) if command.submission_id is not None else None
         )
-        if submission_id is not None and (
+        if command.submission_id is not None and (
             not normalized_submission_id or len(normalized_submission_id) > 128
         ):
             raise ValidationError(
@@ -191,7 +194,7 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                     and existing.author_user_id == principal_user_id
                     and existing.submission_hash == submission_hash
                 ):
-                    return existing
+                    return map_comment(existing, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or ""))
                 raise ValidationError(
                     "This comment submission ID was already used for different content.",
                     code="COLLABORATION_SUBMISSION_CONFLICT",
@@ -328,9 +331,9 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                     ):
                         if comment.attachments and self._attachment_cleanup is not None:
                             self._attachment_cleanup(comment.attachments)
-                        return existing
+                        return map_comment(existing, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or ""))
                 raise
-        return comment
+        return map_comment(comment, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or ""))
 
     @staticmethod
     def _require_comment_revision(
@@ -347,10 +350,8 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                 code="STALE_WRITE",
             )
 
-    def edit_comment(self, command: TaskCollaborationEditCommand) -> TaskComment:
+    def edit_comment(self, command: TaskCollaborationEditCommand) -> TaskCommentResponseDto:
         comment_id = command.comment_id.strip()
-        body = command.body
-        expected_revision = command.expected_revision
         comment = self._comment_repo.get(comment_id)
         if comment is None:
             raise NotFoundError(
@@ -380,8 +381,8 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                 "A deleted comment cannot be edited.",
                 code="COLLABORATION_COMMENT_DELETED",
             )
-        self._require_comment_revision(comment, expected_revision)
-        text = normalize_task_comment_body(body)
+        self._require_comment_revision(comment, command.expected_revision)
+        text = normalize_task_comment_body(command.body)
         mentions, mentioned_user_ids, unresolved = (
             resolve_mentions(
                 text=text,
@@ -442,12 +443,10 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                 )
             )
             uow.commit()
-        return comment
+        return map_comment(comment, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or ""))
 
-    def delete_comment(self, command: TaskCollaborationDeleteCommand) -> TaskComment:
+    def delete_comment(self, command: TaskCollaborationDeleteCommand) -> TaskCommentResponseDto:
         comment_id = command.comment_id.strip()
-        expected_revision = command.expected_revision
-        reason = command.reason
         comment = self._comment_repo.get(comment_id)
         if comment is None:
             raise NotFoundError(
@@ -466,11 +465,11 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
             operation_label="delete task collaboration update",
         )
         if not comment.is_deleted:
-            self._require_comment_revision(comment, expected_revision)
+            self._require_comment_revision(comment, command.expected_revision)
             principal = self._policy.principal
             comment.deleted_at = datetime.now(UTC)
             comment.deleted_by_user_id = getattr(principal, "user_id", None)
-            comment.deletion_reason = reason
+            comment.deletion_reason = command.reason
             scope = self._tenant_context_service.require_active_scope_ids(
                 operation_label="delete task collaboration update"
             )
@@ -517,7 +516,7 @@ class CollaborationCommentCommandHandler(ProjectManagementModuleGuardMixin):
                     )
                 )
                 uow.commit()
-        return comment
+        return map_comment(comment, principal_user_id=str(getattr(self._policy.principal, "user_id", "") or ""))
 
 
 __all__ = ["CollaborationCommentCommandHandler"]

@@ -4,8 +4,12 @@ import hmac
 import secrets
 from datetime import datetime
 
+import src.core.platform.application.tenant.tenancy.mappers.tenant as response_mapper
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
+)
+from src.core.platform.application.tenant.tenancy.dto.responses.tenant import (
+    TenantInvitationDto,
 )
 from src.core.platform.application.tenant.tenancy.invitation_tokens import (
     IssuedTenantInvitation,
@@ -171,7 +175,7 @@ class TenantInvitationCommandHandler:
             accepted = self._accept_membership(uow, membership, actor=actor)
         return accepted
 
-    def accept_invitation_for_tenant(self, tenant_id: str) -> UserTenantMembership:
+    def accept_invitation_for_tenant(self, tenant_id: str) -> TenantInvitationDto:
         """Accept the caller's own pending invitation for a tenant, surfaced via
         `list_my_pending_invitations`/in-app notification. No bearer token is involved:
         the caller is already an authenticated principal, and the membership lookup is
@@ -194,7 +198,7 @@ class TenantInvitationCommandHandler:
                     operation="authorization.invitation.denied",
                 )
             accepted = self._accept_membership(uow, membership, actor=actor)
-        return accepted
+        return response_mapper.serialize_invitation(accepted)
 
     def _accept_membership(
         self,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -15,6 +14,16 @@ from src.core.modules.project_management.application.financials.invoicing.billin
     BillingPreparationCreated,
     BillingPreparationStatusChanged,
     BillingPreparationStatusChangeType,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_preparation import (
+    FinancialCreateBillingPreparationCommand,
+    FinancialVersionedBillingPreparationCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.responses.billing import (
+    FinancialBillingPreparationResponse,
+)
+from src.core.modules.project_management.application.financials.invoicing.mappers.billing import (
+    map_billing_preparation,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectFinancialProfileRepository,
@@ -75,34 +84,25 @@ class PreparationLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
         self._record_event = record_event
 
-    def create_preparation(
-        self,
-        project_id: str,
-        *,
-        preparation_number: str,
-        period_start: date,
-        period_end: date,
-        idempotency_key: str,
-        correction_of_preparation_id: str | None = None,
-    ) -> ProjectBillingPreparation:
-        self._require(project_id, "finance.manage", "create billing preparation")
-        existing = self._billing_repo.get_preparation_by_idempotency_key(idempotency_key)
+    def create_preparation(self, command: FinancialCreateBillingPreparationCommand) -> FinancialBillingPreparationResponse:
+        self._require(command.project_id, "finance.manage", "create billing preparation")
+        existing = self._billing_repo.get_preparation_by_idempotency_key(command.idempotency_key)
         if existing is not None:
-            if existing.project_id != project_id:
+            if existing.project_id != command.project_id:
                 raise BusinessRuleError(
                     "Billing idempotency key belongs to another Project.",
                     code="BILLING_IDEMPOTENCY_SCOPE_MISMATCH",
                 )
-            return existing
-        profile = self._require_active_profile(project_id)
-        financial_profile = self._require_financial_profile(project_id)
+            return map_billing_preparation(existing)
+        profile = self._require_active_profile(command.project_id)
+        financial_profile = self._require_financial_profile(command.project_id)
         self._require_supported_method(financial_profile.billing_method)
-        self._financial_period_queries.require_open_period_for_integration(period_start)
-        self._financial_period_queries.require_open_period_for_integration(period_end)
+        self._financial_period_queries.require_open_period_for_integration(command.period_start)
+        self._financial_period_queries.require_open_period_for_integration(command.period_end)
         correction = None
-        if correction_of_preparation_id:
-            correction = self._require_preparation(correction_of_preparation_id)
-            if correction.project_id != project_id or correction.status is not BillingPreparationStatus.RECONCILED:
+        if command.correction_of_preparation_id:
+            correction = self._require_preparation(command.correction_of_preparation_id)
+            if correction.project_id != command.project_id or correction.status is not BillingPreparationStatus.RECONCILED:
                 raise BusinessRuleError(
                     "A correction must reference a reconciled preparation in the same Project.",
                     code="BILLING_CORRECTION_REFERENCE_INVALID",
@@ -113,14 +113,14 @@ class PreparationLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
         preparation = ProjectBillingPreparation.create(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
-            project_id=project_id,
+            project_id=command.project_id,
             billing_profile_id=profile.id,
-            preparation_number=preparation_number,
+            preparation_number=command.preparation_number,
             billing_method=financial_profile.billing_method,
-            period_start=period_start,
-            period_end=period_end,
+            period_start=command.period_start,
+            period_end=command.period_end,
             currency_code=profile.currency_code,
-            idempotency_key=idempotency_key,
+            idempotency_key=command.idempotency_key,
             correction_of_preparation_id=correction.id if correction else None,
             created_by=self._actor_id(),
             created_at=self._clock.now(),
@@ -132,17 +132,15 @@ class PreparationLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
             billing_preparation_id=preparation.id,
             occurred_at=preparation.created_at,
         )
-        return self._write(
+        return map_billing_preparation(self._write(
             "create", preparation, lambda: self._billing_repo.add_preparation(preparation), event
-        )
+        ))
 
-    def cancel_draft_preparation(
-        self, preparation_id: str, *, expected_row_version: int
-    ) -> ProjectBillingPreparation:
-        preparation = self._require_preparation(preparation_id)
+    def cancel_draft_preparation(self, command: FinancialVersionedBillingPreparationCommand) -> FinancialBillingPreparationResponse:
+        preparation = self._require_preparation(command.preparation_id)
         self._require(preparation.project_id, "finance.manage", "cancel draft billing preparation")
         preparation.ensure_draft()
-        if preparation.row_version != expected_row_version:
+        if preparation.row_version != command.expected_version:
             raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
         now = self._clock.now()
         preparation.cancel(occurred_at=now)
@@ -161,15 +159,15 @@ class PreparationLifecycleCommandHandler(ProjectManagementModuleGuardMixin):
             for lock in locks:
                 self._billing_repo.update_source_lock(lock)
             self._billing_repo.update_preparation(
-                preparation, expected_row_version=expected_row_version
+                preparation, expected_row_version=command.expected_version
             )
 
-        return self._write(
+        return map_billing_preparation(self._write(
             "cancel_draft",
             preparation,
             persist_cancellation,
             event,
-        )
+        ))
 
     def _require_active_profile(self, project_id: str, *, allow_closed: bool = False):
         profile = self._billing_repo.get_profile(project_id)

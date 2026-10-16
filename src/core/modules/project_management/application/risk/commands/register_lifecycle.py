@@ -21,6 +21,12 @@ from src.core.modules.project_management.application.risk.dto.commands.register_
     RegisterEntryDeleteCommand,
     RegisterEntryUpdateCommand,
 )
+from src.core.modules.project_management.application.risk.dto.responses.entries import (
+    RegisterEntryResponseDto,
+)
+from src.core.modules.project_management.application.risk.mappers.entries import (
+    map_register_entry,
+)
 from src.core.modules.project_management.application.risk.register_events import (
     RegisterEntryChanged,
     RegisterEntryChangeType,
@@ -149,40 +155,32 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             use_year=not bool((title or "").strip()),
         )
 
-    def create_entry(self, command: RegisterEntryCreateCommand) -> RegisterEntry:
-        project_id = command.project_id
+    def create_entry(self, command: RegisterEntryCreateCommand) -> RegisterEntryResponseDto:
         entry_type = as_register_entry_type(command.entry_type or RegisterEntryType.RISK.value)
-        title = command.title
-        description = command.description
         severity = as_register_entry_severity(command.severity or RegisterEntrySeverity.MEDIUM.value)
         status = as_register_entry_status(command.status or RegisterEntryStatus.OPEN.value)
-        owner_name = command.owner_name
-        due_date = command.due_date
-        impact_summary = command.impact_summary
-        response_plan = command.response_plan
-        code = command.code
         require_permission(self._user_session, "register.manage", operation_label="create register entry")
         require_project_permission(
             self._user_session,
-            project_id,
+            command.project_id,
             "register.manage",
             operation_label="create register entry",
         )
-        project = self._project_repo.get(project_id)
+        project = self._project_repo.get(command.project_id)
         if project is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
         entry = RegisterEntry.create(
-            project_id,
+            command.project_id,
             entry_type=entry_type,
-            title=title,
+            title=command.title,
             code="",
-            description=description,
+            description=command.description,
             severity=severity,
             status=status,
-            owner_name=owner_name,
-            due_date=due_date,
-            impact_summary=impact_summary,
-            response_plan=response_plan,
+            owner_name=command.owner_name,
+            due_date=command.due_date,
+            impact_summary=command.impact_summary,
+            response_plan=command.response_plan,
         )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="create register entry"
@@ -190,7 +188,7 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
         try:
             with self._require_uow_factory().create(context=self._new_context()) as uow:
                 entry.code = self._resolve_entry_code(
-                    code, project_id, entry.title, register_repo=uow.entries
+                    command.code, command.project_id, entry.title, register_repo=uow.entries
                 )
                 uow.entries.add(entry)
                 record_audit_entry(
@@ -234,23 +232,14 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             if self._is_register_code_integrity_error(exc):
                 self._raise_register_code_duplicate(entry.code, exc)
             raise
-        return entry
+        return map_register_entry(entry, project_name_by_id={}, as_of=date.today())
 
-    def update_entry(self, command: RegisterEntryUpdateCommand) -> RegisterEntry:
-        entry_id = command.entry_id
-        expected_version = command.expected_version
+    def update_entry(self, command: RegisterEntryUpdateCommand) -> RegisterEntryResponseDto:
         entry_type = None if command.entry_type is None else as_register_entry_type(command.entry_type or RegisterEntryType.RISK.value)
-        title = command.title
-        description = command.description
         severity = None if command.severity is None else as_register_entry_severity(command.severity or RegisterEntrySeverity.MEDIUM.value)
         status = None if command.status is None else as_register_entry_status(command.status or RegisterEntryStatus.OPEN.value)
-        owner_name = command.owner_name
-        due_date = command.due_date
-        impact_summary = command.impact_summary
-        response_plan = command.response_plan
-        code = command.code
         require_permission(self._user_session, "register.manage", operation_label="update register entry")
-        entry = self._register_repo.get(entry_id)
+        entry = self._register_repo.get(command.entry_id)
         if entry is None:
             raise NotFoundError("Register entry not found.", code="REGISTER_ENTRY_NOT_FOUND")
         require_project_permission(
@@ -261,7 +250,7 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
         )
         if entry.project_id != command.project_id:
             raise NotFoundError("Register entry not found.", code="REGISTER_ENTRY_NOT_FOUND")
-        if expected_version is not None and entry.version != expected_version:
+        if command.expected_version is not None and entry.version != command.expected_version:
             raise ConcurrencyError(
                 "Register entry changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
@@ -269,14 +258,14 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
         candidate = replace(
             entry,
             entry_type=entry.entry_type if entry_type is None else entry_type,
-            title=entry.title if title is None else title,
-            description=entry.description if description is None else description,
+            title=entry.title if command.title is None else command.title,
+            description=entry.description if command.description is None else command.description,
             severity=entry.severity if severity is None else severity,
             status=entry.status if status is None else status,
-            owner_name=entry.owner_name if owner_name is None else owner_name,
-            due_date=entry.due_date if due_date is self._UNSET else cast(date | None, due_date),
-            impact_summary=entry.impact_summary if impact_summary is None else impact_summary,
-            response_plan=entry.response_plan if response_plan is None else response_plan,
+            owner_name=entry.owner_name if command.owner_name is None else command.owner_name,
+            due_date=entry.due_date if command.due_date is self._UNSET else cast(date | None, command.due_date),
+            impact_summary=entry.impact_summary if command.impact_summary is None else command.impact_summary,
+            response_plan=entry.response_plan if command.response_plan is None else command.response_plan,
             updated_at=datetime.now(UTC),
         )
         scope = self._tenant_context_service.require_active_scope_ids(
@@ -284,11 +273,11 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
         )
         try:
             with self._require_uow_factory().create(context=self._new_context()) as uow:
-                if code is not None and code.strip():
+                if command.code is not None and command.code.strip():
                     candidate = replace(
                         candidate,
                         code=self._resolve_entry_code(
-                            code,
+                            command.code,
                             entry.project_id,
                             candidate.title,
                             exclude_id=entry.id,
@@ -336,10 +325,9 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             if self._is_register_code_integrity_error(exc):
                 self._raise_register_code_duplicate(candidate.code, exc)
             raise
-        return candidate
+        return map_register_entry(candidate, project_name_by_id={}, as_of=date.today())
 
-    def bulk_set_entry_status(self, command: RegisterEntryBulkStatusCommand) -> list[RegisterEntry]:
-        entry_ids = command.entry_ids
+    def bulk_set_entry_status(self, command: RegisterEntryBulkStatusCommand) -> list[RegisterEntryResponseDto]:
         status = as_register_entry_status(command.status or RegisterEntryStatus.OPEN.value)
         """Narrow single-field bulk update (status only) for the bulk "Change
         Property" action -- deliberately not update_entry()'s full-record
@@ -353,7 +341,7 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
         )
         results: list[RegisterEntry] = []
         with self._require_uow_factory().create(context=self._new_context()) as uow:
-            for entry_id in entry_ids:
+            for entry_id in command.entry_ids:
                 entry = self._register_repo.get(entry_id)
                 if entry is None:
                     raise NotFoundError("Register entry not found.", code="REGISTER_ENTRY_NOT_FOUND")
@@ -405,12 +393,11 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
                 )
                 results.append(candidate)
             uow.commit()
-        return results
+        return [map_register_entry(entry, project_name_by_id={}, as_of=date.today()) for entry in results]
 
     def delete_entry(self, command: RegisterEntryDeleteCommand) -> None:
-        entry_id = command.entry_id
         require_permission(self._user_session, "register.manage", operation_label="delete register entry")
-        entry = self._register_repo.get(entry_id)
+        entry = self._register_repo.get(command.entry_id)
         if entry is None:
             raise NotFoundError("Register entry not found.", code="REGISTER_ENTRY_NOT_FOUND")
         require_project_permission(
@@ -423,7 +410,7 @@ class RegisterLifecycleHandler(ProjectManagementModuleGuardMixin):
             operation_label="delete register entry"
         )
         with self._require_uow_factory().create(context=self._new_context()) as uow:
-            uow.entries.delete(entry_id)
+            uow.entries.delete(command.entry_id)
             record_audit_entry(
                 uow,
                 operation="delete",

@@ -8,6 +8,10 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.tasks.dto.responses.task import (
+    TaskResponseDto,
+)
+from src.core.modules.project_management.application.tasks.mappers.task import map_task
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     TaskRepository,
 )
@@ -83,6 +87,14 @@ class TaskHierarchyQueryHandler(ProjectManagementModuleGuardMixin):
                 code="TASK_WBS_CORRUPT_HIERARCHY",
             )
         return nodes
+
+    def query_task_responses(self, project_id: str) -> tuple[TaskResponseDto, ...]:
+        nodes = self.list_task_hierarchy(project_id)
+        return tuple(
+            map_task(node.task, project_name="", hierarchy_node=node,
+                     rollup=self._build_task_hierarchy_rollup(nodes, node.task.id))
+            for node in nodes
+        )
 
     def list_leaf_tasks_for_project(self, project_id: str) -> list[Task]:
         return [node.task for node in self.list_task_hierarchy(project_id) if not node.is_summary]

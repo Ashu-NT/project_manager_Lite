@@ -57,6 +57,15 @@ from src.core.modules.project_management.application.financials.rate_cards.dto.c
 from src.core.modules.project_management.application.financials.rate_cards.dto.commands.rate_lines import (
     FinancialAddRateLineCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
     TaskAssignmentCreateCommand,
     TaskAssignmentPlannedHoursCommand,
@@ -260,10 +269,7 @@ def test_planning_forecast_tab_uses_bounded_reader_facade_only() -> None:
 def test_budget_reader_pages_versions_and_selected_lines_authoritatively(
     services,
 ) -> None:
-    project = services["project_create"].create_project(
-        "R6B budget reader",
-        financial_currency_code="USD",
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B budget reader", financial_currency_code="USD"))
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             FinancialCreateCostCodeCommand(code="R6B-BUDGET", name="R6B Budget")
@@ -374,10 +380,7 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(
 def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     services,
 ) -> None:
-    project = services["project_create"].create_project(
-        "R6B planned-cost reader",
-        financial_currency_code="USD",
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B planned-cost reader", financial_currency_code="USD"))
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             FinancialCreateCostCodeCommand(code="R6B-LABOR", name="R6B Labor")
@@ -396,18 +399,8 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     task = services["task_lifecycle_commands"].create_task(
         TaskCreateCommand(project.id, "R6B Engineering", wbs_code="1.1")
     )
-    resource = services["resource_master_commands"].create_resource(
-        "R6B Engineer",
-        hourly_rate=Decimal(50),
-        currency_code="USD",
-    )
-    project_resource = services["project_resource_commands"].add_to_project(
-        project.id,
-        resource.id,
-        hourly_rate=Decimal(50),
-        currency_code="USD",
-        planned_hours=Decimal(20),
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="R6B Engineer", hourly_rate=Decimal(50), currency_code="USD"))
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, hourly_rate=Decimal(50), currency_code="USD", planned_hours=Decimal(20)))
     assignment = services["task_assignment_commands"].assign_project_resource(
         TaskAssignmentCreateCommand(
             task_id=task.id,
@@ -511,9 +504,7 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
 def test_profile_partial_commands_preserve_omitted_fields_and_allow_explicit_clears(
     services,
 ) -> None:
-    project = services["project_create"].create_project(
-        "Partial profile boundary", financial_currency_code="USD"
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Partial profile boundary", financial_currency_code="USD"))
     boundary = services["finance_governance_commands"]
     original = services["financial_configuration_query"].get_profile(project.id)
     configured = boundary.financial_profile(
@@ -579,10 +570,7 @@ def test_profile_partial_commands_preserve_omitted_fields_and_allow_explicit_cle
 
 
 def _seed_forecast_reader(services):
-    project = services["project_create"].create_project(
-        "R6B forecast reader",
-        financial_currency_code="USD",
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B forecast reader", financial_currency_code="USD"))
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             FinancialCreateCostCodeCommand(code="R6B-ETC", name="R6B ETC")
@@ -1393,10 +1381,7 @@ def test_enterprise_audit_projection_filters_module_workspace_and_operation(
 def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(
     services,
 ) -> None:
-    project = services["project_create"].create_project(
-        "R6B bounded overview",
-        financial_currency_code="USD",
-    )
+    project = services["project_create"].create_project(ProjectCreateCommand(name="R6B bounded overview", financial_currency_code="USD"))
     cost_code = services["finance_governance_commands"].cost_code(
         lambda handler: handler.create_cost_code(
             FinancialCreateCostCodeCommand(code="R6B-OVERVIEW", name="R6B Overview")

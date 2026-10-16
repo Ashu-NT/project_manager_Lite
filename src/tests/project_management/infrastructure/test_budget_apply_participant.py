@@ -13,6 +13,9 @@ from src.core.modules.project_management.application.financials.budgets.budget_e
     BudgetStatusChanged,
     BudgetStatusChangeType,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 from src.core.modules.project_management.infrastructure.approval.budget_apply_participant import (
     BudgetApprovalParticipant,
@@ -26,9 +29,7 @@ from src.infra.persistence.orm.base import Base
 
 
 def _make_project(services, name: str = "Budget Project"):
-    return services["project_create"].create_project(
-        name, financial_currency_code="USD"
-    )
+    return services["project_create"].create_project(ProjectCreateCommand(name=name, financial_currency_code="USD"))
 
 
 def _login(services, username: str, password: str) -> None:

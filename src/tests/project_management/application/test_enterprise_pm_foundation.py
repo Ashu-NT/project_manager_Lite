@@ -18,6 +18,12 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scen
 from src.core.modules.project_management.application.portfolio.dto.commands.scoring_templates import (
     PortfolioTemplateCreateCommand,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
     TaskCommentORM,
@@ -111,8 +117,8 @@ def test_security_admin_can_revoke_live_user_sessions(services):
 def test_project_memberships_restrict_project_and_task_queries(services):
     access = services["access_service"]
 
-    project_alpha = services['project_create'].create_project("Scoped Alpha")
-    project_beta = services['project_create'].create_project("Scoped Beta")
+    project_alpha = services['project_create'].create_project(ProjectCreateCommand(name="Scoped Alpha"))
+    project_beta = services['project_create'].create_project(ProjectCreateCommand(name="Scoped Beta"))
     services['task_lifecycle_commands'].create_task(project_alpha.id, "Alpha Task")
     services['task_lifecycle_commands'].create_task(project_beta.id, "Beta Task")
     viewer = services["user_registration"].register_user("scoped-viewer", "StrongPass123", role_names=["viewer"])
@@ -136,8 +142,8 @@ def test_project_memberships_restrict_project_and_task_queries(services):
 def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(services):
     access = services["access_service"]
 
-    project_alpha = services['project_create'].create_project("Collab Alpha")
-    project_beta = services['project_create'].create_project("Collab Beta")
+    project_alpha = services['project_create'].create_project(ProjectCreateCommand(name="Collab Alpha"))
+    project_beta = services['project_create'].create_project(ProjectCreateCommand(name="Collab Beta"))
     task_alpha = services['task_lifecycle_commands'].create_task(project_alpha.id, "Alpha Task")
     task_beta = services['task_lifecycle_commands'].create_task(project_beta.id, "Beta Task")
     viewer = services["user_registration"].register_user("collab-viewer", "StrongPass123", role_names=["viewer"])
@@ -192,7 +198,7 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
 
 def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(services):
     access = services["access_service"]
-    project = services['project_create'].create_project("Large collaboration inbox")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Large collaboration inbox"))
     task = services['task_lifecycle_commands'].create_task(project.id, "High-volume review")
     viewer = services["user_registration"].register_user(
         "bulk-inbox-viewer",
@@ -250,8 +256,8 @@ def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(se
 def test_collaboration_recent_activity_filters_project_scope(services):
     access = services["access_service"]
 
-    project_alpha = services['project_create'].create_project("Notifications Alpha")
-    project_beta = services['project_create'].create_project("Notifications Beta")
+    project_alpha = services['project_create'].create_project(ProjectCreateCommand(name="Notifications Alpha"))
+    project_beta = services['project_create'].create_project(ProjectCreateCommand(name="Notifications Beta"))
     task_alpha = services['task_lifecycle_commands'].create_task(project_alpha.id, "Alpha Delivery Task")
     task_beta = services['task_lifecycle_commands'].create_task(project_beta.id, "Beta Delivery Task")
     viewer = services["user_registration"].register_user("notify-viewer", "StrongPass123", role_names=["viewer"])
@@ -271,7 +277,7 @@ def test_collaboration_recent_activity_filters_project_scope(services):
 
 
 def test_collaboration_service_tracks_active_task_presence(services):
-    project = services['project_create'].create_project("Presence Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Presence Project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Presence Task")
 
     assert services["collaboration_presence_query"].list_task_presence(task.id) == []
@@ -293,8 +299,8 @@ def test_collaboration_service_tracks_active_task_presence(services):
 
 
 def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
-    services["resource_master_commands"].create_resource("Portfolio Analyst", hourly_rate=100.0, capacity_percent=50.0)
-    project = services['project_create'].create_project("Portfolio Project")
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Portfolio Analyst", hourly_rate=100.0, capacity_percent=50.0))
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Portfolio Project"))
     _approve_project_budget(services, project.id, "500")
     intake = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="New Initiative", sponsor_name="PMO", requested_budget=600.0, requested_capacity_percent=70.0, strategic_score=5, value_score=4, urgency_score=4, risk_score=2))
     scenario = services["portfolio_scenario_commands"].create_scenario(PortfolioScenarioCreateCommand(name="Tight Plan", budget_limit=1_000.0, capacity_limit_percent=60.0, project_ids=[project.id], intake_item_ids=[intake.id]))
@@ -331,9 +337,9 @@ def test_portfolio_scoring_templates_drive_new_intake_scores(services):
 
 
 def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(services):
-    services["resource_master_commands"].create_resource("Portfolio Capacity", hourly_rate=95.0, capacity_percent=100.0)
-    project_alpha = services['project_create'].create_project("Portfolio Alpha")
-    project_beta = services['project_create'].create_project("Portfolio Beta")
+    services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Portfolio Capacity", hourly_rate=95.0, capacity_percent=100.0))
+    project_alpha = services['project_create'].create_project(ProjectCreateCommand(name="Portfolio Alpha"))
+    project_beta = services['project_create'].create_project(ProjectCreateCommand(name="Portfolio Beta"))
     _approve_project_budget(services, project_alpha.id, "400")
     _approve_project_budget(services, project_beta.id, "700")
     intake_keep = services["portfolio_intake_commands"].create_intake_item(PortfolioIntakeCreateCommand(title="Legacy Intake", sponsor_name="PMO", requested_budget=200.0, requested_capacity_percent=30.0, strategic_score=4, value_score=3, urgency_score=3, risk_score=2))
@@ -357,9 +363,9 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
 
 def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(services):
 
-    project = services['project_create'].create_project("Executive Pressure Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Executive Pressure Project"))
     _approve_project_budget(services, project.id, "200")
-    resource = services["resource_master_commands"].create_resource("Executive Analyst", hourly_rate=100.0, capacity_percent=80.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Executive Analyst", hourly_rate=100.0, capacity_percent=80.0))
     task = services['task_lifecycle_commands'].create_task(
         project.id,
         "Late Executive Task",
@@ -393,8 +399,8 @@ def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(service
 
 def test_portfolio_project_dependencies_track_cross_project_links(services):
 
-    predecessor = services['project_create'].create_project("Dependency Program Alpha")
-    successor = services['project_create'].create_project("Dependency Program Beta")
+    predecessor = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Program Alpha"))
+    successor = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Program Beta"))
 
     dependency = services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=predecessor.id, successor_project_id=successor.id, dependency_type=DependencyType.FINISH_TO_START, summary="Beta depends on Alpha handover."))
 

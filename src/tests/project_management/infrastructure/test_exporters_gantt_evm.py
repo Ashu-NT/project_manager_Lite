@@ -9,6 +9,9 @@ from matplotlib.dates import date2num
 from src.core.modules.project_management.application.financials.earned_value.dto.responses.earned_value import (
     EvmSeriesPoint,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.reporting import (
     export_runtime as reporting_api,
 )
@@ -17,7 +20,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, monkeypatch):
 
-    project = services['project_create'].create_project("Gantt One Day", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Gantt One Day", description=""))
     pid = project.id
     services['task_lifecycle_commands'].create_task(pid, "One Day Task", start_date=date(2023, 11, 6), duration_days=1)
 
@@ -40,7 +43,7 @@ def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, m
 
 
 def test_gantt_render_uses_day_cell_alignment_for_inclusive_finish(services, tmp_path, monkeypatch):
-    project = services['project_create'].create_project("Gantt Day Cell Alignment", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Gantt Day Cell Alignment", description=""))
     pid = project.id
     task = services['task_lifecycle_commands'].create_task(pid, "Aligned Task", start_date=date(2023, 11, 6), duration_days=3)
 

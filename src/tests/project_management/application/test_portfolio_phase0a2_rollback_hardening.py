@@ -29,6 +29,9 @@ from src.core.modules.project_management.application.portfolio.dto.commands.scor
 from src.core.modules.project_management.application.portfolio.utils.portfolio_policy import (
     new_portfolio_context,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.portfolio.portfolio import (
     SqlAlchemyPortfolioIntakeRepository,
     SqlAlchemyPortfolioProjectDependencyRepository,
@@ -78,8 +81,8 @@ def _portfolio_hints(hints):
 
 def _dependency_case(services):
     services['project_query']
-    project_a = services['project_create'].create_project("Dependency Project A")
-    project_b = services['project_create'].create_project("Dependency Project B")
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Project A"))
+    project_b = services['project_create'].create_project(ProjectCreateCommand(name="Dependency Project B"))
     counter = {"n": 0}
 
     def invoke():
@@ -349,8 +352,8 @@ def test_update_scenario_rolls_back_on_repository_failure(services, monkeypatch)
 
 def test_remove_project_dependency_rolls_back_on_repository_failure(services, monkeypatch):
     services['project_query']
-    project_a = services['project_create'].create_project("Remove Dependency Project A")
-    project_b = services['project_create'].create_project("Remove Dependency Project B")
+    project_a = services['project_create'].create_project(ProjectCreateCommand(name="Remove Dependency Project A"))
+    project_b = services['project_create'].create_project(ProjectCreateCommand(name="Remove Dependency Project B"))
     dependency = services["portfolio_dependency_commands"].create_project_dependency(PortfolioDependencyCreateCommand(predecessor_project_id=project_a.id, successor_project_id=project_b.id))
     monkeypatch.setattr(SqlAlchemyPortfolioProjectDependencyRepository, "delete", _boom)
 

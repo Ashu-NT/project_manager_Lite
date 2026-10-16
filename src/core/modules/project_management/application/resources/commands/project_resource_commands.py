@@ -16,6 +16,16 @@ from src.core.modules.project_management.application.common.currency_policy impo
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+    ProjectResourceUpdateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.responses.project_resources import (
+    ProjectResourceResponse,
+)
+from src.core.modules.project_management.application.resources.mappers.project_resources import (
+    map_project_resource,
+)
 from src.core.modules.project_management.application.resources.project_resources.project_resource_events import (
     ProjectResourceAssignmentChanged,
 )
@@ -47,6 +57,7 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConfigurationError,
     NotFoundError,
+    ValidationError,
 )
 from src.core.platform.common.ids import generate_id
 from src.core.platform.domain.security.auth.session import UserSessionContext
@@ -156,25 +167,13 @@ class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
             )
         return profile.currency_code
 
-    def _allocated_planned_hours_total(self, project_id: str, resource_id: str) -> Decimal:
-        if self._task_repo is None or self._assignment_repo is None:
-            return Decimal(0)
-        return envelope_policy.allocated_to_tasks_hours(
-            task_repo=self._task_repo,
-            assignment_repo=self._assignment_repo,
-            project_id=project_id,
-            resource_id=resource_id,
-        )
-
-    def add_to_project(
-        self,
-        project_id: str,
-        resource_id: str,
-        hourly_rate: Decimal | int | str | None = None,
-        currency_code: str | None = None,
-        planned_hours: Decimal | int | str = Decimal(0),
-        is_active: bool = True,
-    ) -> ProjectResource:
+    def add_to_project(self, command: ProjectResourceAssignCommand) -> ProjectResourceResponse:
+        project_id = str(command.project_id or "").strip()
+        resource_id = str(command.resource_id or "").strip()
+        if not project_id:
+            raise ValidationError("Project ID is required to assign a resource.", code="PROJECT_ID_REQUIRED")
+        if not resource_id:
+            raise ValidationError("Resource selection is required.", code="RESOURCE_ID_REQUIRED")
         require_permission(
             self._user_session,
             "project.manage",
@@ -209,17 +208,17 @@ class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
         resolved_currency = resolve_pm_currency(
             tenant_context_service=getattr(self, "_tenant_context_service", None),
             operation_label="add project resource",
-            explicit=currency_code,
+            explicit=command.currency_code,
             project_default=self._financial_currency_code(project_id),
         )
 
         project_resource = ProjectResource.create(
             project_id=project_id,
             resource_id=resource_id,
-            hourly_rate=hourly_rate,
+            hourly_rate=command.hourly_rate,
             currency_code=resolved_currency,
-            planned_hours=planned_hours,
-            is_active=is_active,
+            planned_hours=command.planned_hours,
+            is_active=command.is_active,
         )
 
         with self._project_resource_uow() as uow:
@@ -248,18 +247,13 @@ class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
             self._record_assignment_changed(uow, project_id)
             uow.commit()
 
-        return project_resource
+        return map_project_resource(project_resource)
 
-    def update(
-        self,
-        pr_id: str,
-        hourly_rate: Decimal | int | str | None,
-        currency_code: str | None,
-        planned_hours: Decimal | int | str,
-        is_active: bool,
-        *,
-        expected_version: int | None = None,
-    ) -> None:
+    def update(self, command: ProjectResourceUpdateCommand) -> None:
+        pr_id = str(command.project_resource_id or "").strip()
+        if not pr_id:
+            raise ValidationError("Project resource ID is required.", code="PROJECT_RESOURCE_ID_REQUIRED")
+        planned_hours = max(Decimal(0), Decimal(str(command.planned_hours)))
         require_permission(
             self._user_session,
             "project.manage",
@@ -280,9 +274,12 @@ class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
         new_envelope = ProjectResource._validate_planned_hours(planned_hours)
-        allocated_total = self._allocated_planned_hours_total(
-            project_resource.project_id, project_resource.resource_id
-        )
+        allocated_total = Decimal(0)
+        if self._task_repo is not None and self._assignment_repo is not None:
+            allocated_total = envelope_policy.allocated_to_tasks_hours(
+                task_repo=self._task_repo, assignment_repo=self._assignment_repo,
+                project_id=project_resource.project_id, resource_id=project_resource.resource_id,
+            )
         envelope_policy.require_can_reduce_envelope(
             new_envelope=new_envelope, allocated_total=allocated_total
         )
@@ -290,7 +287,7 @@ class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
         resolved_currency = resolve_pm_currency(
             tenant_context_service=getattr(self, "_tenant_context_service", None),
             operation_label="update project resource",
-            explicit=currency_code,
+            explicit=command.currency_code,
             project_default=self._financial_currency_code(project_resource.project_id),
         )
         before = SimpleNamespace(
@@ -299,17 +296,17 @@ class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
             planned_hours=project_resource.planned_hours,
             is_active=project_resource.is_active,
         )
-        project_resource.hourly_rate = ProjectResource._validate_hourly_rate(hourly_rate)
+        project_resource.hourly_rate = ProjectResource._validate_hourly_rate(command.hourly_rate)
         project_resource.currency_code = resolved_currency
         project_resource.planned_hours = new_envelope
-        project_resource.is_active = is_active
+        project_resource.is_active = command.is_active
         resource = self._resource_repo.get(project_resource.resource_id)
         resource_name = resource.name if resource is not None else project_resource.resource_id
 
         with self._project_resource_uow() as uow:
-            if expected_version is not None:
+            if command.expected_version is not None:
                 self._project_resource_repo.update_with_version_check(
-                    project_resource, expected_version=expected_version
+                    project_resource, expected_version=command.expected_version
                 )
             else:
                 self._project_resource_repo.update(project_resource)
@@ -383,6 +380,9 @@ class ProjectResourceCommandHandler(ProjectManagementModuleGuardMixin):
             uow.commit()
 
     def delete(self, pr_id: str) -> None:
+        pr_id = str(pr_id or "").strip()
+        if not pr_id:
+            raise ValidationError("Project resource ID is required.", code="PROJECT_RESOURCE_ID_REQUIRED")
         require_permission(
             self._user_session,
             "project.manage",

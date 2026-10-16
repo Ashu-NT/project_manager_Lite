@@ -1,8 +1,12 @@
+
 import pytest
 from sqlalchemy import text
 
 from src.core.modules.project_management.api.desktop.collaboration.serializers.collaboration_serializers import (
     serialize_inbox_item,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
 )
 from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
@@ -28,8 +32,8 @@ def test_service_rejects_foreign_scope_without_database_rls(services, operation)
 
 
 def test_same_organization_foreign_project_rejected_by_service(services):
-    visible = services['project_create'].create_project("Visible")
-    hidden = services['project_create'].create_project("Hidden")
+    visible = services['project_create'].create_project(ProjectCreateCommand(name="Visible"))
+    hidden = services['project_create'].create_project(ProjectCreateCommand(name="Hidden"))
     task = services['task_lifecycle_commands'].create_task(hidden.id, "Private task")
     comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body="Private project comment")
     user = services["user_registration"].register_user("r7b-reader", "StrongPass123", role_names=["viewer"])
@@ -64,7 +68,7 @@ def test_deleted_comment_is_redacted_in_activity_dto_audit_and_read_marks(
         return record(*args, **kwargs)
 
     monkeypatch.setattr(collaboration_comments, "record_activity", capture_activity)
-    project = services['project_create'].create_project("Privacy")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Privacy"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Task")
     secret = "PRIVATE-CONTENT @admin"
     comment = services["collaboration_comment_commands"].post_comment(task_id=task.id, body=secret)
@@ -90,5 +94,5 @@ def test_deleted_comment_is_redacted_in_activity_dto_audit_and_read_marks(
             assert rows
         assert secret not in str(rows)
     assert activity_intents and secret not in str(activity_intents)
-    other = services['project_create'].create_project("Different project")
+    other = services['project_create'].create_project(ProjectCreateCommand(name="Different project"))
     assert services["collaboration_inbox_query"].list_recent_activity(project_id=other.id) == []

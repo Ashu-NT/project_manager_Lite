@@ -17,6 +17,20 @@ from src.core.modules.project_management.application.financials.invoicing.billin
     BillingPreparationLineAdded,
     BillingPreparationLineRemoved,
 )
+from src.core.modules.project_management.application.financials.invoicing.dto.commands.billing_sources import (
+    FinancialAddApprovedTimeBillingSourceCommand,
+    FinancialAddCostPlusBillingSourceCommand,
+    FinancialAddFixedPriceBillingSourceCommand,
+    FinancialRemoveDraftBillingLineCommand,
+)
+from src.core.modules.project_management.application.financials.invoicing.dto.responses.billing import (
+    FinancialBillingPreparationLineDto,
+    FinancialBillingPreparationResponse,
+)
+from src.core.modules.project_management.application.financials.invoicing.mappers.billing import (
+    map_billing_preparation,
+    serialize_billing_preparation_line,
+)
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
     RateCardResolver,
 )
@@ -90,13 +104,11 @@ class BillingPreparationSourceCommandHandler(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
         self._record_event = record_event
 
-    def add_fixed_price_source(
-        self, preparation_id: str, *, schedule_line_id: str, expected_row_version: int
-    ) -> ProjectBillingPreparationLine:
+    def add_fixed_price_source(self, command: FinancialAddFixedPriceBillingSourceCommand) -> FinancialBillingPreparationLineDto:
         preparation = self._mutable_preparation(
-            preparation_id, expected_row_version, BillingMethod.FIXED_PRICE
+            command.preparation_id, command.expected_version, BillingMethod.FIXED_PRICE
         )
-        source = self._billing_repo.get_schedule_line(schedule_line_id)
+        source = self._billing_repo.get_schedule_line(command.schedule_line_id)
         if source is None or source.project_id != preparation.project_id:
             raise NotFoundError("Billing schedule line not found.", code="BILLING_SCHEDULE_LINE_NOT_FOUND")
         if source.status is not BillingScheduleLineStatus.READY:
@@ -129,15 +141,13 @@ class BillingPreparationSourceCommandHandler(ProjectManagementModuleGuardMixin):
             net_amount=source.amount,
             task_id=source.task_id,
         )
-        return self._reserve(preparation, line, expected_row_version)
+        return serialize_billing_preparation_line(self._reserve(preparation, line, command.expected_version))
 
-    def add_approved_time_source(
-        self, preparation_id: str, *, time_entry_id: str, expected_row_version: int
-    ) -> ProjectBillingPreparationLine:
+    def add_approved_time_source(self, command: FinancialAddApprovedTimeBillingSourceCommand) -> FinancialBillingPreparationLineDto:
         preparation = self._mutable_preparation(
-            preparation_id, expected_row_version, BillingMethod.TIME_AND_MATERIALS
+            command.preparation_id, command.expected_version, BillingMethod.TIME_AND_MATERIALS
         )
-        posting = self._labor_posting_repo.get_latest(time_entry_id)
+        posting = self._labor_posting_repo.get_latest(command.time_entry_id)
         if posting is None or posting.project_id != preparation.project_id:
             raise NotFoundError("Approved time posting not found.", code="BILLING_APPROVED_TIME_NOT_FOUND")
         if posting.reversal_cost_entry_id:
@@ -182,15 +192,13 @@ class BillingPreparationSourceCommandHandler(ProjectManagementModuleGuardMixin):
             rate_modifier=(snapshot.modifier_applied.value if snapshot.modifier_applied else None),
             rate_modifier_multiplier=snapshot.modifier_multiplier,
         )
-        return self._reserve(preparation, line, expected_row_version)
+        return serialize_billing_preparation_line(self._reserve(preparation, line, command.expected_version))
 
-    def add_cost_plus_source(
-        self, preparation_id: str, *, cost_entry_id: str, expected_row_version: int
-    ) -> ProjectBillingPreparationLine:
+    def add_cost_plus_source(self, command: FinancialAddCostPlusBillingSourceCommand) -> FinancialBillingPreparationLineDto:
         preparation = self._mutable_preparation(
-            preparation_id, expected_row_version, BillingMethod.COST_PLUS
+            command.preparation_id, command.expected_version, BillingMethod.COST_PLUS
         )
-        entry = self._cost_entry_repo.get(cost_entry_id)
+        entry = self._cost_entry_repo.get(command.cost_entry_id)
         if entry is None or entry.project_id != preparation.project_id:
             raise NotFoundError("Posted cost entry not found.", code="BILLING_POSTED_COST_NOT_FOUND")
         if entry.status is not ProjectCostEntryStatus.POSTED or entry.posting_date is None:
@@ -225,22 +233,20 @@ class BillingPreparationSourceCommandHandler(ProjectManagementModuleGuardMixin):
             source_amount=entry.amount,
             markup_percent=profile.cost_plus_markup_percent,
         )
-        return self._reserve(preparation, line, expected_row_version)
+        return serialize_billing_preparation_line(self._reserve(preparation, line, command.expected_version))
 
-    def remove_draft_line(
-        self, preparation_id: str, *, line_id: str, expected_row_version: int
-    ) -> ProjectBillingPreparation:
-        preparation = self._require_preparation(preparation_id)
+    def remove_draft_line(self, command: FinancialRemoveDraftBillingLineCommand) -> FinancialBillingPreparationResponse:
+        preparation = self._require_preparation(command.preparation_id)
         self._require(preparation.project_id, "finance.manage", "remove draft billing source")
         preparation.ensure_draft()
-        if preparation.row_version != expected_row_version:
+        if preparation.row_version != command.expected_version:
             raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
-        lines = self._billing_repo.list_preparation_lines(preparation_id)
-        line = next((item for item in lines if item.id == line_id), None)
+        lines = self._billing_repo.list_preparation_lines(command.preparation_id)
+        line = next((item for item in lines if item.id == command.line_id), None)
         if line is None:
             raise NotFoundError("Billing preparation line not found.", code="BILLING_LINE_NOT_FOUND")
         now = self._clock.now()
-        remaining = [item for item in lines if item.id != line_id]
+        remaining = [item for item in lines if item.id != command.line_id]
         preparation.replace_totals(
             line_count=len(remaining),
             total_amount=sum((item.net_amount for item in remaining), Decimal(0)),
@@ -255,17 +261,17 @@ class BillingPreparationSourceCommandHandler(ProjectManagementModuleGuardMixin):
             source_type=line.source_type,
             occurred_at=now,
         )
-        return self._write(
+        return map_billing_preparation(self._write(
             "remove_draft_line",
             preparation,
             lambda: (
                 self._billing_repo.remove_draft_line(preparation.id, line.id),
                 self._billing_repo.update_preparation(
-                    preparation, expected_row_version=expected_row_version
+                    preparation, expected_row_version=command.expected_version
                 ),
             ),
             event,
-        )
+        ))
 
     def _reserve(
         self,

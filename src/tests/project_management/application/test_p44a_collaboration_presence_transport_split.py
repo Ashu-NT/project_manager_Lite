@@ -8,6 +8,9 @@ from src.core.modules.project_management.application.collaboration.event_handler
     TASK_PRESENCE_CATEGORY,
     TASK_PRESENCE_SCOPE_CODE,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 
 
 def _spy_hints(services):
@@ -32,7 +35,7 @@ def _durable_comment_hints(hints):
 
 
 def _setup(services):
-    project = services['project_create'].create_project("P44A collaboration project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="P44A collaboration project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "P44A collaboration task")
     return project, task
 

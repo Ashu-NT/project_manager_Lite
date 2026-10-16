@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from decimal import Decimal
 from typing import TYPE_CHECKING, Protocol
 
 from src.core.modules.project_management.application.scheduling.baselines.commands.lifecycle import (
     BaselineCommandHandler,
+)
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    ProjectCalendarAdapter,
 )
 
 if TYPE_CHECKING:
@@ -63,15 +65,11 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.resourc
     build_resource_load,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models import (
-    GanttBaselineOverlayDto,
     GanttProjectionDto,
-    SchedulingBaselineComparisonRowDto,
     SchedulingBaselineOptionDescriptor,
     SchedulingBaselineRowDto,
-    SchedulingBaselineVarianceRowDto,
     SchedulingCalendarOptionDescriptor,
     SchedulingCalendarSnapshotDto,
-    SchedulingChangeImpactDto,
     SchedulingConstraintViolationDto,
     SchedulingDependencyDto,
     SchedulingDependencyTypeDescriptor,
@@ -80,19 +78,12 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingProjectOptionDescriptor,
     SchedulingResourceLoadDto,
     SchedulingTaskDto,
-    SchedulingWorkingDayCalculationDto,
 )
-from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
-    ScheduleImpactReportDto,
-)
-from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
-    serialize_schedule_impact_report,
+from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
+    GanttBaselineOverlayDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.serializers.dependency_serializer import (
     serialize_dependency,
-)
-from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
-    unwrap_platform_calendar_result,
 )
 from src.core.modules.project_management.api.desktop.scheduling.services.dependency_resolution_service import (
     build_tasks_by_id,
@@ -131,6 +122,14 @@ from src.core.modules.project_management.application.scheduling.dto.commands.dep
 from src.core.modules.project_management.application.scheduling.dto.commands.working_days import (
     SchedulingWorkingDayCalculationCommand,
 )
+from src.core.modules.project_management.application.scheduling.dto.responses.baselines import (
+    SchedulingBaselineComparisonRowDto,
+    SchedulingBaselineVarianceRowDto,
+)
+from src.core.modules.project_management.application.scheduling.dto.responses.change_impact import (
+    ScheduleImpactReportDto,
+    SchedulingChangeImpactDto,
+)
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
 )
@@ -148,6 +147,9 @@ from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
+from src.core.platform.application.time_management.calendar.dto.responses.working_calendar import (
+    WorkingDayCalculationDto,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConfigurationError,
@@ -157,18 +159,12 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
-from src.core.platform.domain.finance.money import canonical_decimal_text
 
 
 class _PlatformWorkingDaysApi(Protocol):
     def calculate_working_days(self, command: WorkingDaysCommand) -> object: ...
 
 
-def _required_decimal_text(value: Decimal | None) -> str:
-    # Mirrors ``decimal_value``'s required-value check for ``None`` inputs.
-    if value is None:
-        raise ValidationError("Decimal value is required.", code="DECIMAL_VALUE_REQUIRED")
-    return canonical_decimal_text(value)
 
 
 class ProjectManagementSchedulingDesktopApi:
@@ -186,6 +182,7 @@ class ProjectManagementSchedulingDesktopApi:
         platform_calendar_api: _PlatformWorkingDaysApi | None = None,
         work_calendar_service=None,
         work_calendar_engine: CalendarProtocol | None = None,
+        project_calendar_adapter: ProjectCalendarAdapter | None = None,
         baseline_query: BaselineQueryHandler | None = None,
         baseline_commands: BaselineCommandHandler | None = None,
         baseline_compare_report: BaselineCompareReportBuilder | None = None,
@@ -205,6 +202,7 @@ class ProjectManagementSchedulingDesktopApi:
         self._platform_calendar_api = platform_calendar_api
         self._work_calendar_service = work_calendar_service
         self._work_calendar_engine = work_calendar_engine
+        self._project_calendar_adapter = project_calendar_adapter
         self._baseline_query = baseline_query
         self._baseline_commands = baseline_commands
         self._baseline_compare_report = baseline_compare_report
@@ -238,43 +236,10 @@ class ProjectManagementSchedulingDesktopApi:
             self._platform_calendar_api, self._work_calendar_service, calendar_id
         )
 
-    def calculate_working_days(self, command: SchedulingWorkingDayCalculationCommand) -> SchedulingWorkingDayCalculationDto:
-        if self._platform_calendar_api is not None:
-            from src.core.platform.application.time_management.calendar.capacity.dto.queries.working_days import (
-                WorkingDaysCommand as PlatformWorkingDaysCommand,
-            )
-
-            result = unwrap_platform_calendar_result(
-                self._platform_calendar_api.calculate_working_days(
-                    PlatformWorkingDaysCommand(
-                        start_date=command.start_date.isoformat(),
-                        working_days=command.working_days,
-                    )
-                )
-            )
-            result_date = date.fromisoformat(result.end_date)
-            skipped = max(
-                (result_date - command.start_date).days - max(command.working_days - 1, 0),
-                0,
-            )
-            return SchedulingWorkingDayCalculationDto(
-                start_date=command.start_date,
-                working_days=command.working_days,
-                result_date=result_date,
-                skipped_non_working_days=skipped,
-            )
-        engine = self._require_work_calendar_engine()
-        result_date = engine.add_working_days(command.start_date, command.working_days)
-        skipped = sum(
-            1 for cursor in _date_range(command.start_date, result_date)
-            if not engine.is_working_day(cursor)
-        )
-        return SchedulingWorkingDayCalculationDto(
-            start_date=command.start_date,
-            working_days=command.working_days,
-            result_date=result_date,
-            skipped_non_working_days=skipped,
-        )
+    def calculate_working_days(self, command: SchedulingWorkingDayCalculationCommand) -> WorkingDayCalculationDto:
+        if self._project_calendar_adapter is None:
+            raise ConfigurationError("Project management calendar query is not connected.")
+        return self._project_calendar_adapter.calculate_working_days(command)
 
     # ── Dependencies ──────────────────────────────────────────────────────────
 
@@ -510,21 +475,11 @@ class ProjectManagementSchedulingDesktopApi:
     def compare_baselines(
         self, *, project_id: str, baseline_a_id: str, baseline_b_id: str, include_unchanged: bool = False
     ) -> tuple[SchedulingBaselineComparisonRowDto, ...]:
-        result = self._require_baseline_compare_report().compare_baselines(
+        result = self._require_baseline_compare_report().compare_baseline_responses(
             project_id=project_id, baseline_a_id=baseline_a_id,
             baseline_b_id=baseline_b_id, include_unchanged=include_unchanged,
         )
-        return tuple(
-            SchedulingBaselineComparisonRowDto(
-                task_id=row.task_id, task_name=row.task_name, change_type=row.change_type,
-                baseline_a_start=row.baseline_a_start, baseline_a_finish=row.baseline_a_finish,
-                baseline_b_start=row.baseline_b_start, baseline_b_finish=row.baseline_b_finish,
-                start_shift_days=row.start_shift_days, finish_shift_days=row.finish_shift_days,
-                duration_delta_days=row.duration_delta_days,
-                planned_cost_delta=_required_decimal_text(row.planned_cost_delta),
-            )
-            for row in result.rows
-        )
+        return result
 
     # ── Resources ─────────────────────────────────────────────────────────────
 
@@ -599,10 +554,17 @@ class ProjectManagementSchedulingDesktopApi:
         ScheduleChangeImpactQueryHandler, no new schedule-impact math."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
-        unavailable = serialize_schedule_impact_report(
+        unavailable = ScheduleImpactReportDto(
             task_id=normalized_task_id,
             project_id=normalized_project_id,
             simulated_delay_days=delay_working_days,
+            is_available=False,
+            affected_count=0,
+            max_project_finish_shift_days=0,
+            requires_approval=False,
+            affected_tasks=(),
+            newly_critical_task_ids=(),
+            no_longer_critical_task_ids=(),
         )
         if (
             not normalized_task_id
@@ -629,12 +591,7 @@ class ProjectManagementSchedulingDesktopApi:
                 delay_working_days,
             )
             return unavailable
-        return serialize_schedule_impact_report(
-            task_id=normalized_task_id,
-            project_id=normalized_project_id,
-            simulated_delay_days=delay_working_days,
-            report=report,
-        )
+        return report
 
     # ── Internal guards ───────────────────────────────────────────────────────
 
@@ -662,13 +619,6 @@ class ProjectManagementSchedulingDesktopApi:
         if self._baseline_compare_report is None:
             raise ConfigurationError("Project management scheduling desktop API is not connected.")
         return self._baseline_compare_report
-
-
-def _date_range(start: date, end: date):
-    cursor = start
-    while cursor <= end:
-        yield cursor
-        cursor = date.fromordinal(cursor.toordinal() + 1)
 
 
 __all__ = ["ProjectManagementSchedulingDesktopApi"]

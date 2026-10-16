@@ -4,6 +4,12 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.platform.application.master_data.department.dto.commands.department import (
     DepartmentCreateCommand,
@@ -25,9 +31,9 @@ from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 
 def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(services):
-    project = services['project_create'].create_project("Timesheet Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Timesheet Project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Timesheet Task", start_date=date(2026, 3, 2), duration_days=3)
-    resource = services["resource_master_commands"].create_resource("Time Logger", hourly_rate=110.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Time Logger", hourly_rate=110.0))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=50.0)
 
     first = services["time_entry_commands"].add_time_entry(
@@ -66,9 +72,9 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
 
 
 def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(services):
-    project = services['project_create'].create_project("Legacy Hours Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Legacy Hours Project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Legacy Hours Task", start_date=date(2026, 3, 4), duration_days=2)
-    resource = services["resource_master_commands"].create_resource("Legacy Logger", hourly_rate=95.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Legacy Logger", hourly_rate=95.0))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=60.0)
 
     services["task_assignment_commands"].set_assignment_hours(assignment.id, 4.0)
@@ -102,14 +108,9 @@ def test_time_entries_capture_platform_work_entry_context_for_employee_resources
     department = services["department_commands"].create_department(DepartmentCreateCommand(department_code="OPS", name="Operations", site_id=site.id))
 
     employee = services["employee_commands"].create_employee(EmployeeCreateCommand(employee_code="EMP-101", full_name="Context Owner", department_id=department.id, department="Operations", site_id=site.id, site_name="Hamburg Yard", title="Technician", email="context.owner@example.com"))
-    project = services['project_create'].create_project("Shared Time Context")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Shared Time Context"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Log Shared Work", start_date=date(2026, 8, 4), duration_days=2)
-    resource = services["resource_master_commands"].create_resource(
-        "",
-        hourly_rate=88.0,
-        worker_type=WorkerType.EMPLOYEE,
-        employee_id=employee.id,
-    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="", hourly_rate=88.0, worker_type=WorkerType.EMPLOYEE, employee_id=employee.id))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
 
     entry = services["time_entry_commands"].add_time_entry(
@@ -134,9 +135,9 @@ def test_time_entries_capture_platform_work_entry_context_for_employee_resources
 
 
 def test_shared_time_work_allocation_aliases_preserve_pm_timesheet_flows(services):
-    project = services['project_create'].create_project("Shared Time Alias Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Shared Time Alias Project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Alias Task", start_date=date(2026, 9, 1), duration_days=2)
-    resource = services["resource_master_commands"].create_resource("Alias Resource", hourly_rate=105.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Alias Resource", hourly_rate=105.0))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
 
     entry = services["time_entry_commands"].add_work_entry(
@@ -162,9 +163,9 @@ def test_shared_time_work_allocation_aliases_preserve_pm_timesheet_flows(service
 
 
 def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
-    project = services['project_create'].create_project("Timesheet Approval Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Timesheet Approval Project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Approval Task", start_date=date(2026, 3, 1), duration_days=5)
-    resource = services["resource_master_commands"].create_resource("Submitted Dev", hourly_rate=100.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Submitted Dev", hourly_rate=100.0))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
 
     march_entry = services["time_entry_commands"].add_time_entry(
@@ -218,9 +219,9 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
 
 
 def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
-    project = services['project_create'].create_project("Timesheet Lock Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Timesheet Lock Project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Lock Task", start_date=date(2026, 5, 1), duration_days=3)
-    resource = services["resource_master_commands"].create_resource("Locked Dev", hourly_rate=90.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Locked Dev", hourly_rate=90.0))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=100.0)
     may_entry = services["time_entry_commands"].add_time_entry(
         assignment.id,

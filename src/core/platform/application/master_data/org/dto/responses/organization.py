@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class OrganizationDto:
+    id: str
+    organization_code: str
+    display_name: str
+    timezone_name: str
+    base_currency: str
+    status: str
+    version: int
+    legal_name: str = ""
+    registration_number: str = ""
+    tax_id: str = ""
+    address_line_1: str = ""
+    address_line_2: str = ""
+    postal_code: str = ""
+    city: str = ""
+    state_region: str = ""
+    country_code: str = ""
+    email: str = ""
+    phone: str = ""
+    website: str = ""
+    tenant_id: str | None = None
+
+
+@dataclass(frozen=True)
+class OrganizationCatalogPageDto:
+    items: tuple[OrganizationDto, ...] = field(default_factory=tuple)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
+@dataclass(frozen=True)
+class OrganizationStatisticsDto:
+    site_count: int = 0
+    department_count: int = 0
+    employee_count: int = 0
+    document_count: int = 0
+
+
+@dataclass(frozen=True)
+class OrganizationCalendarSummaryDto:
+    has_calendar: bool = False
+    calendar_id: str = ""
+    calendar_name: str = ""
+    timezone: str = ""
+    locale: str = ""
+    working_weekdays: tuple[int, ...] = field(default_factory=tuple)
+    holiday_count: int = 0
+
+

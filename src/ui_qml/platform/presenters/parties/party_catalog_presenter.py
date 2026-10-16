@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.platform.api.desktop.master_data.party.models.party import (
-    PartyDto,
-)
 from src.core.platform.api.desktop.master_data.party.party import (
     PlatformPartyDesktopApi,
 )
@@ -12,6 +9,9 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.application.master_data.party.dto.commands.party import (
     PartyCreateCommand,
     PartyUpdateCommand,
+)
+from src.core.platform.application.master_data.party.dto.responses.party import (
+    PartyDto,
 )
 from src.core.platform.domain.master_data.party import PartyRole, PartyType
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (

@@ -1,3 +1,4 @@
+
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -172,91 +173,55 @@ class _FakeResourceService:
     def list_resources(self) -> list[SimpleNamespace]:
         return list(self._resources.values())
 
-    def create_resource(
-        self,
-        *,
-        name: str,
-        role: str = "",
-        hourly_rate: float = 0.0,
-        kind="PERSON",
-        cost_type: CostType = CostType.LABOR,
-        currency_code: str | None = None,
-        capacity_percent: float = 100.0,
-        address: str = "",
-        contact: str = "",
-        worker_type: WorkerType = WorkerType.EXTERNAL,
-        employee_id: str | None = None,
-        code: str = "",
-        department_id: str | None = None,
-        site_id: str | None = None,
-    ) -> SimpleNamespace:
-        employee = self._employee_service.get_employee(employee_id) if employee_id else None
+    def create_resource(self, command: ResourceCreateCommand) -> SimpleNamespace:
+        employee = self._employee_service.get_employee(command.employee_id) if command.employee_id else None
         resource = SimpleNamespace(
             id=f"res-{self._next_id}",
-            name=employee.full_name if employee is not None else name,
-            role=employee.title if employee is not None else role,
-            code=code or f"RES-{self._next_id:04d}",
-            hourly_rate=hourly_rate,
+            name=employee.full_name if employee is not None else command.name,
+            role=employee.title if employee is not None else command.role,
+            code=command.code or f"RES-{self._next_id:04d}",
+            hourly_rate=command.hourly_rate,
             is_active=True,
-            kind=kind,
-            cost_type=cost_type,
-            currency_code=(currency_code or "").strip().upper() or None,
+            kind=command.kind,
+            cost_type=CostType(command.cost_type),
+            currency_code=(command.currency_code or "").strip().upper() or None,
             version=1,
-            capacity_percent=capacity_percent,
-            address=address,
-            contact=(employee.email or employee.phone or "") if employee is not None else contact,
-            worker_type=worker_type,
-            employee_id=employee_id,
-            department_id=department_id,
-            site_id=site_id,
+            capacity_percent=command.capacity_percent,
+            address=command.address,
+            contact=(employee.email or employee.phone or "") if employee is not None else command.contact,
+            worker_type=WorkerType(command.worker_type),
+            employee_id=command.employee_id,
+            department_id=command.department_id,
+            site_id=command.site_id,
         )
         self._next_id += 1
         self._resources[resource.id] = resource
         return resource
 
-    def update_resource(
-        self,
-        *,
-        resource_id: str,
-        expected_version: int,
-        name: str,
-        code: str,
-        kind,
-        role: str,
-        hourly_rate: float,
-        cost_type: CostType,
-        currency_code: str | None = None,
-        capacity_percent: float = 100.0,
-        address: str = "",
-        contact: str = "",
-        worker_type: WorkerType = WorkerType.EXTERNAL,
-        employee_id: str | None = None,
-        department_id: str | None = None,
-        site_id: str | None = None,
-    ) -> SimpleNamespace:
-        resource = self._resources[resource_id]
-        resource.code = code
-        resource.kind = kind
-        resource.name = name
-        resource.role = role
-        resource.hourly_rate = hourly_rate
-        resource.cost_type = cost_type
-        if currency_code is not None:
-            resource.currency_code = (currency_code or "").strip().upper() or None
-        resource.capacity_percent = capacity_percent
-        resource.address = address
-        resource.contact = contact
-        resource.worker_type = worker_type
-        resource.department_id = department_id
-        resource.site_id = site_id
-        if employee_id is not None:
-            employee = self._employee_service.get_employee(employee_id)
-            resource.employee_id = employee_id
+    def update_resource(self, command: ResourceUpdateCommand) -> SimpleNamespace:
+        resource = self._resources[command.resource_id]
+        resource.code = command.code
+        resource.kind = command.kind
+        resource.name = command.name
+        resource.role = command.role
+        resource.hourly_rate = command.hourly_rate
+        resource.cost_type = CostType(command.cost_type)
+        if command.currency_code is not None:
+            resource.currency_code = (command.currency_code or "").strip().upper() or None
+        resource.capacity_percent = command.capacity_percent
+        resource.address = command.address
+        resource.contact = command.contact
+        resource.worker_type = WorkerType(command.worker_type)
+        resource.department_id = command.department_id
+        resource.site_id = command.site_id
+        if command.employee_id is not None:
+            employee = self._employee_service.get_employee(command.employee_id)
+            resource.employee_id = command.employee_id
             if employee is not None:
                 resource.name = employee.full_name
                 resource.role = employee.title
                 resource.contact = employee.email or employee.phone or ""
-        elif worker_type == WorkerType.EXTERNAL:
+        elif WorkerType(command.worker_type) == WorkerType.EXTERNAL:
             resource.employee_id = None
         resource.version += 1
         return resource
@@ -264,14 +229,14 @@ class _FakeResourceService:
     def get_resource(self, resource_id: str) -> SimpleNamespace:
         return self._resources[resource_id]
 
-    def deactivate_resource(self, *, resource_id: str, expected_version: int):
-        resource = self._resources[resource_id]
+    def deactivate_resource(self, command: ResourceLifecycleCommand) -> SimpleNamespace:
+        resource = self._resources[command.resource_id]
         resource.is_active = False
         resource.version += 1
         return resource
 
-    def reactivate_resource(self, *, resource_id: str, expected_version: int):
-        resource = self._resources[resource_id]
+    def reactivate_resource(self, command: ResourceLifecycleCommand) -> SimpleNamespace:
+        resource = self._resources[command.resource_id]
         resource.is_active = True
         resource.version += 1
         return resource

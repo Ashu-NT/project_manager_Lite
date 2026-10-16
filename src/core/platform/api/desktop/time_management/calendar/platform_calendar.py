@@ -11,13 +11,10 @@ from src.core.platform.api.desktop.time_management.calendar.models.platform_cale
     CalendarDayDto,
     CalendarDto,
     CalendarExceptionDto,
-    EffectiveCalendarDto,
     RecurringEventDto,
     ResolvedContextDto,
-    ResourceCapacityDto,
     ShiftPatternDayDto,
     ShiftPatternDto,
-    WorkingDaysResultDto,
     WorkingRuleDto,
 )
 from src.core.platform.application.time_management.calendar._input import (
@@ -46,6 +43,9 @@ from src.core.platform.application.time_management.calendar.capacity.dto.queries
 )
 from src.core.platform.application.time_management.calendar.capacity.dto.queries.working_days import (
     WorkingDaysCommand,
+)
+from src.core.platform.application.time_management.calendar.capacity.mappers import (
+    results as capacity_mapper,
 )
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
@@ -828,24 +828,14 @@ class PlatformCalendarDesktopApi:
 
         def _resolve():
             result = self._resolver.resolve_effective_calendar(command)
-            return EffectiveCalendarDto(
-                has_calendar=result.has_calendar,
-                calendar_id=result.calendar_id,
-                calendar_name=result.calendar_name,
-                timezone=result.timezone,
-                source_chain=list(result.source_chain),
-            )
+            return capacity_mapper.effective_calendar_response(result)
 
         return execute_desktop_operation(_resolve)
 
     def calculate_working_days(self, command: WorkingDaysCommand) -> DesktopApiResult:
         def _calculate():
             result = self._resolver.calculate_working_days(command)
-            return WorkingDaysResultDto(
-                start_date=str(result.start_date),
-                end_date=str(result.end_date),
-                working_days=result.working_days,
-            )
+            return capacity_mapper.working_days_response(result)
 
         return execute_desktop_operation(_calculate)
 
@@ -894,21 +884,7 @@ class PlatformCalendarDesktopApi:
             summary = self._resolver.calculate_resource_capacity(
                 command, calculator=self._capacity_calculator
             )
-            return ResourceCapacityDto(
-                resource_id=summary.resource_id,
-                start=str(summary.start),
-                end=str(summary.end),
-                base_hours=summary.base_hours,
-                available_hours=summary.available_hours,
-                assigned_hours=summary.assigned_hours,
-                remaining_hours=summary.remaining_hours,
-                capacity_percent=summary.capacity_percent,
-                utilization_percent=summary.utilization_percent,
-                working_days=summary.working_days,
-                unavailable_days=summary.unavailable_days,
-                conflicts=summary.conflicts,
-                source_chain=summary.source_chain,
-            )
+            return capacity_mapper.resource_capacity_response(summary)
 
         return execute_desktop_operation(_compute)
 

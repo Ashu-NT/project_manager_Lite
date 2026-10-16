@@ -1,8 +1,5 @@
 """Portfolio desktop DTO models."""
 
-from src.core.modules.project_management.api.desktop.portfolio.models.capacity import (
-    PortfolioCapacityResourceDto,
-)
 from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import (
     PortfolioDependencyDesktopDto,
 )
@@ -31,17 +28,4 @@ from src.core.modules.project_management.api.desktop.portfolio.models.templates 
     PortfolioTemplateDesktopDto,
 )
 
-__all__ = [
-    "PortfolioCapacityResourceDto",
-    "PortfolioDependencyDesktopDto",
-    "PortfolioExecutiveDesktopSnapshot",
-    "PortfolioHeatmapDesktopDto",
-    "PortfolioIntakeDesktopDto",
-    "PortfolioOptionDescriptor",
-    "PortfolioProjectOptionDescriptor",
-    "PortfolioRecentActionDesktopDto",
-    "PortfolioScenarioComparisonDesktopDto",
-    "PortfolioScenarioDesktopDto",
-    "PortfolioScenarioEvaluationDesktopDto",
-    "PortfolioTemplateDesktopDto",
-]
+__all__ = ['PortfolioDependencyDesktopDto', 'PortfolioExecutiveDesktopSnapshot', 'PortfolioHeatmapDesktopDto', 'PortfolioIntakeDesktopDto', 'PortfolioOptionDescriptor', 'PortfolioProjectOptionDescriptor', 'PortfolioRecentActionDesktopDto', 'PortfolioScenarioComparisonDesktopDto', 'PortfolioScenarioDesktopDto', 'PortfolioScenarioEvaluationDesktopDto', 'PortfolioTemplateDesktopDto']

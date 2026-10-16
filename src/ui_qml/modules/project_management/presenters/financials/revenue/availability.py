@@ -1,6 +1,6 @@
 """Presentation labels for server-authored commercial availability."""
 
-from src.core.modules.project_management.api.desktop.financials.models.billing import (
+from src.core.modules.project_management.application.financials.revenue.dto.responses.commercial_projection import (
     CommercialMetricAvailability,
     CommercialMetricUnavailableReason,
 )

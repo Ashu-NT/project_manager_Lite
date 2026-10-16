@@ -5,6 +5,10 @@ from collections.abc import Sequence
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+import src.core.platform.application.master_data.org.mappers.organization as response_mapper
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
+)
 from src.core.platform.application.master_data.org.organization_context import (
     require_current_tenant_id,
 )
@@ -77,35 +81,35 @@ class OrganizationLifecycleCommandHandler:
         self._clock = clock
         self._user_session = user_session
 
-    def activate_organization(self, organization_id: str) -> Organization:
-        return self._transition_organization_status(
+    def activate_organization(self, organization_id: str) -> OrganizationDto:
+        return response_mapper.serialize_organization(self._transition_organization_status(
             organization_id, new_status=ORGANIZATION_STATUS_ACTIVE, action="organization.activate"
-        )
+        ))
 
-    def deactivate_organization(self, organization_id: str) -> Organization:
-        return self._transition_organization_status(
+    def deactivate_organization(self, organization_id: str) -> OrganizationDto:
+        return response_mapper.serialize_organization(self._transition_organization_status(
             organization_id, new_status=ORGANIZATION_STATUS_INACTIVE, action="organization.deactivate"
-        )
+        ))
 
-    def archive_organization(self, organization_id: str) -> Organization:
-        return self._transition_organization_status(
+    def archive_organization(self, organization_id: str) -> OrganizationDto:
+        return response_mapper.serialize_organization(self._transition_organization_status(
             organization_id, new_status=ORGANIZATION_STATUS_ARCHIVED, action="organization.archive"
-        )
+        ))
 
-    def bulk_activate_organizations(self, organization_ids: Sequence[str]) -> list[Organization]:
-        return self._bulk_transition_organization_status(
+    def bulk_activate_organizations(self, organization_ids: Sequence[str]) -> list[OrganizationDto]:
+        return [response_mapper.serialize_organization(row) for row in (self._bulk_transition_organization_status(
             organization_ids, new_status=ORGANIZATION_STATUS_ACTIVE, action="organization.activate"
-        )
+        ))]
 
-    def bulk_deactivate_organizations(self, organization_ids: Sequence[str]) -> list[Organization]:
-        return self._bulk_transition_organization_status(
+    def bulk_deactivate_organizations(self, organization_ids: Sequence[str]) -> list[OrganizationDto]:
+        return [response_mapper.serialize_organization(row) for row in (self._bulk_transition_organization_status(
             organization_ids, new_status=ORGANIZATION_STATUS_INACTIVE, action="organization.deactivate"
-        )
+        ))]
 
-    def bulk_archive_organizations(self, organization_ids: Sequence[str]) -> list[Organization]:
-        return self._bulk_transition_organization_status(
+    def bulk_archive_organizations(self, organization_ids: Sequence[str]) -> list[OrganizationDto]:
+        return [response_mapper.serialize_organization(row) for row in (self._bulk_transition_organization_status(
             organization_ids, new_status=ORGANIZATION_STATUS_ARCHIVED, action="organization.archive"
-        )
+        ))]
 
     def _transition_organization_status(
         self, organization_id: str, *, new_status: str, action: str

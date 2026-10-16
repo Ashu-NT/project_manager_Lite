@@ -25,6 +25,12 @@ from src.core.modules.project_management.application.financials.rate_cards.dto.c
     FinancialUpdateRateLineCommand,
     FinancialVersionedRateLineCommand,
 )
+from src.core.modules.project_management.application.financials.rate_cards.dto.responses.mutations import (
+    FinancialRateMutationDto,
+)
+from src.core.modules.project_management.application.financials.rate_cards.mappers.responses import (
+    map_rate_line,
+)
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardLineAdded,
     RateCardLineDeactivated,
@@ -95,48 +101,35 @@ class RateCardLineCommandHandler(ProjectManagementModuleGuardMixin):
 
     # -- Rate cards ---------------------------------------------------
 
-    def create_line(self, command: FinancialAddRateLineCommand) -> RateCardLine:
-        rate_card_id = command.rate_card_id
-        rate_type = command.rate_type
-        unit = command.unit
+    def create_line(self, command: FinancialAddRateLineCommand) -> FinancialRateMutationDto:
         rate_amount = _command_amount(command.rate_amount, "Rate amount")
-        rate_currency = command.rate_currency
         origin = RateLineOrigin.CONFIGURED
-        resource_id = command.resource_id
-        customer_party_id = command.customer_party_id
-        contract_reference = command.contract_reference
-        role = command.role
-        skill_code = command.skill_code
-        department_id = command.department_id
-        effective_from = command.effective_from
-        effective_to = command.effective_to
         overtime_multiplier = _optional_command_amount(command.overtime_multiplier)
         weekend_multiplier = _optional_command_amount(command.weekend_multiplier)
         holiday_multiplier = _optional_command_amount(command.holiday_multiplier)
-        expected_card_version = command.expected_card_version
-        card = self._require_rate_card(rate_card_id)
+        card = self._require_rate_card(command.rate_card_id)
         self._require_card_manage(card, "create rate card line")
         self._require_active_card(card)
-        if expected_card_version is not None:
-            self._require_expected_version(card.version, expected_card_version, "Rate card")
+        if command.expected_card_version is not None:
+            self._require_expected_version(card.version, command.expected_card_version, "Rate card")
         context = self._require_context("create rate card line")
         line = RateCardLine.create(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
             rate_card_id=card.id,
-            rate_type=rate_type,
-            unit=unit,
+            rate_type=command.rate_type,
+            unit=command.unit,
             rate_amount=rate_amount,
-            rate_currency=rate_currency,
+            rate_currency=command.rate_currency,
             origin=origin,
-            resource_id=resource_id,
-            customer_party_id=customer_party_id,
-            contract_reference=contract_reference,
-            role=role,
-            skill_code=skill_code,
-            department_id=department_id,
-            effective_from=effective_from,
-            effective_to=effective_to,
+            resource_id=command.resource_id,
+            customer_party_id=command.customer_party_id,
+            contract_reference=command.contract_reference,
+            role=command.role,
+            skill_code=command.skill_code,
+            department_id=command.department_id,
+            effective_from=command.effective_from,
+            effective_to=command.effective_to,
             overtime_multiplier=overtime_multiplier,
             weekend_multiplier=weekend_multiplier,
             holiday_multiplier=holiday_multiplier,
@@ -155,31 +148,26 @@ class RateCardLineCommandHandler(ProjectManagementModuleGuardMixin):
                 occurred_at=datetime.now(UTC),
             )
         )
-        return line
+        return map_rate_line(line)
 
-    def update_line(self, command: FinancialUpdateRateLineCommand) -> RateCardLine:
-        line_id = command.rate_line_id
-        expected_version = command.expected_version
-        effective_from = command.effective_from
-        effective_to = command.effective_to
+    def update_line(self, command: FinancialUpdateRateLineCommand) -> FinancialRateMutationDto:
         rate_amount = _command_amount(command.rate_amount, "Rate amount")
         overtime_multiplier = _optional_command_amount(command.overtime_multiplier)
         weekend_multiplier = _optional_command_amount(command.weekend_multiplier)
         holiday_multiplier = _optional_command_amount(command.holiday_multiplier)
-        expected_card_version = command.expected_card_version
-        current = self._require_line(line_id, for_update=True)
+        current = self._require_line(command.rate_line_id, for_update=True)
         card = self._require_rate_card(current.rate_card_id)
         self._require_card_manage(card, "update rate card line")
         self._require_active_card(card)
-        if expected_card_version is not None:
-            self._require_expected_version(card.version, expected_card_version, "Rate card")
-        self._require_expected_version(current.version, expected_version, "Rate card line")
+        if command.expected_card_version is not None:
+            self._require_expected_version(card.version, command.expected_card_version, "Rate card")
+        self._require_expected_version(current.version, command.expected_version, "Rate card line")
         candidate = replace(
             current,
             effective_from=(
-                current.effective_from if effective_from is _UNSET else effective_from
+                current.effective_from if command.effective_from is _UNSET else command.effective_from
             ),
-            effective_to=current.effective_to if effective_to is _UNSET else effective_to,
+            effective_to=current.effective_to if command.effective_to is _UNSET else command.effective_to,
             rate_amount=current.rate_amount if rate_amount is _UNSET else rate_amount,
             overtime_multiplier=(
                 current.overtime_multiplier
@@ -199,7 +187,7 @@ class RateCardLineCommandHandler(ProjectManagementModuleGuardMixin):
         )
         if candidate == current:
             # True no-op: no write, audit, event, or version bump.
-            return current
+            return map_rate_line(current)
         now = datetime.now(UTC)
         candidate = replace(candidate, updated_at=now)
         self._protect_consumed_economics(current, candidate)
@@ -217,21 +205,18 @@ class RateCardLineCommandHandler(ProjectManagementModuleGuardMixin):
                 occurred_at=now,
             )
         )
-        return candidate
+        return map_rate_line(candidate)
 
-    def deactivate_line(self, command: FinancialVersionedRateLineCommand) -> RateCardLine:
-        line_id = command.rate_line_id
-        expected_version = command.expected_version
-        expected_card_version = command.expected_card_version
-        current = self._require_line(line_id, for_update=True)
+    def deactivate_line(self, command: FinancialVersionedRateLineCommand) -> FinancialRateMutationDto:
+        current = self._require_line(command.rate_line_id, for_update=True)
         card = self._require_rate_card(current.rate_card_id)
         self._require_card_manage(card, "deactivate rate card line")
         self._require_active_card(card)
-        if expected_card_version is not None:
-            self._require_expected_version(card.version, expected_card_version, "Rate card")
-        self._require_expected_version(current.version, expected_version, "Rate card line")
+        if command.expected_card_version is not None:
+            self._require_expected_version(card.version, command.expected_card_version, "Rate card")
+        self._require_expected_version(current.version, command.expected_version, "Rate card line")
         if not current.is_active:
-            return current
+            return map_rate_line(current)
         now = datetime.now(UTC)
         candidate = replace(current, is_active=False, updated_at=now)
         self._rate_card_repo.update_line(candidate)
@@ -247,7 +232,7 @@ class RateCardLineCommandHandler(ProjectManagementModuleGuardMixin):
                 occurred_at=now,
             )
         )
-        return candidate
+        return map_rate_line(candidate)
 
     # -- Overlap prevention ----
 

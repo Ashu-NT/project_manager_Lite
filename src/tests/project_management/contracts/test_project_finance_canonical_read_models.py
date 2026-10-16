@@ -8,6 +8,12 @@ import pytest
 from openpyxl import load_workbook
 from sqlalchemy import select
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.dto.commands.baselines import (
     SchedulingBaselineApproveCommand,
     SchedulingBaselineCreateCommand,
@@ -59,10 +65,7 @@ def _login(services, username: str, password: str) -> None:
 
 def _approved_controls(services):
     organization = services["tenant_context_service"].get_active_organization()
-    project = services['project_create'].create_project(
-        "Canonical finance read model",
-        financial_currency_code=organization.base_currency,
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Canonical finance read model", financial_currency_code=organization.base_currency))
     code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
         code="D4-CONTROL",
         name="D.4 control",
@@ -453,7 +456,7 @@ def test_r6e_cost_phasing_boundaries_reconcile_exactly_and_preserve_as_of(servic
 
 def test_cost_phasing_historical_actual_does_not_query_current_rates(services, monkeypatch) -> None:
     project, _budget, _forecast, entry, _code = _approved_controls(services)
-    resource = services["resource_master_commands"].create_resource("Historical cost resource")
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Historical cost resource"))
     services['rate_card_query']
     card = services['finance_governance_commands'].rate_card(lambda handler: handler.create_rate_card(name="Historical cost rates", project_id=project.id))
     services['finance_governance_commands'].rate_line(lambda handler: handler.create_line(
@@ -501,7 +504,7 @@ def test_r6h_reporting_kpi_uses_the_requested_financial_as_of_date(services) -> 
 
 def test_r6h_foreign_baseline_cannot_enter_reporting_or_variance(services) -> None:
     project, *_ = _approved_controls(services)
-    foreign = services['project_create'].create_project("Foreign baseline owner")
+    foreign = services['project_create'].create_project(ProjectCreateCommand(name="Foreign baseline owner"))
     services['task_lifecycle_commands'].create_task(
         foreign.id, "Foreign task", start_date=date(2026, 8, 3), duration_days=2,
     )

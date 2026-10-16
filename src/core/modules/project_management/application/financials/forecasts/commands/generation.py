@@ -30,11 +30,14 @@ from src.core.modules.project_management.application.financials.forecasts.dto.co
 from src.core.modules.project_management.application.financials.forecasts.dto.commands.forecast_generation import (
     FinancialGenerateForecastCommand,
 )
-from src.core.modules.project_management.application.financials.forecasts.dto.responses.forecast_generation import (
-    ForecastGenerationResult,
+from src.core.modules.project_management.application.financials.forecasts.dto.responses.mutations import (
+    FinancialForecastMutationDto,
 )
 from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
     ForecastDraftGenerated,
+)
+from src.core.modules.project_management.application.financials.forecasts.mappers.responses import (
+    map_forecast,
 )
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
@@ -175,7 +178,7 @@ class ForecastGenerationCommands(ProjectManagementModuleGuardMixin):
         self._tenant_context_service = tenant_context_service
         self._record_event = record_event
 
-    def generate_draft(self, command: FinancialGenerateForecastCommand) -> ForecastGenerationResult:
+    def generate_draft(self, command: FinancialGenerateForecastCommand) -> FinancialForecastMutationDto:
         project_id = command.project_id
         name = command.name
         as_of_date = _command_date(command.as_of_date, "Forecast as-of date")
@@ -275,12 +278,7 @@ class ForecastGenerationCommands(ProjectManagementModuleGuardMixin):
                     occurred_at=now,
                 )
             )
-        return ForecastGenerationResult(
-            forecast=forecast,
-            lines=tuple(lines),
-            decisions=tuple(decisions),
-            **totals,
-        )
+        return map_forecast(forecast)
 
     def _build_projection(
         self,

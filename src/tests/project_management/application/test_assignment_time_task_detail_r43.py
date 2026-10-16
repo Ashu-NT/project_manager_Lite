@@ -17,13 +17,22 @@ from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_f
 from src.core.modules.project_management.api.desktop.timesheets.builders.assignment_snapshot_builder import (
     build_assignment_snapshot,
 )
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_resources import (
+    ProjectResourceAssignCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.platform.common.exceptions import ConcurrencyError
 
 
 def _setup_assignment(services, *, allocation_percent: float = 50.0):
-    project = services['project_create'].create_project("Assignment Concurrency Project")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Assignment Concurrency Project"))
     task = services['task_lifecycle_commands'].create_task(project.id, "Concurrency Task")
-    resource = services["resource_master_commands"].create_resource("Concurrency Resource", hourly_rate=90.0)
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Concurrency Resource", hourly_rate=90.0))
     assignment = services['task_assignment_commands'].assign_resource(task.id, resource.id, allocation_percent=allocation_percent)
     return project, task, resource, assignment
 
@@ -80,11 +89,9 @@ def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services)
     rs = services["resource_query"]
     prs = services["project_resource_query"]
 
-    project = services['project_create'].create_project("Planned Hours Exposure Project")
-    resource = services["resource_master_commands"].create_resource("Planned Hours Resource", hourly_rate=80.0)
-    project_resource = services["project_resource_commands"].add_to_project(
-        project.id, resource.id, hourly_rate=80.0, currency_code="USD", planned_hours=40.0
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Planned Hours Exposure Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Planned Hours Resource", hourly_rate=80.0))
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, hourly_rate=80.0, currency_code="USD", planned_hours=40.0))
     task = services['task_lifecycle_commands'].create_task(project.id, "Planned Hours Task")
     assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
@@ -115,8 +122,8 @@ def test_task_assignment_desktop_dto_exposes_planned_hours_and_version(services)
 
 def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(services):
 
-    project = services['project_create'].create_project("Scope Leak Project")
-    resource = services["resource_master_commands"].create_resource("Shared Resource", hourly_rate=70.0)
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Scope Leak Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Shared Resource", hourly_rate=70.0))
 
     task_a = services['task_lifecycle_commands'].create_task(project.id, "Task A")
     task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B")
@@ -147,11 +154,9 @@ def test_build_assignment_snapshot_logged_is_task_scoped_not_resource_wide(servi
 def test_build_assignment_snapshot_planned_and_remaining_are_page_independent(services):
     services["project_resource_query"]
 
-    project = services['project_create'].create_project("Planned Remaining Project")
-    resource = services["resource_master_commands"].create_resource("Planned Remaining Resource", hourly_rate=60.0)
-    project_resource = services["project_resource_commands"].add_to_project(
-        project.id, resource.id, hourly_rate=60.0, currency_code="USD", planned_hours=20.0
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Planned Remaining Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Planned Remaining Resource", hourly_rate=60.0))
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, hourly_rate=60.0, currency_code="USD", planned_hours=20.0))
     task = services['task_lifecycle_commands'].create_task(project.id, "Planned Remaining Task")
     assignment = services['task_assignment_commands'].assign_project_resource(
         task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
@@ -219,11 +224,9 @@ def _setup_project_resource(services, *, planned_hours: float = 40.0):
     ts = services['task_lookup_query']
     rs = services["resource_query"]
     prs = services["project_resource_query"]
-    project = services['project_create'].create_project("Planned Work Entry Project")
-    resource = services["resource_master_commands"].create_resource("Planned Work Resource", hourly_rate=75.0)
-    project_resource = services["project_resource_commands"].add_to_project(
-        project.id, resource.id, hourly_rate=75.0, currency_code="USD", planned_hours=planned_hours
-    )
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Planned Work Entry Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Planned Work Resource", hourly_rate=75.0))
+    project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project.id, resource_id=resource.id, hourly_rate=75.0, currency_code="USD", planned_hours=planned_hours))
     task = services['task_lifecycle_commands'].create_task(project.id, "Planned Work Task")
     return ps, ts, rs, prs, project, resource, project_resource, task
 
@@ -368,8 +371,8 @@ def test_list_assignments_exposes_within_capacity_for_a_lightly_loaded_resource(
     ps = services['project_query']
     rs = services["resource_query"]
 
-    project = services['project_create'].create_project("List Assignments Capacity Project")
-    resource = services["resource_master_commands"].create_resource("List Assignments Capacity Resource", hourly_rate=50.0)
+    project = services['project_create'].create_project(ProjectCreateCommand(name="List Assignments Capacity Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="List Assignments Capacity Resource", hourly_rate=50.0))
     window_start = date.today() + timedelta(days=1)
     task = services['task_lifecycle_commands'].create_task(
         project.id, "List Assignments Capacity Task", start_date=window_start, duration_days=3
@@ -394,8 +397,8 @@ def test_list_assignments_exposes_over_capacity_for_a_double_booked_resource(ser
     ps = services['project_query']
     rs = services["resource_query"]
 
-    project = services['project_create'].create_project("List Assignments Over Capacity Project")
-    resource = services["resource_master_commands"].create_resource("List Assignments Over Capacity Resource", hourly_rate=50.0)
+    project = services['project_create'].create_project(ProjectCreateCommand(name="List Assignments Over Capacity Project"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="List Assignments Over Capacity Resource", hourly_rate=50.0))
     window_start = date.today() + timedelta(days=1)
     task_a = services['task_lifecycle_commands'].create_task(
         project.id, "Over Capacity Task A", start_date=window_start, duration_days=3

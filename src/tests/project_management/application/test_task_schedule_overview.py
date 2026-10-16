@@ -13,6 +13,9 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     run_cpm,
 )
@@ -40,7 +43,7 @@ def _run_cpm_for_project(services, project_id):
 
 
 def test_free_float_equals_total_float_for_a_task_with_no_successors(services):
-    project = services['project_create'].create_project("Schedule Overview Free Float", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Overview Free Float", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Leaf", "", start_date=date(2024, 1, 1), duration_days=2)
 
     tasks_by_id, deps, result = _run_cpm_for_project(services, project.id)
@@ -50,7 +53,7 @@ def test_free_float_equals_total_float_for_a_task_with_no_successors(services):
 
 
 def test_free_float_is_computed_for_an_fs_successor_chain(services):
-    project = services['project_create'].create_project("Schedule Overview FS Free Float", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Overview FS Free Float", description=""))
     a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
     services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
@@ -65,7 +68,7 @@ def test_free_float_is_computed_for_an_fs_successor_chain(services):
 
 
 def test_free_float_is_unavailable_for_a_non_fs_successor(services):
-    project = services['project_create'].create_project("Schedule Overview Non-FS Free Float", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Overview Non-FS Free Float", description=""))
     a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
     services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.START_TO_START, lag_days=0)
@@ -77,7 +80,7 @@ def test_free_float_is_unavailable_for_a_non_fs_successor(services):
 
 
 def test_downstream_exposure_counts_transitive_tasks_and_milestones(services):
-    project = services['project_create'].create_project("Schedule Overview Downstream", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Overview Downstream", description=""))
     a = services['task_lifecycle_commands'].create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Task B", "", duration_days=2)
     c = services['task_lifecycle_commands'].create_task(project.id, "Task C", "", duration_days=2)
@@ -101,7 +104,7 @@ def test_downstream_exposure_counts_transitive_tasks_and_milestones(services):
 
 
 def test_downstream_exposure_is_zero_for_a_leaf_task(services):
-    project = services['project_create'].create_project("Schedule Overview Downstream Leaf", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Overview Downstream Leaf", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Leaf", "", start_date=date(2024, 1, 1), duration_days=1)
 
     tasks_by_id, deps, result = _run_cpm_for_project(services, project.id)
@@ -116,7 +119,7 @@ def test_downstream_exposure_is_zero_for_a_leaf_task(services):
 
 
 def test_schedule_drivers_list_every_incoming_dependency_and_constraint_and_actuals(services):
-    project = services['project_create'].create_project("Schedule Overview Drivers", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Overview Drivers", description=""))
     a = services['task_lifecycle_commands'].create_task(project.id, "Foundation Complete", "", start_date=date(2024, 1, 1), duration_days=2)
     b = services['task_lifecycle_commands'].create_task(project.id, "Electrical", "", duration_days=2)
     services['task_dependency_commands'].add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=2)
@@ -137,7 +140,7 @@ def test_schedule_drivers_list_every_incoming_dependency_and_constraint_and_actu
 
 
 def test_schedule_drivers_is_empty_for_a_task_with_no_facts(services):
-    project = services['project_create'].create_project("Schedule Overview No Drivers", "")
+    project = services['project_create'].create_project(ProjectCreateCommand(name="Schedule Overview No Drivers", description=""))
     task = services['task_lifecycle_commands'].create_task(project.id, "Untouched", "", start_date=date(2024, 1, 1), duration_days=1)
 
     drivers = build_schedule_drivers(task, [], {})

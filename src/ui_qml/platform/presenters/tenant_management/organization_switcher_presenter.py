@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.master_data.org.models.organization import (
-    OrganizationDto,
-)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
+)
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     preview_error_result,
 )

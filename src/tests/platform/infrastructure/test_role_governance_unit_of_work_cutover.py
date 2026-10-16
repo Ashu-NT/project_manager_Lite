@@ -8,6 +8,9 @@ from datetime import UTC
 
 import pytest
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
 from src.core.platform.access.application.dto.commands.scoped_access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
@@ -194,7 +197,7 @@ def test_project_role_assignment_in_a_non_active_organization_remains_a_confirme
 ):
     tenant_context_service = services["tenant_context_service"]
     org_a1_id = tenant_context_service.get_active_organization_id()
-    project_a1 = services['project_create'].create_project("P5C-1 Non-Active Org Project")
+    project_a1 = services['project_create'].create_project(ProjectCreateCommand(name="P5C-1 Non-Active Org Project"))
     assert project_a1.organization_id == org_a1_id
 
     org_a2 = services["organization_commands"].create_organization(
@@ -246,7 +249,7 @@ def test_project_role_assignment_reverse_direction_active_a2_target_in_a1(servic
     )
     # Build project_a1 while A1 is still ambiently active (it already deactivated A1's DB flag
     # as a side effect, but the AMBIENT session org has not moved yet).
-    project_a1 = services['project_create'].create_project("P5C-1 Reverse Direction Project A1")
+    project_a1 = services['project_create'].create_project(ProjectCreateCommand(name="P5C-1 Reverse Direction Project A1"))
     assert project_a1.organization_id == org_a1_id
 
     tenant_context_service.set_active_organization(org_a2.id)

@@ -119,9 +119,6 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
         )
 
     def create_baseline(self, command: SchedulingBaselineCreateCommand) -> ProjectBaseline:
-        project_id = command.project_id
-        name = command.name
-        rate_as_of = command.rate_as_of
         governed = (
             self._approval_commands is not None
             and is_governance_required("baseline.create")
@@ -135,7 +132,7 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
             )
             require_project_permission(
                 self._user_session,
-                project_id,
+                command.project_id,
                 "approval.request",
                 operation_label="request baseline creation",
             )
@@ -147,23 +144,23 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
             )
             require_project_permission(
                 self._user_session,
-                project_id,
+                command.project_id,
                 "baseline.manage",
                 operation_label="create baseline",
             )
-        project = self._projects.get(project_id)
+        project = self._projects.get(command.project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
         if governed:
             req = self._approval_commands.request_change(
                 request_type="baseline.create",
                 entity_type="project_baseline",
-                entity_id=project_id,
-                project_id=project_id,
+                entity_id=command.project_id,
+                project_id=command.project_id,
                 payload={
-                    "project_id": project_id,
+                    "project_id": command.project_id,
                     "project_name": project.name,
-                    "name": name,
+                    "name": command.name,
                 },
             )
             raise BusinessRuleError(
@@ -173,14 +170,14 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
         uow = self._new_uow("create baseline")
         with uow:
             baseline = self._apply_baseline_creation_decision(
-                project_id=project_id, name=name, rate_as_of=rate_as_of
+                project_id=command.project_id, name=command.name, rate_as_of=command.rate_as_of
             )
             context = self._require_context("create baseline")
             uow.record_event(
                 ProjectBaselineCreated(
                     tenant_id=context.tenant_id,
                     organization_id=context.organization_id,
-                    project_id=project_id,
+                    project_id=command.project_id,
                     baseline_id=baseline.id,
                     occurred_at=datetime.now(UTC),
                 )
@@ -291,9 +288,8 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
 
 
     def delete_baseline(self, command: SchedulingBaselineDeleteCommand) -> None:
-        baseline_id = command.baseline_id
         require_permission(self._user_session, "baseline.manage", operation_label="delete baseline")
-        baseline = self._baselines.get_baseline(baseline_id)
+        baseline = self._baselines.get_baseline(command.baseline_id)
         if not baseline:
             raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
         require_project_permission(
@@ -305,13 +301,13 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
         context = self._require_context("delete baseline")
         uow = self._new_uow("delete baseline")
         with uow:
-            self._baselines.delete_baseline(baseline_id)
+            self._baselines.delete_baseline(command.baseline_id)
             self._session.flush()
             record_activity(
                 self,
                 action="baseline.delete",
                 entity_type="project_baseline",
-                entity_id=baseline_id,
+                entity_id=command.baseline_id,
                 module="project_management",
                 workspace_id=baseline.project_id,
                 details={"name": baseline.name},
@@ -322,7 +318,7 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
                     tenant_id=context.tenant_id,
                     organization_id=context.organization_id,
                     project_id=baseline.project_id,
-                    baseline_id=baseline_id,
+                    baseline_id=command.baseline_id,
                     occurred_at=datetime.now(UTC),
                 )
             )
@@ -331,14 +327,11 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
     # ── lifecycle: submit / approve / reject ────────────────────────────────
 
     def submit_baseline(self, command: SchedulingBaselineSubmitCommand) -> ProjectBaseline:
-        baseline_id = command.baseline_id
-        submitted_by = command.submitted_by
-        notes = command.notes
         """Transition baseline from DRAFT → SUBMITTED for approval routing."""
         require_permission(
             self._user_session, "baseline.manage", operation_label="submit baseline"
         )
-        baseline = self._baselines.get_baseline(baseline_id)
+        baseline = self._baselines.get_baseline(command.baseline_id)
         if not baseline:
             raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
         require_project_permission(
@@ -347,7 +340,7 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
             "baseline.manage",
             operation_label="submit baseline",
         )
-        baseline.submit(submitted_by=submitted_by, notes=notes)
+        baseline.submit(submitted_by=command.submitted_by, notes=command.notes)
         context = self._require_context("submit baseline")
         uow = self._new_uow("submit baseline")
         with uow:
@@ -357,10 +350,10 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
                 self,
                 action="baseline.submit",
                 entity_type="project_baseline",
-                entity_id=baseline_id,
+                entity_id=command.baseline_id,
                 module="project_management",
                 workspace_id=baseline.project_id,
-                details={"name": baseline.name, "submitted_by": submitted_by},
+                details={"name": baseline.name, "submitted_by": command.submitted_by},
                 commit=False,
             )
             uow.record_event(
@@ -376,9 +369,6 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
         return baseline
 
     def approve_baseline(self, command: SchedulingBaselineApproveCommand) -> ProjectBaseline:
-        baseline_id = command.baseline_id
-        approved_by = command.approved_by
-        notes = command.notes
         """
         Transition baseline from SUBMITTED → APPROVED.
 
@@ -388,7 +378,7 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
         require_permission(
             self._user_session, "baseline.approve", operation_label="approve baseline"
         )
-        baseline = self._baselines.get_baseline(baseline_id)
+        baseline = self._baselines.get_baseline(command.baseline_id)
         if not baseline:
             raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
         require_project_permission(
@@ -400,10 +390,10 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
 
         previous_approved = self._baselines.get_approved_baseline(baseline.project_id)
 
-        baseline.approve(approved_by=approved_by, notes=notes)
+        baseline.approve(approved_by=command.approved_by, notes=command.notes)
 
         variance_records: list[BaselineVarianceRecord] = []
-        if previous_approved is not None and previous_approved.id != baseline_id:
+        if previous_approved is not None and previous_approved.id != command.baseline_id:
             variance_records = self._build_variance_records(
                 new_baseline=baseline,
                 previous_baseline=previous_approved,
@@ -413,7 +403,7 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
         context = self._require_context("approve baseline")
         uow = self._new_uow("approve baseline")
         with uow:
-            if previous_approved is not None and previous_approved.id != baseline_id:
+            if previous_approved is not None and previous_approved.id != command.baseline_id:
                 self._baselines.update_baseline(previous_approved)
             self._baselines.update_baseline(baseline)
             if variance_records:
@@ -423,12 +413,12 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
                 self,
                 action="baseline.approve",
                 entity_type="project_baseline",
-                entity_id=baseline_id,
+                entity_id=command.baseline_id,
                 module="project_management",
                 workspace_id=baseline.project_id,
                 details={
                     "name": baseline.name,
-                    "approved_by": approved_by,
+                    "approved_by": command.approved_by,
                     "superseded_id": previous_approved.id if previous_approved else None,
                 },
                 commit=False,
@@ -441,7 +431,7 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
                     baseline_id=baseline.id,
                     superseded_baseline_id=(
                         previous_approved.id
-                        if previous_approved is not None and previous_approved.id != baseline_id
+                        if previous_approved is not None and previous_approved.id != command.baseline_id
                         else None
                     ),
                     occurred_at=datetime.now(UTC),
@@ -452,13 +442,11 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
         return baseline
 
     def reject_baseline(self, command: SchedulingBaselineRejectCommand) -> ProjectBaseline:
-        baseline_id = command.baseline_id
-        notes = command.notes
         """Transition baseline from SUBMITTED → REJECTED."""
         require_permission(
             self._user_session, "baseline.approve", operation_label="reject baseline"
         )
-        baseline = self._baselines.get_baseline(baseline_id)
+        baseline = self._baselines.get_baseline(command.baseline_id)
         if not baseline:
             raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
         require_project_permission(
@@ -467,7 +455,7 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
             "baseline.approve",
             operation_label="reject baseline",
         )
-        baseline.reject(notes=notes)
+        baseline.reject(notes=command.notes)
         context = self._require_context("reject baseline")
         uow = self._new_uow("reject baseline")
         with uow:
@@ -477,7 +465,7 @@ class BaselineCommandHandler(ProjectManagementModuleGuardMixin):
                 self,
                 action="baseline.reject",
                 entity_type="project_baseline",
-                entity_id=baseline_id,
+                entity_id=command.baseline_id,
                 module="project_management",
                 workspace_id=baseline.project_id,
                 details={"name": baseline.name},

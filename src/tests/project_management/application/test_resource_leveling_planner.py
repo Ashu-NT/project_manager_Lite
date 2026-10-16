@@ -8,6 +8,12 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
+)
 from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
     ResourceLevelingPlanner,
 )
@@ -27,10 +33,10 @@ class TestBasicOverloadResolution:
     def test_single_overload_between_two_independent_tasks_is_resolved(self, services):
         calendar = services["work_calendar_engine"]
 
-        project = services['project_create'].create_project("Leveling Planner Single Overload", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Leveling Planner Single Overload", description=""))
         task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = services["resource_master_commands"].create_resource("Overload Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Overload Dev", role="Developer", hourly_rate=100.0))
         services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
@@ -52,7 +58,7 @@ class TestBasicOverloadResolution:
     def test_no_conflicts_produces_an_empty_feasible_proposal(self, services):
         calendar = services["work_calendar_engine"]
 
-        project = services['project_create'].create_project("Leveling Planner No Conflicts", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Leveling Planner No Conflicts", description=""))
         services['task_lifecycle_commands'].create_task(project.id, "Solo Task", start_date=date(2026, 9, 7), duration_days=2)
 
         tasks_by_id, assignments, deps = _snapshot(services['task_lookup_query'], services['task_dependency_query'], project.id)
@@ -77,10 +83,10 @@ class TestPreviewNeverPersists:
         after building a proposal and asserting nothing changed."""
         calendar = services["work_calendar_engine"]
 
-        project = services['project_create'].create_project("Leveling Planner No Persist", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Leveling Planner No Persist", description=""))
         task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B", start_date=date(2026, 9, 7), duration_days=3)
         task_c = services['task_lifecycle_commands'].create_task(project.id, "Task C", start_date=date(2026, 9, 7), duration_days=3)
-        resource = services["resource_master_commands"].create_resource("No Persist Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="No Persist Dev", role="Developer", hourly_rate=100.0))
         services['task_assignment_commands'].assign_resource(task_b.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_c.id, resource.id, allocation_percent=60.0)
 
@@ -119,7 +125,7 @@ class TestDependencyAwarePropagation:
         interesting case for THIS test but not what it's checking."""
         calendar = services["work_calendar_engine"]
 
-        project = services['project_create'].create_project("Leveling Planner Propagation", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Leveling Planner Propagation", description=""))
         task_a = services['task_lifecycle_commands'].create_task(project.id, "Task A (overloaded)", start_date=date(2026, 9, 7), duration_days=3)
         task_other = services['task_lifecycle_commands'].create_task(
             project.id, "Task Other", start_date=date(2026, 9, 7), duration_days=3,
@@ -128,7 +134,7 @@ class TestDependencyAwarePropagation:
         task_b = services['task_lifecycle_commands'].create_task(project.id, "Task B (successor)", duration_days=2)
         services['task_dependency_commands'].add_dependency(task_a.id, task_b.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-        resource = services["resource_master_commands"].create_resource("Propagation Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Propagation Dev", role="Developer", hourly_rate=100.0))
         services['task_assignment_commands'].assign_resource(task_a.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_other.id, resource.id, allocation_percent=60.0)
 
@@ -162,13 +168,13 @@ class TestMovabilityRespectedByPlanner:
     def test_must_start_on_task_is_never_moved_another_candidate_is_used_instead(self, services):
         calendar = services["work_calendar_engine"]
 
-        project = services['project_create'].create_project("Leveling Planner MSO Respected", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Leveling Planner MSO Respected", description=""))
         task_pinned = services['task_lifecycle_commands'].create_task(
             project.id, "Pinned Task", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
         )
         task_flexible = services['task_lifecycle_commands'].create_task(project.id, "Flexible Task", start_date=date(2026, 9, 7), duration_days=3)
-        resource = services["resource_master_commands"].create_resource("MSO Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="MSO Dev", role="Developer", hourly_rate=100.0))
         services['task_assignment_commands'].assign_resource(task_pinned.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_flexible.id, resource.id, allocation_percent=60.0)
 
@@ -195,7 +201,7 @@ class TestUnresolvedConflictWhenNoLegalMoveExists:
         conflict, never silently claim success."""
         calendar = services["work_calendar_engine"]
 
-        project = services['project_create'].create_project("Leveling Planner Unresolved", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Leveling Planner Unresolved", description=""))
         task_1 = services['task_lifecycle_commands'].create_task(
             project.id, "Pinned One", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
@@ -204,7 +210,7 @@ class TestUnresolvedConflictWhenNoLegalMoveExists:
             project.id, "Pinned Two", start_date=date(2026, 9, 7), duration_days=3,
             constraint_type="must_start_on", constraint_date=date(2026, 9, 7),
         )
-        resource = services["resource_master_commands"].create_resource("Unresolved Dev", "Developer", hourly_rate=100.0)
+        resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Unresolved Dev", role="Developer", hourly_rate=100.0))
         services['task_assignment_commands'].assign_resource(task_1.id, resource.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_2.id, resource.id, allocation_percent=60.0)
 
@@ -233,13 +239,13 @@ class TestMultiResourceTaskCandidatePlacement:
         which task_multi is also assigned to."""
         calendar = services["work_calendar_engine"]
 
-        project = services['project_create'].create_project("Leveling Planner Multi-Resource", "")
+        project = services['project_create'].create_project(ProjectCreateCommand(name="Leveling Planner Multi-Resource", description=""))
         task_x = services['task_lifecycle_commands'].create_task(project.id, "Task X", start_date=date(2026, 9, 7), duration_days=3)
         task_multi = services['task_lifecycle_commands'].create_task(project.id, "Task Multi", start_date=date(2026, 9, 7), duration_days=3)
         task_y = services['task_lifecycle_commands'].create_task(project.id, "Task Y", start_date=date(2026, 9, 14), duration_days=3)
 
-        resource_x = services["resource_master_commands"].create_resource("Resource X", "Developer", hourly_rate=100.0)
-        resource_y = services["resource_master_commands"].create_resource("Resource Y", "Developer", hourly_rate=100.0)
+        resource_x = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Resource X", role="Developer", hourly_rate=100.0))
+        resource_y = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Resource Y", role="Developer", hourly_rate=100.0))
         services['task_assignment_commands'].assign_resource(task_x.id, resource_x.id, allocation_percent=70.0)
         services['task_assignment_commands'].assign_resource(task_multi.id, resource_x.id, allocation_percent=60.0)
         services['task_assignment_commands'].assign_resource(task_multi.id, resource_y.id, allocation_percent=60.0)

@@ -9,6 +9,12 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.projects.dto.responses.project import (
+    ProjectResponse,
+)
+from src.core.modules.project_management.application.projects.mappers.project import (
+    map_project_response,
+)
 from src.core.modules.project_management.application.projects.project_events import (
     ProjectStatusChanged,
 )
@@ -67,15 +73,15 @@ class ProjectStatusHandler(ProjectManagementModuleGuardMixin):
         return DomainEventContext(correlation_id=generate_id())
     def set_status(
         self, project_id: str, status: ProjectStatus, *, expected_version: int | None = None
-    ) -> Project:
+    ) -> ProjectResponse:
         with self._require_project_uow_factory().create(context=self._new_context()) as uow:
             project = self._apply_project_status(
                 uow, project_id, status, expected_version=expected_version
             )
             uow.commit()
-        return project
+        return map_project_response(project)
 
-    def bulk_set_status(self, project_ids: Sequence[str], status: ProjectStatus) -> list[Project]:
+    def bulk_set_status(self, project_ids: Sequence[str], status: ProjectStatus) -> list[ProjectResponse]:
         """Same per-project work as set_status() (its own permission check,
         audit entry, activity entry, and ProjectStatusChanged event -- that's
         the audit trail's real granularity), but every selected project's
@@ -85,7 +91,7 @@ class ProjectStatusHandler(ProjectManagementModuleGuardMixin):
             for project_id in project_ids:
                 results.append(self._apply_project_status(uow, project_id, status, expected_version=None))
             uow.commit()
-        return results
+        return [map_project_response(project) for project in results]
 
     def _apply_project_status(
         self, uow, project_id: str, status: ProjectStatus, *, expected_version: int | None

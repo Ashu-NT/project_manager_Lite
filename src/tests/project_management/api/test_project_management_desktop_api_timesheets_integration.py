@@ -1,3 +1,4 @@
+
 from datetime import date
 from types import SimpleNamespace
 
@@ -5,6 +6,12 @@ import pytest
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_timesheets_desktop_api,
+)
+from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
+    ProjectCreateCommand,
+)
+from src.core.modules.project_management.application.resources.dto.commands.catalog import (
+    ResourceCreateCommand,
 )
 from src.core.modules.project_management.application.timesheets.dto.commands.time_entries import (
     TimesheetEntryCreateCommand,
@@ -56,10 +63,7 @@ def test_timesheets_task_reads_check_module_before_handler(operation: str) -> No
 
 def test_project_management_timesheets_desktop_api_supports_assignment_periods_and_review() -> None:
     project_service = _FakeProjectService()
-    project = project_service.create_project(
-        name="Plant Upgrade",
-        description="Replace switchgear and commission the new line.",
-    )
+    project = project_service.create_project(ProjectCreateCommand(name="Plant Upgrade", description="Replace switchgear and commission the new line."))
     task_service = _FakeTaskService()
     task = task_service.create_task(
         project_id=project.id,
@@ -69,19 +73,7 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         duration_days=4,
     )
     resource_service = _FakeResourceService()
-    resource = resource_service.create_resource(
-        name="Electrical Crew",
-        role="Lead Technician",
-        hourly_rate=95.0,
-        is_active=True,
-        cost_type=CostType.LABOR,
-        currency_code="eur",
-        capacity_percent=110.0,
-        address="Site Office",
-        contact="crew@example.com",
-        worker_type=WorkerType.EXTERNAL,
-        employee_id=None,
-    )
+    resource = resource_service.create_resource(ResourceCreateCommand(name="Electrical Crew", role="Lead Technician", hourly_rate=95.0, is_active=True, cost_type=CostType.LABOR, currency_code="eur", capacity_percent=110.0, address="Site Office", contact="crew@example.com", worker_type=WorkerType.EXTERNAL, employee_id=None))
     assignment = task_service.create_assignment(
         task_id=task.id,
         resource_id=resource.id,

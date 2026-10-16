@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import src.core.platform.application.master_data.department.mappers.department as response_mapper
+import src.core.platform.application.master_data.org.mappers.organization as organization_mapper
 from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.application.master_data.department.department_access import (
     require_department_read_access,
@@ -11,6 +13,13 @@ from src.core.platform.application.master_data.department.department_context imp
 )
 from src.core.platform.application.master_data.department.department_utils import (
     normalize_optional_text,
+)
+from src.core.platform.application.master_data.department.dto.responses.department import (
+    DepartmentDto,
+    DepartmentPageDto,
+)
+from src.core.platform.application.master_data.org.dto.responses.organization import (
+    OrganizationDto,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -30,7 +39,6 @@ from src.core.platform.contract.repositories.master_data.org.contracts import (
     OrganizationRepository,
 )
 from src.core.platform.domain.master_data.department import Department
-from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import normalize_code
 from src.core.platform.domain.security.auth.session import UserSessionContext
 
@@ -68,12 +76,12 @@ class DepartmentQueryHandler:
 
     def list_departments(
         self, *, active_only: bool | None = None, site_id: str | None = None
-    ) -> list[Department]:
+    ) -> list[DepartmentDto]:
         require_department_read_access(self._user_session, "list departments")
         organization = active_organization(self._tenant_context_service)
-        return self._department_repo.list_for_organization(
+        return [response_mapper.serialize_department(row) for row in (self._department_repo.list_for_organization(
             organization.id, active_only=active_only, site_id=site_id
-        )
+        ))]
 
     def search_departments(
         self,
@@ -121,11 +129,11 @@ class DepartmentQueryHandler:
         normalized_code = normalize_code(department_code, label="Department code")
         return self._department_repo.get_by_code(active_organization(self._tenant_context_service).id, normalized_code)
 
-    def get_context_organization(self) -> Organization:
+    def get_context_organization(self) -> OrganizationDto:
         require_permission(
             self._user_session, "settings.manage", operation_label="view department context"
         )
-        return active_organization(self._tenant_context_service)
+        return organization_mapper.serialize_organization_context(active_organization(self._tenant_context_service))
 
     def get_department_rollup_summary(self) -> DepartmentRollupSummary:
         require_department_read_access(self._user_session, "view department rollup summary")
@@ -154,7 +162,7 @@ class DepartmentQueryHandler:
         search: str = "",
         active_only: bool | None = None,
         site_id: str | None = None,
-    ) -> DepartmentPage:
+    ) -> DepartmentPageDto:
         """Tenant-scoped read for ANY organization in the caller's tenant --
         unlike list_departments()/search_departments(), not limited to the
         session's active organization. For Organization Detail's
@@ -202,13 +210,13 @@ class DepartmentQueryHandler:
             permission_code="department.read",
             scope_id_getter=lambda row: getattr(row, "id", ""),
         )
-        return DepartmentPage(
+        return response_mapper.serialize_department_page(DepartmentPage(
             items=items,
             total=total,
             filtered_total=filtered_total,
             page=normalized_page,
             page_size=normalized_page_size,
-        )
+        ))
 
 
 __all__ = ["DEPARTMENT_PAGE_SIZE_OPTIONS", "DepartmentPage", "DepartmentQueryHandler"]

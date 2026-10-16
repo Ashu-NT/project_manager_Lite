@@ -8,11 +8,14 @@ from src.core.modules.project_management.api.desktop.scheduling.formatters.basel
 from src.core.modules.project_management.api.desktop.scheduling.models.baselines import (
     SchedulingBaselineOptionDescriptor,
     SchedulingBaselineRowDto,
+)
+from src.core.modules.project_management.application.scheduling.dto.responses.baselines import (
     SchedulingBaselineVarianceRowDto,
 )
-from src.core.platform.domain.finance.money import canonical_decimal_text
 
 logger = logging.getLogger(__name__)
+
+
 
 
 def build_baseline_options(project_id: str, baseline_query=None) -> tuple[SchedulingBaselineOptionDescriptor, ...]:
@@ -38,25 +41,11 @@ def build_variance_rows(baseline_id: str, baseline_query=None) -> tuple[Scheduli
     if not baseline_id or baseline_query is None:
         return ()
     try:
-        records = baseline_query.list_variance_records(baseline_id)
+        records = baseline_query.query_variance_responses(baseline_id)
     except Exception:
         logger.exception("Failed to build variance rows for baseline_id=%s", baseline_id)
         return ()
-    return tuple(
-        SchedulingBaselineVarianceRowDto(
-            id=str(getattr(r, "id", "") or ""),
-            project_id=str(getattr(r, "project_id", "") or ""),
-            new_baseline_id=str(getattr(r, "new_baseline_id", "") or ""),
-            superseded_baseline_id=str(getattr(r, "superseded_baseline_id", "") or ""),
-            task_id=str(getattr(r, "task_id", "") or ""),
-            task_name=str(getattr(r, "task_name", "") or getattr(r, "task_id", "")),
-            start_variance_days=int(getattr(r, "start_variance_days", 0) or 0),
-            finish_variance_days=int(getattr(r, "finish_variance_days", 0) or 0),
-            cost_variance=canonical_decimal_text(getattr(r, "cost_variance", 0) or 0),
-            created_at=(r.created_at.date() if hasattr(r.created_at, "date") else getattr(r, "created_at", None)),
-        )
-        for r in records
-    )
+    return records
 
 
 __all__ = ["build_baseline_options", "build_baseline_rows", "build_variance_rows"]
