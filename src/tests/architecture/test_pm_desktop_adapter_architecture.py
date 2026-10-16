@@ -242,7 +242,7 @@ def test_resource_rate_and_certification_policy_stays_out_of_adapters() -> None:
         "resource_csv_importer.py"
     ).read_text(encoding="utf-8")
     certification_source = (
-        DESKTOP_ROOT / "resources/serializers/certification_serializer.py"
+        REPO_ROOT / "src/ui_qml/modules/project_management/presenters/resources/certifications_builder.py"
     ).read_text(encoding="utf-8")
 
     for source in (resource_api_source, importer_source):

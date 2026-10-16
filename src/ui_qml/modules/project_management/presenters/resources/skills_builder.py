@@ -23,15 +23,15 @@ def build_skills_page(
     return {
         "items": [
             {
-                "id": skill.id,
+                "id": skill.skill_id,
                 "title": skill.skill_name,
                 "subtitle": skill.skill_code,
-                "statusLabel": skill.proficiency_label,
+                "statusLabel": skill.proficiency.replace("_", " ").title(),
                 "metaText": skill.notes or "-",
                 "skillCode": skill.skill_code,
                 "skillName": skill.skill_name,
                 "proficiency": skill.proficiency,
-                "proficiencyLabel": skill.proficiency_label,
+                "proficiencyLabel": skill.proficiency.replace("_", " ").title(),
                 "notes": skill.notes,
                 "version": skill.version,
             }
@@ -40,8 +40,8 @@ def build_skills_page(
         "total": page.filtered_total,
         "page": page.page,
         "pageSize": page.page_size,
-        "sortKey": page.sort_key,
-        "sortDirection": page.sort_direction,
+        "sortKey": page.sort.key,
+        "sortDirection": page.sort.direction.value,
     }
 
 def add_skill(

@@ -23,20 +23,20 @@ def build_certifications_page(
     return {
         "items": [
             {
-                "id": cert.id,
+                "id": cert.certification_id,
                 "title": cert.certification_name,
                 "subtitle": cert.certification_code,
-                "statusLabel": cert.cert_status_label,
-                "metaText": cert.expiry_date or "No expiry",
+                "statusLabel": cert.cert_status.replace("-", " ").title(),
+                "metaText": cert.expiry_date.isoformat() if cert.expiry_date is not None else "No expiry",
                 "certificationCode": cert.certification_code,
                 "certificationName": cert.certification_name,
-                "issuedDate": cert.issued_date or "",
-                "expiryDate": cert.expiry_date or "",
+                "issuedDate": cert.issued_date.isoformat() if cert.issued_date is not None else "",
+                "expiryDate": cert.expiry_date.isoformat() if cert.expiry_date is not None else "",
                 "certificateNumber": cert.certificate_number,
                 "issuer": cert.issuer,
                 "notes": cert.notes,
                 "certStatus": cert.cert_status,
-                "certStatusLabel": cert.cert_status_label,
+                "certStatusLabel": cert.cert_status.replace("-", " ").title(),
                 "version": cert.version,
             }
             for cert in page.items
@@ -44,8 +44,8 @@ def build_certifications_page(
         "total": page.filtered_total,
         "page": page.page,
         "pageSize": page.page_size,
-        "sortKey": page.sort_key,
-        "sortDirection": page.sort_direction,
+        "sortKey": page.sort.key,
+        "sortDirection": page.sort.direction.value,
     }
 
 def add_certification(

@@ -10,14 +10,6 @@ from src.core.modules.project_management.api.desktop.resources.models.availabili
     ResourceAvailabilityDayDto,
     ResourceAvailabilityDto,
 )
-from src.core.modules.project_management.api.desktop.resources.models.certifications import (
-    ResourceCertificationDesktopDto,
-    ResourceCertificationsPageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.resources.models.context import (
-    ResourceActivityDesktopDto,
-    ResourceActivityPageDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
     ResourceEmployeeOptionDescriptor,
@@ -31,10 +23,6 @@ from src.core.modules.project_management.api.desktop.resources.models.resources 
     ResourceDesktopDto,
     ResourceInspectorDesktopDto,
     ResourceSummaryDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.resources.models.skills import (
-    ResourceSkillDesktopDto,
-    ResourceSkillsPageDesktopDto,
 )
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
@@ -53,35 +41,4 @@ from src.core.modules.project_management.application.resources.dto.commands.skil
     ResourceUpdateSkillCommand,
 )
 
-__all__ = [
-    "ProjectManagementResourcesDesktopApi",
-    "ResourceActivityDesktopDto",
-    "ResourceActivityPageDesktopDto",
-    "ResourceAddCertificationCommand",
-    "ResourceAddSkillCommand",
-    "ResourceAvailabilityDayDto",
-    "ResourceAvailabilityDto",
-    "ResourceCatalogItemDesktopDto",
-    "ResourceCatalogPageDesktopDto",
-    "ResourceCategoryDescriptor",
-    "ResourceCertificationDesktopDto",
-    "ResourceCertificationsPageDesktopDto",
-    "ResourceCreateCommand",
-    "ResourceDesktopDto",
-    "ResourceEmployeeOptionDescriptor",
-    "ResourceInspectorDesktopDto",
-    "ResourceKindDescriptor",
-    "ResourceLifecycleCommand",
-    "ResourcePurgeCommand",
-    "ResourceRemoveCertificationCommand",
-    "ResourceRemoveSkillCommand",
-    "ResourceScopeOptionDescriptor",
-    "ResourceSkillDesktopDto",
-    "ResourceSkillsPageDesktopDto",
-    "ResourceSummaryDesktopDto",
-    "ResourceUpdateCertificationCommand",
-    "ResourceUpdateCommand",
-    "ResourceUpdateSkillCommand",
-    "ResourceWorkerTypeDescriptor",
-    "build_project_management_resources_desktop_api",
-]
+__all__ = ['ProjectManagementResourcesDesktopApi', 'ResourceAddCertificationCommand', 'ResourceAddSkillCommand', 'ResourceAvailabilityDayDto', 'ResourceAvailabilityDto', 'ResourceCatalogItemDesktopDto', 'ResourceCatalogPageDesktopDto', 'ResourceCategoryDescriptor', 'ResourceCreateCommand', 'ResourceDesktopDto', 'ResourceEmployeeOptionDescriptor', 'ResourceInspectorDesktopDto', 'ResourceKindDescriptor', 'ResourceLifecycleCommand', 'ResourcePurgeCommand', 'ResourceRemoveCertificationCommand', 'ResourceRemoveSkillCommand', 'ResourceScopeOptionDescriptor', 'ResourceSummaryDesktopDto', 'ResourceUpdateCertificationCommand', 'ResourceUpdateCommand', 'ResourceUpdateSkillCommand', 'ResourceWorkerTypeDescriptor', 'build_project_management_resources_desktop_api']

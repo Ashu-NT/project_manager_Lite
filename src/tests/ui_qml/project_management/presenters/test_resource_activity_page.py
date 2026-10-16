@@ -1,17 +1,24 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from src.core.modules.project_management.contracts.reads.resources.models import (
+    ResourceActivityFact,
+    ResourceActivityReadPage,
+)
+from src.core.modules.project_management.contracts.reads.sorting import (
+    ReadSort,
+    ReadSortDirection,
+)
 from src.ui_qml.modules.project_management.presenters.resources.context_builder import (
     build_resource_activity_page,
 )
 
 
-def _activity_item(**overrides) -> SimpleNamespace:
+def _activity_item(**overrides) -> ResourceActivityFact:
     fields = dict(
-        id="act-1",
+        activity_id="act-1",
         resource_id="res-1",
         occurred_at=datetime(2026, 3, 5, 14, 30, tzinfo=UTC),
         event_type="resource.skill.add",
@@ -27,12 +34,12 @@ def _activity_item(**overrides) -> SimpleNamespace:
         actor_display="Deleted user",
     )
     fields.update(overrides)
-    return SimpleNamespace(**fields)
+    return ResourceActivityFact(**fields)
 
 
 def _page(items):
-    return SimpleNamespace(items=tuple(items), filtered_total=len(items), page=1, page_size=25,
-                            sort_key="occurredAt", sort_direction="desc")
+    return ResourceActivityReadPage(items=tuple(items), filtered_total=len(items), page=1, page_size=25,
+                            sort=ReadSort("occurredAt", ReadSortDirection.DESCENDING))
 
 
 def _desktop_api(items):

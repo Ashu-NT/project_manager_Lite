@@ -27,6 +27,12 @@ from src.core.modules.project_management.application.resources.dto.commands.cata
 from src.core.modules.project_management.application.resources.dto.commands.skills import (
     ResourceAddSkillCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
+    TaskAssignmentCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
@@ -47,33 +53,10 @@ def _seed_resource_context(services):
     zulu = services['project_create'].create_project(ProjectCreateCommand(name="Zulu Delivery", code="R5E-ZULU", status=ProjectStatus.PLANNED, start_date=date(2026, 9, 1), end_date=date(2026, 12, 31)))
     alpha_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=alpha.id, resource_id=resource.id, planned_hours=Decimal(120)))
     zulu_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=zulu.id, resource_id=resource.id, planned_hours=Decimal(80)))
-    alpha_task = services['task_lifecycle_commands'].create_task(
-        alpha.id,
-        "Alpha planning",
-        code="R5E-A-TASK",
-        start_date=date(2026, 8, 10),
-        duration_days=4,
-        status=TaskStatus.IN_PROGRESS,
-    )
-    zulu_task = services['task_lifecycle_commands'].create_task(
-        zulu.id,
-        "Zulu planning",
-        code="R5E-Z-TASK",
-        start_date=date(2026, 9, 10),
-        duration_days=4,
-    )
-    alpha_assignment = services['task_assignment_commands'].assign_project_resource(
-        alpha_task.id,
-        alpha_resource.id,
-        allocation_percent=50,
-        allocated_planned_hours=Decimal(40),
-    )
-    zulu_assignment = services['task_assignment_commands'].assign_project_resource(
-        zulu_task.id,
-        zulu_resource.id,
-        allocation_percent=25,
-        allocated_planned_hours=Decimal(30),
-    )
+    alpha_task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=alpha.id, name="Alpha planning", code="R5E-A-TASK", start_date=date(2026, 8, 10), duration_days=4, status=TaskStatus.IN_PROGRESS))
+    zulu_task = services['task_lifecycle_commands'].create_task(TaskCreateCommand(project_id=zulu.id, name="Zulu planning", code="R5E-Z-TASK", start_date=date(2026, 9, 10), duration_days=4))
+    alpha_assignment = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(task_id=alpha_task.id, project_resource_id=alpha_resource.id, allocation_percent=50, allocated_planned_hours=Decimal(40)))
+    zulu_assignment = services['task_assignment_commands'].assign_project_resource(TaskAssignmentCreateCommand(task_id=zulu_task.id, project_resource_id=zulu_resource.id, allocation_percent=25, allocated_planned_hours=Decimal(30)))
     services["time_entry_commands"].add_time_entry(
         alpha_assignment.id,
         entry_date=date(2026, 8, 12),

@@ -168,6 +168,46 @@ and other API serializers remain to be reconciled with the clarified thin-API
 target; the whole migration is not certified. No full suite or PostgreSQL
 rerun was claimed for this cut. No commit was made; `.tmp` remains absent.
 
+**Resource Reader DTO pass-through (2026-10-16):** Skills, Certifications,
+Projects, Assignments and Activity now use their existing immutable Reader
+facts/pages through application queries and the desktop API, without
+rebuilding rows or pages. No new response copies were introduced. Decimal
+values, dates, server-authored status/capabilities, scope evidence and the
+canonical sort object remain intact until presenter-to-QML mapping.
+Skill/Certification commands return their existing application results
+directly rather than serializing them into another desktop type. Their
+presenters already construct application command DTOs from payloads.
+
+Deleted six redundant desktop row/page DTO classes in three API model files,
+their three serializers, four Project/Assignment application response copies,
+and the associated four application read-fact mapping helpers. Eight source
+files were deleted in total, with obsolete package exports and test imports
+removed; no compatibility aliases or migration wrappers remain for these
+paths. Application domain-to-command-result mapping remains legitimate;
+the removed mappings only renamed fields or stringified already-consumable
+Reader values. Presenter mapping now owns QML IDs, date/number display,
+proficiency/certification labels and sort metadata extraction. Actor labels
+and navigation capabilities remain server-authored, not reconstructed.
+
+Regression tests prove object identity from each Reader page through the
+query/API, command-result identity, payload-to-command construction, QML date
+formatting and scoped reader invocation. Existing SQL pagination/filter/sort,
+10k-assignment scale/query-count, tenant/org/project isolation, activity actor,
+controller and module-guard coverage is preserved. Updated stale Task command
+fixtures to their existing typed inputs; no permission or UoW rule changed.
+Fixed three straightforward presenter typing issues without changing the
+Resource code normalization semantics.
+
+Final targeted result: 302 tests passed across Resources API/readers,
+context/performance/controllers/presenters, architecture and composition.
+Mypy passed for 1,307 PM/Platform application/API and Resource presenter source
+files. Ruff F/I, compilation, retired-symbol searches and diff checks passed.
+No Alembic schema migration was needed or removed; no full-suite or fresh live
+PostgreSQL certification is claimed. Resource catalog/inspector/availability
+and other API areas still require reconciliation with the direct-result
+target. The overall migration remains open. No commit was made and `.tmp`
+remains absent.
+
 Pre-release permits coordinated interface cutovers and deletion of obsolete
 internal paths, but does not justify changing RBAC, tenant isolation,
 financial authority, approval atomicity, or UoW lifetimes during a structural

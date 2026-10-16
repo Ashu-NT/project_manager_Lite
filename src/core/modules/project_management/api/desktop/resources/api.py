@@ -17,13 +17,6 @@ from src.core.modules.project_management.api.desktop.resources.builders.option_b
 from src.core.modules.project_management.api.desktop.resources.models.availability import (
     ResourceAvailabilityDto,
 )
-from src.core.modules.project_management.api.desktop.resources.models.certifications import (
-    ResourceCertificationDesktopDto,
-    ResourceCertificationsPageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.resources.models.context import (
-    ResourceActivityPageDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
     ResourceEmployeeOptionDescriptor,
@@ -37,24 +30,11 @@ from src.core.modules.project_management.api.desktop.resources.models.resources 
     ResourceInspectorDesktopDto,
     ResourceSummaryDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.resources.models.skills import (
-    ResourceSkillDesktopDto,
-    ResourceSkillsPageDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.resources.serializers.certification_serializer import (
-    serialize_certification,
-)
-from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
-    serialize_resource_activity,
-)
 from src.core.modules.project_management.api.desktop.resources.serializers.resource_serializer import (
     serialize_resource,
     serialize_resource_catalog_item,
     serialize_resource_inspector,
     serialize_resource_summary,
-)
-from src.core.modules.project_management.api.desktop.resources.serializers.skill_serializer import (
-    serialize_skill,
 )
 from src.core.modules.project_management.api.desktop.resources.utils.date_utils import (
     parse_date,
@@ -86,15 +66,22 @@ from src.core.modules.project_management.application.resources.dto.commands.skil
     ResourceRemoveSkillCommand,
     ResourceUpdateSkillCommand,
 )
-from src.core.modules.project_management.application.resources.dto.responses.context import (
-    ResourceAssignmentsPageResponse,
-    ResourceProjectsPageResponse,
+from src.core.modules.project_management.application.resources.dto.responses.capabilities import (
+    ResourceCertificationResponse,
+    ResourceSkillResponse,
 )
 from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
     ResourceContextQueryHandler,
 )
 from src.core.modules.project_management.application.resources.queries.skill_queries import (
     ResourceCapabilityQueryHandler,
+)
+from src.core.modules.project_management.contracts.reads.resources.models import (
+    ResourceActivityReadPage,
+    ResourceAssignmentReadPage,
+    ResourceCertificationReadPage,
+    ResourceProjectReadPage,
+    ResourceSkillReadPage,
 )
 from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.platform.application.master_data.department import DepartmentQueryHandler
@@ -291,8 +278,8 @@ class ProjectManagementResourcesDesktopApi:
         page_size: int = 25,
         sort_key: str = "skillName",
         sort_direction: str = "asc",
-    ) -> ResourceSkillsPageDesktopDto:
-        result = self._require_resource_capability_query().query_resource_skills_page(
+    ) -> ResourceSkillReadPage:
+        return self._require_resource_capability_query().query_resource_skills_page(
             resource_id,
             search_text=search_text,
             proficiency=None if proficiency == "all" else proficiency,
@@ -301,34 +288,14 @@ class ProjectManagementResourcesDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return ResourceSkillsPageDesktopDto(
-            items=tuple(
-                ResourceSkillDesktopDto(
-                    id=item.skill_id,
-                    resource_id=item.resource_id,
-                    skill_code=item.skill_code,
-                    skill_name=item.skill_name,
-                    proficiency=item.proficiency,
-                    proficiency_label=item.proficiency.replace("_", " ").title(),
-                    notes=item.notes,
-                    version=item.version,
-                )
-                for item in result.items
-            ),
-            filtered_total=result.filtered_total,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
-        )
 
     def add_resource_skill(
         self,
         command: ResourceAddSkillCommand,
-    ) -> ResourceSkillDesktopDto:
+    ) -> ResourceSkillResponse:
         service = self._require_resource_capability_commands("add resource skill")
         skill = service.add_resource_skill(command)
-        return serialize_skill(skill)
+        return skill
 
     def list_resource_certifications_page(
         self,
@@ -340,8 +307,8 @@ class ProjectManagementResourcesDesktopApi:
         page_size: int = 25,
         sort_key: str = "certificationName",
         sort_direction: str = "asc",
-    ) -> ResourceCertificationsPageDesktopDto:
-        result = self._require_resource_capability_query().query_resource_certifications_page(
+    ) -> ResourceCertificationReadPage:
+        return self._require_resource_capability_query().query_resource_certifications_page(
             resource_id,
             search_text=search_text,
             status=None if status == "all" else status,
@@ -350,37 +317,13 @@ class ProjectManagementResourcesDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        return ResourceCertificationsPageDesktopDto(
-            items=tuple(
-                ResourceCertificationDesktopDto(
-                    id=item.certification_id,
-                    resource_id=item.resource_id,
-                    certification_code=item.certification_code,
-                    certification_name=item.certification_name,
-                    issued_date=(item.issued_date.isoformat() if item.issued_date else None),
-                    expiry_date=(item.expiry_date.isoformat() if item.expiry_date else None),
-                    certificate_number=item.certificate_number,
-                    issuer=item.issuer,
-                    notes=item.notes,
-                    cert_status=item.cert_status,
-                    cert_status_label=item.cert_status.replace("-", " ").title(),
-                    version=item.version,
-                )
-                for item in result.items
-            ),
-            filtered_total=result.filtered_total,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
-        )
 
     def update_resource_skill(
         self, command: ResourceUpdateSkillCommand
-    ) -> ResourceSkillDesktopDto:
+    ) -> ResourceSkillResponse:
         service = self._require_resource_capability_commands("update resource skill")
         skill = service.update_resource_skill(command)
-        return serialize_skill(skill)
+        return skill
 
     def remove_resource_skill(self, command: ResourceRemoveSkillCommand) -> None:
         service = self._require_resource_capability_commands("remove resource skill")
@@ -389,17 +332,17 @@ class ProjectManagementResourcesDesktopApi:
     def add_resource_certification(
         self,
         command: ResourceAddCertificationCommand,
-    ) -> ResourceCertificationDesktopDto:
+    ) -> ResourceCertificationResponse:
         service = self._require_resource_capability_commands("add resource certification")
         certification = service.add_resource_certification(command)
-        return serialize_certification(certification)
+        return certification
 
     def update_resource_certification(
         self, command: ResourceUpdateCertificationCommand
-    ) -> ResourceCertificationDesktopDto:
+    ) -> ResourceCertificationResponse:
         service = self._require_resource_capability_commands("update resource certification")
         certification = service.update_resource_certification(command)
-        return serialize_certification(certification)
+        return certification
 
     def remove_resource_certification(
         self, command: ResourceRemoveCertificationCommand
@@ -418,7 +361,7 @@ class ProjectManagementResourcesDesktopApi:
         page_size: int = 25,
         sort_key: str = "projectName",
         sort_direction: str = "asc",
-    ) -> ResourceProjectsPageResponse:
+    ) -> ResourceProjectReadPage:
         active_value = (
             True if str(active).lower() == "active"
             else False if str(active).lower() == "inactive"
@@ -451,7 +394,7 @@ class ProjectManagementResourcesDesktopApi:
         page_size: int = 25,
         sort_key: str = "scheduledStart",
         sort_direction: str = "asc",
-    ) -> ResourceAssignmentsPageResponse:
+    ) -> ResourceAssignmentReadPage:
         result = self._require_resource_context_query().query_resource_assignments_page(
             resource_id,
             search_text=search_text,
@@ -480,22 +423,14 @@ class ProjectManagementResourcesDesktopApi:
         end_date: str = "",
         page: int = 1,
         page_size: int = 25,
-    ) -> ResourceActivityPageDesktopDto:
-        result = self._require_resource_context_query().query_resource_activity_page(
+    ) -> ResourceActivityReadPage:
+        return self._require_resource_context_query().query_resource_activity_page(
             resource_id,
             category=category,
             start_date=parse_date(start_date),
             end_date=parse_date(end_date),
             page=page,
             page_size=page_size,
-        )
-        return ResourceActivityPageDesktopDto(
-            items=tuple(serialize_resource_activity(item) for item in result.items),
-            filtered_total=result.filtered_total,
-            page=result.page,
-            page_size=result.page_size,
-            sort_key=result.sort.key,
-            sort_direction=result.sort.direction.value,
         )
 
     def build_resource_availability(
@@ -568,4 +503,4 @@ class ProjectManagementResourcesDesktopApi:
         return self._resource_context_query
 
 
-__all__ = ["ProjectManagementResourcesDesktopApi"]
+__all__ = ['ProjectManagementResourcesDesktopApi']

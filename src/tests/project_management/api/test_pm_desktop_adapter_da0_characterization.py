@@ -57,9 +57,6 @@ from src.core.modules.project_management.application.resources.dto.commands.cata
     ResourceCreateCommand,
     ResourceUpdateCommand,
 )
-from src.core.modules.project_management.application.resources.mappers.context import (
-    map_resource_assignment_fact,
-)
 from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
     TaskCreateCommand,
 )
@@ -281,8 +278,7 @@ def test_da3_desktop_forwards_rate_fields_without_policy_decision() -> None:
 
 
 def test_da1_resource_assignments_use_authoritative_typed_read_fact() -> None:
-    row = map_resource_assignment_fact(
-        ResourceAssignmentFact(
+    row = ResourceAssignmentFact(
             assignment_id="assignment-1",
             resource_id="resource-1",
             project_id="project-1",
@@ -301,14 +297,13 @@ def test_da1_resource_assignments_use_authoritative_typed_read_fact() -> None:
             response_status="accepted",
             project_resource_id="project-resource-1",
             assignment_version=2,
-        )
     )
 
-    assert row.id == "assignment-1"
+    assert row.assignment_id == "assignment-1"
     assert row.task_name == "Planning"
     assert row.project_name == "Project One"
-    assert row.allocation_percent == "75"
-    assert row.actual_hours == "3.5"
+    assert row.allocation_percent == Decimal("75")
+    assert row.actual_hours == Decimal("3.5")
     assert row.actual_hours_source == "time_entries"
 
 

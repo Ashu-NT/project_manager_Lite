@@ -14,6 +14,7 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceAvailabilityViewModel,
     ResourceCatalogWorkspaceViewModel,
     ResourceEmployeeOptionViewModel,
+    ResourceRecordViewModel,
 )
 
 from .availability_builder import build_resource_availability_state
@@ -94,8 +95,8 @@ class ProjectResourcesWorkspacePresenter:
         sort_key: str = "catalog",
         sort_direction: str = "asc",
         batch_size: int = 500,
-    ) -> tuple:
-        records = []
+    ) -> tuple[ResourceRecordViewModel, ...]:
+        records: list[ResourceRecordViewModel] = []
         page = 1
         while True:
             result = self._desktop_api.list_resource_page(

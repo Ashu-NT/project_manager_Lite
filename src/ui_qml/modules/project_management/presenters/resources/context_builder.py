@@ -31,14 +31,11 @@ def _percent(value: object) -> str:
         return "0.0%"
 
 
-def _date_label(value: str) -> str:
-    try:
-        return date.fromisoformat(value).strftime("%d %b %Y")
-    except (TypeError, ValueError):
-        return "-"
+def _date_label(value: date | None) -> str:
+    return value.strftime("%d %b %Y") if value is not None else "-"
 
 
-def _date_range(start: str, end: str) -> str:
+def _date_range(start: date | None, end: date | None) -> str:
     if not start and not end:
         return "Unscheduled"
     return f"{_date_label(start)} - {_date_label(end)}"
@@ -53,7 +50,7 @@ def build_resource_projects_page(
     return {
         "items": [
             {
-                "id": item.id,
+                "id": item.project_resource_id,
                 "projectName": item.project_name,
                 "projectCode": item.project_code or "-",
                 "statusLabel": _label(item.project_status),
@@ -63,8 +60,8 @@ def build_resource_projects_page(
                 "state": {
                     "resourceId": item.resource_id,
                     "projectId": item.project_id,
-                    "projectResourceId": item.id,
-                    "plannedHours": item.planned_hours,
+                    "projectResourceId": item.project_resource_id,
+                    "plannedHours": str(item.planned_hours),
                     "isActive": item.is_active,
                     "version": item.version,
                     "canOpenProject": item.can_open_project,
@@ -75,8 +72,8 @@ def build_resource_projects_page(
         "total": page.filtered_total,
         "page": page.page,
         "pageSize": page.page_size,
-        "sortKey": page.sort_key,
-        "sortDirection": page.sort_direction,
+        "sortKey": page.sort.key,
+        "sortDirection": page.sort.direction.value,
     }
 
 
@@ -89,7 +86,7 @@ def build_resource_assignments_page(
     return {
         "items": [
             {
-                "id": item.id,
+                "id": item.assignment_id,
                 "taskName": item.task_name,
                 "taskCode": item.task_code or "-",
                 "projectName": item.project_name,
@@ -103,13 +100,13 @@ def build_resource_assignments_page(
                     "resourceId": item.resource_id,
                     "projectId": item.project_id,
                     "taskId": item.task_id,
-                    "assignmentId": item.id,
+                    "assignmentId": item.assignment_id,
                     "projectResourceId": item.project_resource_id or "",
-                    "allocatedPlannedHours": item.allocated_planned_hours,
-                    "actualHours": item.actual_hours,
+                    "allocatedPlannedHours": str(item.allocated_planned_hours),
+                    "actualHours": str(item.actual_hours),
                     "actualHoursSource": item.actual_hours_source,
-                    "allocationPercent": item.allocation_percent,
-                    "version": item.version,
+                    "allocationPercent": str(item.allocation_percent),
+                    "version": item.assignment_version,
                     "canOpenProject": item.can_open_project,
                     "canOpenTask": item.can_open_task,
                 },
@@ -119,8 +116,8 @@ def build_resource_assignments_page(
         "total": page.filtered_total,
         "page": page.page,
         "pageSize": page.page_size,
-        "sortKey": page.sort_key,
-        "sortDirection": page.sort_direction,
+        "sortKey": page.sort.key,
+        "sortDirection": page.sort.direction.value,
     }
 
 
@@ -137,8 +134,8 @@ def build_resource_activity_page(
         "total": page.filtered_total,
         "page": page.page,
         "pageSize": page.page_size,
-        "sortKey": page.sort_key,
-        "sortDirection": page.sort_direction,
+        "sortKey": page.sort.key,
+        "sortDirection": page.sort.direction.value,
     }
 
 
@@ -152,7 +149,7 @@ def _to_activity_item(item) -> ActivityItemViewModel:
             "taskId": item.task_id or "",
         }
     return ActivityItemViewModel(
-        id=item.id,
+        id=item.activity_id,
         title=item.summary,
         actor_display=item.actor_display,
         occurred_at=item.occurred_at,

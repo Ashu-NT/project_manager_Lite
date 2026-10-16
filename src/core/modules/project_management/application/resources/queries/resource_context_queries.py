@@ -6,14 +6,6 @@ from src.core.modules.project_management.application.common.pagination import (
     PageRequest,
     normalize_page_for_total,
 )
-from src.core.modules.project_management.application.resources.dto.responses.context import (
-    ResourceAssignmentsPageResponse,
-    ResourceProjectsPageResponse,
-)
-from src.core.modules.project_management.application.resources.mappers.context import (
-    map_resource_assignment_read_page,
-    map_resource_project_read_page,
-)
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceActivityReader,
@@ -83,7 +75,7 @@ class ResourceContextQueryHandler:
         page_size: int = 25,
         sort_key: str = "projectName",
         sort_direction: str = "asc",
-    ) -> ResourceProjectsPageResponse:
+    ) -> ResourceProjectReadPage:
         require_permission(
             self._user_session, "resource.read", operation_label="view resource projects"
         )
@@ -127,7 +119,7 @@ class ResourceContextQueryHandler:
         )
         if normalized_page != result.page:
             result = _read_page(normalized_page)
-        return map_resource_project_read_page(result)
+        return result
 
     def query_resource_assignments_page(
         self,
@@ -144,7 +136,7 @@ class ResourceContextQueryHandler:
         page_size: int = 25,
         sort_key: str = "scheduledStart",
         sort_direction: str = "asc",
-    ) -> ResourceAssignmentsPageResponse:
+    ) -> ResourceAssignmentReadPage:
         require_permission(
             self._user_session, "resource.read", operation_label="view resource assignments"
         )
@@ -198,7 +190,7 @@ class ResourceContextQueryHandler:
         )
         if normalized_page != result.page:
             result = _read_page(normalized_page)
-        return map_resource_assignment_read_page(result)
+        return result
 
     def query_resource_activity_page(
         self,
@@ -250,4 +242,4 @@ class ResourceContextQueryHandler:
         return result
 
 
-__all__ = ["ResourceContextQueryHandler"]
+__all__ = ['ResourceContextQueryHandler']

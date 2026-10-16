@@ -50,7 +50,7 @@ def create_resource(
 ) -> None:
     command = ResourceCreateCommand(
         name=optional_text(payload, "name") or "",
-        code=optional_text(payload, "resourceCode"),
+        code=optional_text(payload, "resourceCode") or "",
         kind=optional_text(payload, "kind") or ResourceKind.PERSON.value,
         role=optional_text(payload, "role") or "",
         hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal(0)),
@@ -73,7 +73,7 @@ def update_resource(
     command = ResourceUpdateCommand(
         resource_id=require_text(payload, "resourceId", "Resource ID is required for updates."),
         name=optional_text(payload, "name") or "",
-        code=optional_text(payload, "resourceCode"),
+        code=optional_text(payload, "resourceCode") or "",
         kind=require_text(payload, "kind", "Resource kind is required."),
         role=optional_text(payload, "role") or "",
         hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal(0)),
