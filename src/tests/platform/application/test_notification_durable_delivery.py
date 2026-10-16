@@ -412,7 +412,10 @@ def test_desktop_read_drains_committed_work_after_simulated_restart(services, se
     result = services["platform_notification_desktop_api"].list_my_notifications()
     assert result.ok and result.data is not None and len(result.data) == 1
     rows = services["notification_queries"].list_my_notifications()
-    assert len(rows) == 1 and rows[0].source_event_id == "event-1"
+    assert len(rows) == 1 and rows[0] == result.data[0]
+    assert session.scalar(
+        select(NotificationORM.source_event_id).where(NotificationORM.id == rows[0].id)
+    ) == "event-1"
     assert session.scalar(select(NotificationWorkORM.status)) == "processed"
 
 

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class NotificationDto:
     id: str
     category: str

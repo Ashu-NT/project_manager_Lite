@@ -80,6 +80,29 @@ redundancy cleanup, not certification of the entire command/output migration
 or a replacement for its broader behavioral/RLS gates. The workspace `.tmp`
 directory was removed. No commit was made.
 
+**Notification output cutover (2026-10-16):** moved the single neutral
+`NotificationDto` from the desktop adapter to the Notification application's
+`dto/responses` package. Authenticated query and read-state command handlers
+now return that response; domain mapping lives in the feature's `mappers`
+package, with nested metadata detached from the domain object. The desktop
+adapter consumes results directly and no longer imports or serializes the
+Notification aggregate. Shell consumers use the same response, not a copy.
+The two adapter-only command/query protocols were removed after verifying
+their sole production consumer; composition still injects the existing
+handler instances. Shared notification delivery ports remain unchanged.
+No contract-to-application dependency or compatibility export was introduced.
+Recipient/tenant/org checks, bounded reads, commit ownership, delivery draining,
+and desktop error handling are unchanged. Delivery-internal source identity
+is verified against persistence rather than leaked into the public response.
+
+Verification: 280 notification/durable-delivery/shell UI/architecture/composition
+tests passed; scoped Mypy passed for 16 source files. This closes the
+Notification result boundary only. Actual Cost handlers still expose domain
+entries through the desktop cost-entry serializer and remain an unfinished
+output cutover. Desktop labels, formatted dates/money, icons and chart/table
+descriptors are not neutral application results and must not be moved merely
+to empty API folders. Full A4-A6 certification remains outstanding.
+
 Pre-release permits coordinated interface cutovers and deletion of obsolete
 internal paths, but does not justify changing RBAC, tenant isolation,
 financial authority, approval atomicity, or UoW lifetimes during a structural

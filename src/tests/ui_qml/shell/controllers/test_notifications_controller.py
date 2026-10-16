@@ -7,7 +7,7 @@ from src.core.platform.api.desktop.models.common import (
     DesktopApiError,
     DesktopApiResult,
 )
-from src.core.platform.api.desktop.notifications.models.notification import (
+from src.core.platform.application.notifications.dto.responses.notification import (
     NotificationDto,
 )
 from src.core.shared.events.view_invalidation import (

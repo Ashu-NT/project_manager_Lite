@@ -5,6 +5,9 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy import event
 
+from src.core.platform.application.notifications.dto.responses.notification import (
+    NotificationDto,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.orm.notifications.notification import (
     NotificationORM,
@@ -65,6 +68,29 @@ def test_notification_list_is_bounded_and_stably_ordered(services, session):
     assert [row.id for row in page] == [f"notification-{index:04d}" for index in range(124, 24, -1)]
     assert notifications.count_my_unread() == 125
     assert notifications.list_my_notifications(limit=0) == []
+
+
+def test_notification_handlers_return_detached_response_dtos(services, session):
+    from dataclasses import FrozenInstanceError
+
+    owner = register(services, "notification-response-owner")
+    seed(session, recipient=owner.id, notification_id="notification-response")
+    principal(services, owner.username)
+
+    queries = services["notification_queries"]
+    unread = queries.list_my_notifications()[0]
+    assert isinstance(unread, NotificationDto)
+    assert not hasattr(unread, "recipient_user_id")
+    assert not hasattr(unread, "tenant_id")
+    with pytest.raises(FrozenInstanceError):
+        unread.title = "Changed"
+
+    read = services["notification_commands"].mark_read(unread.id)
+    assert isinstance(read, NotificationDto)
+    assert read.is_read and read.read_at is not None
+    assert not unread.is_read and unread.read_at is None
+    assert services["notification_commands"].mark_read(read.id) == read
+    assert queries.list_my_notifications()[0] == read
 
 
 def test_thousand_notification_read_stays_bounded_and_uses_two_data_queries(
