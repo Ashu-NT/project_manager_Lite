@@ -111,26 +111,26 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
             intake_score_delta=candidate_eval.intake_composite_score - base_eval.intake_composite_score,
             selected_projects_delta=candidate_eval.selected_projects - base_eval.selected_projects,
             selected_intake_items_delta=candidate_eval.selected_intake_items - base_eval.selected_intake_items,
-            added_project_names=[
+            added_project_names=tuple(
                 self._project_service.get_project(pid).name
                 for pid in sorted(candidate_project_ids - base_project_ids)
                 if self._project_service.get_project(pid) is not None
-            ],
-            removed_project_names=[
+            ),
+            removed_project_names=tuple(
                 self._project_service.get_project(pid).name
                 for pid in sorted(base_project_ids - candidate_project_ids)
                 if self._project_service.get_project(pid) is not None
-            ],
-            added_intake_titles=[
+            ),
+            added_intake_titles=tuple(
                 self._intake_items[iid].title
                 for iid in sorted(candidate_intake_ids - base_intake_ids)
                 if iid in self._intake_items
-            ],
-            removed_intake_titles=[
+            ),
+            removed_intake_titles=tuple(
                 self._intake_items[iid].title
                 for iid in sorted(base_intake_ids - candidate_intake_ids)
                 if iid in self._intake_items
-            ],
+            ),
             summary="Candidate scenario increases scope and portfolio demand.",
         )
 

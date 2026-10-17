@@ -267,11 +267,11 @@ def test_collaboration_commands_preserve_revision_and_reactions(services):
     reacted = engagement.react_to_comment(
         TaskCollaborationReactionCommand(comment.id, "+1")
     )
-    assert reacted.reactions["+1"]
+    assert any(reaction.emoji == "+1" and reaction.count == 1 for reaction in reacted.reactions)
     removed = engagement.remove_reaction(
         TaskCollaborationReactionCommand(comment.id, "+1")
     )
-    assert not removed.reactions.get("+1")
+    assert all(reaction.emoji != "+1" for reaction in removed.reactions)
     deleted = commands.delete_comment(
         TaskCollaborationDeleteCommand(comment.id, removed.version)
     )
@@ -334,7 +334,7 @@ def test_dependency_and_constraint_commands_keep_schedule_validation(services):
     cleared = constraint.update_task_scheduling_constraint(
         TaskConstraintUpdateCommand(first.id, expected_version=current.version)
     )
-    assert cleared.constraint_type is None
+    assert cleared.constraint_type == ""
 
 
 def test_hierarchy_commands_keep_expected_version(services):

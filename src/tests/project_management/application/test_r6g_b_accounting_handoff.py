@@ -380,8 +380,8 @@ def test_snapshot_currency_sum_schema_and_empty_lines(
 
 
 def test_read_capability_serializes_safe_reason(accounting_services):
-    from src.core.modules.project_management.api.desktop.financials.serializers.billing_workspace_serializer import (
-        serialize_finance_billing_workspace,
+    from src.ui_qml.modules.project_management.presenters.financials.invoicing.billing_workspace_builder import (
+        build_billing_workspace_views,
     )
 
     services = accounting_services
@@ -390,7 +390,7 @@ def test_read_capability_serializes_safe_reason(accounting_services):
         approved.project_id, selected_preparation_id=approved.id
     )
     assert facts.selected_preparation.can_request_delivery
-    assert "secret" not in repr(serialize_finance_billing_workspace(facts)).lower()
+    assert "secret" not in repr(build_billing_workspace_views(facts)).lower()
 
 
 def test_configuration_permission_is_distinct_and_versioned(accounting_services):

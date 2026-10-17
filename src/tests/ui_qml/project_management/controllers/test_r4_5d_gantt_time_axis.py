@@ -12,7 +12,7 @@ from PySide6.QtQml import QQmlComponent, QQmlExpression
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+from src.core.modules.project_management.application.scheduling.mappers.gantt import (
     build_gantt_projection,
 )
 from src.tests.path_rewrites import REPO_ROOT
@@ -194,6 +194,7 @@ def test_desktop_api_projects_project_bounds_and_bound_calendar() -> None:
         (),
         {
             "list_task_hierarchy": lambda _self, _project_id: [_node(task)],
+            "list_tasks_for_project": lambda _self, _project_id: [task],
             "list_dependencies_for_project": lambda _self, _project_id: [],
         },
     )()

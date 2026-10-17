@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.core.modules.project_management.api.desktop.scheduling.models import (
+from src.core.modules.project_management.application.scheduling.dto.responses.gantt import (
     GanttProjectionDto,
 )
 

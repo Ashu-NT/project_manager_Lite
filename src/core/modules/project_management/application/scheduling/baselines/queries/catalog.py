@@ -7,9 +7,11 @@ from src.core.modules.project_management.application.common.module_guard import 
     ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.application.scheduling.dto.responses.baselines import (
+    SchedulingBaselineResponse,
     SchedulingBaselineVarianceRowDto,
 )
 from src.core.modules.project_management.application.scheduling.mappers.baselines import (
+    map_baseline,
     map_baseline_variance,
 )
 from src.core.modules.project_management.contracts.repositories.scheduling.baseline import (
@@ -56,6 +58,9 @@ class BaselineQueryHandler(ProjectManagementModuleGuardMixin):
             operation_label="list baselines",
         )
         return self._baselines.list_for_project(project_id)
+
+    def query_baseline_responses(self, project_id: str) -> tuple[SchedulingBaselineResponse, ...]:
+        return tuple(map_baseline(baseline) for baseline in self.list_baselines(project_id))
 
 
     def list_baseline_tasks(

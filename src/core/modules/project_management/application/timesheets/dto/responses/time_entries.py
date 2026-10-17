@@ -12,5 +12,6 @@ class TimesheetEntryResult:
     entry_date: date
     hours: Decimal
     note: str
+    author_user_id: str | None
     author_username: str | None
     version: int

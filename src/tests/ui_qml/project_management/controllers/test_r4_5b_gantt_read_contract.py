@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from time import perf_counter
 from types import SimpleNamespace
@@ -9,10 +10,16 @@ import pytest
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+from src.core.modules.project_management.application.scheduling.dto.responses.schedule import (
+    SchedulingTaskResponse,
+)
+from src.core.modules.project_management.application.scheduling.mappers.gantt import (
     build_gantt_projection,
 )
-from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.application.tasks.dto.responses.dependency import (
+    TaskDependencyResponseDto,
+)
+from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask
 from src.core.modules.project_management.domain.tasks.hierarchy import TaskHierarchyNode
 from src.core.platform.common.exceptions import (
@@ -311,7 +318,7 @@ def test_projection_rejects_incomplete_and_cross_scope_canonical_schedule() -> N
     foreign_schedule = _schedule(
         first, start=date(2026, 1, 1), finish=date(2026, 1, 2)
     )
-    foreign_schedule.project_id = "project-2"
+    foreign_schedule = replace(foreign_schedule, project_id="project-2")
     with pytest.raises(BusinessRuleError) as scope_error:
         build_gantt_projection(
             tenant_id="tenant-1",
@@ -464,8 +471,8 @@ def _schedule(
     *,
     start: date | None,
     finish: date | None,
-) -> SimpleNamespace:
-    return SimpleNamespace(
+) -> SchedulingTaskResponse:
+    return SchedulingTaskResponse(
         id=task.id,
         project_id=task.project_id,
         code=task.code,
@@ -476,7 +483,6 @@ def _schedule(
         is_milestone=task.is_milestone,
         description=task.description,
         status=task.status.value,
-        status_label=task.status.value.title(),
         start_date=start,
         finish_date=finish,
         latest_start=start,
@@ -493,7 +499,6 @@ def _schedule(
         actual_end=task.actual_end,
         priority=task.priority,
         constraint_type="",
-        constraint_type_label="As Soon As Possible",
         constraint_date=None,
     )
 
@@ -504,16 +509,14 @@ def _edge(
     successor_id: str,
     relation: str,
     lag: int,
-) -> SimpleNamespace:
-    return SimpleNamespace(
+) -> TaskDependencyResponseDto:
+    return TaskDependencyResponseDto(
         id=f"edge-{index}",
         predecessor_task_id=predecessor_id,
-        predecessor_task_name=predecessor_id,
         successor_task_id=successor_id,
-        successor_task_name=successor_id,
-        dependency_type=relation,
-        dependency_type_label=relation,
+        dependency_type=DependencyType(relation),
         lag_days=lag,
+        version=1,
     )
 
 

@@ -5,11 +5,13 @@ UI affordance."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from sqlalchemy import event
 
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
@@ -32,7 +34,27 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_ass
 from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
     TaskCreateCommand,
 )
-from src.core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.application.time_management.calendar.assignment.dto.commands.calendar_assignments import (
+    ResourceCalendarAssignCommand,
+)
+from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import (
+    end_date_from_working_dates,
+    working_day_search_end,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.calendar_exceptions import (
+    ExceptionCreateCommand,
+)
+from src.core.platform.application.time_management.calendar.definitions.dto.commands.working_rules import (
+    WorkingRuleSaveCommand,
+)
+from src.core.platform.application.time_management.calendar.dto.commands.calendars import (
+    CalendarCreateCommand,
+)
+from src.core.platform.common.exceptions import (
+    AuthorizationError,
+    ConcurrencyError,
+    ValidationError,
+)
 from src.ui_qml.modules.project_management.presenters.tasks.assignment_mapper import (
     to_assignment_record_view_model,
 )
@@ -378,3 +400,213 @@ def test_list_assignments_exposes_over_capacity_for_a_double_booked_resource(ser
     assert to_assignment_record_view_model(dtos_a[0]).state["capacityStatusLabel"] == "Over capacity"
     assert dtos_a[0].capacity.peak_utilization_percent > 100.0
     assert dtos_b[0].capacity.peak_utilization_percent > 100.0
+
+
+@pytest.mark.parametrize("derive_end", [False, True])
+@pytest.mark.parametrize("resource_override", [False, True])
+def test_assignment_capacity_enrichment_has_constant_cold_query_count(
+    services, session, monkeypatch, derive_end, resource_override,
+):
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Batch capacity"))
+    task = services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(project.id, "Batch task", start_date=date(2026, 11, 6), duration_days=3)
+    )
+    commands = services["task_assignment_commands"]
+    availability = services["resource_availability_service"]
+    engine = session.get_bind()
+
+    def add_assignment(index):
+        resource = services["resource_master_commands"].create_resource(
+            ResourceCreateCommand(name=f"Batch worker {index}", capacity_percent=50)
+        )
+        if resource_override:
+            calendar = services["platform_calendar_commands"].create_calendar(
+                CalendarCreateCommand(f"BATCH-{index}", f"Batch calendar {index}", "RESOURCE")
+            )
+            services["working_rule_commands"].save_rule(
+                WorkingRuleSaveCommand(calendar.id, weekday=4, hours_override=4)
+            )
+            services["calendar_assignment_commands"].assign_resource_calendar(
+                ResourceCalendarAssignCommand(resource.id, calendar.id)
+            )
+        commands.assign_resource(task.id, resource.id, allocation_percent=20)
+
+    def measure():
+        statements = []
+
+        def capture(_connection, _cursor, statement, _parameters, _context, _executemany):
+            if statement.lstrip().upper().startswith("SELECT"):
+                statements.append(statement)
+
+        availability._resolver.invalidate_cache()
+        session.expire_all()
+        event.listen(engine, "before_cursor_execute", capture)
+        try:
+            rows = commands.query_assignment_responses(task.id)
+        finally:
+            event.remove(engine, "before_cursor_execute", capture)
+        return rows, statements
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("Batch enrichment must not call a per-row preview or resource lookup")
+
+    add_assignment(0)
+    if derive_end:
+        persisted = commands._task_repo.get(task.id)
+        persisted.end_date = None
+        commands._task_repo.update(persisted)
+        session.commit()
+    monkeypatch.setattr(commands, "preview_assignment_capacity", forbidden)
+    monkeypatch.setattr(commands._resource_repo, "get", forbidden)
+    one, one_queries = measure()
+    # Resource creation/assignment uses get legitimately, outside the measured read.
+    monkeypatch.undo()
+    for index in range(1, 8):
+        add_assignment(index)
+    monkeypatch.setattr(commands, "preview_assignment_capacity", forbidden)
+    monkeypatch.setattr(commands._resource_repo, "get", forbidden)
+    many, many_queries = measure()
+
+    assert len(one) == 1
+    assert len(many) == 8
+    assert len(many_queries) == len(one_queries)
+    assert sum("FROM resources " in sql for sql in many_queries) == 1
+    assert all(row.can_manage for row in many)
+    assert all(not row.can_accept and not row.can_decline for row in many)
+    for row in many:
+        assert row.capacity is not None
+        assert row.capacity.start_date == date(2026, 11, 6)
+        assert row.capacity.end_date == date(2026, 11, 10)
+        assert row.capacity.capacity_status == "AVAILABLE"
+        assert row.capacity.peak_utilization_percent == pytest.approx(40)
+        assert any(label.startswith("RESOURCE-") for label in row.capacity.source_chain) == resource_override
+
+
+def test_duration_derived_assignment_capacity_matches_persisted_dates_including_siblings(
+    services, session,
+):
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Derived capacity"))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Shared worker"))
+    commands = services["task_assignment_commands"]
+    resolver = services["resource_availability_service"]._resolver
+    global_calendar = resolver._calendar_repo.get_global(resolver._org_id)
+    services["calendar_exception_commands"].add_exception(ExceptionCreateCommand(
+        global_calendar.id, date(2026, 11, 9), "HOLIDAY", "Global holiday", "UNAVAILABLE",
+    ))
+    tasks = [services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(project.id, name, start_date=date(2026, 11, 6), duration_days=3)
+    ) for name in ("Derived first", "Derived sibling")]
+    assignment = commands.assign_resource(tasks[0].id, resource.id, allocation_percent=70)
+    commands.assign_resource(tasks[1].id, resource.id, allocation_percent=60)
+    expected = commands.preview_assignment_capacity(
+        tasks[0].id, resource.id, proposed_allocation_percent=70, exclude_assignment_id=assignment.id,
+    )
+    for task in tasks:
+        persisted = commands._task_repo.get(task.id)
+        persisted.end_date = None
+        commands._task_repo.update(persisted)
+    session.commit()
+
+    response = commands.query_assignment_responses(tasks[0].id)[0]
+    assert response.capacity == expected
+    assert response.capacity.capacity_status == "OVER_CAPACITY"
+    assert response.capacity.end_date == date(2026, 11, 11)
+    assert commands._task_repo.get(tasks[0].id).end_date is None
+
+
+def test_assignment_capacity_enrichment_propagates_calendar_read_errors(services, monkeypatch):
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Capacity failure"))
+    task = services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(project.id, "Failure task", start_date=date(2026, 11, 6), duration_days=3)
+    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Failure worker"))
+    commands = services["task_assignment_commands"]
+    commands.assign_resource(task.id, resource.id)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("Calendar read failed")
+
+    monkeypatch.setattr(services["resource_availability_service"], "get_availability_ranges", fail)
+    with pytest.raises(RuntimeError, match="Calendar read failed"):
+        commands.query_assignment_responses(task.id)
+
+
+@pytest.mark.parametrize("scope_denied", [False, True])
+def test_assignment_capacity_is_not_read_before_authorization(services, monkeypatch, scope_denied):
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Protected capacity"))
+    task = services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(project.id, "Protected task", start_date=date(2026, 11, 6), duration_days=3)
+    )
+    commands = services["task_assignment_commands"]
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Protected worker"))
+    commands.assign_resource(task.id, resource.id)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("Unauthorized reads must not reach capacity enrichment")
+
+    monkeypatch.setattr(services["resource_availability_service"], "get_availability_ranges", forbidden)
+    user_session = services["user_session"]
+    user_session.set_principal(replace(
+        user_session.principal, permissions=frozenset({"task.read"}) if scope_denied else frozenset(),
+        scoped_access={"project": {"another-project": frozenset({"task.read"})}},
+        project_access={}, role_names=frozenset(),
+    ))
+    with pytest.raises(AuthorizationError):
+        commands.query_assignment_responses(task.id)
+
+
+@pytest.mark.parametrize("duration", [0, 3])
+def test_derived_capacity_preserves_nonworking_start_and_milestone_dates(services, session, duration):
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Nonworking dates"))
+    start = date(2026, 11, 8)  # Sunday remains the task start, even when work begins Monday.
+    task = services["task_lifecycle_commands"].create_task(TaskCreateCommand(
+        project.id, "Sunday task", start_date=start, duration_days=duration, is_milestone=duration == 0,
+    ))
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Sunday worker"))
+    commands = services["task_assignment_commands"]
+    assignment = commands.assign_resource(task.id, resource.id, allocation_percent=20)
+    expected = commands.preview_assignment_capacity(
+        task.id, resource.id, proposed_allocation_percent=20, exclude_assignment_id=assignment.id,
+    )
+    persisted = commands._task_repo.get(task.id)
+    persisted.end_date = None
+    commands._task_repo.update(persisted)
+    session.commit()
+
+    fact = commands.query_assignment_responses(task.id)[0].capacity
+    assert fact == expected
+    assert fact.start_date == start
+    assert fact.end_date == (start if duration == 0 else date(2026, 11, 11))
+
+
+def test_duration_calendar_window_does_not_truncate_long_valid_tasks():
+    start = date(2026, 11, 6)
+    duration = 16_000
+    working_dates = [start + timedelta(days=offset) for offset in range(23_000)
+                     if (start + timedelta(days=offset)).weekday() < 5]
+    expected = working_dates[duration - 1]
+    assert (expected - start).days > 365 * 40
+    assert working_day_search_end(start, duration) >= expected
+    assert end_date_from_working_dates(start, duration, working_dates) == expected
+
+
+def test_derived_capacity_fails_explicitly_when_calendar_cannot_resolve_duration(
+    services, session, monkeypatch,
+):
+    project = services["project_create"].create_project(ProjectCreateCommand(name="Unresolved duration"))
+    task = services["task_lifecycle_commands"].create_task(
+        TaskCreateCommand(project.id, "Unresolved task", start_date=date(2026, 11, 6), duration_days=3)
+    )
+    resource = services["resource_master_commands"].create_resource(ResourceCreateCommand(name="Unresolved worker"))
+    commands = services["task_assignment_commands"]
+    commands.assign_resource(task.id, resource.id)
+    persisted = commands._task_repo.get(task.id)
+    persisted.end_date = None
+    commands._task_repo.update(persisted)
+    session.commit()
+    monkeypatch.setattr(services["resource_availability_service"], "get_scheduling_working_dates", lambda *_: [])
+
+    with pytest.raises(ValidationError) as exc:
+        commands.query_assignment_responses(task.id)
+    assert exc.value.code == "CALENDAR_WORKING_DAYS_UNRESOLVED"
+    assert commands._task_repo.get(task.id).end_date is None

@@ -9,6 +9,9 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
 from src.core.modules.project_management.application.financials.cost.entries.dto.commands.actual_posting import (
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
@@ -24,10 +27,16 @@ from src.core.modules.project_management.application.financials.cost.entries.dto
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
 )
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
+)
 from src.core.platform.application.finance.dto.commands.financial_periods import (
     FinancialPeriodCreateCommand,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.ui_qml.modules.project_management.presenters.financials.cost.ledger_builder import (
+    build_ledger_collection,
+)
 
 
 def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
@@ -47,13 +56,12 @@ def _setup_project(services):
     organization = services["tenant_context_service"].get_active_organization()
     project = services['project_create'].create_project(ProjectCreateCommand(name="Desktop actual cutover", financial_currency_code=organization.base_currency))
     task = services['task_lifecycle_commands'].create_task(
-        project.id,
-        "Commission equipment",
+        TaskCreateCommand(project_id=project.id, name="Commission equipment"),
     )
-    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(
+    cost_code = services['finance_governance_commands'].cost_code(lambda handler: handler.create_cost_code(FinancialCreateCostCodeCommand(
         code="ACTUAL-MANUAL",
         name="Manual actuals",
-    ))
+    )))
     services["financial_period_commands"].create_period(
         FinancialPeriodCreateCommand(code="FY26-P01", name="January 2026", fiscal_year=2026, period_number=1, start_date=date(2026, 1, 1).isoformat(), end_date=date(2026, 1, 31).isoformat()))
     return organization, project, task, cost_code
@@ -90,8 +98,11 @@ def test_desktop_cutover_creates_canonical_draft_and_preserves_posted_immutabili
     replay = api.create_manual_actual(create)
     assert replay.id == draft.id
     assert draft.status == "draft"
-    assert draft.amount == "125.50"
-    assert draft.can_edit and draft.can_delete and draft.can_submit
+    assert draft.amount == Decimal("125.50")
+    assert isinstance(draft.amount, Decimal)
+    assert draft.capabilities.can_edit
+    assert draft.capabilities.can_delete
+    assert draft.capabilities.can_submit
 
     updated = api.update_actual_draft(
         FinancialUpdateActualDraftCommand(
@@ -121,8 +132,8 @@ def test_desktop_cutover_creates_canonical_draft_and_preserves_posted_immutabili
         )
     )
     assert posted.status == "posted"
-    assert not posted.can_edit and not posted.can_delete
-    assert posted.can_reverse
+    assert not posted.capabilities.can_edit and not posted.capabilities.can_delete
+    assert posted.capabilities.can_reverse
 
     with pytest.raises(BusinessRuleError):
         api.delete_actual_draft(
@@ -132,7 +143,7 @@ def test_desktop_cutover_creates_canonical_draft_and_preserves_posted_immutabili
     page = api.list_cost_entries(project.id)
     assert page.total == 1
     assert page.items[0].id == posted.id
-    assert page.items[0].source_label == "Manual entry"
+    assert build_ledger_collection(page).items[0].subtitle == "Manual entry | Posted"
 
     reversed_command_id = "desktop-command-1-reversal"
     reversal = api.reverse_actual(
@@ -147,7 +158,7 @@ def test_desktop_cutover_creates_canonical_draft_and_preserves_posted_immutabili
     assert reversal.status == "posted"
     assert reversal.entry_kind == "reversal"
     # A reversal entry is itself the correction — it cannot be reversed again.
-    assert reversal.can_reverse is False
+    assert reversal.capabilities.can_reverse is False
 
     page_after_reversal = api.list_cost_entries(project.id)
     assert page_after_reversal.total == 2
@@ -155,7 +166,7 @@ def test_desktop_cutover_creates_canonical_draft_and_preserves_posted_immutabili
         item for item in page_after_reversal.items if item.id == posted.id
     )
     assert reversed_original.status == "reversed"
-    assert reversed_original.can_reverse is False
+    assert reversed_original.capabilities.can_reverse is False
 
 
 def test_desktop_reject_actual_returns_submitted_entry_to_draft(services) -> None:
@@ -179,7 +190,7 @@ def test_desktop_reject_actual_returns_submitted_entry_to_draft(services) -> Non
     )
     _become_independent_decider(services)
     submitted = api.list_cost_entries(project.id).items[0]
-    assert submitted.can_approve
+    assert submitted.capabilities.can_approve
 
     rejected = api.reject_actual(
         FinancialDecideActualCommand(
@@ -188,8 +199,10 @@ def test_desktop_reject_actual_returns_submitted_entry_to_draft(services) -> Non
     )
 
     assert rejected.status == "draft"
-    assert rejected.can_edit and rejected.can_delete and rejected.can_submit
-    assert not rejected.can_approve
+    assert rejected.capabilities.can_edit
+    assert rejected.capabilities.can_delete
+    assert rejected.capabilities.can_submit
+    assert not rejected.capabilities.can_approve
 
 
 def test_legacy_combined_write_adapters_and_import_contract_are_deleted() -> None:

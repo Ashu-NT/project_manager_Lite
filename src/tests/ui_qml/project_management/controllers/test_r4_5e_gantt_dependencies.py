@@ -15,10 +15,10 @@ from PySide6.QtQml import QJSValue, QQmlComponent, QQmlExpression
 from PySide6.QtQuick import QQuickView
 from PySide6.QtTest import QTest
 
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+from src.core.modules.project_management.application.scheduling.mappers.gantt import (
     build_gantt_projection,
 )
-from src.core.modules.project_management.api.desktop.scheduling.models import (
+from src.core.modules.project_management.application.scheduling.dto.responses.gantt import (
     GanttDependencyEdgeDto,
     GanttProjectionDto,
 )
@@ -354,7 +354,6 @@ def _dense_projection(row_count: int, edge_count: int) -> GanttProjectionDto:
                 successor_task_id=successor.task_id,
                 successor_task_name=successor.name,
                 dependency_type=relation,
-                dependency_type_label=relation,
                 lag_days=(edge_number % 7) - 3,
             )
         )
@@ -449,7 +448,6 @@ def test_unsupported_dependency_type_fails_visibly_instead_of_misrouting() -> No
     invalid_edge = replace(
         projection.dependency_edges[0],
         dependency_type="XX",
-        dependency_type_label="Unsupported",
     )
     model = GanttListModel()
     model.set_projection(replace(projection, dependency_edges=(invalid_edge,)))

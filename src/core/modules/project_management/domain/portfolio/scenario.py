@@ -116,7 +116,7 @@ class PortfolioScenario:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class PortfolioScenarioEvaluation:
     scenario_id: str
     scenario_name: str
@@ -133,7 +133,7 @@ class PortfolioScenarioEvaluation:
     summary: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class PortfolioScenarioComparison:
     base_scenario_id: str
     base_scenario_name: str
@@ -146,10 +146,10 @@ class PortfolioScenarioComparison:
     intake_score_delta: int
     selected_projects_delta: int
     selected_intake_items_delta: int
-    added_project_names: list[str] = field(default_factory=list)
-    removed_project_names: list[str] = field(default_factory=list)
-    added_intake_titles: list[str] = field(default_factory=list)
-    removed_intake_titles: list[str] = field(default_factory=list)
+    added_project_names: tuple[str, ...] = ()
+    removed_project_names: tuple[str, ...] = ()
+    added_intake_titles: tuple[str, ...] = ()
+    removed_intake_titles: tuple[str, ...] = ()
     summary: str = ""
 
 

@@ -30,6 +30,7 @@ from src.core.modules.project_management.application.scheduling.dto.commands.wor
     SchedulingWorkingDayCalculationCommand,
 )
 from src.core.modules.project_management.application.scheduling.mappers.baselines import (
+    map_baseline,
     map_baseline_comparison,
 )
 from src.core.modules.project_management.domain.enums import (
@@ -37,6 +38,9 @@ from src.core.modules.project_management.domain.enums import (
     TaskStatus,
 )
 from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    ProjectBaseline,
+)
 from src.core.modules.project_management.domain.tasks.task import Task
 
 
@@ -88,7 +92,7 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     )
 
     assert api.list_projects()[0].label == "Plant Upgrade"
-    assert api.get_calendar_snapshot().working_days[0].label == "Mon"
+    assert api.get_calendar_snapshot().working_days == (0, 1, 2, 3, 4)
 
     calculation = api.calculate_working_days(
         SchedulingWorkingDayCalculationCommand(start_date=date(2026, 5, 4), working_days=3)
@@ -111,23 +115,23 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     )
     baseline_options = api.list_baselines(project.id)
 
-    assert created_a.value in {option.value for option in baseline_options}
-    assert baseline_options[0].value == created_a.value
+    assert created_a.id in {baseline.id for baseline in baseline_options}
+    assert baseline_options[0].id == created_a.id
 
     comparison_rows = api.compare_baselines(
         project_id=project.id,
-        baseline_a_id=created_a.value,
-        baseline_b_id=created_b.value,
+        baseline_a_id=created_a.id,
+        baseline_b_id=created_b.id,
         include_unchanged=False,
     )
 
     assert comparison_rows[0].task_name == "Cable Pull"
     assert comparison_rows[0].start_shift_days == 1
 
-    api.delete_baseline(SchedulingBaselineDeleteCommand(created_a.value))
+    api.delete_baseline(SchedulingBaselineDeleteCommand(created_a.id))
 
     assert api.get_calendar_snapshot().holidays == ()
-    assert [option.value for option in api.list_baselines(project.id)] == [created_b.value]
+    assert [baseline.id for baseline in api.list_baselines(project.id)] == [created_b.id]
 
 
 class _FakeProjectService:
@@ -305,16 +309,19 @@ class _FakeWorkCalendarEngine:
 
 class _FakeBaselineService:
     def __init__(self) -> None:
-        self._baselines_by_project: dict[str, list[SimpleNamespace]] = {}
+        self._baselines_by_project: dict[str, list[ProjectBaseline]] = {}
         self._next_id = 1
 
-    def list_baselines(self, project_id: str) -> list[SimpleNamespace]:
+    def list_baselines(self, project_id: str) -> list[ProjectBaseline]:
         return list(self._baselines_by_project.get(project_id, []))
 
-    def create_baseline(self, command: SchedulingBaselineCreateCommand) -> SimpleNamespace:
+    def query_baseline_responses(self, project_id: str):
+        return tuple(map_baseline(baseline) for baseline in self.list_baselines(project_id))
+
+    def create_baseline(self, command: SchedulingBaselineCreateCommand) -> ProjectBaseline:
         project_id = command.project_id
         name = command.name
-        baseline = SimpleNamespace(
+        baseline = ProjectBaseline(
             id=f"base-{self._next_id}",
             project_id=project_id,
             name=name,

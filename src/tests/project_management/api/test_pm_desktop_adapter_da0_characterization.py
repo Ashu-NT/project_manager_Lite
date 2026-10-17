@@ -4,19 +4,8 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
-from src.ui_qml.modules.project_management.presenters.dashboard.builders.chart_builder import (
-    _build_resource_chart,
-)
-from src.ui_qml.modules.project_management.presenters.dashboard.builders.operational_table_builder import (
-    _build_high_risks_table,
-    _build_resource_overloads_table,
-)
-from src.ui_qml.modules.project_management.presenters.dashboard.builders.overview_builder import (
-    overloaded_resource_count,
-)
-from src.ui_qml.modules.project_management.presenters.dashboard.builders.panel_builder import (
-    _build_resource_overload_panel,
-)
+import pytest
+
 from src.core.modules.project_management.api.desktop.projects.api import (
     ProjectManagementProjectsDesktopApi,
 )
@@ -31,9 +20,6 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.change_
 )
 from src.core.modules.project_management.api.desktop.tasks.api import (
     ProjectManagementTasksDesktopApi,
-)
-from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
-    build_assignment_preview,
 )
 from src.core.modules.project_management.api.desktop.tasks.builders.resource_options_builder import (
     build_project_resource_options,
@@ -57,6 +43,9 @@ from src.core.modules.project_management.application.resources.dto.commands.cata
 from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
     TaskCreateCommand,
 )
+from src.core.modules.project_management.application.tasks.queries.assignment_preview import (
+    query_assignment_preview,
+)
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceAssignmentFact,
 )
@@ -65,7 +54,21 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.platform.common.exceptions import AuthorizationError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.chart_builder import (
+    _build_resource_chart,
+)
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.operational_table_builder import (
+    _build_high_risks_table,
+    _build_resource_overloads_table,
+)
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.overview_builder import (
+    overloaded_resource_count,
+)
+from src.ui_qml.modules.project_management.presenters.dashboard.builders.panel_builder import (
+    _build_resource_overload_panel,
+)
 from src.ui_qml.modules.project_management.presenters.projects.resources_builder import (
     to_project_resource_record,
 )
@@ -358,7 +361,7 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
 
 def _fake_capacity_fact(*, peak_utilization_percent: float, days: tuple) -> SimpleNamespace:
     """Stand-in for TaskAssignmentCapacityFact -- only the fields
-    `build_assignment_preview` actually reads."""
+    `query_assignment_preview` actually reads."""
     return SimpleNamespace(
         effective_available_capacity_hours=Decimal(10),
         existing_committed_capacity_hours=Decimal(6),
@@ -391,7 +394,7 @@ def test_assignment_preview_preserves_formula_with_one_batched_conflict_lookup()
         ),
     )
 
-    preview = build_assignment_preview(
+    preview = query_assignment_preview(
         "task-1",
         "project-resource-1",
         task_query=SimpleNamespace(list_tasks_by_ids=_list_tasks),
@@ -402,53 +405,35 @@ def test_assignment_preview_preserves_formula_with_one_batched_conflict_lookup()
             get=lambda _project_resource_id: SimpleNamespace(resource_id="resource-1")
         ),
         assignment_skill_validator=None,
-        project_names={"project-2": "Project Two", "project-3": "Project Three"},
     )
 
     assert preview.overallocation_pct == 60.0
-    assert set(preview.conflict_projects) == {"Project Two", "Project Three"}
+    assert set(preview.conflict_project_ids) == {"project-2", "project-3"}
     assert task_calls == [["task-2", "task-3"]]
 
 
-def test_da0_assignment_preview_omits_conflict_names_outside_authorized_project_scope() -> None:
-    """A conflicting task in a project the caller's scoped project_names
-    lookup doesn't include (i.e. not authorized/visible) must not leak that
-    project's name -- the capacity result (overallocation_pct) still
-    surfaces, but the identity of the other project does not."""
-    conflict_tasks = {
-        "task-2": SimpleNamespace(id="task-2", project_id="project-visible"),
-        "task-3": SimpleNamespace(id="task-3", project_id="project-hidden"),
-    }
-
-    def _list_tasks(task_ids: list[str]):
-        return [conflict_tasks[task_id] for task_id in task_ids]
+def test_assignment_preview_preserves_server_scope_rejection() -> None:
+    def denied_lookup(task_ids: list[str]):
+        assert task_ids == ["foreign-task"]
+        raise AuthorizationError("Project access denied.")
 
     fact = _fake_capacity_fact(
         peak_utilization_percent=160.0,
-        days=(
-            SimpleNamespace(status="OVER_CAPACITY", contributing_task_ids=("task-1", "task-2")),
-            SimpleNamespace(status="OVER_CAPACITY", contributing_task_ids=("task-3",)),
-        ),
+        days=(SimpleNamespace(
+            status="OVER_CAPACITY", contributing_task_ids=("task-1", "foreign-task")
+        ),),
     )
-
-    preview = build_assignment_preview(
-        "task-1",
-        "project-resource-1",
-        task_query=SimpleNamespace(list_tasks_by_ids=_list_tasks),
-        assignment_commands=SimpleNamespace(
-            preview_assignment_capacity=lambda *args, **kwargs: fact,
-        ),
-        project_resource_query=SimpleNamespace(
-            get=lambda _project_resource_id: SimpleNamespace(resource_id="resource-1")
-        ),
-        assignment_skill_validator=None,
-        # Only the caller's scoped lookup -- "project-hidden" deliberately
-        # not included, standing in for a project the current user cannot see.
-        project_names={"project-visible": "Visible Project"},
-    )
-
-    assert preview.overallocation_pct == 60.0
-    assert preview.conflict_projects == ("Visible Project",)
+    with pytest.raises(AuthorizationError, match="Project access denied"):
+        query_assignment_preview(
+            "task-1",
+            "project-resource-1",
+            task_query=SimpleNamespace(list_tasks_by_ids=denied_lookup),
+            assignment_commands=SimpleNamespace(preview_assignment_capacity=lambda *args, **kwargs: fact),
+            project_resource_query=SimpleNamespace(
+                get=lambda _: SimpleNamespace(resource_id="resource-1")
+            ),
+            assignment_skill_validator=None,
+        )
 
 
 def test_da0_characterizes_shared_overload_boundary_across_desktop_views() -> None:

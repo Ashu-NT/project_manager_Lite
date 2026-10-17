@@ -18,6 +18,8 @@ the full hierarchy: Global → Site → Department → Employee → Project → 
 from __future__ import annotations
 
 import logging
+from bisect import bisect_left
+from collections.abc import Sequence
 from datetime import date, timedelta
 
 from src.core.platform.application.time_management.calendar.capacity.dto.queries.calendar_resolution import (
@@ -27,8 +29,29 @@ from src.core.platform.application.time_management.calendar.capacity.dto.queries
 from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
     PlatformCalendarResolver,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+def working_day_search_end(start: date, working_days: int) -> date:
+    """Size the read window from duration, never truncate long tasks at 40 years."""
+    return date.fromordinal(min(date.max.toordinal(), start.toordinal() + max(working_days * 7, 730)))
+
+
+def end_date_from_working_dates(start: date, working_days: int, working_dates: Sequence[date]) -> date:
+    """Inclusive positive-duration arithmetic over authoritative, sorted calendar days."""
+    if working_days == 0:
+        return start
+    if working_days < 0:
+        raise ValueError("End-date derivation requires a nonnegative duration")
+    index = bisect_left(working_dates, start) + working_days - 1
+    if index >= len(working_dates):
+        raise ValidationError(
+            "The resolved calendar does not contain enough working days for the task duration.",
+            code="CALENDAR_WORKING_DAYS_UNRESOLVED",
+        )
+    return working_dates[index]
 
 
 class GlobalCalendarShim:
@@ -59,28 +82,14 @@ class GlobalCalendarShim:
     def add_working_days(self, start: date, working_days: int) -> date:
         if working_days == 0:
             return start
-        # Small moves should fail fast if the calendar is misconfigured. Large
-        # moves are still capped so bad data cannot scan decades indefinitely.
-        max_iter = min(max(abs(working_days) * 7, 730), 365 * 40)
         if working_days > 0:
-            current = self.next_working_day(start, include_today=True)
-            remaining = working_days - 1
-            iterations = 0
-            while remaining > 0 and iterations < max_iter:
-                current += timedelta(days=1)
-                if self.is_working_day(current):
-                    remaining -= 1
-                iterations += 1
-            if remaining > 0:
-                logger.warning(
-                    "Global calendar add_working_days exhausted search start=%s working_days=%s remaining=%s iterations=%s",
-                    start,
-                    working_days,
-                    remaining,
-                    iterations,
-                )
-            return current
+            days = self._resolver.resolve_range(ResolveCalendarRangeCommand(
+                start_date=start, end_date=working_day_search_end(start, working_days),
+            ))
+            working_dates = [day.date for day in days if day.available_hours > 0]
+            return end_date_from_working_dates(start, working_days, working_dates)
 
+        max_iter = min(max(abs(working_days) * 7, 730), 365 * 40)
         remaining = -working_days
         current = start
         iterations = 0

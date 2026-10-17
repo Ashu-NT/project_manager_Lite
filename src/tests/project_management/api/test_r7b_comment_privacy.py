@@ -1,5 +1,7 @@
-from dataclasses import asdict
+from dataclasses import FrozenInstanceError, asdict
 from datetime import UTC, datetime
+
+import pytest
 
 from src.core.modules.project_management.application.collaboration.mappers.comments import (
     map_comment,
@@ -55,7 +57,7 @@ def test_inbox_dto_preserves_typed_tombstone_without_original_body():
         project_name="Project",
         author_username="author",
         body_preview="",
-        mentions=[],
+        mentions=(),
         created_at=now,
         unread=False,
         is_deleted=True,
@@ -63,3 +65,5 @@ def test_inbox_dto_preserves_typed_tombstone_without_original_body():
     )
     assert item.is_deleted and item.deleted_at == now
     assert body_preview(item) == "This comment was deleted."
+    with pytest.raises(FrozenInstanceError):
+        item.body_preview = "Cannot mutate a detached query result"

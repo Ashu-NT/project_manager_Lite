@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop.scheduling.models import (
+from src.core.modules.project_management.application.scheduling.dto.responses.gantt import (
     GanttTaskRowDto,
+)
+from src.ui_qml.modules.project_management.presenters.scheduling.gantt_labels import (
+    constraint_label,
+)
+from src.ui_qml.modules.project_management.presenters.scheduling.gantt_labels import (
+    status_label as gantt_status_label,
 )
 
 from .state import default_selected_activity
@@ -40,7 +46,7 @@ def _serialize_detail(row: GanttTaskRowDto, *, dependency_count: int) -> dict[st
     status_label = (
         "Infeasible"
         if row.is_infeasible
-        else "Critical" if row.is_critical else row.status_label
+        else "Critical" if row.is_critical else gantt_status_label(row)
     )
     return {
         "id": row.task_id,
@@ -57,7 +63,7 @@ def _serialize_detail(row: GanttTaskRowDto, *, dependency_count: int) -> dict[st
             _field("Finish", _date_label(row.finish_date), f"Latest {_date_label(row.latest_finish)}"),
             _field("Duration", _int_label(row.duration_days), f"Remaining {_int_label(row.remaining_duration_days)}"),
             _field("Float", _int_label(row.total_float_days), "Total float in working days."),
-            _field("Deadline", _date_label(row.deadline), row.constraint_type_label or "No explicit constraint"),
+            _field("Deadline", _date_label(row.deadline), constraint_label(row) or "No explicit constraint"),
             _field("Dependencies", str(dependency_count), "Project-wide incident dependency index."),
         ],
         "state": {
@@ -68,7 +74,7 @@ def _serialize_detail(row: GanttTaskRowDto, *, dependency_count: int) -> dict[st
             "wbsCode": row.wbs_code,
             "title": row.name,
             "description": row.description,
-            "statusLabel": row.status_label,
+            "statusLabel": gantt_status_label(row),
             "startDateLabel": _date_label(row.start_date),
             "finishDateLabel": _date_label(row.finish_date),
             "durationLabel": _int_label(row.duration_days),

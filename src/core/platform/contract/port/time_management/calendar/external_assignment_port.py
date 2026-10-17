@@ -29,6 +29,8 @@ AssignmentT = TypeVar("AssignmentT", bound=ExternalCalendarAssignment)
 
 
 class ProjectCalendarAssignmentPort(Protocol[AssignmentT]):
+    def list_for_projects(self, project_ids: list[str]) -> list[AssignmentT]: ...
+
     def get(
         self, project_id: str, *, at_date: date | None = None
     ) -> AssignmentT | None: ...
@@ -52,6 +54,8 @@ class ProjectCalendarAssignmentPort(Protocol[AssignmentT]):
 
 
 class ResourceCalendarAssignmentPort(Protocol[AssignmentT]):
+    def list_for_resources(self, resource_ids: list[str]) -> list[AssignmentT]: ...
+
     def get(
         self, resource_id: str, *, at_date: date | None = None
     ) -> AssignmentT | None: ...

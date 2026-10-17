@@ -18,6 +18,9 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.resources.capacity.queries.availability import (
     ResourceAvailabilityQueryHandler,
 )
+from src.core.modules.project_management.application.resources.capacity.task_assignment_capacity_service import (
+    enrich_task_assignment_capacities,
+)
 from src.core.modules.project_management.application.resources.catalog.assignment_validation import (
     AssignmentSkillValidator,
 )
@@ -290,28 +293,24 @@ class TaskAssignmentCommandHandler(ProjectManagementModuleGuardMixin):
             can_manage = False
             responding_employee_id = None
             logger.warning("Assignment capabilities could not be resolved", exc_info=True)
+        capacities = (
+            enrich_task_assignment_capacities(
+                task=task, assignments=assignments, resources=resources,
+                task_repo=self._task_repo, assignment_repo=self._assignment_repo,
+                availability_service=self._enterprise_resource_availability_service,
+            ) if self._enterprise_resource_availability_service is not None else {}
+        )
         rows = []
         for assignment in assignments:
             resource = resources_by_id.get(assignment.resource_id)
             can_respond = bool(can_read and responding_employee_id
                 and resource is not None and resource.employee_id == responding_employee_id
                 and assignment.response_status == "pending")
-            capacity = None
-            # Dated capacity remains on the legacy preview authority. Undated tasks
-            # have no capacity fact, so the bounded enrichment path has no row queries.
-            if task.start_date and task.end_date and self._enterprise_resource_availability_service is not None:
-                try:
-                    capacity = self.preview_assignment_capacity(
-                        task_id, assignment.resource_id,
-                        proposed_allocation_percent=assignment.allocation_percent,
-                        exclude_assignment_id=assignment.id)
-                except Exception:
-                    logger.warning("Assignment capacity could not be resolved assignment_id=%s", assignment.id, exc_info=True)
             rows.append(map_assignment(
                 assignment, resource_name=resource.name if resource is not None else assignment.resource_id,
                 project_resource_version=int(getattr(project_resources.get(assignment.project_resource_id or ""), "version", 1) or 1),
                 can_manage=bool(can_manage), can_accept=can_respond, can_decline=can_respond,
-                capacity=capacity))
+                capacity=capacities.get(assignment.id)))
         return tuple(sorted(rows, key=lambda row: (row.resource_name.casefold(), -row.allocation_percent)))
 
     def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryFact:

@@ -14,7 +14,7 @@ from PySide6.QtQml import QQmlComponent
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+from src.core.modules.project_management.application.scheduling.mappers.gantt import (
     build_gantt_baseline_overlay,
     build_gantt_projection,
 )

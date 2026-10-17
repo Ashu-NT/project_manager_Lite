@@ -10,7 +10,7 @@ from PySide6.QtCore import QObject, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlComponent
 
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+from src.core.modules.project_management.application.scheduling.mappers.gantt import (
     build_gantt_projection,
 )
 from src.tests.path_rewrites import REPO_ROOT
@@ -291,7 +291,7 @@ def test_indexed_selection_and_local_filter_remain_below_interaction_budget() ->
 def _projection_from_hierarchy(root_task, phase, package, leaf):
     from datetime import date
 
-    from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+    from src.core.modules.project_management.application.scheduling.mappers.gantt import (
         build_gantt_projection,
     )
 

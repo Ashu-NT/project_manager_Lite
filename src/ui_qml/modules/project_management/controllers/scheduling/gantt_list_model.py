@@ -16,14 +16,17 @@ from PySide6.QtCore import (
     Slot,
 )
 
-from src.core.modules.project_management.api.desktop.scheduling.models import (
+from src.core.modules.project_management.application.scheduling.dto.responses.gantt import (
+    GanttBaselineOverlayDto,
+    GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
     GanttProjectionDto,
     GanttTaskRowDto,
 )
-from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
-    GanttBaselineOverlayDto,
-    GanttBaselineTaskSnapshotDto,
+from src.ui_qml.modules.project_management.presenters.scheduling.gantt_labels import (
+    constraint_label,
+    gantt_dependency_label,
+    status_label,
 )
 
 
@@ -440,7 +443,7 @@ class GanttListModel(QAbstractListModel):
             "successorTaskId": edge.successor_task_id,
             "successorTaskName": edge.successor_task_name,
             "dependencyType": edge.dependency_type,
-            "dependencyTypeLabel": edge.dependency_type_label,
+            "dependencyTypeLabel": gantt_dependency_label(edge.dependency_type),
             "lagDays": edge.lag_days,
             "predecessorRowIndex": row_indexes[edge.predecessor_task_id],
             "successorRowIndex": row_indexes[edge.successor_task_id],
@@ -525,9 +528,9 @@ class GanttListModel(QAbstractListModel):
             "remainingDuration": row.remaining_duration_days,
             "float": row.total_float_days,
             "critical": row.is_critical,
-            "constraint": row.constraint_type_label.casefold(),
+            "constraint": constraint_label(row).casefold(),
             "progress": row.percent_complete,
-            "status": row.status_label.casefold(),
+            "status": status_label(row).casefold(),
         }
         return accessors.get(self._sort_key, row.wbs_code.casefold())
 
@@ -554,7 +557,7 @@ class GanttListModel(QAbstractListModel):
             "durationDays": row.duration_days,
             "remainingDurationDays": row.remaining_duration_days,
             "status": row.status,
-            "statusLabel": row.status_label,
+            "statusLabel": status_label(row),
             "percentComplete": row.percent_complete,
             "isMilestone": row.is_milestone,
             "isCritical": row.is_critical,
@@ -562,7 +565,7 @@ class GanttListModel(QAbstractListModel):
             "totalFloatDays": row.total_float_days,
             "hasCanonicalSchedule": row.has_canonical_schedule,
             "constraintType": row.constraint_type,
-            "constraintTypeLabel": row.constraint_type_label,
+            "constraintTypeLabel": constraint_label(row),
             "constraintDate": _iso(row.constraint_date),
             "actualStart": _iso(row.actual_start),
             "actualFinish": _iso(row.actual_finish),

@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 
 
-@dataclass
+@dataclass(frozen=True)
 class PortfolioExecutiveRow:
     project_id: str
     project_name: str
@@ -18,7 +18,7 @@ class PortfolioExecutiveRow:
     pressure_label: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class PortfolioRecentAction:
     occurred_at: datetime
     project_name: str

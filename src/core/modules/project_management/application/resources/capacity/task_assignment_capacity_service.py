@@ -12,9 +12,27 @@ whether one proposed assignment is capacity-safe.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
+
+from src.core.modules.project_management.application.resources.capacity.queries.availability import (
+    ResourceAvailabilityQueryHandler,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
+    AssignmentRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
+from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import (
+    end_date_from_working_dates,
+    working_day_search_end,
+)
+from src.core.platform.application.time_management.calendar.capacity.platform_calendar_resolver import (
+    ResolvedCalendarContext,
+)
+from src.core.platform.common.exceptions import NotFoundError
 
 CAPACITY_AVAILABLE = "AVAILABLE"
 CAPACITY_NEAR_CAPACITY = "NEAR_CAPACITY"
@@ -101,19 +119,37 @@ def evaluate_task_assignment_capacity(
     """Existing = this resource's OTHER assignments within the SAME project overlapping
     [start_date, end_date], excluding `exclude_assignment_id` when editing. Proposed =
     `proposed_allocation_percent` applied across the full requested interval (the
-    new/edited assignment's own task window). Batched: one `list_by_resource` + one
-    `list_by_ids` call, never a per-task loop."""
+    new/edited assignment's own task window). Reads project tasks and resource
+    assignments in sets, never a per-task query loop."""
     resource = resource_repo.get(resource_id)
-    capacity_modifier = Decimal(str(getattr(resource, "capacity_percent", 100.0) or 100.0)) / Decimal(100)
-    if capacity_modifier <= 0:
-        capacity_modifier = Decimal(1)
-
     raw_days = availability_service.get_availability_range(
         resource_id,
         project_id=project_id,
         start=start_date,
         end=end_date,
     )
+    tasks_by_id = {task.id: task for task in task_repo.list_by_project(project_id)}
+    assignments = assignment_repo.list_by_resource(resource_id)
+    return calculate_task_assignment_capacity(
+        resource_id=resource_id, resource=resource, start_date=start_date, end_date=end_date,
+        proposed_allocation_percent=proposed_allocation_percent, raw_days=raw_days,
+        assignments=assignments, tasks_by_id=tasks_by_id, exclude_assignment_id=exclude_assignment_id,
+    )
+
+
+def calculate_task_assignment_capacity(
+    *, resource_id: str, resource: Resource | None, start_date: date, end_date: date,
+    proposed_allocation_percent: float, raw_days: list[ResolvedCalendarContext],
+    assignments: list[TaskAssignment], tasks_by_id: dict[str, Task],
+    exclude_assignment_id: str | None = None,
+) -> TaskAssignmentCapacityFact:
+    """Query-free calculation shared by single previews and batch response reads.
+
+    tasks_by_id contains only tasks in the requested project.
+    """
+    capacity_modifier = Decimal(str(getattr(resource, "capacity_percent", 100.0) or 100.0)) / Decimal(100)
+    if capacity_modifier <= 0:
+        capacity_modifier = Decimal(1)
     effective_by_date: dict[date, Decimal | None] = {}
     # Raw (unscaled) hours: capacity_percent must narrow the available ceiling only,
     # never the committed-hours numerator too, or the two scale together and it
@@ -134,18 +170,11 @@ def evaluate_task_assignment_capacity(
         if not source_chain:
             source_chain = tuple(day.source_chain)
 
-    project_task_ids = {t.id for t in task_repo.list_by_project(project_id)}
-    assignments = [
-        a
-        for a in assignment_repo.list_by_resource(resource_id)
-        if a.task_id in project_task_ids and a.id != exclude_assignment_id
-    ]
-    other_task_ids = list({a.task_id for a in assignments})
-    tasks_by_id = {t.id: t for t in task_repo.list_by_ids(other_task_ids)} if other_task_ids else {}
-
     existing_by_date: dict[date, Decimal] = {}
     contributing_by_date: dict[date, set[str]] = {}
     for assignment in assignments:
+        if assignment.resource_id != resource_id or assignment.id == exclude_assignment_id:
+            continue
         task = tasks_by_id.get(assignment.task_id)
         if task is None:
             continue
@@ -233,6 +262,57 @@ def evaluate_task_assignment_capacity(
     )
 
 
+def enrich_task_assignment_capacities(
+    *, task: Task, assignments: list[TaskAssignment], resources: list[Resource],
+    task_repo: TaskRepository, assignment_repo: AssignmentRepository,
+    availability_service: ResourceAvailabilityQueryHandler,
+) -> dict[str, TaskAssignmentCapacityFact]:
+    """One project/task/assignment snapshot and one batch calendar read, never row queries."""
+    if not task.start_date or (task.end_date is None and task.duration_days is None):
+        return {}
+    tasks = {row.id: row for row in task_repo.list_by_project(task.project_id)}
+    tasks[task.id] = task
+    for milestone in list(tasks.values()):
+        if milestone.start_date and milestone.end_date is None and milestone.duration_days == 0:
+            tasks[milestone.id] = replace(milestone, end_date=milestone.start_date)
+    derived = [row for row in tasks.values()
+               if row.start_date and row.end_date is None and row.duration_days is not None]
+    if derived:
+        start = min(row.start_date for row in derived if row.start_date is not None)
+        end = max(working_day_search_end(row.start_date, int(row.duration_days or 0))
+                  for row in derived if row.start_date is not None)
+        working_dates = availability_service.get_scheduling_working_dates(start, end)
+        for row in derived:
+            assert row.start_date is not None
+            end_date = end_date_from_working_dates(row.start_date, int(row.duration_days or 0), working_dates)
+            tasks[row.id] = replace(row, end_date=end_date)
+    current = tasks[task.id]
+    if current.start_date is None or current.end_date is None:
+        return {}
+    resource_ids = {row.resource_id for row in assignments}
+    selected = [resource for resource in resources if resource.id in resource_ids]
+    missing = resource_ids - {resource.id for resource in selected}
+    if missing:
+        raise NotFoundError(f"Resource '{min(missing)}' not found.", code="RESOURCE_NOT_FOUND")
+    project_assignments = assignment_repo.list_by_tasks(list(tasks))
+    assignments_by_resource: dict[str, list[TaskAssignment]] = {}
+    for assignment in project_assignments:
+        assignments_by_resource.setdefault(assignment.resource_id, []).append(assignment)
+    days = availability_service.get_availability_ranges(
+        selected, project_id=task.project_id, start=current.start_date, end=current.end_date,
+    )
+    resources_by_id = {resource.id: resource for resource in selected}
+    return {
+        row.id: calculate_task_assignment_capacity(
+            resource_id=row.resource_id, resource=resources_by_id[row.resource_id],
+            start_date=current.start_date, end_date=current.end_date,
+            proposed_allocation_percent=row.allocation_percent, raw_days=days[row.resource_id],
+            assignments=assignments_by_resource.get(row.resource_id, []), tasks_by_id=tasks,
+            exclude_assignment_id=row.id,
+        ) for row in assignments
+    }
+
+
 __all__ = [
     "CAPACITY_AVAILABLE",
     "CAPACITY_NEAR_CAPACITY",
@@ -240,5 +320,7 @@ __all__ = [
     "CAPACITY_UNKNOWN",
     "DailyCapacityCommitment",
     "TaskAssignmentCapacityFact",
+    "calculate_task_assignment_capacity",
+    "enrich_task_assignment_capacities",
     "evaluate_task_assignment_capacity",
 ]

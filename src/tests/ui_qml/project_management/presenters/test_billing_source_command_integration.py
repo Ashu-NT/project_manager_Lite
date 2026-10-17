@@ -1,12 +1,12 @@
 from types import SimpleNamespace
+from datetime import date
+from decimal import Decimal
 from unittest.mock import Mock
 
 import pytest
 
-from src.core.modules.project_management.api.desktop.financials import (
-    FinancialBillingSourceOptionDto,
-    FinancialBillingSourcePageDto,
-)
+from src.core.modules.project_management.contracts.reads.financials.budgets.models.budget_facts import FinancePageFacts
+from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import BillingSourceOptionFact
 from src.ui_qml.modules.project_management.controllers.financials.shared.financials_lookup_mixin import (
     FinancialsLookupMixin,
 )
@@ -25,11 +25,11 @@ from src.ui_qml.modules.project_management.presenters.financials.financials_work
 )
 def test_reader_source_identity_reaches_matching_command(source_type, method, source_field):
     api = Mock()
-    api.list_eligible_billing_sources.return_value = FinancialBillingSourcePageDto(
-        items=(FinancialBillingSourceOptionDto(
+    api.list_eligible_billing_sources.return_value = FinancePageFacts(
+        items=(BillingSourceOptionFact(
             source_id="evidence-id", source_type=source_type, label="Evidence",
-            source_date="2026-09-01", amount="12.3456", currency_code="XAF",
-        ),), total=51, page=2, page_size=25,
+            source_date=date(2026, 9, 1), amount=Decimal("12.3456"), currency_code="XAF",
+        ),), total=51, page=2, page_size=25, sort_key="source_date", sort_direction="asc",
     )
     presenter = ProjectFinancialsWorkspacePresenter(desktop_api=api)
     host = SimpleNamespace(_financials_workspace_presenter=presenter)

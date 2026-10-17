@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 # Matches the existing watchlist convention used by the Dashboard's own
 # top_n tables (critical_watchlist / milestone_health) — see
-# api/desktop/dashboard/builders/operational_table_builder.py.
+# ui_qml/modules/project_management/presenters/dashboard/builders/operational_table_builder.py.
 TOP_AT_RISK_PROJECTS_LIMIT = 8
 
 _HEATMAP_BROWSE_SORT_KEYS = {"projectName", "statusLabel"}

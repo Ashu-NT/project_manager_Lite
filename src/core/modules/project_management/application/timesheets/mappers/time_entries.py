@@ -15,6 +15,7 @@ def map_timesheet_entry(entry: TimeEntry) -> TimesheetEntryResult:
         entry_date=entry.entry_date,
         hours=Decimal(str(entry.hours)),
         note=entry.note or "",
+        author_user_id=entry.author_user_id,
         author_username=entry.author_username,
         version=entry.version,
     )

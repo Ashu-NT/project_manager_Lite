@@ -8,6 +8,10 @@ from src.core.modules.project_management.api.desktop import (
 from src.core.modules.project_management.application.collaboration.dto.commands.task_comments import (
     TaskCollaborationPostCommand,
 )
+from src.core.modules.project_management.domain.collaboration import (
+    CollaborationInboxItem,
+    CollaborationInboxPage,
+)
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
 from src.ui_qml.modules.project_management.presenters.collaboration.formatting import (
     format_document_option_label,
@@ -72,7 +76,7 @@ def test_project_management_collaboration_desktop_api_exposes_purpose_queries() 
     context = api.list_context_options()
 
     assert inbox.total == 1
-    assert inbox.items[0].mentions == ["planner"]
+    assert inbox.items[0].mentions == ("planner",)
     assert activity[0].unread is False
     assert (
         to_collaboration_presence_record_view_model(presence[0]).title
@@ -213,8 +217,8 @@ class _FakeCollaborationService:
             ]
         }
 
-    def query_inbox_page(self, **kwargs) -> SimpleNamespace:
-        item = SimpleNamespace(
+    def query_inbox_page(self, **kwargs) -> CollaborationInboxPage:
+        item = CollaborationInboxItem(
             comment_id="comment-1",
             task_id="task-1",
             task_name="Cable Pull",
@@ -224,18 +228,18 @@ class _FakeCollaborationService:
             body_preview="Please review the updated execution window.",
             is_deleted=False,
             deleted_at=None,
-            mentions=["planner"],
+            mentions=("planner",),
             created_at=datetime(2026, 5, 1, 8, 45),
             unread=True,
         )
-        return SimpleNamespace(items=(item,), total=1, page=1, page_size=25)
+        return CollaborationInboxPage(items=(item,), total=1, page=1, page_size=25)
 
-    def query_mentions_page(self, **kwargs) -> SimpleNamespace:
+    def query_mentions_page(self, **kwargs) -> CollaborationInboxPage:
         return self.query_inbox_page(**kwargs)
 
-    def list_recent_activity(self, **kwargs) -> list[SimpleNamespace]:
+    def list_recent_activity(self, **kwargs) -> list[CollaborationInboxItem]:
         return [
-            SimpleNamespace(
+            CollaborationInboxItem(
                 comment_id="comment-2",
                 task_id="task-2",
                 task_name="Commissioning Pack",
@@ -245,7 +249,7 @@ class _FakeCollaborationService:
                 body_preview="Draft punchlist is now linked for review.",
                 is_deleted=False,
                 deleted_at=None,
-                mentions=[],
+                mentions=(),
                 created_at=datetime(2026, 5, 1, 8, 15),
                 unread=False,
             )

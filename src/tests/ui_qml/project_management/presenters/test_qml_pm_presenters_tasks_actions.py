@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
+from src.core.modules.project_management.application.resources.capacity.task_assignment_capacity_service import (
+    TaskAssignmentCapacityFact,
+)
+from src.core.modules.project_management.application.tasks.dto.responses.assignment_validation import (
+    AssignmentPreviewResponseDto,
+)
 from src.tests.ui_qml.project_management.presenters._pm_task_service_helpers import (
     build_task_controller_bundle,
 )
@@ -104,32 +111,48 @@ def test_assignment_mapper_defaults_capacity_fields_when_absent() -> None:
 
 def test_pm_assignment_preview_maps_availability_and_policy_evidence() -> None:
     captured_calls = []
+    project_lookup_calls = []
+
+    def project_options():
+        project_lookup_calls.append(True)
+        return (
+            SimpleNamespace(value="project-alpha", label="Project Alpha"),
+            SimpleNamespace(value="project-beta", label="Project Beta"),
+        )
 
     def _fake_preview_assignment(
         task_id, project_resource_id, *, proposed_allocation_percent, exclude_assignment_id
     ):
         captured_calls.append((task_id, project_resource_id, proposed_allocation_percent, exclude_assignment_id))
-        return SimpleNamespace(
+        return AssignmentPreviewResponseDto(
+            task_id=task_id, resource_id="resource-1",
             overallocation_pct=25.0,
-            conflict_projects=("Project Alpha", "Project Beta"),
+            conflict_project_ids=("project-alpha", "project-beta", "unresolved-project"),
             skills_matched=False,
             certs_valid=True,
             has_warnings=True,
             warning_messages=("Missing commissioning skill",),
             is_blocked=True,
             block_messages=("Assignment policy blocked",),
-            capacity_known=True,
-            available_capacity_hours_label="40.0 h",
-            existing_committed_hours_label="20.0 h",
-            proposed_committed_hours_label="30.0 h",
-            resulting_committed_hours_label="50.0 h",
-            peak_utilization_percent=125.0,
-            capacity_status="OVER_CAPACITY",
-            capacity_status_label="Over capacity",
-            conflict_date_labels=("2026-06-01",),
+            capacity=TaskAssignmentCapacityFact(
+                resource_id="resource-1",
+                start_date=date(2026, 6, 1), end_date=date(2026, 6, 1),
+                calendar_capacity_hours=Decimal("40"),
+                effective_available_capacity_hours=Decimal("40"),
+                existing_committed_capacity_hours=Decimal("20"),
+                proposed_committed_capacity_hours=Decimal("30"),
+                resulting_committed_capacity_hours=Decimal("50"),
+                peak_utilization_percent=125.0,
+                capacity_status="OVER_CAPACITY",
+                conflict_dates=(date(2026, 6, 1),),
+                source_chain=("GLOBAL",), days=(),
+            ),
         )
 
-    desktop_api = SimpleNamespace(preview_assignment=_fake_preview_assignment)
+    desktop_api = SimpleNamespace(
+        preview_assignment=_fake_preview_assignment,
+        list_projects=project_options,
+    )
 
     result = preview_assignment(
         desktop_api,
@@ -142,6 +165,7 @@ def test_pm_assignment_preview_maps_availability_and_policy_evidence() -> None:
     )
 
     assert captured_calls == [("task-1", "project-resource-1", 60.0, "assign-9")]
+    assert project_lookup_calls == [True]
     assert result == {
         "ok": True,
         "overallocationPct": 25.0,
@@ -171,24 +195,17 @@ def test_pm_assignment_preview_defaults_proposed_allocation_to_100_and_no_exclus
         task_id, project_resource_id, *, proposed_allocation_percent, exclude_assignment_id
     ):
         captured_calls.append((task_id, project_resource_id, proposed_allocation_percent, exclude_assignment_id))
-        return SimpleNamespace(
+        return AssignmentPreviewResponseDto(
+            task_id=task_id, resource_id="resource-1",
             overallocation_pct=0.0,
-            conflict_projects=(),
+            conflict_project_ids=(),
             skills_matched=True,
             certs_valid=True,
             has_warnings=False,
             warning_messages=(),
             is_blocked=False,
             block_messages=(),
-            capacity_known=False,
-            available_capacity_hours_label="",
-            existing_committed_hours_label="",
-            proposed_committed_hours_label="",
-            resulting_committed_hours_label="",
-            peak_utilization_percent=0.0,
-            capacity_status="UNKNOWN",
-            capacity_status_label="Capacity unknown",
-            conflict_date_labels=(),
+            capacity=None,
         )
 
     desktop_api = SimpleNamespace(preview_assignment=_fake_preview_assignment)

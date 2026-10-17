@@ -29,44 +29,24 @@ from src.core.modules.project_management.api.desktop.common.dependency_presentat
 from src.core.modules.project_management.api.desktop.scheduling.builders.activity_options_builder import (
     build_activity_options,
 )
-from src.core.modules.project_management.api.desktop.scheduling.builders.baseline_builder import (
-    build_baseline_options,
-    build_baseline_rows,
-    build_variance_rows,
-)
-from src.core.modules.project_management.api.desktop.scheduling.builders.calendar_snapshot_builder import (
-    build_calendar_options,
-    build_calendar_snapshot,
-)
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
     build_change_impact,
 )
 from src.core.modules.project_management.api.desktop.scheduling.builders.constraint_builder import (
     build_constraint_violations,
 )
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
-    build_gantt_baseline_overlay as assemble_gantt_baseline_overlay,
-)
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
-    build_gantt_projection as assemble_gantt_projection,
-)
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
-    build_hierarchy_nodes,
-)
 from src.core.modules.project_management.api.desktop.scheduling.builders.project_options_builder import (
     build_project_options,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models import (
-    GanttProjectionDto,
-    SchedulingBaselineOptionDescriptor,
-    SchedulingBaselineRowDto,
-    SchedulingCalendarOptionDescriptor,
-    SchedulingCalendarSnapshotDto,
     SchedulingDependencyTypeDescriptor,
     SchedulingProjectOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
-    GanttBaselineOverlayDto,
+from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
+    get_legacy_calendar,
+    get_platform_calendar_snapshot,
+    list_legacy_holidays,
+    list_platform_calendar_options,
 )
 from src.core.modules.project_management.api.desktop.scheduling.services.dependency_resolution_service import (
     get_task_method,
@@ -106,17 +86,42 @@ from src.core.modules.project_management.application.scheduling.dto.commands.wor
 )
 from src.core.modules.project_management.application.scheduling.dto.responses.baselines import (
     SchedulingBaselineComparisonRowDto,
+    SchedulingBaselineResponse,
     SchedulingBaselineVarianceRowDto,
+)
+from src.core.modules.project_management.application.scheduling.dto.responses.calendars import (
+    SchedulingCalendarResponse,
+    SchedulingCalendarSnapshot,
 )
 from src.core.modules.project_management.application.scheduling.dto.responses.change_impact import (
     ScheduleImpactReportDto,
     SchedulingChangeImpactDto,
+)
+from src.core.modules.project_management.application.scheduling.dto.responses.gantt import (
+    GanttBaselineOverlayDto,
+    GanttProjectionDto,
 )
 from src.core.modules.project_management.application.scheduling.dto.responses.schedule import (
     SchedulingTaskResponse,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.queries.change_impact import (
     ScheduleChangeImpactQueryHandler,
+)
+from src.core.modules.project_management.application.scheduling.mappers.baselines import (
+    map_baseline,
+)
+from src.core.modules.project_management.application.scheduling.mappers.calendars import (
+    map_legacy_calendar,
+    map_legacy_calendar_snapshot,
+)
+from src.core.modules.project_management.application.scheduling.mappers.gantt import (
+    build_gantt_baseline_overlay as assemble_gantt_baseline_overlay,
+)
+from src.core.modules.project_management.application.scheduling.mappers.gantt import (
+    build_gantt_projection as assemble_gantt_projection,
+)
+from src.core.modules.project_management.application.scheduling.mappers.gantt import (
+    build_hierarchy_nodes,
 )
 from src.core.modules.project_management.application.scheduling.models.leveling import (
     LevelingProposal,
@@ -144,6 +149,9 @@ from src.core.modules.project_management.contracts.reads.tasks import (
     TaskDependencyReadItem,
 )
 from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    CalendarDto,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
@@ -228,12 +236,17 @@ class ProjectManagementSchedulingDesktopApi:
 
     # ── Calendar ──────────────────────────────────────────────────────────────
 
-    def list_calendars(self) -> tuple[SchedulingCalendarOptionDescriptor, ...]:
-        return build_calendar_options(self._platform_calendar_api, self._work_calendar_service)
+    def list_calendars(self) -> tuple[CalendarDto | SchedulingCalendarResponse, ...]:
+        if self._platform_calendar_api is not None:
+            return list_platform_calendar_options(self._platform_calendar_api)
+        return (map_legacy_calendar(get_legacy_calendar(self._work_calendar_service)),)
 
-    def get_calendar_snapshot(self, calendar_id: str = "") -> SchedulingCalendarSnapshotDto:
-        return build_calendar_snapshot(
-            self._platform_calendar_api, self._work_calendar_service, calendar_id
+    def get_calendar_snapshot(self, calendar_id: str = "") -> SchedulingCalendarSnapshot:
+        if self._platform_calendar_api is not None:
+            return get_platform_calendar_snapshot(self._platform_calendar_api, calendar_id)
+        return map_legacy_calendar_snapshot(
+            get_legacy_calendar(self._work_calendar_service),
+            list_legacy_holidays(self._work_calendar_service),
         )
 
     def calculate_working_days(self, command: SchedulingWorkingDayCalculationCommand) -> WorkingDayCalculationDto:
@@ -409,17 +422,14 @@ class ProjectManagementSchedulingDesktopApi:
 
     # ── Baselines ─────────────────────────────────────────────────────────────
 
-    def list_baselines(self, project_id: str) -> tuple[SchedulingBaselineOptionDescriptor, ...]:
-        return build_baseline_options((project_id or "").strip(), self._baseline_query)
+    def list_baselines(self, project_id: str) -> tuple[SchedulingBaselineResponse, ...]:
+        normalized_id = (project_id or "").strip()
+        if not normalized_id or self._baseline_query is None:
+            return ()
+        return self._baseline_query.query_baseline_responses(normalized_id)
 
-    def list_baseline_rows(self, project_id: str) -> tuple[SchedulingBaselineRowDto, ...]:
-        return build_baseline_rows((project_id or "").strip(), self._baseline_query)
-
-    def create_baseline(self, command: SchedulingBaselineCreateCommand) -> SchedulingBaselineOptionDescriptor:
-        baseline = self._require_baseline_commands().create_baseline(command)
-        return SchedulingBaselineOptionDescriptor(
-            value=baseline.id, label=f"{baseline.name} ({baseline.created_at.isoformat()})"
-        )
+    def create_baseline(self, command: SchedulingBaselineCreateCommand) -> SchedulingBaselineResponse:
+        return map_baseline(self._require_baseline_commands().create_baseline(command))
 
     def submit_baseline(self, command: SchedulingBaselineSubmitCommand) -> None:
         self._require_baseline_commands().submit_baseline(command)
@@ -434,7 +444,14 @@ class ProjectManagementSchedulingDesktopApi:
         self._require_baseline_commands().delete_baseline(command)
 
     def list_baseline_variance_records(self, baseline_id: str) -> tuple[SchedulingBaselineVarianceRowDto, ...]:
-        return build_variance_rows((baseline_id or "").strip(), self._baseline_query)
+        normalized_id = (baseline_id or "").strip()
+        if not normalized_id or self._baseline_query is None:
+            return ()
+        try:
+            return self._baseline_query.query_variance_responses(normalized_id)
+        except Exception:
+            logger.exception("Failed to build variance rows for baseline_id=%s", normalized_id)
+            return ()
 
     def compare_baselines(
         self, *, project_id: str, baseline_a_id: str, baseline_b_id: str, include_unchanged: bool = False

@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.core.modules.project_management.api.desktop.financials.serializers.performance_serializer import (
-    serialize_performance_variance,
+from src.ui_qml.modules.project_management.presenters.financials.reporting.performance_builder import (
+    build_variance_views,
 )
 from src.core.modules.project_management.application.financials.analytics.performance.query import (
     ProjectFinancePerformanceQuery,
@@ -144,9 +144,9 @@ def test_desktop_tone_consumes_authoritative_favorability(monkeypatch) -> None:
     facts = _query(monkeypatch, evm=_evm(CV=Decimal(-1), EAC=Decimal(101))).get_variance(
         "project-1", as_of_date=date(2026, 8, 28)
     )
-    dto = serialize_performance_variance(facts)
-    metrics = {metric.code: metric for metric in dto.metrics}
+    dto = build_variance_views(facts)
+    metrics = {metric.id: metric for metric in dto["variance_metrics"].items}
 
-    assert metrics["cost_variance"].tone == "danger"
-    assert metrics["budget_pressure"].tone == "danger"
-    assert metrics["vac"].tone == "success"
+    assert metrics["cost_variance"].state["tone"] == "danger"
+    assert metrics["budget_pressure"].state["tone"] == "danger"
+    assert metrics["vac"].state["tone"] == "success"

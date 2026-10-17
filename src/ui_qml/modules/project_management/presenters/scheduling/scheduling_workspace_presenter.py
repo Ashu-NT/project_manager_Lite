@@ -6,7 +6,7 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementSchedulingDesktopApi,
     build_project_management_scheduling_desktop_api,
 )
-from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
+from src.core.modules.project_management.application.scheduling.dto.responses.gantt import (
     GanttBaselineOverlayDto,
 )
 from src.ui_qml.modules.project_management.view_models.scheduling import (

@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import date
 from typing import ClassVar
 
-from src.core.modules.project_management.api.desktop.scheduling.models.calendars import (
-    _DAY_LABELS,
-    SchedulingCalendarOptionDescriptor,
-    SchedulingCalendarSnapshotDto,
-    SchedulingDayDescriptor,
+from src.core.modules.project_management.application.scheduling.dto.responses.calendars import (
+    SchedulingCalendarSnapshot,
 )
-from src.core.platform.application.time_management.calendar.dto.responses.working_calendar import (
-    WorkingCalendarHolidayDto,
+from src.core.modules.project_management.application.scheduling.mappers.calendars import (
+    map_platform_calendar_snapshot,
+)
+from src.core.platform.api.desktop.time_management.calendar.models.platform_calendar import (
+    CalendarDto,
 )
 
 
@@ -63,21 +62,14 @@ def _resolve_calendar_id(platform_calendar_api, calendar_id: str) -> str:
 
 def list_platform_calendar_options(
     platform_calendar_api,
-) -> tuple[SchedulingCalendarOptionDescriptor, ...]:
+) -> tuple[CalendarDto, ...]:
     calendars = unwrap_platform_calendar_result(platform_calendar_api.list_calendars()) or ()
-    return tuple(
-        SchedulingCalendarOptionDescriptor(
-            value=cal.id,
-            label=cal.name,
-            summary_label=f"{cal.calendar_type.title()} · {cal.timezone}",
-        )
-        for cal in calendars
-    )
+    return tuple(calendars)
 
 
 def get_platform_calendar_snapshot(
     platform_calendar_api, calendar_id: str = ""
-) -> SchedulingCalendarSnapshotDto:
+) -> SchedulingCalendarSnapshot:
     resolved_id = _resolve_calendar_id(platform_calendar_api, calendar_id)
     cal = unwrap_platform_calendar_result(platform_calendar_api.get_calendar(resolved_id))
     rules = unwrap_platform_calendar_result(
@@ -87,44 +79,7 @@ def get_platform_calendar_snapshot(
         platform_calendar_api.list_exceptions(resolved_id)
     ) or ()
 
-    rules_by_weekday = {rule.weekday: rule for rule in rules}
-    working_days = tuple(
-        SchedulingDayDescriptor(
-            index=i,
-            label=_DAY_LABELS[i],
-            checked=bool(rules_by_weekday[i].is_working_day) if i in rules_by_weekday else False,
-        )
-        for i in range(7)
-    )
-    working_hours = [
-        rule.computed_hours
-        for rule in rules
-        if rule.is_working_day and rule.computed_hours
-    ]
-    hours_per_day = working_hours[0] if working_hours else 8.0
-
-    holidays = tuple(
-        sorted(
-            (
-                WorkingCalendarHolidayDto(
-                    id=exc.id,
-                    date=date.fromisoformat(exc.exception_date),
-                    name=exc.name or "",
-                )
-                for exc in exceptions
-                if str(exc.exception_type or "").upper() == "HOLIDAY" and exc.exception_date
-            ),
-            key=lambda item: item.date,
-        )
-    )
-
-    return SchedulingCalendarSnapshotDto(
-        calendar_id=cal.id,
-        calendar_name=cal.name,
-        working_days=working_days,
-        hours_per_day=float(hours_per_day),
-        holidays=holidays,
-    )
+    return map_platform_calendar_snapshot(cal, rules, exceptions)
 
 
 __all__ = [

@@ -13,31 +13,13 @@ class FinancialsLookupMixin:
         self, project_id: str, preparation_id: str, search: str, page: int, page_size: int
     ) -> dict[str, object]:
         try:
-            result = self._financials_workspace_presenter.list_eligible_billing_sources(
+            return self._financials_workspace_presenter.list_eligible_billing_sources(
                 project_id,
                 preparation_id,
                 search=search,
                 page=page,
                 page_size=page_size,
             )
-            return {
-                "ok": True,
-                "items": [
-                    {
-                        "value": item.source_id,
-                        "label": item.label,
-                        "sourceType": item.source_type,
-                        "sourceDate": item.source_date,
-                        "amount": item.amount,
-                        "currencyCode": item.currency_code,
-                    }
-                    for item in result.items
-                ],
-                "total": int(result.total),
-                "page": int(result.page),
-                "pageSize": int(result.page_size),
-                "hasMore": result.page * result.page_size < result.total,
-            }
         except Exception as exc:
             logger.exception("Eligible billing source lookup failed.")
             return _lookup_error(exc)

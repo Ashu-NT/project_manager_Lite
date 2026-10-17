@@ -9,9 +9,8 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.builders import (
-    commitment_builder,
-)
+from src.core.modules.project_management.application.financials.commitments.queries import catalog as commitment_builder
+from src.ui_qml.modules.project_management.presenters.financials.commitments.commitment_builder import build_commitment_summary, build_commitment_collection
 from src.core.platform.common.exceptions import ConfigurationError
 
 
@@ -70,6 +69,10 @@ class _CommitmentQuery:
 
 
 def _api(**dependencies) -> ProjectManagementFinancialsDesktopApi:
+    if "commitment_query" in dependencies:
+        query = commitment_builder.ProjectCommitmentQueryHandler(commitment_repo=None)
+        query.list_for_project = dependencies["commitment_query"].list_for_project
+        dependencies["commitment_query"] = query
     return ProjectManagementFinancialsDesktopApi(
         finance_snapshot_query=_FinanceSnapshotQueryHandler(),
         **dependencies,
@@ -82,7 +85,7 @@ def test_financial_desktop_maps_commitment_controls() -> None:
         finance_snapshot_query=finance_snapshot_query,
     )
 
-    commitment = api.get_commitment_summary("project-1")
+    commitment = build_commitment_summary(api.get_commitment_summary("project-1"))
 
     assert commitment.commitment_rate_pct == 15.0
     assert commitment.available_after_commitment_label == "EUR 450.00"
@@ -111,14 +114,14 @@ def test_commitment_percentage_preserves_undefined_versus_available_zero(
     facts.approved_budget = budget
     facts.open_commitment = commitment
     facts.control = FinanceControlFact(budget, Decimal(0), commitment, None)
-    result = commitment_builder.build_commitment_summary_dto("project-1", facts=facts)
+    result = build_commitment_summary(facts)
     assert result.commitment_rate_pct == expected
 
 
 def test_commitment_percentage_without_approved_budget_is_unavailable():
     facts = _FinanceSnapshotQueryHandler().get_finance_overview("project-1")
     facts.approved_budget_id = None
-    result = commitment_builder.build_commitment_summary_dto("project-1", facts=facts)
+    result = build_commitment_summary(facts)
     assert result.commitment_rate_pct is None
 
 
@@ -141,9 +144,11 @@ def test_financial_desktop_maps_paged_canonical_commitment_lines() -> None:
     assert page.sort_key == "metaText"
     assert page.sort_direction == "desc"
     assert page.items[0].state == "partially_received"
-    assert page.items[0].amount_label == "EUR 1,000.00"
-    assert page.items[0].matched_amount_label == "EUR 400.00"
-    assert page.items[0].remaining_amount_label == "EUR 600.00"
+    assert page.items[0].amount == 1000
+    assert page.items[0].remaining_amount == 600
+    row = build_commitment_collection(page).items[0]
+    assert row.status_label == "EUR 1,000.00"
+    assert row.supporting_text == "Matched EUR 400.00 | Remaining EUR 600.00"
 
 
 def test_desktop_finance_builders_are_mapping_only() -> None:

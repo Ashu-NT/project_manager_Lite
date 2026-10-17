@@ -17,7 +17,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
 )
 
 from .activity_feed_builder import build_activity_feed_collection
-from .calendar_builder import build_calendar_view_model
+from .calendar_builder import build_calendar_view_model, to_calendar_option
 from .diagnostics_builder import build_diagnostics_collection
 from .formatters import (
     label_for_option,
@@ -70,11 +70,7 @@ def build_workspace_state(
     resolved_project_id = resolve_project_id(project_id, project_options)
 
     calendar_options = tuple(
-        SchedulingSelectorOptionViewModel(
-            value=option.value,
-            label=option.label,
-            supporting_text=option.summary_label,
-        )
+        to_calendar_option(option)
         for option in desktop_api.list_calendars()
     )
     resolved_calendar_id = resolve_selected_option(
@@ -84,19 +80,16 @@ def build_workspace_state(
     )
     calendar_snapshot = desktop_api.get_calendar_snapshot(resolved_calendar_id)
 
+    baselines = desktop_api.list_baselines(resolved_project_id) if resolved_project_id else ()
     baseline_options = (
         tuple(
-            SchedulingSelectorOptionViewModel(value=option.value, label=option.label)
-            for option in desktop_api.list_baselines(resolved_project_id)
+            SchedulingSelectorOptionViewModel(value=baseline.id, label=f"{baseline.name} ({baseline.created_at.isoformat()})")
+            for baseline in baselines
         )
         if resolved_project_id
         else ()
     )
-    baseline_rows = (
-        desktop_api.list_baseline_rows(resolved_project_id)
-        if resolved_project_id
-        else ()
-    )
+    baseline_rows = sorted(baselines, key=lambda baseline: baseline.created_at, reverse=True)
     requested_baseline_id = str(selected_baseline_id or "").strip()
     baseline_ids = {option.value for option in baseline_options}
     resolved_baseline_id = (
@@ -276,7 +269,7 @@ def build_workspace_state(
         baseline_register=SchedulingCollectionViewModel(
             title="Baseline Register",
             subtitle="Stored schedule freezes available for comparison and governance.",
-            items=tuple(to_baseline_register_record(row) for row in baseline_rows),
+            items=tuple(to_baseline_register_record(row, index) for index, row in enumerate(baseline_rows)),
             empty_state=(
                 "No baselines are stored for the selected project."
                 if resolved_project_id

@@ -51,6 +51,10 @@ class PlatformCalendarRepository(ABC):
 
 class CalendarWorkingRuleRepository(ABC):
     @abstractmethod
+    def list_for_calendars(self, calendar_ids: list[str]) -> list[CalendarWorkingRule]:
+        ...
+
+    @abstractmethod
     def list_for_calendar(self, calendar_id: str) -> list[CalendarWorkingRule]: ...
 
     @abstractmethod
@@ -72,6 +76,12 @@ class CalendarWorkingRuleRepository(ABC):
 
 
 class CalendarExceptionRepository(ABC):
+    @abstractmethod
+    def list_for_calendars(
+        self, calendar_ids: list[str], *, start: date, end: date
+    ) -> list[CalendarException]:
+        ...
+
     @abstractmethod
     def list_for_calendar(
         self,
@@ -121,6 +131,10 @@ class CalendarExceptionRepository(ABC):
 
 class CalendarRecurringEventRepository(ABC):
     @abstractmethod
+    def list_for_calendars(self, calendar_ids: list[str]) -> list[CalendarRecurringEvent]:
+        ...
+
+    @abstractmethod
     def list_for_calendar(
         self, calendar_id: str, *, active_only: bool = True
     ) -> list[CalendarRecurringEvent]: ...
@@ -157,6 +171,10 @@ class CalendarRecurringEventRepository(ABC):
 
 class ShiftPatternRepository(ABC):
     @abstractmethod
+    def list_days_for_patterns(self, pattern_ids: list[str]) -> list[ShiftPatternDay]:
+        ...
+
+    @abstractmethod
     def list_for_organization(
         self, organization_id: str, *, active_only: bool | None = None
     ) -> list[ShiftPattern]: ...
@@ -189,6 +207,10 @@ class ShiftPatternRepository(ABC):
 
 
 class CalendarAssignmentRepository(ABC):
+    @abstractmethod
+    def list_for_employees(self, employee_ids: list[str]) -> list[EmployeeCalendarAssignment]:
+        ...
+
     @abstractmethod
     def get_site_assignment(
         self, site_id: str, *, at_date: date | None = None

@@ -381,6 +381,15 @@ class SqlAlchemyCalendarWorkingRuleRepository(
         rows = self._session.execute(stmt).scalars().all()
         return [working_rule_from_orm(r) for r in rows]
 
+    def list_for_calendars(self, calendar_ids: list[str]) -> list[CalendarWorkingRule]:
+        ctx = self._context(operation_label="access calendar working rules")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarWorkingRuleORM), CalendarWorkingRuleORM, ctx
+        ).where(CalendarWorkingRuleORM.calendar_id.in_(calendar_ids)).order_by(
+            CalendarWorkingRuleORM.weekday
+        )
+        return [working_rule_from_orm(r) for r in self._session.scalars(stmt)]
+
     def get(self, rule_id: str) -> CalendarWorkingRule | None:
         ctx = self._context(operation_label="access calendar working rules")
         stmt = _scoped_calendar_stmt(
@@ -477,6 +486,19 @@ class SqlAlchemyCalendarExceptionRepository(
         )
         rows = self._session.execute(stmt).scalars().all()
         return [calendar_exception_from_orm(r) for r in rows]
+
+    def list_for_calendars(
+        self, calendar_ids: list[str], *, start: date, end: date
+    ) -> list[CalendarException]:
+        ctx = self._context(operation_label="access calendar exceptions")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarExceptionORM), CalendarExceptionORM, ctx
+        ).where(
+            CalendarExceptionORM.calendar_id.in_(calendar_ids),
+            CalendarExceptionORM.exception_date >= start,
+            CalendarExceptionORM.exception_date <= end,
+        ).order_by(CalendarExceptionORM.exception_date, CalendarExceptionORM.priority.desc())
+        return [calendar_exception_from_orm(r) for r in self._session.scalars(stmt)]
 
     def list_page_for_calendar(
         self,
@@ -620,6 +642,16 @@ class SqlAlchemyCalendarRecurringEventRepository(
         )
         rows = self._session.execute(stmt).scalars().all()
         return [recurring_event_from_orm(r) for r in rows]
+
+    def list_for_calendars(self, calendar_ids: list[str]) -> list[CalendarRecurringEvent]:
+        ctx = self._context(operation_label="access recurring events")
+        stmt = _scoped_calendar_stmt(
+            select(CalendarRecurringEventORM), CalendarRecurringEventORM, ctx
+        ).where(
+            CalendarRecurringEventORM.calendar_id.in_(calendar_ids),
+            CalendarRecurringEventORM.is_active.is_(True),
+        ).order_by(CalendarRecurringEventORM.priority.desc(), CalendarRecurringEventORM.title)
+        return [recurring_event_from_orm(r) for r in self._session.scalars(stmt)]
 
     def list_page_for_calendar(
         self,
@@ -800,6 +832,13 @@ class SqlAlchemyShiftPatternRepository(
         ).scalar_one_or_none()
         if obj is not None:
             self._session.delete(obj)
+
+    def list_days_for_patterns(self, pattern_ids: list[str]) -> list[ShiftPatternDay]:
+        ctx = self._context(operation_label="access shift pattern days")
+        stmt = _scoped_shift_pattern_day_stmt(
+            select(ShiftPatternDayORM), ctx
+        ).where(ShiftPatternDayORM.shift_pattern_id.in_(pattern_ids))
+        return [shift_pattern_day_from_orm(r) for r in self._session.scalars(stmt)]
 
     def list_days(self, pattern_id: str) -> list[ShiftPatternDay]:
         ctx = self._context(operation_label="access shift patterns")
@@ -1031,6 +1070,17 @@ class SqlAlchemyCalendarAssignmentRepository(
         deleted = dept_assignment_from_orm(obj)
         self._session.delete(obj)
         return deleted
+
+    def list_for_employees(self, employee_ids: list[str]) -> list[EmployeeCalendarAssignment]:
+        ctx = self._context(operation_label="access calendar assignments")
+        stmt = _scoped_assignment_stmt(
+            select(EmployeeCalendarAssignmentORM), EmployeeCalendarAssignmentORM,
+            EmployeeORM, EmployeeCalendarAssignmentORM.employee_id, ctx,
+        ).where(EmployeeCalendarAssignmentORM.employee_id.in_(employee_ids)).order_by(
+            EmployeeCalendarAssignmentORM.priority.desc(),
+            EmployeeCalendarAssignmentORM.is_default.desc(),
+        )
+        return [employee_assignment_from_orm(r) for r in self._session.scalars(stmt)]
 
     def get_employee_assignment(
         self, employee_id: str, *, at_date: date | None = None

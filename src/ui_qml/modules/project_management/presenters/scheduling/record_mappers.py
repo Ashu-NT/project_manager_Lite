@@ -11,6 +11,11 @@ from src.core.modules.project_management.application.dashboard.models.report_mod
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintViolation,
 )
+from src.core.modules.project_management.application.scheduling.dto.responses.baselines import (
+    SchedulingBaselineComparisonRowDto,
+    SchedulingBaselineResponse,
+    SchedulingBaselineVarianceRowDto,
+)
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingRecordViewModel,
 )
@@ -33,7 +38,7 @@ def to_delayed_activity_record(item: Any) -> SchedulingRecordViewModel:
         state={"activityId": item.task_id},
     )
 
-def to_baseline_compare_record(item: Any) -> SchedulingRecordViewModel:
+def to_baseline_compare_record(item: SchedulingBaselineComparisonRowDto) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
         id=item.task_id,
         title=item.task_name,
@@ -47,7 +52,7 @@ def to_baseline_compare_record(item: Any) -> SchedulingRecordViewModel:
             f"Finish shift {shift_label(item.finish_shift_days)} | "
             f"Duration {shift_label(item.duration_delta_days)}"
         ),
-        meta_text=f"Planned cost delta {float(item.planned_cost_delta or 0.0):,.2f}",
+        meta_text=f"Planned cost delta {item.planned_cost_delta:,.2f}",
         state={
             "taskId": item.task_id,
             "baselineState": item.change_type.title(),
@@ -57,25 +62,29 @@ def to_baseline_compare_record(item: Any) -> SchedulingRecordViewModel:
         },
     )
 
-def to_baseline_register_record(item: Any) -> SchedulingRecordViewModel:
+def to_baseline_register_record(item: SchedulingBaselineResponse, index: int = 0) -> SchedulingRecordViewModel:
+    created_at_label = item.created_at.strftime("%Y-%m-%d %H:%M")
+    approved_by_label = str(item.approved_by or "System snapshot")
+    variance_state_label = "Latest" if index == 0 else "Stored"
+    status_label = item.status.replace("_", " ").title()
     return SchedulingRecordViewModel(
         id=item.id,
         title=item.name,
-        status_label=item.status_label,
-        subtitle=item.created_at_label,
-        supporting_text=f"Approved by {item.approved_by_label}",
-        meta_text=f"Snapshot {item.variance_state_label}",
+        status_label=status_label,
+        subtitle=created_at_label,
+        supporting_text=f"Approved by {approved_by_label}",
+        meta_text=f"Snapshot {variance_state_label}",
         can_primary_action=item.can_submit,
         can_secondary_action=item.can_approve,
         can_tertiary_action=item.can_reject,
         state={
             "baselineId": item.id,
             "baselineName": item.name,
-            "createdLabel": item.created_at_label,
-            "approvedByLabel": item.approved_by_label,
-            "varianceState": item.variance_state_label,
+            "createdLabel": created_at_label,
+            "approvedByLabel": approved_by_label,
+            "varianceState": variance_state_label,
             "status": item.status,
-            "statusLabel": item.status_label,
+            "statusLabel": status_label,
             "canSubmit": item.can_submit,
             "canApprove": item.can_approve,
             "canReject": item.can_reject,
@@ -134,14 +143,12 @@ def to_constraint_violation_record(
         },
     )
 
-def to_baseline_variance_record(rec: Any) -> SchedulingRecordViewModel:
-    task_name = str(
-        getattr(rec, "task_name", "") or getattr(rec, "task_id", "") or "Unknown"
-    )
-    start_var = int(getattr(rec, "start_variance_days", 0) or 0)
-    finish_var = int(getattr(rec, "finish_variance_days", 0) or 0)
-    cost_var = float(getattr(rec, "cost_variance", 0.0) or 0.0)
-    created = getattr(rec, "created_at", None)
+def to_baseline_variance_record(rec: SchedulingBaselineVarianceRowDto) -> SchedulingRecordViewModel:
+    task_name = rec.task_name or rec.task_id or "Unknown"
+    start_var = rec.start_variance_days
+    finish_var = rec.finish_variance_days
+    cost_var = rec.cost_variance
+    created = rec.created_at
     if start_var > 0 or finish_var > 0:
         status = "Delayed"
     elif start_var < 0 or finish_var < 0:
@@ -149,20 +156,20 @@ def to_baseline_variance_record(rec: Any) -> SchedulingRecordViewModel:
     else:
         status = "Shifted"
     return SchedulingRecordViewModel(
-        id=str(getattr(rec, "id", "") or ""),
+        id=rec.id,
         title=task_name,
         status_label=status,
         subtitle=f"Start {shift_label(start_var)} | Finish {shift_label(finish_var)}",
         supporting_text=f"Cost delta {cost_var:+,.2f}",
         meta_text=format_date(created) if created else "-",
         state={
-            "taskId": str(getattr(rec, "task_id", "") or ""),
+            "taskId": rec.task_id,
             "taskName": task_name,
             "startVarianceDays": start_var,
             "startVarianceDaysLabel": shift_label(start_var),
             "finishVarianceDays": finish_var,
             "finishVarianceDaysLabel": shift_label(finish_var),
-            "costVariance": cost_var,
+            "costVariance": float(cost_var),
             "costVarianceLabel": f"{cost_var:+,.2f}",
             "createdLabel": format_date(created) if created else "-",
         },

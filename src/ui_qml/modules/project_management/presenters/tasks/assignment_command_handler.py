@@ -3,13 +3,17 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from src.core.modules.project_management.api.desktop import (
-    AssignmentValidationDesktopDto,
+from src.core.modules.project_management.api.desktop.tasks.services.capacity_status_labels import (
+    capacity_status_label,
 )
 from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentPlannedHoursCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.responses.assignment_validation import (
+    AssignmentPreviewResponseDto,
+    AssignmentValidationResponseDto,
 )
 
 from .validation import optional_decimal, require_decimal, require_float, require_text
@@ -123,17 +127,13 @@ def _empty_preview_result() -> dict[str, object]:
     }
 
 def preview_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object]:
-    from src.core.modules.project_management.api.desktop.tasks import (
-        AssignmentPreviewDesktopDto,
-    )
-
     task_id = str(payload.get("taskId") or "").strip()
     project_resource_id = str(payload.get("projectResourceId") or "").strip()
     if not task_id or not project_resource_id:
         return _empty_preview_result()
     proposed_allocation_percent = optional_decimal(payload, "proposedAllocationPercent")
     exclude_assignment_id = str(payload.get("excludeAssignmentId") or "").strip() or None
-    dto: AssignmentPreviewDesktopDto = desktop_api.preview_assignment(
+    dto: AssignmentPreviewResponseDto = desktop_api.preview_assignment(
         task_id,
         project_resource_id,
         proposed_allocation_percent=(
@@ -143,25 +143,35 @@ def preview_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object
         ),
         exclude_assignment_id=exclude_assignment_id,
     )
+    capacity = dto.capacity
+    available_hours = capacity.effective_available_capacity_hours if capacity is not None else None
+    capacity_known = available_hours is not None
+    status = capacity.capacity_status if capacity is not None else "UNKNOWN"
+    project_labels = ({option.value: option.label for option in desktop_api.list_projects()}
+                      if dto.conflict_project_ids else {})
     return {
         "ok": True,
         "overallocationPct": dto.overallocation_pct,
-        "conflictProjects": list(dto.conflict_projects),
+        "conflictProjects": [
+            project_labels[project_id]
+            for project_id in dto.conflict_project_ids
+            if project_id in project_labels
+        ],
         "skillsMatched": dto.skills_matched,
         "certsValid": dto.certs_valid,
         "hasWarnings": dto.has_warnings,
         "warningMessages": list(dto.warning_messages),
         "isBlocked": dto.is_blocked,
         "blockMessages": list(dto.block_messages),
-        "capacityKnown": dto.capacity_known,
-        "availableCapacityHoursLabel": dto.available_capacity_hours_label,
-        "existingCommittedHoursLabel": dto.existing_committed_hours_label,
-        "proposedCommittedHoursLabel": dto.proposed_committed_hours_label,
-        "resultingCommittedHoursLabel": dto.resulting_committed_hours_label,
-        "peakUtilizationPercent": dto.peak_utilization_percent,
-        "capacityStatus": dto.capacity_status,
-        "capacityStatusLabel": dto.capacity_status_label,
-        "conflictDateLabels": list(dto.conflict_date_labels),
+        "capacityKnown": capacity_known,
+        "availableCapacityHoursLabel": f"{available_hours:.1f} h" if available_hours is not None else "",
+        "existingCommittedHoursLabel": f"{capacity.existing_committed_capacity_hours:.1f} h" if capacity else "",
+        "proposedCommittedHoursLabel": f"{capacity.proposed_committed_capacity_hours:.1f} h" if capacity else "",
+        "resultingCommittedHoursLabel": f"{capacity.resulting_committed_capacity_hours:.1f} h" if capacity else "",
+        "peakUtilizationPercent": (capacity.peak_utilization_percent or 0.0) if capacity else 0.0,
+        "capacityStatus": status,
+        "capacityStatusLabel": capacity_status_label(status),
+        "conflictDateLabels": [value.isoformat() for value in capacity.conflict_dates] if capacity else [],
     }
 
 def validate_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object]:
@@ -179,7 +189,7 @@ def validate_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, objec
             "warningMessages": [],
             "summary": "valid",
         }
-    dto: AssignmentValidationDesktopDto = desktop_api.validate_assignment(
+    dto: AssignmentValidationResponseDto = desktop_api.validate_assignment(
         task_id, project_resource_id
     )
     return {

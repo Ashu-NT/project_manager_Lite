@@ -13,6 +13,9 @@ from src.core.modules.project_management.application.financials.cost.entries.cap
 from src.core.modules.project_management.application.financials.cost.entries.dto.responses.cost_entry import (
     CostEntryResponse,
 )
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.page import (
+    CostEntryPage,
+)
 from src.core.modules.project_management.application.financials.cost.entries.mappers.cost_entry import (
     map_cost_entry,
 )
@@ -22,6 +25,7 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
 from src.core.modules.project_management.contracts.reads.financials.shared.sorting import (
     normalize_cost_entry_sort,
 )
+from src.core.modules.project_management.contracts.reads.pagination import normalize_offset_for_total
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
 )
@@ -135,6 +139,28 @@ class ProjectCostEntryQueryHandler(ProjectManagementModuleGuardMixin):
             )
             for entry in entries
         ], total
+
+    def list_page_for_project(
+        self, project_id: str, *, status: str | None = None,
+        source_module: str | None = None, offset: int = 0, limit: int = 50,
+        sort_key: str = "metaText", sort_direction: str = "desc",
+    ) -> CostEntryPage:
+        sort = normalize_cost_entry_sort(key=sort_key, direction=sort_direction)
+        entries, total = self.list_for_project(
+            project_id, status=status, source_module=source_module, offset=offset,
+            limit=limit, sort_key=sort.key, sort_direction=sort.direction.value,
+        )
+        normalized_offset = normalize_offset_for_total(offset=offset, limit=limit, total=total)
+        if normalized_offset != offset:
+            entries, total = self.list_for_project(
+                project_id, status=status, source_module=source_module, offset=normalized_offset,
+                limit=limit, sort_key=sort.key, sort_direction=sort.direction.value,
+            )
+        return CostEntryPage(
+            items=tuple(entries), total=total, offset=normalized_offset, limit=limit,
+            sort_key=sort.key, sort_direction=sort.direction.value,
+            can_create_manual_actual=self.can_create_manual_entry(project_id),
+        )
 
     def can_create_manual_entry(self, project_id: str) -> bool:
         return can_create_manual_actual(

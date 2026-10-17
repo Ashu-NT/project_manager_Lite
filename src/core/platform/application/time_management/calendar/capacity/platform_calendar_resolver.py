@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from copy import copy
 from dataclasses import dataclass
 from datetime import date, time, timedelta
 from time import perf_counter
@@ -45,6 +46,7 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     CalendarException,
     CalendarRecurringEvent,
     CalendarWorkingRule,
+    PlatformCalendar,
 )
 from src.core.shared.time.business_date import business_today
 
@@ -432,7 +434,21 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
                 )
             all_recurring.extend(self._recurring_cache[cal_id])
 
-        timezone = self._resolve_timezone(chain)
+        return self._compute_range_days(command, chain, all_rules, all_exceptions, all_recurring)
+
+    def _compute_range_days(
+        self, command: ResolveCalendarRangeCommand, chain: list[tuple[str, str]],
+        all_rules: list, all_exceptions: list, all_recurring: list,
+        *, calendars: dict[str, PlatformCalendar] | None = None,
+    ) -> list[ResolvedCalendarContext]:
+        start = required_date(command.start_date)
+        end = required_date(command.end_date)
+        assigned_hours_by_date = command.assigned_hours_by_date
+        started = perf_counter()
+        timezone = (
+            (calendars[chain[-1][1]].timezone if chain else "UTC")
+            if calendars is not None else self._resolve_timezone(chain)
+        )
         labels = [label for label, _ in chain]
 
         # 3. Iterate days in pure Python — zero DB calls in the loop
@@ -497,6 +513,105 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
             len(all_recurring),
             duration_ms,
         )
+        return results
+
+    def resolve_resource_ranges(
+        self, commands: list[ResolveCalendarRangeCommand]
+    ) -> list[list[ResolvedCalendarContext]]:
+        """Batch PM resource/employee ranges; all row calculation is query-free.
+
+        Like resolve_range, effective assignments are selected at each range's
+        start date. Site/department scopes are deliberately not part of this API.
+        """
+        if not commands:
+            return []
+        if any(command.site_id or command.department_id for command in commands):
+            raise ValueError("Resource range batches do not accept site/department scopes")
+        global_calendar = self._calendar_repo.get_global(self._org_id)
+        employees = self._assignment_repo.list_for_employees(sorted({
+            command.employee_id for command in commands
+            if command.employee_id and command.worker_type in (None, "EMPLOYEE")
+        }))
+        projects = self._project_assignment_repo.list_for_projects(sorted({
+            command.project_id for command in commands if command.project_id
+        }))
+        resources = self._resource_assignment_repo.list_for_resources(sorted({
+            command.resource_id for command in commands
+            if command.resource_id and command.worker_type == "EXTERNAL"
+        }))
+        requested_calendar_ids = (
+            {row.calendar_id for row in employees}
+            | {row.calendar_id for row in projects}
+            | {row.calendar_id for row in resources}
+        )
+        if global_calendar is not None:
+            requested_calendar_ids.add(global_calendar.id)
+        calendars = {cal.id: cal for cal in self._calendar_repo.list_by_ids(sorted(requested_calendar_ids))}
+
+        def index_assignments(rows: Sequence[Any], key: str) -> dict[str, list[Any]]:
+            indexed: dict[str, list[Any]] = {}
+            for row in rows:
+                indexed.setdefault(getattr(row, key), []).append(row)
+            return indexed
+
+        employees_by_id = index_assignments(employees, "employee_id")
+        projects_by_id = index_assignments(projects, "project_id")
+        resources_by_id = index_assignments(resources, "resource_id")
+
+        def effective(rows: Sequence[Any], at_date: date) -> Any:
+            return next((row for row in rows
+                         if (row.effective_from is None or row.effective_from <= at_date)
+                         and (row.effective_to is None or row.effective_to >= at_date)), None)
+
+        chains = []
+        for command in commands:
+            at_date = required_date(command.start_date)
+            employee = (
+                effective(employees_by_id.get(command.employee_id or "", []), at_date)
+                if command.worker_type in (None, "EMPLOYEE") else None
+            )
+            project = effective(projects_by_id.get(command.project_id or "", []), at_date)
+            resource = (
+                effective(resources_by_id.get(command.resource_id or "", []), at_date)
+                if command.worker_type == "EXTERNAL" else None
+            )
+            chains.append(self._assemble_chain(global_calendar, calendars, [
+                ("EMP", command.employee_id, employee),
+                ("PRJ", command.project_id, project),
+                ("RESOURCE", command.resource_id, resource),
+            ]))
+        calendar_ids = sorted({cal_id for chain in chains for _, cal_id in chain})
+        start = min(required_date(command.start_date) for command in commands)
+        end = max(required_date(command.end_date) for command in commands)
+        rules = self._rule_repo.list_for_calendars(calendar_ids)
+        exceptions = self._exception_repo.list_for_calendars(calendar_ids, start=start, end=end)
+        recurring = self._recurring_repo.list_for_calendars(calendar_ids)
+
+        rules_by_calendar = index_assignments(rules, "calendar_id")
+        exceptions_by_calendar = index_assignments(exceptions, "calendar_id")
+        recurring_by_calendar = index_assignments(recurring, "calendar_id")
+        # Request-local shift facts: no database fallback (including unknown codes).
+        calculator = copy(self)
+        shift_codes = {rule.shift_code for rule in rules if rule.shift_code}
+        calculator._shift_pattern_cache = dict.fromkeys(shift_codes)
+        calculator._shift_pattern_days_cache = {}
+        if shift_codes and self._shift_pattern_repo is not None:
+            patterns = self._shift_pattern_repo.list_for_organization(self._org_id)
+            selected = [pattern for pattern in patterns if pattern.code in shift_codes]
+            calculator._shift_pattern_cache.update({pattern.code: pattern for pattern in selected})
+            calculator._shift_pattern_days_cache = {pattern.id: [] for pattern in selected}
+            for day in self._shift_pattern_repo.list_days_for_patterns([pattern.id for pattern in selected]):
+                calculator._shift_pattern_days_cache[day.shift_pattern_id].append(day)
+        results = []
+        for command, chain in zip(commands, chains, strict=True):
+            ids = [cal_id for _, cal_id in chain]
+            # Preserve repeated calendar ids and chain ordering from resolve_range.
+            chain_rules = [rule for cal_id in ids for rule in rules_by_calendar.get(cal_id, [])]
+            chain_exceptions = [row for cal_id in ids for row in exceptions_by_calendar.get(cal_id, [])]
+            chain_recurring = [row for cal_id in ids for row in recurring_by_calendar.get(cal_id, [])]
+            results.append(calculator._compute_range_days(
+                command, chain, chain_rules, chain_exceptions, chain_recurring, calendars=calendars
+            ))
         return results
 
     def calculate_working_days(
@@ -642,64 +757,30 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
         worker_type: str | None,
         at_date: date | None,
     ) -> list[tuple[str, str]]:
-        chain: list[tuple[str, str]] = []
-
         global_cal = self._calendar_repo.get_global(self._org_id)
-        if global_cal:
-            chain.append(("GLOBAL", global_cal.id))
-
+        assignments: list[tuple[str, str, Any]] = []
         if site_id:
-            site_assignment = self._assignment_repo.get_site_assignment(
-                site_id, at_date=at_date
-            )
-            if site_assignment:
-                cal = self._calendar_repo.get(site_assignment.calendar_id)
-                if cal and cal.is_active:
-                    label = f"SITE-{self._short(cal.code or site_id)}"
-                    chain.append((label, cal.id))
-
+            assignments.append(("SITE", site_id, self._assignment_repo.get_site_assignment(
+                site_id, at_date=at_date)))
         if department_id:
-            department_assignment = self._assignment_repo.get_department_assignment(
-                department_id, at_date=at_date
-            )
-            if department_assignment:
-                cal = self._calendar_repo.get(department_assignment.calendar_id)
-                if cal and cal.is_active:
-                    label = f"DEPT-{self._short(cal.code or department_id)}"
-                    chain.append((label, cal.id))
-
+            assignments.append(("DEPT", department_id, self._assignment_repo.get_department_assignment(
+                department_id, at_date=at_date)))
         is_employee_backed = worker_type is None or worker_type == "EMPLOYEE"
         if employee_id and is_employee_backed:
-            employee_assignment = self._assignment_repo.get_employee_assignment(
-                employee_id, at_date=at_date
-            )
-            if employee_assignment:
-                cal = self._calendar_repo.get(employee_assignment.calendar_id)
-                if cal and cal.is_active:
-                    label = f"EMP-{self._short(cal.code or employee_id)}"
-                    chain.append((label, cal.id))
-
+            assignments.append(("EMP", employee_id, self._assignment_repo.get_employee_assignment(
+                employee_id, at_date=at_date)))
         if project_id:
-            project_assignment = self._project_assignment_repo.get(
-                project_id, at_date=at_date
-            )
-            if project_assignment:
-                cal = self._calendar_repo.get(project_assignment.calendar_id)
-                if cal and cal.is_active:
-                    label = f"PRJ-{self._short(cal.code or project_id)}"
-                    chain.append((label, cal.id))
-
+            assignments.append(("PRJ", project_id, self._project_assignment_repo.get(
+                project_id, at_date=at_date)))
         is_external = worker_type == "EXTERNAL"
         if resource_id and is_external:
-            resource_assignment = self._resource_assignment_repo.get(
-                resource_id, at_date=at_date
-            )
-            if resource_assignment:
-                cal = self._calendar_repo.get(resource_assignment.calendar_id)
-                if cal and cal.is_active:
-                    label = f"RESOURCE-{self._short(cal.code or resource_id)}"
-                    chain.append((label, cal.id))
-
+            assignments.append(("RESOURCE", resource_id, self._resource_assignment_repo.get(
+                resource_id, at_date=at_date)))
+        calendars = {
+            cal.id: cal for cal in self._calendar_repo.list_by_ids(
+                [row.calendar_id for _, _, row in assignments if row is not None])
+        } if any(row is not None for _, _, row in assignments) else {}
+        chain = self._assemble_chain(global_cal, calendars, assignments)
         calendar_ids = [calendar_id for _label, calendar_id in chain]
         if len(calendar_ids) != len(set(calendar_ids)):
             logger.warning(
@@ -712,6 +793,16 @@ class PlatformCalendarResolver(Generic[ProjectAssignmentT, ResourceAssignmentT])
                 project_id or "-",
                 resource_id or "-",
             )
+        return chain
+
+    def _assemble_chain(self, global_calendar, calendars, assignments) -> list[tuple[str, str]]:
+        chain = [("GLOBAL", global_calendar.id)] if global_calendar else []
+        for prefix, owner_id, assignment in assignments:
+            if assignment is None:
+                continue
+            calendar = calendars.get(assignment.calendar_id)
+            if calendar is not None and calendar.is_active:
+                chain.append((f"{prefix}-{self._short(calendar.code or owner_id)}", calendar.id))
         return chain
 
     def _resolve_working_rule(

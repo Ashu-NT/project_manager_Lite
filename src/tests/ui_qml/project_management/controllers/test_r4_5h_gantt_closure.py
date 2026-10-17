@@ -14,10 +14,10 @@ GANTT_DTOS = (
     / "core"
     / "modules"
     / "project_management"
-    / "api"
-    / "desktop"
+    / "application"
     / "scheduling"
-    / "models"
+    / "dto"
+    / "responses"
     / "gantt.py"
 )
 

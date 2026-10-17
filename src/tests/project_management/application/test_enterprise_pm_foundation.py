@@ -355,9 +355,9 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
     assert comparison.capacity_delta_percent == pytest.approx(-20.0)
     assert comparison.selected_projects_delta == 1
     assert comparison.selected_intake_items_delta == 0
-    assert comparison.added_project_names == ["Portfolio Beta"]
-    assert comparison.added_intake_titles == ["Expansion Intake"]
-    assert comparison.removed_intake_titles == ["Legacy Intake"]
+    assert comparison.added_project_names == ("Portfolio Beta",)
+    assert comparison.added_intake_titles == ("Expansion Intake",)
+    assert comparison.removed_intake_titles == ("Legacy Intake",)
     assert "Expansion Scenario vs Baseline Scenario" in comparison.summary
 
 

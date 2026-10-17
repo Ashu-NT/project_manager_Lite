@@ -4,61 +4,13 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
-from src.core.modules.project_management.api.desktop.financials.builders.commitment_builder import (
-    build_commitment_line_dto,
-    build_commitment_summary_dto,
-)
-from src.core.modules.project_management.api.desktop.financials.models.billing import (
-    FinancialBillingPreparationDto,
-    FinancialBillingSourceOptionDto,
-    FinancialBillingSourcePageDto,
-)
-from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
-    FinancialAccountingStatusPageDto,
-    FinancialBillingReadWorkspaceDto,
-)
-from src.core.modules.project_management.api.desktop.financials.models.commitments import (
-    FinancialCommitmentLinePageDto,
-    FinancialCommitmentSummaryDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostCodeOptionDescriptor,
-    FinancialCostEntryDto,
-    FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialLookupOptionDto,
     FinancialLookupPageDto,
-)
-from src.core.modules.project_management.api.desktop.financials.models.performance import (
-    FinancialCostPhasingDto,
-    FinancialEvmDto,
-    FinancialVarianceWorkspaceDto,
-)
-from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
-    FinancialOverviewDto,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.accounting_status_serializer import (
-    serialize_accounting_status_page,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
-    serialize_billing_preparation,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.billing_workspace_serializer import (
-    serialize_finance_billing_workspace,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.cost_entry_serializer import (
-    serialize_cost_entry,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.performance_serializer import (
-    serialize_cost_phasing,
-    serialize_performance_evm,
-    serialize_performance_variance,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.snapshot_serializer import (
-    empty_overview,
-    serialize_overview,
 )
 from src.core.modules.project_management.application.financials import (
     FinanceSnapshotQueryHandler,
@@ -112,6 +64,9 @@ from src.core.modules.project_management.application.financials.cost.entries.dto
 from src.core.modules.project_management.application.financials.cost.entries.dto.responses.approval import (
     FinancialCostEntryApprovalDto,
 )
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.cost_entry import (
+    CostEntryResponse,
+)
 from src.core.modules.project_management.application.financials.financial_changes.dto.commands.change_draft import (
     FinancialCreateChangeCommand,
     FinancialUpdateChangeCommand,
@@ -162,6 +117,7 @@ from src.core.modules.project_management.application.financials.invoicing.dto.co
 )
 from src.core.modules.project_management.application.financials.invoicing.dto.responses.billing import (
     FinancialBillingPreparationLineDto,
+    FinancialBillingPreparationResponse,
     FinancialBillingProfileDto,
     FinancialBillingScheduleLineDto,
 )
@@ -209,16 +165,27 @@ from src.core.modules.project_management.contracts.reads.financials.integration.
     ApprovedTimePostingFailureQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.invoicing.models.billing_facts import (
+    AccountingStatusFact,
     AccountingStatusQuery,
     BillingPreparationLineQuery,
     BillingPreparationQuery,
     BillingScheduleQuery,
     BillingSourceQuery,
+    BillingSourceOptionFact,
+    FinanceBillingWorkspaceFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.lookups.models.lookup_facts import (
     FinanceLookupPageFacts,
     FinanceLookupQuery,
     ManualActualCostCodeQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.overview.models.overview_facts import (
+    FinanceOverviewFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
+    CostPhasingFacts,
+    PerformanceEvmFact,
+    PerformanceVarianceFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.planned_costs.models.planned_cost_facts import (
     FinancePlannedCostWorkspaceFacts,
@@ -236,14 +203,13 @@ from src.core.modules.project_management.contracts.reads.financials.shared.sorti
     normalize_commitment_sort,
     normalize_cost_entry_sort,
 )
-from src.core.modules.project_management.contracts.reads.pagination import (
-    normalize_offset_for_total,
-)
 from src.core.modules.project_management.infrastructure.reporting.export_runtime import (
     ProjectReportSources,
     generate_excel_report,
     generate_pdf_report,
 )
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.page import CostEntryPage
+from src.core.modules.project_management.application.financials.commitments.dto.responses.lines import CommitmentPage
 from src.core.platform.common.exceptions import ConfigurationError, ValidationError
 
 
@@ -617,49 +583,13 @@ class ProjectManagementFinancialsDesktopApi:
         limit: int = 50,
         sort_key: str = "metaText",
         sort_direction: str = "desc",
-    ) -> FinancialCostEntryPageDto:
-        sort = normalize_cost_entry_sort(key=sort_key, direction=sort_direction)
+    ) -> CostEntryPage:
         if not project_id or self._cost_entry_query is None:
-            return FinancialCostEntryPageDto(
-                offset=offset,
-                limit=limit,
-                sort_key=sort.key,
-                sort_direction=sort.direction.value,
-            )
-        entries, total = self._cost_entry_query.list_for_project(
-            project_id,
-            status=status,
-            source_module=source_module,
-            offset=offset,
-            limit=limit,
-            sort_key=sort.key,
-            sort_direction=sort.direction.value,
-        )
-        normalized_offset = normalize_offset_for_total(
-            offset=offset,
-            limit=limit,
-            total=total,
-        )
-        if normalized_offset != offset:
-            entries, total = self._cost_entry_query.list_for_project(
-                project_id,
-                status=status,
-                source_module=source_module,
-                offset=normalized_offset,
-                limit=limit,
-                sort_key=sort.key,
-                sort_direction=sort.direction.value,
-            )
-        return FinancialCostEntryPageDto(
-            items=tuple(serialize_cost_entry(entry) for entry in entries),
-            total=total,
-            offset=normalized_offset,
-            limit=limit,
-            sort_key=sort.key,
-            sort_direction=sort.direction.value,
-            can_create_manual_actual=self._cost_entry_query.can_create_manual_entry(
-                project_id
-            ),
+            sort = normalize_cost_entry_sort(key=sort_key, direction=sort_direction)
+            return CostEntryPage(offset=offset, limit=limit, sort_key=sort.key, sort_direction=sort.direction.value)
+        return self._cost_entry_query.list_page_for_project(
+            project_id, status=status, source_module=source_module, offset=offset, limit=limit,
+            sort_key=sort_key, sort_direction=sort_direction,
         )
 
     def list_approved_time_posting_failures(
@@ -686,24 +616,24 @@ class ProjectManagementFinancialsDesktopApi:
 
     def create_manual_actual(
         self, command: FinancialCreateManualActualCommand
-    ) -> FinancialCostEntryDto:
+    ) -> CostEntryResponse:
         entry = self._require_finance_governance_commands().cost_entry(lambda commands: commands.create_manual_entry(command))
-        return serialize_cost_entry(entry)
+        return entry
 
     def update_actual_draft(
         self, command: FinancialUpdateActualDraftCommand
-    ) -> FinancialCostEntryDto:
+    ) -> CostEntryResponse:
         entry = self._require_finance_governance_commands().cost_entry(lambda commands: commands.update_draft(command))
-        return serialize_cost_entry(entry)
+        return entry
 
     def delete_actual_draft(self, command: FinancialVersionedActualCommand) -> None:
         self._require_finance_governance_commands().cost_entry(lambda commands: commands.delete_draft(command))
 
     def submit_actual(
         self, command: FinancialVersionedActualCommand
-    ) -> FinancialCostEntryDto:
-        return serialize_cost_entry(
-            self._require_finance_governance_commands().cost_entry(lambda commands: commands.submit(command))
+    ) -> CostEntryResponse:
+        return self._require_finance_governance_commands().cost_entry(
+            lambda commands: commands.submit(command)
         )
 
     def approve_actual(
@@ -714,38 +644,31 @@ class ProjectManagementFinancialsDesktopApi:
 
     def reject_actual(
         self, command: FinancialDecideActualCommand
-    ) -> FinancialCostEntryDto:
-        return serialize_cost_entry(
-            self._require_finance_governance_commands().cost_entry_review(lambda commands: commands.reject(command))
+    ) -> CostEntryResponse:
+        return self._require_finance_governance_commands().cost_entry_review(
+            lambda commands: commands.reject(command)
         )
 
-    def post_actual(self, command: FinancialPostActualCommand) -> FinancialCostEntryDto:
-        return serialize_cost_entry(
-            self._require_finance_governance_commands().cost_entry_posting(lambda commands: commands.post(command))
+    def post_actual(self, command: FinancialPostActualCommand) -> CostEntryResponse:
+        return self._require_finance_governance_commands().cost_entry_posting(
+            lambda commands: commands.post(command)
         )
 
     def reverse_actual(
         self, command: FinancialReverseActualCommand
-    ) -> FinancialCostEntryDto:
-        return serialize_cost_entry(
-            self._require_finance_governance_commands().cost_entry_posting(lambda commands: commands.reverse(command))
+    ) -> CostEntryResponse:
+        return self._require_finance_governance_commands().cost_entry_posting(
+            lambda commands: commands.reverse(command)
         )
 
 
-    def get_finance_overview(self, project_id: str) -> FinancialOverviewDto:
+    def get_finance_overview(self, project_id: str) -> FinanceOverviewFacts | None:
         if not project_id or self._finance_snapshot_query is None:
-            return empty_overview(project_id=project_id)
-        return serialize_overview(
-            project_id,
-            self._finance_snapshot_query.get_finance_overview(project_id),
-        )
+            return None
+        return self._finance_snapshot_query.get_finance_overview(project_id)
 
-    def get_commitment_summary(self, project_id: str) -> FinancialCommitmentSummaryDto:
-        facts = self._require_finance_snapshot_query().get_finance_overview(project_id)
-        return build_commitment_summary_dto(
-            project_id,
-            facts=facts,
-        )
+    def get_commitment_summary(self, project_id: str) -> FinanceOverviewFacts:
+        return self._require_finance_snapshot_query().get_finance_overview(project_id)
 
     def list_commitments(
         self,
@@ -756,44 +679,13 @@ class ProjectManagementFinancialsDesktopApi:
         sort_key: str = "metaText",
         sort_direction: str = "desc",
         exposure: str = "",
-    ) -> FinancialCommitmentLinePageDto:
-        sort = normalize_commitment_sort(key=sort_key, direction=sort_direction)
+    ) -> CommitmentPage:
         if not project_id or self._commitment_query is None:
-            return FinancialCommitmentLinePageDto(
-                offset=offset,
-                limit=limit,
-                sort_key=sort.key,
-                sort_direction=sort.direction.value,
-            )
-        lines, total = self._commitment_query.list_for_project(
-            project_id,
-            offset=offset,
-            limit=limit,
-            sort_key=sort.key,
-            sort_direction=sort.direction.value,
-            exposure=exposure,
-        )
-        normalized_offset = normalize_offset_for_total(
-            offset=offset,
-            limit=limit,
-            total=total,
-        )
-        if normalized_offset != offset:
-            lines, total = self._commitment_query.list_for_project(
-                project_id,
-                offset=normalized_offset,
-                limit=limit,
-                sort_key=sort.key,
-                sort_direction=sort.direction.value,
-                exposure=exposure,
-            )
-        return FinancialCommitmentLinePageDto(
-            items=tuple(build_commitment_line_dto(line) for line in lines),
-            total=total,
-            offset=normalized_offset,
-            limit=limit,
-            sort_key=sort.key,
-            sort_direction=sort.direction.value,
+            sort = normalize_commitment_sort(key=sort_key, direction=sort_direction)
+            return CommitmentPage(offset=offset, limit=limit, sort_key=sort.key, sort_direction=sort.direction.value)
+        return self._commitment_query.list_page_for_project(
+            project_id, exposure=exposure, offset=offset, limit=limit,
+            sort_key=sort_key, sort_direction=sort_direction,
         )
 
     def get_forecast_workspace(
@@ -980,9 +872,9 @@ class ProjectManagementFinancialsDesktopApi:
         sort_key: str = "metaText",
         sort_direction: str = "desc",
         search: str = "",
-    ) -> FinancialAccountingStatusPageDto:
+    ) -> FinancePageFacts[AccountingStatusFact]:
         if not project_id:
-            return FinancialAccountingStatusPageDto()
+            return FinancePageFacts((), 0, page, page_size, sort_key, sort_direction)
         facts = self._require_finance_workspace_query().get_accounting_statuses(
             project_id,
             request=AccountingStatusQuery(
@@ -993,7 +885,7 @@ class ProjectManagementFinancialsDesktopApi:
                 search=search,
             ),
         )
-        return serialize_accounting_status_page(facts)
+        return facts
 
     def get_billing_read_workspace(
         self,
@@ -1022,9 +914,14 @@ class ProjectManagementFinancialsDesktopApi:
         line_search: str = "",
         line_source_type: str = "",
         line_source_state: str = "",
-    ) -> FinancialBillingReadWorkspaceDto:
+    ) -> FinanceBillingWorkspaceFacts:
         if not project_id or self._finance_workspace_query is None:
-            return FinancialBillingReadWorkspaceDto()
+            return FinanceBillingWorkspaceFacts(
+                profile=None, selected_preparation_id="", selected_preparation=None,
+                schedule=FinancePageFacts((), 0, schedule_page, page_size, schedule_sort_key, schedule_sort_direction),
+                preparations=FinancePageFacts((), 0, preparation_page, page_size, preparation_sort_key, preparation_sort_direction),
+                lines=FinancePageFacts((), 0, line_page, page_size, line_sort_key, line_sort_direction),
+            )
         facts = self._finance_workspace_query.get_billing_read_workspace(
             project_id,
             selected_preparation_id=selected_preparation_id,
@@ -1059,29 +956,15 @@ class ProjectManagementFinancialsDesktopApi:
                 source_state=line_source_state,
             ),
         )
-        return serialize_finance_billing_workspace(
-            facts,
-            schedule_search=schedule_search,
-            schedule_status=schedule_status,
-            schedule_source_state=schedule_source_state,
-            preparation_search=preparation_search,
-            preparation_status=preparation_status,
-            preparation_method=preparation_method,
-            preparation_approval_status=preparation_approval_status,
-            preparation_delivery_state=preparation_delivery_state,
-            preparation_correction_state=preparation_correction_state,
-            line_search=line_search,
-            line_source_type=line_source_type,
-            line_source_state=line_source_state,
-        )
+        return facts
 
     def list_eligible_billing_sources(
         self, project_id: str, preparation_id: str, *, page: int = 1,
         page_size: int = 50, sort_key: str = "source_date",
         sort_direction: str = "asc", search: str = "",
-    ) -> FinancialBillingSourcePageDto:
+    ) -> FinancePageFacts[BillingSourceOptionFact]:
         if not project_id or not preparation_id or self._finance_workspace_query is None:
-            return FinancialBillingSourcePageDto()
+            return FinancePageFacts((), 0, page, page_size, sort_key, sort_direction)
         facts = self._finance_workspace_query.list_eligible_billing_sources(
             project_id,
             preparation_id,
@@ -1090,24 +973,7 @@ class ProjectManagementFinancialsDesktopApi:
                 sort_direction=sort_direction, search=search,
             ),
         )
-        return FinancialBillingSourcePageDto(
-            items=tuple(
-                FinancialBillingSourceOptionDto(
-                    source_id=item.source_id,
-                    source_type=item.source_type,
-                    label=item.label,
-                    source_date=item.source_date.isoformat(),
-                    amount=str(item.amount),
-                    currency_code=item.currency_code,
-                )
-                for item in facts.items
-            ),
-            total=facts.total,
-            page=facts.page,
-            page_size=facts.page_size,
-            sort_key=facts.sort_key,
-            sort_direction=facts.sort_direction,
-        )
+        return facts
 
     def get_change_workspace(
         self,
@@ -1218,15 +1084,13 @@ class ProjectManagementFinancialsDesktopApi:
         *,
         as_of_date: date | None = None,
         baseline_id: str | None = None,
-    ) -> FinancialEvmDto:
+    ) -> PerformanceEvmFact | None:
         if not project_id or self._finance_performance_query is None:
-            return FinancialEvmDto()
-        return serialize_performance_evm(
-            self._finance_performance_query.get_evm(
+            return None
+        return self._finance_performance_query.get_evm(
                 project_id,
                 as_of_date=as_of_date,
                 baseline_id=baseline_id,
-            )
         )
 
     def get_performance_variance(
@@ -1235,15 +1099,13 @@ class ProjectManagementFinancialsDesktopApi:
         *,
         as_of_date: date | None = None,
         selected_baseline_id: str | None = None,
-    ) -> FinancialVarianceWorkspaceDto:
+    ) -> PerformanceVarianceFacts | None:
         if not project_id or self._finance_performance_query is None:
-            return FinancialVarianceWorkspaceDto()
-        return serialize_performance_variance(
-            self._finance_performance_query.get_variance(
+            return None
+        return self._finance_performance_query.get_variance(
                 project_id,
                 as_of_date=as_of_date,
                 selected_baseline_id=selected_baseline_id,
-            )
         )
 
     def get_cost_phasing(
@@ -1254,21 +1116,15 @@ class ProjectManagementFinancialsDesktopApi:
         date_to: date,
         granularity: str = "month",
         as_of_date: date | None = None,
-    ) -> FinancialCostPhasingDto:
+    ) -> CostPhasingFacts | None:
         if not project_id or self._finance_performance_query is None:
-            return FinancialCostPhasingDto(
-                date_from=date_from,
-                date_to=date_to,
-                granularity=granularity,
-            )
-        return serialize_cost_phasing(
-            self._finance_performance_query.get_cost_phasing(
+            return None
+        return self._finance_performance_query.get_cost_phasing(
                 project_id,
                 date_from=date_from,
                 date_to=date_to,
                 granularity=granularity,
                 as_of_date=as_of_date,
-            )
         )
 
     def get_performance_reports(
@@ -1538,9 +1394,9 @@ class ProjectManagementFinancialsDesktopApi:
 
     def create_billing_preparation(
         self, command: FinancialCreateBillingPreparationCommand
-    ) -> FinancialBillingPreparationDto:
+    ) -> FinancialBillingPreparationResponse:
         preparation = self._require_finance_governance_commands().billing_preparation(lambda commands: commands.create_preparation(command))
-        return serialize_billing_preparation(preparation)
+        return preparation
 
     def add_fixed_price_billing_source(
         self, command: FinancialAddFixedPriceBillingSourceCommand
@@ -1562,25 +1418,25 @@ class ProjectManagementFinancialsDesktopApi:
 
     def remove_draft_billing_line(
         self, command: FinancialRemoveDraftBillingLineCommand
-    ) -> FinancialBillingPreparationDto:
+    ) -> FinancialBillingPreparationResponse:
         preparation = self._require_finance_governance_commands().billing_source(lambda commands: commands.remove_draft_line(command))
-        return serialize_billing_preparation(preparation)
+        return preparation
 
     def cancel_draft_billing_preparation(
         self, command: FinancialVersionedBillingPreparationCommand
-    ) -> FinancialBillingPreparationDto:
+    ) -> FinancialBillingPreparationResponse:
         preparation = self._require_finance_governance_commands().billing_preparation(lambda commands: commands.cancel_draft_preparation(command))
-        return serialize_billing_preparation(preparation)
+        return preparation
 
     def submit_billing_preparation(
         self, command: FinancialVersionedBillingPreparationCommand
-    ) -> FinancialBillingPreparationDto:
+    ) -> FinancialBillingPreparationResponse:
         preparation = self._require_finance_governance_commands().billing_submission(lambda commands: commands.submit_preparation(command))
-        return serialize_billing_preparation(preparation)
+        return preparation
 
     def request_billing_delivery(
         self, command: FinancialVersionedBillingPreparationCommand
-    ) -> FinancialBillingPreparationDto:
+    ) -> FinancialBillingPreparationResponse:
         # The outbound project_billing_preparation.v1 payload isn't surfaced here -- PM
         # requests delivery of its own evidence, it doesn't deliver or record what
         # Accounting did with it.
@@ -1588,7 +1444,7 @@ class ProjectManagementFinancialsDesktopApi:
             lambda commands: commands.request(command.preparation_id, expected_row_version=command.expected_version)
         )
         preparation = self._require_billing_preparation_query().get_preparation(command.preparation_id)
-        return serialize_billing_preparation(preparation)
+        return preparation
 
     def get_commercial_projection(
         self, project_id: str, *, as_of_date: date | None = None

@@ -23,9 +23,20 @@ from src.core.platform.domain.time_management.time import (
     TimeEntry,
     TimesheetPeriodStatus,
 )
+from src.ui_qml.modules.project_management.presenters.review_queue.formatting import (
+    format_hours,
+)
 from src.ui_qml.modules.project_management.presenters.review_queue.review_mapper import (
     to_review_queue_record,
 )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(None, "-"), (Decimal("0"), "0.00h"), (Decimal("9007199254740993.25"), "9007199254740993.25h")],
+)
+def test_review_queue_hours_formatting_preserves_missing_zero_and_decimal(value, expected):
+    assert format_hours(value) == expected
 
 
 def test_review_queue_preserves_reader_result_identity_without_project_reload():

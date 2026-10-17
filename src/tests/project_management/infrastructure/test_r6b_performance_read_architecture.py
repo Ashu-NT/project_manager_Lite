@@ -12,9 +12,6 @@ from PySide6.QtCore import QObject, QUrl
 from PySide6.QtQml import QQmlComponent
 from sqlalchemy import event
 
-from src.core.modules.project_management.api.desktop.financials.models.performance import (
-    FinancialEvmDto,
-)
 from src.core.modules.project_management.application.financials.analytics.performance.query import (
     ProjectFinancePerformanceQuery,
 )
@@ -29,6 +26,7 @@ from src.core.modules.project_management.application.tasks.dto.commands.task_lif
 )
 from src.core.modules.project_management.contracts.reads.financials.performance.models.performance_facts import (
     CostPhasingFacts,
+    PerformanceEvmFact,
     CostPhasingPeriodFact,
     CostPhasingQuery,
 )
@@ -124,11 +122,15 @@ def _query(monkeypatch, *, reader=None, evm=None, baseline=None):
 
 def test_performance_destination_loads_only_requested_subsection() -> None:
     api = MagicMock()
-    api.get_performance_evm.return_value = FinancialEvmDto(
+    api.get_performance_evm.return_value = PerformanceEvmFact(
         project_id="project-1",
         as_of_date=date(2026, 8, 28),
         availability="baseline_unavailable",
         unavailable_reason="No approved baseline.",
+        baseline_id=None, budget_revision=None, forecast_revision=None, forecast_as_of=None,
+        currency_code="XAF", bac=None, pv=None, ev=None, ac=None, cv=None, sv=None, cpi=None, spi=None,
+        etc=None, eac=None, vac=None, tcpi_bac=None, tcpi_eac=None, notes="",
+
     )
 
     state = build_destination_state(

@@ -10,11 +10,9 @@ from math import ceil, floor
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.modules.project_management.api.desktop.scheduling.models import (
-    GanttProjectionDto,
-)
-from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
+from src.core.modules.project_management.application.scheduling.dto.responses.gantt import (
     GanttBaselineOverlayDto,
+    GanttProjectionDto,
 )
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"

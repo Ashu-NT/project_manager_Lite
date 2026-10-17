@@ -10,8 +10,8 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.serializers.billing_workspace_serializer import (
-    serialize_finance_billing_workspace,
+from src.ui_qml.modules.project_management.presenters.financials.invoicing.billing_workspace_builder import (
+    build_billing_workspace_views,
 )
 from src.core.modules.project_management.application.projects.dto.commands.project_lifecycle import (
     ProjectCreateCommand,
@@ -569,15 +569,12 @@ def test_billing_line_rate_evidence_is_redacted_without_sensitive_read(services)
     assert line.unit_rate is None
     assert line.rate_line_id is None
     assert line.source_amount is None
-    row = serialize_finance_billing_workspace(redacted).lines[0]
+    row = build_billing_workspace_views(redacted)["billing_preparation_lines"].items[0]
     assert row.state["unitRate"] == ""
     assert row.state["rateLineId"] == ""
 
 
 def test_commercial_report_desktop_and_presenter_consume_identical_facts(services):
-    from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
-        serialize_commercial_projection,
-    )
     from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
         build_destination_state,
     )
@@ -589,7 +586,7 @@ def test_commercial_report_desktop_and_presenter_consume_identical_facts(service
     cutoff = date(2026, 8, 31)
     fact = services["profitability_report"].get_project_commercial_projection(project.id, as_of_date=cutoff)
     api = ProjectManagementFinancialsDesktopApi(profitability_report=reporting)
-    assert api.get_commercial_projection(project.id, as_of_date=cutoff) == serialize_commercial_projection(fact)
+    assert api.get_commercial_projection(project.id, as_of_date=cutoff) == fact
     model = build_destination_state(api, destination="commercial", subsection="profitability",
                                     selected_project_id=project.id, performance_as_of_date=cutoff)
     assert model.commercial_projection.fields[2].value == f"{fact.forecast_revenue_at_completion} {fact.project_currency}"

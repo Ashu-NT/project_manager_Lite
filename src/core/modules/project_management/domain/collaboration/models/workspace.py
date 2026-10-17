@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 
-@dataclass
+@dataclass(frozen=True)
 class CollaborationInboxItem:
     comment_id: str
     task_id: str
@@ -13,7 +13,7 @@ class CollaborationInboxItem:
     project_name: str
     author_username: str
     body_preview: str
-    mentions: list[str]
+    mentions: tuple[str, ...]
     created_at: datetime
     unread: bool = True
     is_deleted: bool = False

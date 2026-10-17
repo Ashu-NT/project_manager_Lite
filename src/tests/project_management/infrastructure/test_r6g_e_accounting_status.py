@@ -5,8 +5,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.core.modules.project_management.api.desktop.financials.serializers.accounting_status_serializer import (
-    serialize_accounting_status_page,
+from src.ui_qml.modules.project_management.presenters.financials.invoicing.billing_workspace_builder import (
+    build_accounting_status_collection,
 )
 from src.core.modules.project_management.application.financials.accounting.status_capabilities import (
     with_accounting_capabilities,
@@ -88,7 +88,7 @@ def test_transport_states_are_not_accounting_outcomes(
         delivery=_delivery(state, failure),
         latest_external_message="SECRET remote error",
     )
-    dto = serialize_accounting_status_page(replace(status_page, items=(item,))).items[0]
+    dto = build_accounting_status_collection(replace(status_page, items=(item,))).items[0]
     assert dto.state["transportLabel"] == label
     assert dto.state["attemptCount"] == 0
     assert not dto.state["externalOutcomeRecorded"]
@@ -106,7 +106,7 @@ def test_business_outcome_and_quarantine_do_not_replace_delivery(status_page, ou
         latest_external_event_type=outcome,
         latest_external_status=outcome,
     )
-    dto = serialize_accounting_status_page(replace(status_page, items=(item,))).items[0]
+    dto = build_accounting_status_collection(replace(status_page, items=(item,))).items[0]
     assert dto.status_label == outcome.title()
     assert dto.state["transportState"] == "published"
     assert dto.state["quarantinedCount"] == 3
@@ -115,7 +115,7 @@ def test_business_outcome_and_quarantine_do_not_replace_delivery(status_page, ou
 
 
 def test_absence_is_not_zero_and_unsafe_legacy_message_is_not_rendered(status_page):
-    dto = serialize_accounting_status_page(status_page).items[0]
+    dto = build_accounting_status_collection(status_page).items[0]
     assert dto.state["attemptCount"] is None
     assert dto.state["handoffId"] is None
     assert dto.state["transportState"] is None

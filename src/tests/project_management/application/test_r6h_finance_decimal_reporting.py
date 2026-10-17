@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.modules.project_management.api.desktop.financials.serializers.snapshot_serializer import (
-    empty_overview,
+from src.ui_qml.modules.project_management.presenters.financials.shared.overview_builder import (
+    build_overview,
 )
 from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
     CostBreakdownEngine,
@@ -38,10 +38,8 @@ def test_reporting_breakdown_keeps_exact_money_and_zero_without_baseline_substit
 
 
 def test_empty_overview_does_not_manufacture_financial_zero():
-    overview = empty_overview(project_id="")
-    for metric in ("budget", "actual", "committed", "available"):
-        assert getattr(overview, metric) is None
-        assert getattr(overview, f"{metric}_label") == "Not available"
+    overview = build_overview(project_options=(), selected_project_id="", snapshot=None)
+    assert [metric.value for metric in overview.metrics[:4]] == ["Not available"] * 4
 
 
 def test_source_analytics_exposure_is_actual_plus_commitment_not_forecast():

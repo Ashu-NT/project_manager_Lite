@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.ui_qml.modules.project_management.presenters.financials.invoicing.billing_workspace_builder import build_billing_source_options
+
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
     build_project_management_financials_desktop_api,
@@ -201,8 +203,8 @@ class ProjectFinancialsWorkspacePresenter:
     def list_eligible_billing_sources(
         self, project_id: str, preparation_id: str, **query: Any
     ):
-        return self._desktop_api.list_eligible_billing_sources(
-            project_id, preparation_id, **query
+        return build_billing_source_options(
+            self._desktop_api.list_eligible_billing_sources(project_id, preparation_id, **query)
         )
 
     def create_budget_version(self, project_id: str, name: str, currency: str):

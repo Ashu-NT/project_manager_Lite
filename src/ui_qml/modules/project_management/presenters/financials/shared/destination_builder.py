@@ -683,7 +683,19 @@ def build_destination_state(
                 line_search=billing_line_search,
                 line_source_type=billing_line_source_type,
                 line_source_state=billing_line_source_state,
-            )
+            ),
+            schedule_search=billing_schedule_search,
+            schedule_status=billing_schedule_status,
+            schedule_source_state=billing_schedule_source_state,
+            preparation_search=billing_preparation_search,
+            preparation_status=billing_preparation_status,
+            preparation_method=billing_preparation_method,
+            preparation_approval_status=billing_preparation_approval_status,
+            preparation_delivery_state=billing_preparation_delivery_state,
+            preparation_correction_state=billing_preparation_correction_state,
+            line_search=billing_line_search,
+            line_source_type=billing_line_source_type,
+            line_source_state=billing_line_source_state,
         )
         return FinancialsWorkspaceViewModel(
             overview=state.overview,

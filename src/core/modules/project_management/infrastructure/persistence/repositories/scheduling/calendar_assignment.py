@@ -113,6 +113,14 @@ class SqlAlchemyProjectCalendarAssignmentRepository(
         rows = self.session.execute(stmt).scalars().all()
         return [_project_from_orm(r) for r in rows]
 
+    def list_for_projects(self, project_ids: list[str]) -> list[ProjectCalendarAssignment]:
+        stmt = self._project_assignment_scoped_stmt(
+            operation_label="access project calendar assignments"
+        ).where(ProjectCalendarAssignmentORM.project_id.in_(project_ids)).order_by(
+            ProjectCalendarAssignmentORM.priority.desc(), ProjectCalendarAssignmentORM.is_default.desc()
+        )
+        return [_project_from_orm(r) for r in self.session.scalars(stmt)]
+
     def list_for_calendar(self, calendar_id: str) -> list[ProjectCalendarAssignment]:
         stmt = self._project_assignment_scoped_stmt(
             operation_label="access project calendar assignments"
@@ -241,6 +249,14 @@ class SqlAlchemyResourceCalendarAssignmentRepository(
         ).order_by(ResourceCalendarAssignmentORM.priority.desc())
         rows = self.session.execute(stmt).scalars().all()
         return [_resource_from_orm(r) for r in rows]
+
+    def list_for_resources(self, resource_ids: list[str]) -> list[ResourceCalendarAssignment]:
+        stmt = self._resource_assignment_scoped_stmt(
+            operation_label="access resource calendar assignments"
+        ).where(ResourceCalendarAssignmentORM.resource_id.in_(resource_ids)).order_by(
+            ResourceCalendarAssignmentORM.priority.desc(), ResourceCalendarAssignmentORM.is_default.desc()
+        )
+        return [_resource_from_orm(r) for r in self.session.scalars(stmt)]
 
     def list_for_calendar(self, calendar_id: str) -> list[ResourceCalendarAssignment]:
         stmt = self._resource_assignment_scoped_stmt(

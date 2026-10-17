@@ -15,20 +15,16 @@ from sqlalchemy import event
 from src.core.modules.project_management.api.desktop.financials import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
-    FinancialAccountingStatusPageDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
-    FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
 )
+from src.core.modules.project_management.application.financials.cost.entries.dto.responses.page import CostEntryPage
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialLookupOptionDto,
     FinancialLookupPageDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
-    FinancialOverviewDto,
-)
+from src.core.modules.project_management.contracts.reads.financials.overview.models.overview_facts import FinanceOverviewFacts
+from src.core.modules.project_management.contracts.reads.financials.snapshot.models.snapshot_facts import FinanceControlFact
 from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
     FinancialCreateBudgetVersionCommand,
     FinancialVersionedBudgetCommand,
@@ -118,25 +114,12 @@ def _statement_count(session):
         event.remove(engine, "before_cursor_execute", _before)
 
 
-def _overview() -> FinancialOverviewDto:
-    return FinancialOverviewDto(
-        project_id="project-1",
-        project_currency="XAF",
-        as_of=date(2026, 8, 27),
-        budget="1000",
-        budget_label="XAF 1,000.00",
-        actual="200",
-        actual_label="XAF 200.00",
-        committed="100",
-        committed_label="XAF 100.00",
-        available="700",
-        available_label="XAF 700.00",
-        forecast_etc="500",
-        forecast_etc_label="XAF 500.00",
-        estimate_at_completion="700",
-        estimate_at_completion_label="XAF 700.00",
-        budget_headroom="300",
-        budget_headroom_label="XAF 300.00",
+def _overview() -> FinanceOverviewFacts:
+    return FinanceOverviewFacts(
+        tenant_id="tenant", organization_id="org", project_id="project-1", currency_code="XAF",
+        as_of=date(2026, 8, 27), control=FinanceControlFact(Decimal(1000), Decimal(200), Decimal(100), Decimal(500)),
+        approved_budget_id="budget", approved_budget_revision=1, approved_budget_at=None,
+        approved_forecast_id="forecast", approved_forecast_revision=1, approved_forecast_as_of=date(2026, 8, 27),
     )
 
 
@@ -1230,7 +1213,7 @@ Window {
 
 def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
     api = MagicMock()
-    api.list_cost_entries.return_value = FinancialCostEntryPageDto()
+    api.list_cost_entries.return_value = CostEntryPage()
     api.get_manual_actual_defaults.return_value = FinancialManualActualOptionsDto()
 
     build_destination_state(
@@ -1257,11 +1240,7 @@ def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
 
 def test_commercial_accounting_uses_only_isolated_status_page() -> None:
     api = MagicMock()
-    api.get_accounting_statuses.return_value = FinancialAccountingStatusPageDto(
-        page=2,
-        page_size=25,
-        total=30,
-    )
+    api.get_accounting_statuses.return_value = FinancePageFacts(items=(), page=2, page_size=25, total=30, sort_key="metaText", sort_direction="desc")
 
     state = build_destination_state(
         api,

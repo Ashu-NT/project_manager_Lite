@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
@@ -225,13 +226,12 @@ class PortfolioScenarioQueryHandler(ProjectManagementModuleGuardMixin):
             selected_intake_items_delta=(
                 candidate_evaluation.selected_intake_items - base_evaluation.selected_intake_items
             ),
-            added_project_names=sorted(candidate_project_names - base_project_names),
-            removed_project_names=sorted(base_project_names - candidate_project_names),
-            added_intake_titles=sorted(candidate_intake_titles - base_intake_titles),
-            removed_intake_titles=sorted(base_intake_titles - candidate_intake_titles),
+            added_project_names=tuple(sorted(candidate_project_names - base_project_names)),
+            removed_project_names=tuple(sorted(base_project_names - candidate_project_names)),
+            added_intake_titles=tuple(sorted(candidate_intake_titles - base_intake_titles)),
+            removed_intake_titles=tuple(sorted(base_intake_titles - candidate_intake_titles)),
         )
-        comparison.summary = _build_comparison_summary(comparison)
-        return comparison
+        return replace(comparison, summary=_build_comparison_summary(comparison))
 
     def _read_scenario_facts(self, scenario_ids: tuple[str, ...]) -> PortfolioScenarioFacts:
         scope = self._tenant_context_service.require_active_scope_ids(

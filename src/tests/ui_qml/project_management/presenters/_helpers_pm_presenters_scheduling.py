@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from src.core.modules.project_management.application.scheduling.mappers.baselines import (
     map_baseline_comparison,
+    map_baseline,
 )
 from src.core.modules.project_management.domain.enums import (
     TaskStatus,
@@ -56,6 +57,9 @@ class _FakeBaselineService:
 
     def list_baselines(self, project_id: str) -> list[SimpleNamespace]:
         return list(self._baselines_by_project.get(project_id, []))
+
+    def query_baseline_responses(self, project_id: str):
+        return tuple(map_baseline(baseline) for baseline in self.list_baselines(project_id))
 
 
 class _FakeReportingService:

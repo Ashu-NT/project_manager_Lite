@@ -31,7 +31,6 @@ class GanttTaskRowDto:
     duration_days: int | None
     remaining_duration_days: int | None
     status: str
-    status_label: str
     percent_complete: float
     is_milestone: bool
     is_critical: bool
@@ -39,7 +38,6 @@ class GanttTaskRowDto:
     total_float_days: int | None
     has_canonical_schedule: bool
     constraint_type: str
-    constraint_type_label: str
     constraint_date: date | None
     actual_start: date | None
     actual_finish: date | None
@@ -48,6 +46,7 @@ class GanttTaskRowDto:
     deadline: date | None
     late_by_days: int | None
     priority: int | None
+
 
 @dataclass(frozen=True, slots=True)
 class GanttDependencyEdgeDto:
@@ -60,13 +59,7 @@ class GanttDependencyEdgeDto:
     successor_task_id: str
     successor_task_name: str
     dependency_type: str
-    dependency_type_label: str
     lag_days: int
-
-
-
-
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,8 +80,14 @@ class GanttProjectionDto:
     baseline_snapshots: tuple[GanttBaselineTaskSnapshotDto, ...]
 
 
-__all__ = ['GanttDependencyEdgeDto', 'GanttProjectionDto', 'GanttTaskRowDto']
-
+__all__ = [
+    "GanttBaselineOverlayDto",
+    "GanttBaselineTaskSnapshotDto",
+    "GanttDependencyEdgeDto",
+    "GanttNonWorkingIntervalDto",
+    "GanttProjectionDto",
+    "GanttTaskRowDto",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +104,7 @@ class GanttBaselineTaskSnapshotDto:
     baseline_start_day_ordinal: int | None
     baseline_finish_day_ordinal: int | None
 
+
 @dataclass(frozen=True, slots=True)
 class GanttBaselineOverlayDto:
     tenant_id: str
@@ -114,6 +114,7 @@ class GanttBaselineOverlayDto:
     range_start_day_ordinal: int | None
     range_finish_day_ordinal: int | None
     snapshots: tuple[GanttBaselineTaskSnapshotDto, ...]
+
 
 @dataclass(frozen=True, slots=True)
 class GanttNonWorkingIntervalDto:

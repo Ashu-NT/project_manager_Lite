@@ -3,6 +3,7 @@ from __future__ import annotations
 import gc
 import os
 import tracemalloc
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 from time import perf_counter
@@ -15,7 +16,7 @@ from PySide6.QtQuick import QQuickView
 from PySide6.QtTest import QTest
 
 import src.ui_qml.modules.project_management.controllers.scheduling.gantt_baseline_actions as baseline_actions
-from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+from src.core.modules.project_management.application.scheduling.mappers.gantt import (
     build_gantt_projection,
 )
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask
@@ -135,8 +136,11 @@ def _combined_projection(
             start = base_date + timedelta(days=leaf_index % 365)
             finish = start if milestone else start + timedelta(days=2)
             schedule = _schedule(task, start=start, finish=finish)
-            schedule.is_critical = leaf_index % 3 == 0
-            schedule.is_infeasible = leaf_index % 97 == 0
+            schedule = replace(
+                schedule,
+                is_critical=leaf_index % 3 == 0,
+                is_infeasible=leaf_index % 97 == 0,
+            )
             hierarchy_nodes.append(_node(task, depth=1, ancestors=(summary.id,)))
             schedule_items.append(schedule)
             baseline_tasks.append(
@@ -163,7 +167,7 @@ def _combined_projection(
             relationships[index % len(relationships)],
             (index % 5) - 2,
         )
-        edge.id = f"{prefix}-edge-{index}"
+        edge = replace(edge, id=f"{prefix}-edge-{index}")
         dependency_rows.append(edge)
 
     return build_gantt_projection(

@@ -2,17 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from src.core.modules.project_management.api.desktop.timesheets.formatters.datetime_formatter import (
-    format_datetime,
-)
-from src.core.modules.project_management.api.desktop.timesheets.formatters.period_formatter import (
-    format_period_label,
-)
-from src.core.modules.project_management.api.desktop.timesheets.formatters.time_formatter import (
-    format_hours,
-)
 from src.core.modules.project_management.contracts.reads.timesheets.review_reader import (
     TimesheetReviewQueueFact,
+)
+from src.ui_qml.modules.project_management.presenters.review_queue.formatting import (
+    format_datetime,
+    format_hours,
+    format_period_label,
 )
 from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetRecordViewModel,

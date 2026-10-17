@@ -135,9 +135,35 @@ def _application_construction_for_tree(path_label: str, tree: ast.AST) -> set[st
             and qualified_name not in APPLICATION_POLICY_CALLS
             and qualified_name not in APPLICATION_RESULT_TYPES
             and not is_dto
+            and not _is_application_value_or_function(qualified_name)
         ):
             violations.add(f"{path_label}:{qualified_name}")
     return violations
+
+
+def _is_application_value_or_function(qualified_name: str) -> bool:
+    module, symbol = qualified_name.rsplit(".", 1)
+    path = REPO_ROOT.joinpath(*module.split(".")).with_suffix(".py")
+    if not path.is_file():
+        return False
+    for node in _tree(path).body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) or node.name != symbol:
+            continue
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return True
+        return any(
+            isinstance(decorator, ast.Call)
+            and isinstance(decorator.func, ast.Name)
+            and decorator.func.id == "dataclass"
+            and any(
+                keyword.arg == "frozen"
+                and isinstance(keyword.value, ast.Constant)
+                and keyword.value.value is True
+                for keyword in decorator.keywords
+            )
+            for decorator in node.decorator_list
+        )
+    return False
 
 
 def _application_construction_violations() -> set[str]:
@@ -198,8 +224,12 @@ def test_application_construction_guard_allows_payload_mapping_not_handler_const
         "from src.core.platform.application.tenant.modules.authorization import require_module_enabled\n"
         "from src.core.modules.project_management.application.tasks.service import TaskService\n"
         "from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import TaskCreateCommand\n"
+        "from src.core.modules.project_management.application.tasks.queries.assignment_preview import query_assignment_preview\n"
+        "from src.core.modules.project_management.application.scheduling.models.leveling import LevelingProposal\n"
         "require_module_enabled(catalog, 'project_management')\n"
         "TaskCreateCommand(project_id='project', name='Task')\n"
+        "query_assignment_preview('task', 'resource', task_query=query)\n"
+        "LevelingProposal(project_id='project')\n"
         "TaskService()\n"
     )
     assert _application_construction_for_tree("adapter.py", tree) == {
@@ -289,33 +319,30 @@ def test_resource_rate_and_certification_policy_stays_out_of_adapters() -> None:
 
 
 def test_scheduling_lifecycle_and_calendar_policy_stays_with_its_owners() -> None:
-    scheduling_root = DESKTOP_ROOT / "scheduling"
-    baseline_source = (scheduling_root / "formatters/baseline_formatter.py").read_text(
-        encoding="utf-8"
-    )
-    schedule_source = (
-        scheduling_root / "serializers/schedule_serializer.py"
-    ).read_text(encoding="utf-8")
-    calendar_source = (
-        scheduling_root / "services/calendar_adapter_service.py"
-    ).read_text(encoding="utf-8")
+    from inspect import getsource
 
-    for token in (
-        'status_val == "draft"',
-        'status_val == "submitted"',
-    ):
-        assert token not in baseline_source
+    from src.core.modules.project_management.application.scheduling.mappers.baselines import (
+        map_baseline,
+    )
+    from src.core.modules.project_management.application.scheduling.mappers.schedule import (
+        map_schedule_item,
+    )
+
+    scheduling_root = DESKTOP_ROOT / "scheduling"
+    adapter_source = "\n".join(
+        path.read_text(encoding="utf-8") for path in _python_files(scheduling_root)
+    )
+    baseline_source = getsource(map_baseline)
     assert "baseline.can_submit" in baseline_source
     assert "baseline.can_approve" in baseline_source
     assert "baseline.can_reject" in baseline_source
-
-    assert "task.remaining_duration_days" in schedule_source
-    assert "scheduling_utils" not in schedule_source
-    assert not (scheduling_root / "utils/scheduling_utils.py").exists()
-
-    assert "_default_platform_calendar_id" not in calendar_source
-    assert 'list_calendars(calendar_type="GLOBAL")' not in calendar_source
-    assert "get_default_calendar()" in calendar_source
+    assert 'status_val == "draft"' not in adapter_source
+    assert 'status_val == "submitted"' not in adapter_source
+    assert "task.remaining_duration_days" in getsource(map_schedule_item)
+    assert "scheduling_utils" not in adapter_source
+    assert "_default_platform_calendar_id" not in adapter_source
+    assert 'list_calendars(calendar_type="GLOBAL")' not in adapter_source
+    assert "get_default_calendar()" in adapter_source
 
 
 def test_register_triage_policy_stays_out_of_desktop_adapters() -> None:
@@ -364,7 +391,7 @@ def test_resource_utilization_policy_stays_out_of_desktop_adapters() -> None:
         DASHBOARD_PRESENTATION_ROOT / "builders/operational_table_builder.py",
         DASHBOARD_PRESENTATION_ROOT / "builders/overview_builder.py",
         DASHBOARD_PRESENTATION_ROOT / "builders/panel_builder.py",
-        DESKTOP_ROOT / "scheduling/serializers/resource_load_serializer.py",
+        REPO_ROOT / "src/ui_qml/modules/project_management/presenters/scheduling/record_mappers.py",
     )
     sources = tuple(path.read_text(encoding="utf-8") for path in source_paths)
 

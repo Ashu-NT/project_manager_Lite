@@ -208,7 +208,7 @@ class CollaborationInboxQueryHandler(ProjectManagementModuleGuardMixin):
                     body_preview=_body_preview(comment.body),
                     is_deleted=comment.is_deleted,
                     deleted_at=comment.deleted_at,
-                    mentions=list(comment.mentions),
+                    mentions=comment.mentions,
                     created_at=comment.created_at,
                     unread=(
                         self._policy.comment_is_unread_for_principal(comment)

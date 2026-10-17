@@ -3,11 +3,11 @@ from __future__ import annotations
 from src.core.modules.project_management.api.desktop.common.financial_formatting import (
     format_money,
 )
-from src.core.modules.project_management.api.desktop.portfolio.formatters.percent_formatter import (
-    format_percent,
-)
 from src.core.modules.project_management.application.portfolio.dto.responses.intake import (
     PortfolioIntakeResponse,
+)
+from src.ui_qml.modules.project_management.presenters.portfolio.formatting import (
+    format_percent,
 )
 from src.ui_qml.modules.project_management.view_models.portfolio import (
     PortfolioRecordViewModel,

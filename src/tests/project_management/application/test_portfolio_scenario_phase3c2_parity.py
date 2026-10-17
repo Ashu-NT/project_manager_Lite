@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import date
 from decimal import Decimal
-from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import FinancialCreateCostCodeCommand
-from src.core.modules.project_management.application.financials.budgets.dto.commands.lifecycle import FinancialCreateBudgetVersionCommand, FinancialVersionedBudgetCommand
-from src.core.modules.project_management.application.financials.budgets.dto.commands.lines import FinancialAddBudgetLineCommand
 
 import pytest
 
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lifecycle import (
+    FinancialCreateBudgetVersionCommand,
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.application.financials.budgets.dto.commands.budget_lines import (
+    FinancialAddBudgetLineCommand,
+)
+from src.core.modules.project_management.application.financials.configuration.dto.commands.cost_codes import (
+    FinancialCreateCostCodeCommand,
+)
 from src.core.modules.project_management.application.portfolio.dto.commands.intake import (
     PortfolioIntakeCreateCommand,
 )
@@ -22,6 +30,12 @@ from src.core.modules.project_management.application.projects.dto.commands.proje
 )
 from src.core.modules.project_management.application.resources.dto.commands.catalog import (
     ResourceCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_assignments import (
+    TaskAssignmentCreateCommand,
+)
+from src.core.modules.project_management.application.tasks.dto.commands.task_lifecycle import (
+    TaskCreateCommand,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
     SqlAlchemyPortfolioScenarioReader,
@@ -41,9 +55,9 @@ def _assign(
 ) -> None:
     project_resource = services["project_resource_commands"].add_to_project(ProjectResourceAssignCommand(project_id=project_id, resource_id=resource_id, planned_hours=40.0, hourly_rate=80.0, currency_code="EUR"))
     services['task_assignment_commands'].assign_project_resource(
-        task_id=task_id,
+        TaskAssignmentCreateCommand(task_id=task_id,
         project_resource_id=project_resource.id,
-        allocation_percent=allocation,
+        allocation_percent=allocation),
     )
 
 
@@ -79,12 +93,11 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
     _approve_budget(services, beta.id, "700")
 
     alpha_scheduled = services['task_lifecycle_commands'].create_task(
-        alpha.id,
-        "Alpha scheduled",
+        TaskCreateCommand(alpha.id, "Alpha scheduled",
         start_date=date(2024, 1, 8),
-        duration_days=5,
+        duration_days=5),
     )
-    alpha_unscheduled = services['task_lifecycle_commands'].create_task(alpha.id, "Alpha unscheduled")
+    alpha_unscheduled = services['task_lifecycle_commands'].create_task(TaskCreateCommand(alpha.id, "Alpha unscheduled"))
     _assign(
         services,
         project_id=alpha.id,
@@ -95,10 +108,9 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
     services['task_assignment_commands'].assign_resource(alpha_unscheduled.id, shared.id, 20.0)
 
     beta_task = services['task_lifecycle_commands'].create_task(
-        beta.id,
-        "Beta scheduled",
+        TaskCreateCommand(beta.id, "Beta scheduled",
         start_date=date(2024, 1, 8),
-        duration_days=5,
+        duration_days=5),
     )
     _assign(
         services,
@@ -136,8 +148,13 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
     assert comparison.candidate_evaluation.total_capacity_percent == pytest.approx(200.0)
     assert comparison.budget_delta == pytest.approx(500.0)
     assert comparison.capacity_delta_percent == pytest.approx(90.0)
-    assert comparison.added_project_names == ["Beta"]
-    assert comparison.removed_intake_titles == ["Intake"]
+    assert comparison.added_project_names == ("Beta",)
+    assert comparison.removed_intake_titles == ("Intake",)
+    assert comparison.summary
+    with pytest.raises(FrozenInstanceError):
+        comparison.summary = "Changed outside the application"
+    with pytest.raises(FrozenInstanceError):
+        comparison.base_evaluation.total_budget = Decimal("0")
 
 
 def test_scenario_comparison_reads_one_fact_graph(services, monkeypatch) -> None:

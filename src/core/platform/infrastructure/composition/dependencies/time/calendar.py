@@ -77,6 +77,12 @@ class _UnboundExternalCalendarAssignments:
     def list_for_calendar(self, _calendar_id: str) -> list[Any]:
         return []
 
+    def list_for_projects(self, project_ids: list[str]) -> list[Any]:
+        return []
+
+    def list_for_resources(self, resource_ids: list[str]) -> list[Any]:
+        return []
+
     def create(self, **_kwargs: Any) -> None:
         raise RuntimeError("External calendar assignments are not configured")
 

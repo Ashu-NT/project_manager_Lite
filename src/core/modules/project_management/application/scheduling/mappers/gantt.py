@@ -8,13 +8,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Protocol, cast
 
-from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
-    constraint_presentation,
-)
-from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
-    dependency_type_label,
-)
-from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
+from src.core.modules.project_management.application.scheduling.dto.responses.gantt import (
     GanttBaselineOverlayDto,
     GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
@@ -22,7 +16,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models.gantt imp
     GanttProjectionDto,
     GanttTaskRowDto,
 )
-from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.modules.project_management.domain.tasks.hierarchy import TaskHierarchyNode
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -335,8 +329,7 @@ def build_gantt_projection(
                 predecessor_task_name=str(node_by_id[predecessor_id].task.name),
                 successor_task_id=successor_id,
                 successor_task_name=str(node_by_id[successor_id].task.name),
-                dependency_type=_enum_value(dependency.dependency_type),
-                dependency_type_label=dependency_type_label(_enum_value(dependency.dependency_type)),
+                dependency_type=DependencyType(_enum_value(dependency.dependency_type)).value,
                 lag_days=int(dependency.lag_days or 0),
             )
         )
@@ -482,7 +475,6 @@ def _build_row(
     remaining: int | None
     if is_summary:
         status = _summary_status(rollup)
-        status_label = status.replace("_", " ").title()
         progress = _rollup_progress(rollup)
         duration = _summary_duration(rollup, work_calendar)
         remaining = max(0, round(duration * (1.0 - progress / 100.0)))
@@ -497,10 +489,6 @@ def _build_row(
         canonical = rollup.leaf_count > 0 and rollup.canonical_count == rollup.leaf_count
     else:
         status = _enum_value(getattr(task, "status", "todo"))
-        status_label = str(
-            getattr(schedule, "status_label", "")
-            or status.replace("_", " ").title()
-        )
         progress = float(getattr(task, "percent_complete", 0.0) or 0.0)
         duration = getattr(task, "duration_days", None)
         remaining = getattr(task, "remaining_duration_days", None)
@@ -514,8 +502,7 @@ def _build_row(
         late_by_days = rollup.late_by_days
         canonical = schedule is not None
 
-    constraint_type = "" if is_summary else str(getattr(schedule, "constraint_type", "") or "")
-    constraint_label = "" if is_summary else constraint_presentation(constraint_type).label
+    constraint_type = "" if is_summary else _enum_value(getattr(schedule, "constraint_type", ""))
     constraint_date = None if is_summary else getattr(task, "constraint_date", None)
     return GanttTaskRowDto(
         tenant_id=tenant_id,
@@ -541,7 +528,6 @@ def _build_row(
         duration_days=duration,
         remaining_duration_days=remaining,
         status=status,
-        status_label=status_label,
         percent_complete=round(progress, 4),
         is_milestone=(False if is_summary else bool(getattr(task, "is_milestone", False))),
         is_critical=rollup.is_critical,
@@ -549,7 +535,6 @@ def _build_row(
         total_float_days=total_float,
         has_canonical_schedule=canonical,
         constraint_type=constraint_type,
-        constraint_type_label=constraint_label,
         constraint_date=constraint_date,
         actual_start=actual_start,
         actual_finish=actual_finish,
@@ -676,4 +661,4 @@ def _build_non_working_intervals(
     return True, tuple(intervals)
 
 
-__all__ = ["build_gantt_projection", "build_hierarchy_nodes", "day_ordinal"]
+__all__ = ["build_gantt_baseline_overlay", "build_gantt_projection", "build_hierarchy_nodes", "day_ordinal"]

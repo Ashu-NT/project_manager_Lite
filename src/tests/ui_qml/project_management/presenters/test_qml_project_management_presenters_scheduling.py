@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
@@ -6,6 +7,7 @@ from src.core.modules.project_management.api.desktop import (
 )
 from src.core.modules.project_management.application.scheduling.mappers.baselines import (
     map_baseline_comparison,
+    map_baseline,
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.scheduling.baseline import (
@@ -48,6 +50,9 @@ class _FakeBaselineService:
 
     def list_baselines(self, project_id: str) -> list[SimpleNamespace]:
         return list(self._baselines_by_project.get(project_id, []))
+
+    def query_baseline_responses(self, project_id: str):
+        return tuple(map_baseline(baseline) for baseline in self.list_baselines(project_id))
 
 
 class _FakeReportingService:
@@ -128,7 +133,12 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
                 organization_id="org-1",
             ),
         ),
-        task_lookup_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_detail_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_hierarchy_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_dependency_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_dependency_commands=SimpleNamespace(list_tasks_for_project=lambda project_id: []), task_leveling_commands=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
+        task_lookup_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
+        task_detail_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
+        task_hierarchy_query=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
+        task_dependency_query=SimpleNamespace(list_dependencies_for_project=lambda project_id: []),
+        task_dependency_commands=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
+        task_leveling_commands=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
         scheduling_engine=_FakeSchedulingEngine(
             {
                 "proj-1": [
@@ -213,7 +223,7 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
                         start_shift_days=1,
                         finish_shift_days=1,
                         duration_delta_days=0,
-                        planned_cost_delta="1200",
+                        planned_cost_delta=Decimal("1200"),
                     )
                 ]
             }

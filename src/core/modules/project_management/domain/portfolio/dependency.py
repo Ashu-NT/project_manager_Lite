@@ -113,7 +113,7 @@ class PortfolioProjectDependency:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class PortfolioProjectDependencyView:
     dependency_id: str
     predecessor_project_id: str
